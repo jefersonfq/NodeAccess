@@ -245,7 +245,7 @@ async function countActiveNativeSshSessions(tenantId: number): Promise<number> {
   `)
 
   const count = rows[0]?.count ?? 0
-  return typeof count === 'bigint' ? Number(count) : Number(count)
+  return Number(count)
 }
 
 function normalizeInput(input: UpdateNativeSshGatewayConfigBody): UpdateNativeSshGatewayConfigBody {

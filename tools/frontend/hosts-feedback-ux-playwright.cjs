@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+const { artifactPath } = require('../shared/private-artifacts.cjs')
 const { chromium } = require('playwright')
 const assert = require('node:assert/strict')
 const fs = require('node:fs/promises')
@@ -123,7 +124,7 @@ async function main() {
    await sections.filter({has: page.locator('summary', {hasText:'Casos práticos que resolve'})}).locator('summary').click()
    await integration.getByText('Acesso individual a roteadores e switches',{exact:true}).waitFor()
    assert.equal(networkLoads, 0, 'Use cases must not load AAA settings')
-   await integration.screenshot({path:'/tmp/nodeaccess-tacacs-card-desktop.png'})
+   await integration.screenshot({path:artifactPath('nodeaccess-tacacs-card-desktop.png')})
    const configSummary = sections.filter({has: page.locator('summary', {hasText:'Configuração'})}).locator('summary')
    await configSummary.focus(); await page.keyboard.press('Enter')
    await page.getByTestId('network-access-settings').waitFor()
@@ -142,7 +143,7 @@ async function main() {
    await page.getByRole('button',{name:'Tentar novamente',exact:true}).click()
    await page.getByTestId('network-access-settings').waitFor()
    assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), true)
-   await page.screenshot({path:'/tmp/nodeaccess-tacacs-integrations-mobile.png',fullPage:true})
+   await page.screenshot({path:artifactPath('nodeaccess-tacacs-integrations-mobile.png'),fullPage:true})
   })
   await check('equipment fields stay in organization and summary follows profile and OS', async () => {
    await page.goto(`${base}/hosts?cdp_perf=equipment-layout`)
@@ -165,10 +166,10 @@ async function main() {
    await equipment.getByLabel('Perfil do equipamento',{exact:true}).click()
    await page.getByText('Servidor SSH',{exact:true}).click()
    assert.equal(await page.evaluate(() => window.__nodeAccessHostsPerf.startupSnippetFormState().startupSnippetAvailable), true)
-   await modal.screenshot({path:'/tmp/nodeaccess-host-equipment-mobile.png'})
+   await modal.screenshot({path:artifactPath('nodeaccess-host-equipment-mobile.png')})
   })
   assert.deepEqual(errors, [])
-  await fs.writeFile('/tmp/nodeaccess-hosts-feedback-ux.json', JSON.stringify(results, null, 2)); console.log(JSON.stringify({ passed: results.length, scenarios: results }))
+  await fs.writeFile(artifactPath('nodeaccess-hosts-feedback-ux.json'), JSON.stringify(results, null, 2)); console.log(JSON.stringify({ passed: results.length, scenarios: results }))
  } catch (error) { console.error({ browserErrors: errors, text: (await page.locator('body').innerText()).slice(0,4500) }); throw error } finally { await browser.close() }
 }
 main().catch(e => { console.error(e); process.exitCode = 1 })

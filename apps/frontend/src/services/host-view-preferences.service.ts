@@ -43,8 +43,8 @@ function readInt(key: string, fallback: number, min: number, max: number): numbe
   if (typeof window === 'undefined') return fallback
   const raw = window.localStorage.getItem(key)
   if (raw === null) return fallback
-  const parsed = parseInt(raw, 10)
-  if (isNaN(parsed)) return fallback
+  const parsed = Number.parseInt(raw, 10)
+  if (Number.isNaN(parsed)) return fallback
   return Math.min(max, Math.max(min, parsed))
 }
 

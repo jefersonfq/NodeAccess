@@ -1,3 +1,4 @@
+import { artifactPath } from '../shared/private-artifacts.cjs'
 import {writeFileSync} from 'node:fs'
 import {buildCommandTimeline} from '../../apps/backend/src/modules/session-audit/session-audit-normalizer.js'
 import type {SessionAuditPreviewEvent} from '@nodeaccess/shared'
@@ -14,4 +15,4 @@ emit('stdout','1 row in set\r\nmysql> ')
 emit('stdin','SELECT 1;\x1b[A\r')
 emit('stdout','unresolved history result\r\nmysql> ')
 emit('session_ended','')
-writeFileSync('/tmp/nodeaccess-audit-synthetic-review.json',JSON.stringify({events,commands:buildCommandTimeline(events)}),{mode:0o600})
+writeFileSync(artifactPath('nodeaccess-audit-synthetic-review.json'),JSON.stringify({events,commands:buildCommandTimeline(events)}),{mode:0o600})

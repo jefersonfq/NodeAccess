@@ -1,0 +1,48 @@
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - ESM syntax in a file loaded as CommonJS (vitest.config.ts:2:1). Use a `.mjs` extension or set `"type": "module"` in the closest package.json
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+ RUN  v4.1.12 /tmp/nodeaccess-NA-0100
+
+·················---········stderr | apps/backend/src/modules/mcp/mcp-http.test.ts > MCP stateless HTTP with real routes, controller, service and guards > negotiates versions, acknowledges initialized with empty 202 and responds to ping
+strict mode: use allowUnionTypes to allow union type keyword at "#/properties/id" (strictTypes)
+
+stderr | apps/backend/src/modules/mcp/mcp-http.test.ts > MCP stateless HTTP with real routes, controller, service and guards > discovers only allowed tools and filters query by tenant and token hosts
+strict mode: use allowUnionTypes to allow union type keyword at "#/properties/id" (strictTypes)
+
+stderr | apps/backend/src/modules/mcp/mcp-http.test.ts > MCP stateless HTTP with real routes, controller, service and guards > refuses invalid credentials before dispatch
+strict mode: use allowUnionTypes to allow union type keyword at "#/properties/id" (strictTypes)
+
+··stderr | apps/backend/src/modules/mcp/mcp-http.test.ts > MCP stateless HTTP with real routes, controller, service and guards > refuses expired credentials before dispatch
+strict mode: use allowUnionTypes to allow union type keyword at "#/properties/id" (strictTypes)
+
+stderr | apps/backend/src/modules/mcp/mcp-http.test.ts > MCP stateless HTTP with real routes, controller, service and guards > refuses revoked credentials before dispatch
+strict mode: use allowUnionTypes to allow union type keyword at "#/properties/id" (strictTypes)
+
+stderr | apps/backend/src/modules/mcp/mcp-http.test.ts > MCP stateless HTTP with real routes, controller, service and guards > refuses disabled module, missing license and inactive owner
+strict mode: use allowUnionTypes to allow union type keyword at "#/properties/id" (strictTypes)
+
+···stderr | apps/backend/src/modules/mcp/mcp-http.test.ts > MCP stateless HTTP with real routes, controller, service and guards > validates configured origins without trusting Host
+strict mode: use allowUnionTypes to allow union type keyword at "#/properties/id" (strictTypes)
+
+stderr | apps/backend/src/modules/mcp/mcp-http.test.ts > MCP stateless HTTP with real routes, controller, service and guards > validates Accept and protocol version
+strict mode: use allowUnionTypes to allow union type keyword at "#/properties/id" (strictTypes)
+
+stderr | apps/backend/src/modules/mcp/mcp-http.test.ts > MCP stateless HTTP with real routes, controller, service and guards > refuses malformed messages and operation notifications without executing anything
+strict mode: use allowUnionTypes to allow union type keyword at "#/properties/id" (strictTypes)
+
+···stderr | apps/backend/src/modules/mcp/mcp-http.test.ts > MCP stateless HTTP with real routes, controller, service and guards > returns authenticated 405 for unsupported GET
+strict mode: use allowUnionTypes to allow union type keyword at "#/properties/id" (strictTypes)
+
+stderr | apps/backend/src/modules/mcp/mcp-http.test.ts > MCP stateless HTTP with real routes, controller, service and guards > returns authenticated 405 for unsupported DELETE
+strict mode: use allowUnionTypes to allow union type keyword at "#/properties/id" (strictTypes)
+
+··········································stderr | apps/backend/src/modules/mcp/mcp-http.test.ts > MCP stateless HTTP with real routes, controller, service and guards > completes initialization and concurrent discovery over a real loopback HTTP socket
+strict mode: use allowUnionTypes to allow union type keyword at "#/properties/id" (strictTypes)
+
+····
+
+ Test Files  6 passed (6)
+      Tests  79 passed | 3 skipped (82)
+   Start at  16:46:11
+   Duration  1.52s (transform 1.29s, setup 0ms, import 2.22s, tests 1.07s, environment 1ms)

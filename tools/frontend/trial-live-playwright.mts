@@ -1,3 +1,4 @@
+import { artifactPath } from '../shared/private-artifacts.cjs'
 /** Opt-in live browser/API/MySQL/Redis/SSH test. SMTP + provisioner are explicit doubles. */
 import assert from 'node:assert/strict'
 import { createHash, randomUUID } from 'node:crypto'
@@ -22,7 +23,7 @@ const sshPort = Number(process.env.TRIAL_LIVE_SSH_PORT || 2222)
 const sshUser = process.env.TRIAL_LIVE_SSH_USER || 'trial'
 const sshPassword = process.env.TRIAL_LIVE_SSH_PASSWORD
 assert.ok(sshPassword, 'Set disposable SSH password')
-const output = '/tmp/na0068-live-browser'
+const output = artifactPath('na0068-live-browser')
 await mkdir(output, { recursive: true })
 const { TrialService } = await import('../../apps/backend/src/modules/trials/trial.service.js')
 const { trialRoutes } = await import('../../apps/backend/src/modules/trials/trial.routes.js')

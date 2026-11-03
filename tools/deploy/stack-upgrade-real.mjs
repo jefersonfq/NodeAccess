@@ -1,3 +1,4 @@
+import { artifactPath } from '../shared/private-artifacts.cjs'
 /** Opt-in. Creates only random, labelled disposable Docker resources; never uses .env. */
 import { execFileSync } from 'node:child_process'
 import { randomBytes, createHash } from 'node:crypto'
@@ -19,7 +20,7 @@ Object.assign(process.env, { DATABASE_URL: 'mysql://unused:unused@127.0.0.1:1/un
 const { encrypt, decrypt } = await import('../../apps/backend/src/shared/crypto.ts')
 const resources = { containers: new Set(), volumes: new Set() }
 const report = { passed: false, images, checks: [], versions: {} }
-const output = resolve(process.env.STACK_TEST_OUTPUT || '/tmp/nodeaccess-stack-upgrade')
+const output = resolve(process.env.STACK_TEST_OUTPUT || artifactPath('nodeaccess-stack-upgrade'))
 mkdirSync(output, { recursive: true })
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms))
 function run(command, args, options = {}) {

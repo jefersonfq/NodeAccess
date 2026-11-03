@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+const { artifactPath } = require('../shared/private-artifacts.cjs')
 /*
  * Terminal browser load harness via Chromium CDP.
  *
@@ -27,7 +28,7 @@ const REPO_ROOT = path.resolve(__dirname, '..', '..')
 const CDP_BASE = process.env.CDP_BASE || 'http://127.0.0.1:9362'
 const FRONTEND = (process.env.FRONTEND_BASE || 'http://127.0.0.1:5173').replace(/\/$/, '')
 const PROFILE_FILE = process.env.PROFILE_FILE || path.join(REPO_ROOT, 'tools/load-tests/data/profile.local.json')
-const REPORT_PATH = process.env.REPORT_PATH || '/tmp/nodeaccess-terminal-cdp-load.json'
+const REPORT_PATH = process.env.REPORT_PATH || artifactPath('nodeaccess-terminal-cdp-load.json')
 const CONCURRENCY = numberEnv('CONCURRENCY', 5)
 const START_STAGGER_MS = numberEnv('START_STAGGER_MS', 500)
 const HOLD_MS = numberEnv('HOLD_MS', 15000)

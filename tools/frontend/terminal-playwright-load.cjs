@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+const { artifactPath } = require('../shared/private-artifacts.cjs')
 /*
  * Terminal browser load harness via Playwright.
  *
@@ -31,8 +32,8 @@ try {
 const REPO_ROOT = path.resolve(__dirname, '..', '..')
 const FRONTEND = (process.env.FRONTEND_BASE || 'http://127.0.0.1:5173').replace(/\/$/, '')
 const PROFILE_FILE = process.env.PROFILE_FILE || path.join(REPO_ROOT, 'tools/load-tests/data/profile.local.json')
-const REPORT_PATH = process.env.REPORT_PATH || '/tmp/nodeaccess-terminal-playwright-load.json'
-const ARTIFACTS_DIR = process.env.ARTIFACTS_DIR || '/tmp/nodeaccess-terminal-playwright-artifacts'
+const REPORT_PATH = process.env.REPORT_PATH || artifactPath('nodeaccess-terminal-playwright-load.json')
+const ARTIFACTS_DIR = process.env.ARTIFACTS_DIR || artifactPath('nodeaccess-terminal-playwright-artifacts')
 const BROWSER = process.env.BROWSER || 'chromium'
 const HEADLESS = process.env.HEADLESS !== '0'
 const CONCURRENCY = numberEnv('CONCURRENCY', 5)

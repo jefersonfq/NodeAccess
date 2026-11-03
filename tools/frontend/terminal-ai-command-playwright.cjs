@@ -1,7 +1,8 @@
+const { artifactPath } = require('../shared/private-artifacts.cjs')
 const assert = require('node:assert/strict')
 const fs = require('node:fs/promises')
 module.exports = async ({page}) => {
-  const out = '/tmp/nodeaccess-terminal-ai-command-' + (process.env.UI_THEME || 'dark')
+  const out = artifactPath('nodeaccess-terminal-ai-command-') + (process.env.UI_THEME || 'dark')
   await fs.mkdir(out,{recursive:true})
   const runtimeErrors=[]
   page.on('pageerror',err=>runtimeErrors.push(err.message))

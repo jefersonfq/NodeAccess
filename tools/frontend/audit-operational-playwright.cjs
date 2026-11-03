@@ -1,10 +1,11 @@
+const { artifactPath } = require('../shared/private-artifacts.cjs')
 const fs=require('node:fs')
 const assert=require('node:assert/strict')
 const {chromium}=require('playwright')
 const {installRoutes,authenticate}=require('./session-playback-playwright.cjs')
-const config=JSON.parse(fs.readFileSync('/tmp/nodeaccess-operational-api.json','utf8'))
+const config=JSON.parse(fs.readFileSync(artifactPath('nodeaccess-operational-api.json'),'utf8'))
 const base=process.env.FRONTEND_BASE||'http://127.0.0.1:5182'
-const artifacts='/tmp/nodeaccess-operational-ui'
+const artifacts=artifactPath('nodeaccess-operational-ui')
 async function run(browser,scenario,width){
  const context=await browser.newContext({viewport:{width,height:1000},acceptDownloads:true})
  await installRoutes(context) // Only surrounding application services are stubbed.

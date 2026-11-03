@@ -1,0 +1,101 @@
+{
+  "changeId": "NA-0085",
+  "baseSHA": "f4a44b4b7ae87a8f688b1246d9e52a31f9a104bc",
+  "candidateFingerprint": "92e3692254d61cec41c4ace67adc7d33aae769faade58aaa66f53af27ea5ed49",
+  "time": "2026-11-03T13:57:53-03:00",
+  "serverVersion": "26.10.0.133078",
+  "scannerVersion": "5.0.2",
+  "analysisId": "1504c794-8392-4901-a037-3e902d3268f1",
+  "computeTaskStatus": "SUCCESS",
+  "counts": {
+    "issues": 533,
+    "hotspots": 0,
+    "hotspotsToReview": 0
+  },
+  "types": {
+    "VULNERABILITY": 187,
+    "CODE_SMELL": 220,
+    "BUG": 126
+  },
+  "severities": {
+    "MINOR": 129,
+    "MAJOR": 239,
+    "CRITICAL": 147,
+    "BLOCKER": 18
+  },
+  "qualityGate": {
+    "status": "OK",
+    "conditions": [
+      {
+        "status": "OK",
+        "metricKey": "new_coverage",
+        "comparator": "LT",
+        "errorThreshold": "80",
+        "actualValue": "0.0"
+      },
+      {
+        "status": "OK",
+        "metricKey": "new_duplicated_lines_density",
+        "comparator": "GT",
+        "errorThreshold": "3",
+        "actualValue": "0.0"
+      },
+      {
+        "status": "OK",
+        "metricKey": "new_violations",
+        "comparator": "GT",
+        "errorThreshold": "0",
+        "actualValue": "0"
+      }
+    ],
+    "ignoredConditions": true,
+    "period": {
+      "mode": "PREVIOUS_VERSION",
+      "date": "2026-11-03T16:48:47+0000"
+    },
+    "caycStatus": "compliant"
+  },
+  "metrics": [
+    {
+      "metric": "coverage",
+      "value": "10.2",
+      "bestValue": false
+    },
+    {
+      "metric": "bugs",
+      "value": "126",
+      "bestValue": false
+    },
+    {
+      "metric": "duplicated_lines_density",
+      "value": "3.7",
+      "bestValue": false
+    },
+    {
+      "metric": "code_smells",
+      "value": "220",
+      "bestValue": false
+    },
+    {
+      "metric": "ncloc",
+      "value": "209015"
+    },
+    {
+      "metric": "vulnerabilities",
+      "value": "187",
+      "bestValue": false
+    },
+    {
+      "metric": "security_hotspots",
+      "value": "0",
+      "bestValue": true
+    }
+  ],
+  "reportComplete": true,
+  "limits": [
+    "LOCAL_WIP; SHA base plus candidate fingerprint identifies uncommitted code.",
+    "First gate had no conditions. Final gate OK has ignoredConditions=true and new_coverage=0; not approval of legacy quality.",
+    "Vitest coverage run has one timeout and insufficient thresholds.",
+    "No product issue fixed or marked resolved; no critical code change."
+  ]
+}

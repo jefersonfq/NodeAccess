@@ -118,7 +118,7 @@ export class CertificateManager extends EventEmitter {
     if(['validate','apply','automatic','pause'].includes(input.action) && typeof input.expectedFingerprint!=='string')throw new TlsError('STALE_STATE','Atualize a tela antes de alterar o certificado.',409)
     if(input.action==='validate' && (typeof input.certificate!=='string'||typeof input.privateKey!=='string'||input.certificate.length>100000||input.privateKey.length>30000))throw new TlsError('INVALID_INPUT','Envie certificado e chave PEM dentro dos limites de tamanho.',400)
     if(input.action==='apply'&&!uuid.test(input.candidateId||''))throw new TlsError('INVALID_CANDIDATE','Valide os arquivos antes de aplicar.',400)
-    if(input.action==='automatic'&&(input.agreeTerms!==true||typeof input.email!=='string'||!/^\S+@\S+\.\S+$/.test(input.email)||input.email.length>254))throw new TlsError('ACME_CONSENT','Informe um e-mail válido e aceite os termos do Let’s Encrypt.',400)
+    if(input.action==='automatic'&&(input.agreeTerms!==true||typeof input.email!=='string'||input.email.length>254||!/^[^\s@<>]+@[^\s@<>.]+(?:\.[^\s@<>.]+)+$/.test(input.email)))throw new TlsError('ACME_CONSENT','Informe um e-mail válido e aceite os termos do Let’s Encrypt.',400)
     if(['renew','simulate'].includes(input.action)&&this.state.mode!=='automatic')throw new TlsError('NOT_AUTOMATIC','A renovação automática não está habilitada.',409)
     const until=this.state.acmeBlockedUntil
     if (['automatic','renew','simulate'].includes(input.action)&&Date.parse(until||'')>this.now()) {

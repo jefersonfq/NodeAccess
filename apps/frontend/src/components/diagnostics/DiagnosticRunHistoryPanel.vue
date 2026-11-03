@@ -44,13 +44,12 @@ function formatDate(value: string) {
 
       <section aria-labelledby="diagnostic-history-trend-title">
         <h3 id="diagnostic-history-trend-title">Linha do tempo recente</h3>
-        <div class="history-trend" role="list">
+        <div class="history-trend" role="group" aria-labelledby="diagnostic-history-trend-title">
           <button
             v-for="point in recentTrend"
             :key="point.runId"
             type="button"
             class="history-point"
-            role="listitem"
             :aria-label="`Abrir execução ${point.runId}, ${point.failedCommands} comandos falhos, risco ${point.riskLevel ?? 'indisponível'}`"
             @click="emit('openRun', point.runId)"
           >

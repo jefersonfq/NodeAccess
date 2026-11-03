@@ -1,0 +1,174 @@
+[
+  {
+    "key": "65c152b7-ebf6-41d3-af3c-37ead57b621c",
+    "rule": "Web:S6853",
+    "file": "apps/frontend/src/views/ForwardingsView.vue",
+    "baselineLine": 650,
+    "status": "fixed",
+    "rationale": "Correção inicial nomeou input interno; refinamento separa label do contêiner NSelect com for e input-props.id estável e único. DOM confirma HTMLLabelElement.control, nome acessível e foco ao clicar no label, preservando layout/teclado. Reanálise posterior ainda pendente.",
+    "evidence": [
+      "tools/frontend/sonar-frontend-review.cjs",
+      "docs/changes/2026/11/NA-0087-sonar-frontend/dom-label-evidence.json#65c152b7-ebf6-41d3-af3c-37ead57b621c",
+      "docs/changes/2026/11/NA-0087-sonar-frontend/followup-review.md"
+    ],
+    "risk": "low",
+    "history": [
+      {
+        "status": "fixed",
+        "rationale": "Controle textbox (Agente pessoal) agora recebe nome no componente/input interno; wrapper externo inválido foi removido ou label passou a ter associação real. Fixture derivada desta ocorrência confirma nome e foco.",
+        "evidence": [
+          "docs/changes/2026/11/NA-0087-sonar-frontend/dom-label-evidence.json#65c152b7-ebf6-41d3-af3c-37ead57b621c",
+          "tools/frontend/sonar-frontend-review.cjs"
+        ],
+        "stage": "initial-remediation"
+      }
+    ],
+    "scannerAfterInitialFix": "open; integration NA-0089 follow-up"
+  },
+  {
+    "key": "dcc6941b-6650-4a90-9de9-e014ad973474",
+    "rule": "Web:S6853",
+    "file": "apps/frontend/src/views/SnippetsView.vue",
+    "baselineLine": 741,
+    "status": "fixed",
+    "rationale": "Correção inicial nomeou input interno; refinamento separa label do contêiner NSelect com for e input-props.id estável e único. DOM confirma HTMLLabelElement.control, nome acessível e foco ao clicar no label, preservando layout/teclado. Reanálise posterior ainda pendente.",
+    "evidence": [
+      "tools/frontend/sonar-frontend-review.cjs",
+      "docs/changes/2026/11/NA-0087-sonar-frontend/dom-label-evidence.json#dcc6941b-6650-4a90-9de9-e014ad973474",
+      "docs/changes/2026/11/NA-0087-sonar-frontend/followup-review.md"
+    ],
+    "risk": "low",
+    "history": [
+      {
+        "status": "fixed",
+        "rationale": "Controle textbox (snippets.kind.label) agora recebe nome no componente/input interno; wrapper externo inválido foi removido ou label passou a ter associação real. Fixture derivada desta ocorrência confirma nome e foco.",
+        "evidence": [
+          "docs/changes/2026/11/NA-0087-sonar-frontend/dom-label-evidence.json#dcc6941b-6650-4a90-9de9-e014ad973474",
+          "tools/frontend/sonar-frontend-review.cjs"
+        ],
+        "stage": "initial-remediation"
+      }
+    ],
+    "scannerAfterInitialFix": "open; integration NA-0089 follow-up"
+  },
+  {
+    "key": "9897e613-5ea8-4488-bbe6-13e518c2755a",
+    "rule": "Web:S6853",
+    "file": "apps/frontend/src/views/SnippetsView.vue",
+    "baselineLine": 749,
+    "status": "fixed",
+    "rationale": "Correção inicial nomeou input interno; refinamento separa label do contêiner NSelect com for e input-props.id estável e único. DOM confirma HTMLLabelElement.control, nome acessível e foco ao clicar no label, preservando layout/teclado. Reanálise posterior ainda pendente.",
+    "evidence": [
+      "tools/frontend/sonar-frontend-review.cjs",
+      "docs/changes/2026/11/NA-0087-sonar-frontend/dom-label-evidence.json#9897e613-5ea8-4488-bbe6-13e518c2755a",
+      "docs/changes/2026/11/NA-0087-sonar-frontend/followup-review.md"
+    ],
+    "risk": "low",
+    "history": [
+      {
+        "status": "fixed",
+        "rationale": "Controle textbox (snippets.groups.label) agora recebe nome no componente/input interno; wrapper externo inválido foi removido ou label passou a ter associação real. Fixture derivada desta ocorrência confirma nome e foco.",
+        "evidence": [
+          "docs/changes/2026/11/NA-0087-sonar-frontend/dom-label-evidence.json#9897e613-5ea8-4488-bbe6-13e518c2755a",
+          "tools/frontend/sonar-frontend-review.cjs"
+        ],
+        "stage": "initial-remediation"
+      }
+    ],
+    "scannerAfterInitialFix": "open; integration NA-0089 follow-up"
+  },
+  {
+    "key": "1172d30b-f5f0-4721-9afb-a72759711101",
+    "rule": "Web:S6853",
+    "file": "apps/frontend/src/views/SnippetsView.vue",
+    "baselineLine": 757,
+    "status": "fixed",
+    "rationale": "Correção inicial nomeou input interno; refinamento separa label do contêiner NSelect com for e input-props.id estável e único. DOM confirma HTMLLabelElement.control, nome acessível e foco ao clicar no label, preservando layout/teclado. Reanálise posterior ainda pendente.",
+    "evidence": [
+      "tools/frontend/sonar-frontend-review.cjs",
+      "docs/changes/2026/11/NA-0087-sonar-frontend/dom-label-evidence.json#1172d30b-f5f0-4721-9afb-a72759711101",
+      "docs/changes/2026/11/NA-0087-sonar-frontend/followup-review.md"
+    ],
+    "risk": "low",
+    "history": [
+      {
+        "status": "fixed",
+        "rationale": "Controle textbox (snippetsPage.filters.secrets) agora recebe nome no componente/input interno; wrapper externo inválido foi removido ou label passou a ter associação real. Fixture derivada desta ocorrência confirma nome e foco.",
+        "evidence": [
+          "docs/changes/2026/11/NA-0087-sonar-frontend/dom-label-evidence.json#1172d30b-f5f0-4721-9afb-a72759711101",
+          "tools/frontend/sonar-frontend-review.cjs"
+        ],
+        "stage": "initial-remediation"
+      }
+    ],
+    "scannerAfterInitialFix": "open; integration NA-0089 follow-up"
+  },
+  {
+    "key": "0087ae89-303e-45f7-9348-faf429a64cfc",
+    "rule": "Web:S6843",
+    "file": "apps/frontend/src/views/GraphicalSessionView.vue",
+    "baselineLine": 1977,
+    "status": "context_reviewed",
+    "rationale": "Correção anterior img→application preservada: canvas é a superfície remota que recebe keydown/keyup, pointer, wheel e paste, não imagem estática ou botão. Handler conectado converte KeyboardEvent em keysym e instrução Guacamole. Role application descreve esta região interativa nomeada; scanner persiste pela regra genérica sobre elemento não interativo. Não trocar papel para satisfazer scanner. Revisão de contexto após correção, não alegação de ausência do alerta.",
+    "evidence": [
+      "apps/frontend/src/views/GraphicalSessionView.vue:1270",
+      "apps/frontend/src/services/graphical-guacd-client.test.ts",
+      "docs/changes/2026/11/NA-0087-sonar-frontend/followup-review.md"
+    ],
+    "risk": "low",
+    "history": [
+      {
+        "status": "fixed",
+        "rationale": "Canvas remoto interativo recebe role=application com nome existente; papel img não descrevia teclado, pointer e paste da aplicação remota.",
+        "evidence": [
+          "apps/frontend/src/views/GraphicalSessionView.vue",
+          "docs/changes/2026/11/NA-0087-sonar-frontend/test-results.md"
+        ],
+        "stage": "initial-remediation"
+      }
+    ],
+    "scannerAfterInitialFix": "open; integration NA-0089 follow-up"
+  },
+  {
+    "key": "43a6dcde-006b-4c2d-ada3-e946f1a48c09",
+    "rule": "javascript:S1523",
+    "file": "tools/frontend/sonar-frontend-review.cjs",
+    "baselineLine": 21,
+    "status": "fixed",
+    "rationale": "Removido Function/eval: parser literal limitado a strings, objetos de props, t/$t e option.label; não executa código do checkout. Testes rejeitam chamadas arbitrárias, sufixos executáveis, sintaxe inválida e profundidade excessiva.",
+    "evidence": [
+      "tools/frontend/sonar-fixture-expression.test.cjs",
+      "tools/frontend/sonar-frontend-review.cjs",
+      "docs/changes/2026/11/NA-0087-sonar-frontend/followup-review.md"
+    ],
+    "risk": "low"
+  },
+  {
+    "key": "c074a7a1-304a-4a7d-a05c-e7ec95b7392a",
+    "rule": "javascript:S4036",
+    "file": "tools/frontend/sonar-frontend-review.cjs",
+    "baselineLine": 42,
+    "status": "fixed",
+    "rationale": "execFileSync utiliza /usr/bin/git absoluto no ambiente WSL de teste, eliminando resolução do executável por PATH. Sem shell e argumentos continuam estruturados.",
+    "evidence": [
+      "tools/frontend/sonar-fixture-expression.test.cjs",
+      "tools/frontend/sonar-frontend-review.cjs",
+      "docs/changes/2026/11/NA-0087-sonar-frontend/followup-review.md"
+    ],
+    "risk": "low"
+  },
+  {
+    "key": "9b8d5d63-255f-466f-9560-0f18ffd9b7c5",
+    "rule": "javascript:S4036",
+    "file": "tools/frontend/sonar-frontend-review.cjs",
+    "baselineLine": 65,
+    "status": "fixed",
+    "rationale": "execFileSync utiliza /usr/bin/git absoluto no ambiente WSL de teste, eliminando resolução do executável por PATH. Sem shell e argumentos continuam estruturados.",
+    "evidence": [
+      "tools/frontend/sonar-fixture-expression.test.cjs",
+      "tools/frontend/sonar-frontend-review.cjs",
+      "docs/changes/2026/11/NA-0087-sonar-frontend/followup-review.md"
+    ],
+    "risk": "low"
+  }
+]

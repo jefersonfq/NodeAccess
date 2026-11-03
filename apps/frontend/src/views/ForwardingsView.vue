@@ -647,13 +647,17 @@ function preview(fw: { bindAddress?: '127.0.0.1' | '0.0.0.0'; localPort: number;
         v-if="!loadingPersonalAgents && !personalAgents.length && !localPublishError"
         description="Nenhum agente pessoal online. Conecte seu agente e reabra esta janela."
       />
-      <label>Agente pessoal<NSelect
-        v-model:value="localAgentId"
-        aria-label="Agente pessoal"
-        :loading="loadingPersonalAgents"
-        :options="personalAgents.map(agent => ({ label: agent.name, value: agent.id }))"
-        :disabled="publishingLocal || loadingPersonalAgents"
-      /></label>
+      <div>
+        <label for="forwarding-personal-agent">Agente pessoal</label><NSelect
+          v-model:value="localAgentId"
+          filterable
+          :input-props="{ id: 'forwarding-personal-agent', 'aria-label': 'Agente pessoal' }"
+          aria-label="Agente pessoal"
+          :loading="loadingPersonalAgents"
+          :options="personalAgents.map(agent => ({ label: agent.name, value: agent.id }))"
+          :disabled="publishingLocal || loadingPersonalAgents"
+        />
+      </div>
       <label class="mt-3 block">Porta na minha máquina<input
         v-model.number="localAgentPort"
         type="number"
@@ -1220,6 +1224,7 @@ function preview(fw: { bindAddress?: '127.0.0.1' | '0.0.0.0'; localPort: number;
               </p>
               <select
                 v-model="form.webProtocol"
+                :aria-label="$t('tunnels.webProtocol')"
                 class="w-full rounded border border-gray-700 bg-[#18181c] px-3 py-2 text-sm text-gray-200"
               >
                 <option value="http">
@@ -1257,6 +1262,7 @@ function preview(fw: { bindAddress?: '127.0.0.1' | '0.0.0.0'; localPort: number;
             </p>
             <select
               v-model="form.bindAddress"
+              :aria-label="$t('tunnels.bindAddress')"
               class="w-full rounded border border-gray-700 bg-[#18181c] px-3 py-2 text-sm text-gray-200"
             >
               <option

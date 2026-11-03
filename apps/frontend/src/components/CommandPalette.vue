@@ -218,6 +218,7 @@ function scrollActiveIntoView() {
           </svg>
           <input
             ref="inputRef"
+            :aria-label="t('commandPalette.placeholder')"
             v-model="query"
             class="cmd-input"
             :placeholder="$t('commandPalette.placeholder')"

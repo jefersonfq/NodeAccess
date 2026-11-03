@@ -445,7 +445,7 @@ async function copyTunnelEndpoint(tunnel: ActiveTunnel) {
       </div>
       <div v-if="form.webEnabled" class="flex items-center gap-2">
         <span class="text-[11px] text-gray-400 w-20 shrink-0">{{ $t('tunnels.webProtocol') }}</span>
-        <select v-model="form.webProtocol" class="flex-1 rounded border border-gray-700 bg-[#18181c] px-2 py-1 text-xs text-gray-200">
+        <select v-model="form.webProtocol" :aria-label="$t('tunnels.webProtocol')" class="flex-1 rounded border border-gray-700 bg-[#18181c] px-2 py-1 text-xs text-gray-200">
           <option value="http">HTTP</option>
           <option value="https">HTTPS</option>
         </select>
@@ -466,7 +466,7 @@ async function copyTunnelEndpoint(tunnel: ActiveTunnel) {
         </button>
         <div v-if="showAdvancedOptions" class="mt-2 flex items-center gap-2">
           <span class="text-[11px] text-gray-400 w-20 shrink-0">{{ $t('tunnels.bindAddress') }}</span>
-          <select v-model="form.bindAddress" class="flex-1 rounded border border-gray-700 bg-[#18181c] px-2 py-1 text-xs text-gray-200">
+          <select v-model="form.bindAddress" :aria-label="$t('tunnels.bindAddress')" class="flex-1 rounded border border-gray-700 bg-[#18181c] px-2 py-1 text-xs text-gray-200">
             <option v-for="option in bindAddressOptions" :key="option.value" :value="option.value">{{ option.label }}</option>
           </select>
         </div>

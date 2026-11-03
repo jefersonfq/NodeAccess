@@ -1,0 +1,13 @@
+{
+  "base": "4a77f7139600e70aa612e753418978d9b31b10ae",
+  "worktree": "/tmp/nodeaccess-NA-0091",
+  "capturedAt": "2026-11-03T19:18:18.083037+00:00",
+  "files": {
+    "tools/sonarqube/maintenance-common.mjs": "9f5b16b19ff1365cac9a4a983c552b247017e4055a3c4403b95428568520ac60",
+    "tools/sonarqube/recovery.mjs": "68d1f4113342ab3d0573f0e02b241101224876dfd26c182b2423f74c192ed17a",
+    "tools/sonarqube/token-maintenance.mjs": "28dbe33816922d7dcf93cbc063b4835ddde7646f5a5a772096b09829542318c7",
+    "tools/sonarqube/maintenance.mjs": "1b00d0094bb265d7654cef422652bc27f3eedcbe91f58980a9a869a1d692509b",
+    "tools/sonarqube/install-maintenance.mjs": "44dd9b04238fcc71484ca0d0a79f984899b12d02443535171518ac3dd243b807",
+    "tools/sonarqube/recovery-real.mjs": "9e5da2406b2bae2a0f6d24b2b01c810aa1d5ea45c2343fb89de65376d0b9a572"
+  }
+}

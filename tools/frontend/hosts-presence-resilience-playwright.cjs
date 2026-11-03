@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+const { artifactPath } = require('../shared/private-artifacts.cjs')
 const { chromium } = require('playwright')
 const assert = require('node:assert/strict')
 
@@ -162,7 +163,7 @@ async function main() {
   await page.locator('[data-presence-unavailable]').waitFor({ state: 'hidden' })
   await page.setViewportSize({ width: 390, height: 844 })
   await expectCounts(2, 2)
-  await page.screenshot({ path: '/tmp/nodeaccess-hosts-presence.png', fullPage: true })
+  await page.screenshot({ path: artifactPath('nodeaccess-hosts-presence.png'), fullPage: true })
   sessions = []
   await event(105, 'cleanup')
   await event(104, 'cleanup')

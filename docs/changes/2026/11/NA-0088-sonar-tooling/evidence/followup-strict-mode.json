@@ -1,0 +1,11 @@
+{
+  "newFindingCount": 2,
+  "directivePrologueActive": true,
+  "syntax": "PASS",
+  "diffCheck": "PASS",
+  "recentHostAccess": "PASS",
+  "recentHostAccessEvidence": "followup-recent-host-access.json",
+  "lucienFeedbackUxCasesPassed": 14,
+  "lucienFeedbackUxEvidence": "followup-lucien-feedback.json",
+  "sonarRerun": false
+}

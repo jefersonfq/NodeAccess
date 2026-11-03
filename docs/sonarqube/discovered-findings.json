@@ -1,0 +1,59 @@
+{
+  "schemaVersion": 1,
+  "issues": [
+    {
+      "key": "f58ec78b-9d4a-4689-aef4-4e9c898b71a6",
+      "rule": "javascript:S905",
+      "component": "nodeaccess:tools/frontend/lucien-feedback-ux-playwright.cjs",
+      "line": 3,
+      "hash": "9856fa6c4efe4ef4a2bde5eb7ae92481",
+      "severity": "MAJOR",
+      "type": "BUG"
+    },
+    {
+      "key": "adf1c0bc-9fe5-47cf-a97f-9fa70cc9adaf",
+      "rule": "javascript:S905",
+      "component": "nodeaccess:tools/frontend/recent-host-access-playwright.cjs",
+      "line": 3,
+      "hash": "9856fa6c4efe4ef4a2bde5eb7ae92481",
+      "severity": "MAJOR",
+      "type": "BUG"
+    },
+    {
+      "key": "43a6dcde-006b-4c2d-ada3-e946f1a48c09",
+      "rule": "javascript:S1523",
+      "component": "nodeaccess:tools/frontend/sonar-frontend-review.cjs",
+      "line": 21,
+      "hash": "70d35bab1707a6633e36c5c09a12566f",
+      "severity": "CRITICAL",
+      "type": "VULNERABILITY"
+    },
+    {
+      "key": "c074a7a1-304a-4a7d-a05c-e7ec95b7392a",
+      "rule": "javascript:S4036",
+      "component": "nodeaccess:tools/frontend/sonar-frontend-review.cjs",
+      "line": 42,
+      "hash": "f0888eff35b52005cda23f550723fbef",
+      "severity": "MINOR",
+      "type": "VULNERABILITY"
+    },
+    {
+      "key": "9b8d5d63-255f-466f-9560-0f18ffd9b7c5",
+      "rule": "javascript:S4036",
+      "component": "nodeaccess:tools/frontend/sonar-frontend-review.cjs",
+      "line": 65,
+      "hash": "f0888eff35b52005cda23f550723fbef",
+      "severity": "MINOR",
+      "type": "VULNERABILITY"
+    },
+    {
+      "key": "da6d6f1c-c9f3-4df7-8fed-8f25c395c022",
+      "rule": "javascript:S2871",
+      "component": "nodeaccess:tools/sonarqube/ledger.mjs",
+      "line": 61,
+      "hash": "897606994e729f1fa41a4ac3c0f223c6",
+      "severity": "CRITICAL",
+      "type": "BUG"
+    }
+  ]
+}

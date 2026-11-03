@@ -1,0 +1,27 @@
+const { chromium } = require('playwright')
+const assert = require('node:assert/strict')
+const fs = require('node:fs')
+const path = require('node:path')
+const { pathToFileURL } = require('node:url')
+const root = path.resolve(__dirname, '../..')
+const rows = JSON.parse(fs.readFileSync(path.join(root, 'docs/sonarqube/findings.json'), 'utf8')).findings
+;(async()=>{
+ const out=process.env.SONAR_REVIEW_OUTPUT ? path.resolve(process.env.SONAR_REVIEW_OUTPUT) : path.join(root, 'docs/changes/2026/11/NA-0085-sonarqube/screenshots');fs.mkdirSync(out,{recursive:true})
+ const browser=await chromium.launch({headless:true,...(process.env.CHROMIUM_PATH ? {executablePath:process.env.CHROMIUM_PATH} : {})})
+ try {
+  const page=await browser.newPage({viewport:{width:1440,height:1000}})
+  await page.goto(pathToFileURL(path.join(root, 'docs/sonarqube/findings.html')).href)
+  assert.equal(await page.locator('tbody tr').count(),rows.length)
+  await page.screenshot({path:out+'/01-table-desktop.png'})
+  await page.getByLabel('Severidade',{exact:true}).selectOption('BLOCKER');assert.equal(await page.locator('tbody tr:visible').count(),rows.filter(r=>r.severity==='BLOCKER').length)
+  await page.getByLabel('Buscar caminho, regra ou decisão').fill('no-match-synthetic');assert.equal(await page.locator('tbody tr:visible').count(),0);assert.equal(await page.locator('#empty').isVisible(),true)
+  await page.getByLabel('Buscar caminho, regra ou decisão').fill('');await page.getByLabel('Severidade',{exact:true}).selectOption('')
+  await page.getByLabel('Domínio',{exact:true}).selectOption('Frontend');assert.equal(await page.locator('tbody tr:visible').count(),rows.filter(r=>r.domain==='Frontend').length)
+  await page.locator('tbody tr:visible summary').first().click();assert.equal(await page.locator('details[open]').count(),1)
+  await page.screenshot({path:out+'/02-table-filtered.png'})
+  await page.setViewportSize({width:390,height:844});assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth))
+  await page.screenshot({path:out+'/03-table-mobile.png'})
+  await page.getByLabel('Buscar caminho, regra ou decisão').focus();await page.keyboard.press('Tab');assert.equal(await page.locator('#status').evaluate(e=>e===document.activeElement),true)
+  console.log('PASS: catalogue counts; severity/domain filters; search-empty; expand; mobile bounds; keyboard focus; 3 screenshots')
+ } finally {await browser.close()}
+})().catch(error=>{console.error(error);process.exitCode=1})

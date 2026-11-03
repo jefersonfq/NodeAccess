@@ -1,0 +1,17 @@
+{
+  "scenarios": [
+    "SFTP conflict 409, connection loss, delayed save and edits in flight preserve draft and SSH",
+    "SFTP editor read 503/502/403; save failure/retry retain draft, optimistic concurrency, SSH and document",
+    "manager color remains stable on hover/focus/click; viewer names/emails update after leaving and rejoining",
+    "share reuse, current link, connected participants, polling failure, cancel, failed revoke and retry preserve SSH",
+    "expiry clears manager and active indicator even while polling fails",
+    "SPA navigation to hosts and back preserves terminal DOM, document and SSH connection",
+    "menu and drag reorder preserve terminal nodes, active tab and connections",
+    "blocked popup preserves source; copy waits for Jira grant, connects independently and retains original",
+    "move closes source only after connected; insert returns to main window",
+    "remote close reason, R reconnect, modifiers safe, another letter returns to Home",
+    "log event filter works by keyboard, resets pagination and clears its request parameter",
+    "log filters describe their purpose and have accessible names"
+  ],
+  "runtimeErrors": []
+}

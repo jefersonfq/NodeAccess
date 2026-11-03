@@ -12,7 +12,7 @@ export async function sharedSessionWsRoutes(app: FastifyInstance, gateway: Share
       const sharedSessionId = Number(request.params.sharedSessionId)
       const token = request.query.token
 
-      if (isNaN(sharedSessionId)) {
+      if (Number.isNaN(sharedSessionId)) {
         socket.send(JSON.stringify({ type: 'error', message: 'sharedSessionId inválido' }))
         socket.close(1008)
         return

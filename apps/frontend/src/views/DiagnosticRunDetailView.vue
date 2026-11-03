@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { trimBoundaryCharacters } from '@/services/text-boundaries'
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { NAlert, NButton, NCard, NCheckbox, NEmpty, NInput, NModal, NSelect, NSpin, NTag, NText, useMessage } from 'naive-ui'
@@ -315,11 +316,9 @@ async function exportRun() {
   error.value = null
   try {
     const response = await diagnosticPlaybookService.download(runId.value)
-    const baseName = run.value?.playbookName
-      ?.toLowerCase()
-      .replace(/[^a-z0-9]+/g, '-')
-      .replace(/^-+|-+$/g, '')
-      .slice(0, 60) || 'diagnostic-run'
+    const baseName = trimBoundaryCharacters((run.value?.playbookName ?? '')
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-'), '-').slice(0, 60) || 'diagnostic-run'
     diagnosticPlaybookService.saveBlobAs(response.data, `${baseName}-${runId.value}.json`)
   } catch {
     error.value = 'Nao foi possivel exportar esta execucao de diagnostico.'

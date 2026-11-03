@@ -55,9 +55,9 @@ jobs:
         with:
           name: manual-preview
           path: |
-            /tmp/nodeaccess-manual-review/
-            /tmp/nodeaccess-manual-capture-*.json
-            /tmp/nodeaccess-shared-viewer-review/
-            /tmp/nodeaccess-host-form-tabs/
+            /tmp/nodeaccess-harness-*/nodeaccess-manual-review/
+            /tmp/nodeaccess-harness-*/nodeaccess-manual-capture-*.json
+            /tmp/nodeaccess-harness-*/nodeaccess-shared-viewer-review/
+            /tmp/nodeaccess-harness-*/nodeaccess-host-form-tabs/
             /tmp/nodeaccess-manual-vite.log
             apps/frontend/dist/manual-version.json

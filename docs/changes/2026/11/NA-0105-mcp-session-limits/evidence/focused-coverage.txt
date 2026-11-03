@@ -1,0 +1,22 @@
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - ESM syntax in a file loaded as CommonJS (vitest.config.ts:2:1). Use a `.mjs` extension or set `"type": "module"` in the closest package.json
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+ RUN  v4.1.12 /tmp/nodeaccess-NA-0105
+      Coverage enabled with v8
+
+························································
+
+ Test Files  1 passed (1)
+      Tests  56 passed (56)
+   Start at  16:53:45
+   Duration  2.07s (transform 903ms, setup 0ms, import 1.38s, tests 216ms, environment 1ms)
+
+ % Coverage report from v8
+
+=============================== Coverage summary ===============================
+Statements   : 100% ( 259/259 )
+Branches     : 89.4% ( 135/151 )
+Functions    : 91.8% ( 56/61 )
+Lines        : 100% ( 227/227 )
+================================================================================

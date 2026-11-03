@@ -1,10 +1,11 @@
 #!/usr/bin/env node
+const { artifactPath } = require('../shared/private-artifacts.cjs')
 const fs = require('node:fs')
 const { chromium } = require('playwright')
 
 const FRONTEND = (process.env.FRONTEND_BASE || 'http://127.0.0.1:5173').replace(/\/$/, '')
 const CDP_URL = process.env.CHROMIUM_CDP_URL || ''
-const REPORT_PATH = process.env.REPORT_PATH || '/tmp/nodeaccess-hosts-personal-folders.json'
+const REPORT_PATH = process.env.REPORT_PATH || artifactPath('nodeaccess-hosts-personal-folders.json')
 const UI_THEME = process.env.UI_THEME === 'light' ? 'light' : 'dark'
 const THEME_SCREENSHOT_PATH = process.env.THEME_SCREENSHOT_PATH || `/tmp/nodeaccess-hosts-sessions-${UI_THEME}.png`
 const SIDEBAR_THEME_SCREENSHOT_PATH = process.env.SIDEBAR_THEME_SCREENSHOT_PATH || `/tmp/nodeaccess-hosts-sidebar-${UI_THEME}.png`
@@ -268,7 +269,7 @@ async function main() {
     const luminance = (value) => {
       const values = (value.match(/[\d.]+/g) || []).map(Number)
       const srgbSyntax = value.startsWith('color(srgb')
-      const alpha = srgbSyntax ? (values[3] ?? 1) : (values[3] ?? 1)
+      const alpha = values[3] ?? 1
       const rgb = values.slice(0, 3).map((channel) => srgbSyntax ? channel * 255 : channel).map((channel) => channel * alpha + 255 * (1 - alpha)).map((channel) => {
         channel /= 255
         return channel <= 0.03928 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4

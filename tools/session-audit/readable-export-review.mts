@@ -1,3 +1,4 @@
+import { artifactPath } from '../shared/private-artifacts.cjs'
 /** Local private corpus only; saves private TXT examples in /tmp, never in Git. */
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs'
 import { resolve } from 'node:path'
@@ -6,7 +7,7 @@ import { reconstructAudit } from '../../apps/backend/src/modules/session-audit/s
 import { terminalTranscript, commandTranscript } from '../../apps/backend/src/modules/session-audit/session-audit-text-export.js'
 const folder = process.env.AUDIT_EXPORT_REVIEW_DIR
 assert.ok(folder, 'AUDIT_EXPORT_REVIEW_DIR must point to private local fixtures')
-const output = '/tmp/nodeaccess-readable-export-review'
+const output = artifactPath('nodeaccess-readable-export-review')
 mkdirSync(output, { recursive: true, mode: 0o700 })
 const results = []
 for (const [id, count] of [[136,14],[166,9],[183,7],[184,6]]) {

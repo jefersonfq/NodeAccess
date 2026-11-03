@@ -104,7 +104,7 @@ export class SshIsolatedAiActionRunner {
     const localChecksum = createHash('sha256').update(artifact.content).digest('hex')
     if (localChecksum !== artifact.checksum) throw new Error('Checksum local do artefato de script inválido')
     const sftp = await new Promise<import('ssh2').SFTPWrapper>((resolve, reject) => conn.sftp((error, client) => error ? reject(error) : resolve(client)))
-    await new Promise<void>((resolve, reject) => sftp.writeFile(artifact.destination, artifact.content, { mode: 0o700 }, (error) => error ? reject(error) : resolve()))
+    await new Promise<void>((resolve, reject) => sftp.writeFile(artifact.destination, artifact.content, { mode: 0o700, flag: 'wx' }, (error) => error ? reject(error) : resolve()))
     await new Promise<void>((resolve, reject) => sftp.chmod(artifact.destination, 0o700, (error) => error ? reject(error) : resolve()))
     const verify = await this.execCommand(conn, `sha256sum -- '${artifact.destination}'`, 15)
     const remoteChecksum = verify.output.trim().split(/\s+/)[0]

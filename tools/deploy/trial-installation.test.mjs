@@ -136,3 +136,24 @@ for (const stage of ['containers', 'images', 'database']) {
     assert.equal(existsSync(join(output, 'BACKUP-COMPLETE')), false)
   })
 }
+
+test('trial flag editing preserves CRLF and handles exported whitespace without ambiguous regex', t => {
+  const { env } = fixture(t)
+  const original = readFileSync(env, 'utf8').replaceAll('\n', '\r\n') + 'export\t TRIAL_REGISTRATION_ENABLED \t= false\r\n'
+  writeFileSync(env, original)
+  configureTrial(env, 'enable')
+  assert.equal(readFileSync(env, 'utf8'), original.replace('export\t TRIAL_REGISTRATION_ENABLED \t= false', 'TRIAL_REGISTRATION_ENABLED=true'))
+})
+test('email validation rejects oversized and malformed domains before expensive parsing', () => {
+  for (const email of ['a'.repeat(100000) + '@example.test', 'a@' + '.'.repeat(100000), 'a@example..test', 'a@.example.test', 'a@example.test.']) {
+    assert.throws(() => validateTrialConfiguration({ ...valid, TRIAL_SMTP_FROM: email }), /e-mail/)
+  }
+  validateTrialConfiguration({ ...valid, TRIAL_SMTP_FROM: 'a.b+tag@sub.example.test' })
+})
+test('flag replacement preserves mixed line endings in unrelated configuration', t => {
+  const { env } = fixture(t)
+  const original = readFileSync(env, 'utf8') + '# Windows comment\r\nTRIAL_REGISTRATION_ENABLED=false\r\n# Unix comment\n'
+  writeFileSync(env, original)
+  configureTrial(env, 'enable')
+  assert.equal(readFileSync(env, 'utf8'), original.replace('TRIAL_REGISTRATION_ENABLED=false', 'TRIAL_REGISTRATION_ENABLED=true'))
+})

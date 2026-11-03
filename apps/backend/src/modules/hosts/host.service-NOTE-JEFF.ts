@@ -1,3 +1,4 @@
+import { findHostLinkTemplateTokens } from '@nodeaccess/shared'
 import type { HostPublic, CreateHostDto, HostKeyTrustEvent, HostAssociatedLink } from '@nodeaccess/shared'
 import type { TrustHostKeyDto } from '@nodeaccess/shared'
 import type { Paginated } from '@nodeaccess/shared'
@@ -80,7 +81,7 @@ function normalizeAssociatedLinkTemplate(template: string): string {
 }
 
 function findUnknownAssociatedLinkVariables(template: string): string[] {
-  const matches = template.match(/\{\{[^}]+\}\}/g) ?? []
+  const matches = findHostLinkTemplateTokens(template)
   const known = new Set([
     '{{HOST.ID}}',
     '{{HOST.NAME}}',

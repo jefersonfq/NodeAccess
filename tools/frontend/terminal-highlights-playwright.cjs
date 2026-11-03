@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+const { artifactPath } = require('../shared/private-artifacts.cjs')
 const fs = require('node:fs')
 const assert = require('node:assert/strict')
 const { chromium } = require('playwright')
@@ -67,7 +68,7 @@ async function main() {
         const page = context.pages()[0]
         if (page) await page.screenshot({ path: `/tmp/nodeaccess-highlights-failure-${index}.png`, fullPage: true }).catch(() => {})
       }
-      fs.writeFileSync('/tmp/nodeaccess-highlights-failure.json', JSON.stringify({ scenario: name, errors, message: error.message }, null, 2))
+      fs.writeFileSync(artifactPath('nodeaccess-highlights-failure.json'), JSON.stringify({ scenario: name, errors, message: error.message }, null, 2))
       throw error
     }
   }
@@ -311,7 +312,7 @@ async function main() {
       assert.equal(preference.rules[0].name,'Meu ERROR')
     })
     assert.deepEqual(errors, [])
-    fs.writeFileSync('/tmp/nodeaccess-terminal-highlights-report.json', JSON.stringify({ result: 'passed', frontend: FRONTEND, mockedApi: true, checks, errors }, null, 2))
+    fs.writeFileSync(artifactPath('nodeaccess-terminal-highlights-report.json'), JSON.stringify({ result: 'passed', frontend: FRONTEND, mockedApi: true, checks, errors }, null, 2))
     console.log(JSON.stringify({ result: 'passed', checks: checks.length, errors }))
   } finally { await browser.close() }
 }

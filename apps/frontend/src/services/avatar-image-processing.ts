@@ -1,3 +1,4 @@
+import { trimBoundaryCharacters } from './text-boundaries'
 export const AVATAR_OUTPUT_SIZE = 320
 export const AVATAR_MAX_UPLOAD_BYTES = 512 * 1024
 export const AVATAR_MAX_SOURCE_BYTES = 15 * 1024 * 1024
@@ -130,10 +131,9 @@ function canvasToBlob(canvas: HTMLCanvasElement, type: string, quality: number):
 
 function normalizeAvatarFileName(fileName: string | undefined, mimeType: string) {
   const extension = mimeType === 'image/webp' ? 'webp' : 'jpg'
-  const base = (fileName || 'avatar')
+  const base = trimBoundaryCharacters((fileName || 'avatar')
     .replace(/\.[a-z0-9]+$/i, '')
-    .replace(/[^a-z0-9._-]+/gi, '-')
-    .replace(/^-+|-+$/g, '')
+    .replace(/[^a-z0-9._-]+/gi, '-'), '-')
     || 'avatar'
   return `${base}.${extension}`
 }

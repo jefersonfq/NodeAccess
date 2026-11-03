@@ -1,16 +1,20 @@
 #!/usr/bin/env node
+const { artifactPath } = require('../shared/private-artifacts.cjs')
 
+const { harnessEndpoint } = require('../shared/harness-endpoint.cjs')
 const fs = require('node:fs')
 const { chromium } = require('playwright')
 
-const frontend = (process.env.FRONTEND_BASE || 'http://192.168.1.105').replace(/\/$/, '')
+const frontend = harnessEndpoint(process.env.FRONTEND_BASE || 'http://127.0.0.1:5174')
 const accessToken = process.env.HA_TEST_ACCESS_TOKEN
-const nodeName = process.env.HA_TEST_NODE_NAME || 'nodeaccess-a'
-const nodeEndpoint = process.env.HA_TEST_NODE_ENDPOINT || '192.168.1.100'
-const virtualIp = process.env.HA_TEST_VIRTUAL_IP || '192.168.1.105'
-const reportPath = process.env.REPORT_PATH || '/tmp/nodeaccess-ha-live-enrollment.json'
+const nodeName = process.env.HA_TEST_NODE_NAME
+const nodeEndpoint = process.env.HA_TEST_NODE_ENDPOINT
+const virtualIp = process.env.HA_TEST_VIRTUAL_IP
+const reportPath = process.env.REPORT_PATH || artifactPath('nodeaccess-ha-live-enrollment.json')
 
-if (!accessToken) throw new Error('HA_TEST_ACCESS_TOKEN é obrigatório')
+for (const key of ['HA_TEST_ACCESS_TOKEN', 'HA_TEST_NODE_NAME', 'HA_TEST_NODE_ENDPOINT', 'HA_TEST_VIRTUAL_IP']) {
+  if (!process.env[key]?.trim()) throw new Error(`${key} é obrigatório para selecionar explicitamente o ambiente descartável`)
+}
 
 async function main() {
   const browser = await chromium.launch({
@@ -18,7 +22,7 @@ async function main() {
     executablePath: fs.existsSync('/usr/bin/chromium-browser') ? '/usr/bin/chromium-browser' : undefined,
     args: ['--no-sandbox', '--disable-gpu'],
   })
-  const context = await browser.newContext({ ignoreHTTPSErrors: true, serviceWorkers: 'block' })
+  const context = await browser.newContext({ serviceWorkers: 'block' })
   await context.addInitScript((token) => localStorage.setItem('na_access_token', token), accessToken)
   const page = await context.newPage()
   try {

@@ -1,3 +1,4 @@
+import { artifactPath } from '../shared/private-artifacts.cjs'
 // Freeze only this disposable daemon's database TCP proxy. Never pause the real DB.
 import assert from 'node:assert/strict'
 import { createServer, connect } from 'node:net'
@@ -51,7 +52,7 @@ try{
   const result=await Promise.race([exited,pause(25000).then(()=>{throw Error('Watchdog did not exit the stalled daemon')})])
   await closed;assert.equal(result.code,1);assert.equal(watchdogLogged,true);assert.equal(frames.length,0)
   const report={ok:true,healthyBeforeFault:true,readiness503AfterStall:true,pendingCapacityRetained:true,exitCode:result.code,noAaaAcknowledgment:true,elapsedMs:Date.now()-started,scope:'Only this daemon database proxy was frozen; actual MySQL remained running. Supervisor restart itself not exercised.'}
-  writeFileSync('/tmp/nodeaccess-tacacs-watchdog-live.json',JSON.stringify(report,null,2));console.log(JSON.stringify(report))
+  writeFileSync(artifactPath('nodeaccess-tacacs-watchdog-live.json'),JSON.stringify(report,null,2));console.log(JSON.stringify(report))
 }finally{
   client?.destroy();if(child&&child.exitCode===null)child.kill('SIGKILL')
   for(const socket of peers)socket.destroy()

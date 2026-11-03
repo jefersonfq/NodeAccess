@@ -1,3 +1,4 @@
+import { trimTrailingCharacters } from '@/services/text-boundaries'
 import { ref, watch, onUnmounted, type Ref } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import { handleExpiredSession } from '@/services/auth-session.service'
@@ -662,7 +663,7 @@ export function useTerminal(tabId?: string): TerminalController {
     const handleInput = async (data: string): Promise<void> => {
       if (status.value !== 'connected') return
       const normalized = data.replace(/\r\n/g, '\n').replace(/\r/g, '\n')
-      const trimmed = normalized.replace(/\n+$/g, '')
+      const trimmed = trimTrailingCharacters(normalized, '\n')
       const looksLikeMultilinePaste = trimmed.includes('\n')
       if (looksLikeMultilinePaste && confirmMultilinePasteHandler) {
         const allowed = await confirmMultilinePasteHandler(data)

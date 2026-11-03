@@ -1,3 +1,4 @@
+import { artifactPath } from '../shared/private-artifacts.cjs'
 /** Disposable database only. Validates the real migration, transactional writes and search index. */
 import {PrismaClient,Prisma} from '@prisma/client'
 import {readFileSync,writeFileSync} from 'node:fs'
@@ -43,6 +44,6 @@ async function main(){
  assert.equal(Number(remaining[0]?.n),0)
  assert.equal((await repo.history(2,43)).length,1)
  const result={ok:true,concurrentIdempotency:true,tenantIsolation:true,preservedVersions:true,transactionRollback:true,purgedAccessDenied:true,cascadeCleanup:true,fulltextIndex:plan[0]?.key ?? plan[0]?.f6}
- writeFileSync('/tmp/nodeaccess-audit-reconstruction-mysql.json',JSON.stringify(result,null,2));console.log(JSON.stringify(result))
+ writeFileSync(artifactPath('nodeaccess-audit-reconstruction-mysql.json'),JSON.stringify(result,null,2));console.log(JSON.stringify(result))
 }
 main().finally(()=>db.$disconnect()).catch(e=>{console.error(e);process.exitCode=1})

@@ -1,3 +1,4 @@
+import { artifactPath } from '../shared/private-artifacts.cjs'
 /** Opt-in tests of built images. No .env, existing containers, or production data. */
 import assert from 'node:assert/strict'
 import { execFileSync } from 'node:child_process'
@@ -13,7 +14,7 @@ import WebSocket from 'ws'
 
 if (process.env.RUN_CONTAINER_STACK_REAL !== 'true') throw Error('Set RUN_CONTAINER_STACK_REAL=true for disposable container tests')
 const root = resolve(import.meta.dirname, '../..')
-const output = resolve(process.env.CONTAINER_TEST_OUTPUT || '/tmp/nodeaccess-container-stack')
+const output = resolve(process.env.CONTAINER_TEST_OUTPUT || artifactPath('nodeaccess-container-stack'))
 mkdirSync(output, { recursive: true })
 const images = { ...JSON.parse(readFileSync(resolve(root, 'docker/stack-images.json'))),
   sshLab: 'lscr.io/linuxserver/openssh-server@sha256:39ba37d50fdd6be1bf70644c871e5dcb9234ee79ac56424ea03ca08cadf1e7b0',

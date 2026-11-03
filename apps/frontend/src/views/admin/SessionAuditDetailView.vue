@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { trimTrailingCharacters } from '@/services/text-boundaries'
+import { hasRecursiveForceRemoval, hasProcessMetricColumns, isOnlyShellMarkers, isLikelyShellPrompt, isOnlyTerminalResponses } from '@/services/audit-text-patterns'
 import { isAxiosError } from 'axios'
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
@@ -664,7 +666,7 @@ function commandConfidenceTagType(value: string): "default" | "success" | "warni
 
 function classifyCommand(command: string): CommandCategory {
   const normalized = command.trim().toLowerCase()
-  if (/\b(rm\s+-[^;&|]*r[^;&|]*f|mkfs|dd\s+if=|shutdown|reboot|halt|poweroff|wipefs|parted|fdisk|userdel)\b/.test(normalized)) {
+  if (hasRecursiveForceRemoval(normalized) || /\b(mkfs|dd\s+if=|shutdown|reboot|halt|poweroff|wipefs|parted|fdisk|userdel)\b/.test(normalized)) {
     return 'highRisk'
   }
   if (/\b(systemctl|service|journalctl|supervisorctl|docker\s+(restart|stop|rm|logs)|kubectl\s+(delete|rollout|logs|describe))\b/.test(normalized)) {
@@ -822,16 +824,15 @@ function normalizePlaybackWhitespace(value: string): string {
     .replace(/\r\n/g, '\n')
     .split('\n')
     .map((line) => (line.includes('\r') ? line.split('\r').at(-1) ?? '' : line))
-    .map((line) => line
+    .map((line) => trimTrailingCharacters(line
       .replace(/\d{1,4},\d{1,3}Topo/g, '')
       .replace(/\d{1,4},\d{1,3}%/g, '')
-      .replace(/(?:\^\[|~@k)+/g, '')
-      .replace(/[ \t]+$/g, ''))
+      .replace(/(?:\^\[|~@k)+/g, ''), ' \t'))
     .filter((line) => {
       const trimmed = line.trim()
       if (!trimmed) return true
-      if (/^(?:\$\s*)+$/.test(trimmed)) return false
-      if (/^(?:OB|OA|OC|OD|P\+q[0-9a-f]+|[0-9]+;[0-9]+R)+$/i.test(trimmed)) return false
+      if (isOnlyShellMarkers(trimmed)) return false
+      if (isOnlyTerminalResponses(trimmed)) return false
       if (/^(?:\^\[|~@k|O[A-D])+$/.test(trimmed)) return false
       if (/^\d{1,4},\d{1,3}%$/.test(trimmed)) return false
       if (/^[\d\s.,:%MGK\t-]+$/.test(trimmed)) return false
@@ -958,7 +959,7 @@ function isLikelyInputEcho(cleanOutput: string, pendingInput: string): boolean {
 
 function isNoisyProcessMonitorLine(line: string): boolean {
   const hasProcessName = /(?:java\s+-jar|\/java\b|java\s+-D|mysql|mysqld|containerd|systemd|journald|PrePaidEngine|CdrsBilling|platform-python|tuned)/i.test(line)
-  const hasMetricColumns = /(?:\d+(?:\.\d+)?[MGK]\b.*){2,}|\b\d+(?:\.\d+)?\s+\d+(?:\.\d+)?\s+(?:\d{1,2}:|\d+h\d{1,2}:)/.test(line)
+  const hasMetricColumns = hasProcessMetricColumns(line)
   const looksLikeLogContent = /\d{4}-\d{2}-\d{2}T|\b(DEBUG|DDEBUG|INFO|WARN|ERROR|Command:|Installroot:|Releasever:|cachedir:)\b/i.test(line)
   return hasProcessName && hasMetricColumns && !looksLikeLogContent
 }
@@ -972,10 +973,6 @@ function isLikelyCleanProcessMonitorNoise(value: string): boolean {
 
 function looksLikePlaybackLogContent(value: string): boolean {
   return /\d{4}-\d{2}-\d{2}T|\b(DEBUG|DDEBUG|INFO|WARN|ERROR|Command:|Installroot:|Releasever:|cachedir:)\b/i.test(value)
-}
-
-function isLikelyShellPrompt(value: string): boolean {
-  return /(?:^|\n)\[[^\]\n]+@[^\]\n]+\s+[^\]\n]+\]\$\s*$/.test(value) || /(?:^|\n)[#$]\s*$/.test(value)
 }
 
 function isLikelyTuiContinuation(value: string): boolean {

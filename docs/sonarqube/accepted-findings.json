@@ -1,0 +1,2957 @@
+{
+  "schemaVersion": 1,
+  "reviewedAt": "2026-11-03T18:04:46.488Z",
+  "policy": "Individual contextual reviews only; no server issue transitions or suppressed rules. Changes require independent review.",
+  "findings": [
+    {
+      "signature": "e559e8a25fa5298c1480667afef97586f7cc19bd39c4b1df1939370905d12418",
+      "count": 1,
+      "status": "context_reviewed",
+      "reason": "CLI/harness invocado pelo desenvolvedor/CI, não endpoint do produto: executável fixo com argv separado e sem shell. PATH pertence ao ambiente já confiado que executa o checkout; preservar git/docker/openssl/Node instalados pelo operador evita quebra de ferramentas/version managers. Não executar checkout não confiado com privilégios.",
+      "evidence": [
+        "tools/sonarqube/analyze.mjs (contexto da linha base 46)"
+      ],
+      "sourceKeys": [
+        "4c089a7b-f35e-4b44-8dcb-b4585c80275a"
+      ]
+    },
+    {
+      "signature": "ab9468b6b2e0b8e1dad403ccbec44f0a85e38bb32b2cebeb07150948614712ee",
+      "count": 3,
+      "status": "context_reviewed",
+      "reason": "Faixa RFC1918 deliberada na classificação privateAddress. A exceção requer perfil completo, conexão somente por agente, allowCustomHosts e exclusão dos endereços protegidos e da rede do laboratório; não define endpoint de conexão. Ocorrência na coluna 54. | Faixa RFC1918 deliberada na classificação privateAddress. A exceção requer perfil completo, conexão somente por agente, allowCustomHosts e exclusão dos endereços protegidos e da rede do laboratório; não define endpoint de conexão. Ocorrência na coluna 71. | Faixa RFC1918 deliberada na classificação privateAddress. A exceção requer perfil completo, conexão somente por agente, allowCustomHosts e exclusão dos endereços protegidos e da rede do laboratório; não define endpoint de conexão. Ocorrência na coluna 40.",
+      "evidence": [
+        "apps/backend/src/modules/trials/trial-policy.ts"
+      ],
+      "sourceKeys": [
+        "0c5cfe0e-6f7a-4244-a413-22e37508cbc6",
+        "70c71381-d984-41d0-bd21-3c12d7287a04",
+        "eb6736bf-e1bd-4a8e-93b4-da2ab4502dfa"
+      ]
+    },
+    {
+      "signature": "2e990648a79ba6fed1c55990bf63aa4be7faab4ab8b748b81eac0c448e05746b",
+      "count": 1,
+      "status": "context_reviewed",
+      "reason": "Endereço é dado de fixture do cenário trial-onboarding-playwright (linha base 38), servido por rotas/sockets simulados ou usado em assertiva/UI; não seleciona servidor operacional nem abre conexão SSH nesse endereço.",
+      "evidence": [
+        "tools/frontend/trial-onboarding-playwright.cjs (contexto da linha base 38)"
+      ],
+      "sourceKeys": [
+        "0e287b93-f050-4368-b23d-f05e331cc0c6"
+      ]
+    },
+    {
+      "signature": "700e61ddf71c77342421702e9ace267e164e54fa1b7e31957d6681d94207b40e",
+      "count": 1,
+      "status": "context_reviewed",
+      "reason": "CLI/harness invocado pelo desenvolvedor/CI, não endpoint do produto: executável fixo com argv separado e sem shell. PATH pertence ao ambiente já confiado que executa o checkout; preservar git/docker/openssl/Node instalados pelo operador evita quebra de ferramentas/version managers. Não executar checkout não confiado com privilégios.",
+      "evidence": [
+        "tools/deploy/release-source-real.mjs (contexto da linha base 11)"
+      ],
+      "sourceKeys": [
+        "5018c007-244b-4651-bb12-575b91502797"
+      ]
+    },
+    {
+      "signature": "7f3779b09c2da0995a94dcd291e9700b9b87eec8a6b0abecc6158505f71c8401",
+      "count": 4,
+      "status": "context_reviewed",
+      "reason": "Faixa '10.0.0.0' é entrada deliberada da política de bloqueio/reserva de endereços. Substituir por configuração arbitrária afetaria SSRF/isolamento; literal mantido. | Faixa '169.254.0.0' é entrada deliberada da política de bloqueio/reserva de endereços. Substituir por configuração arbitrária afetaria SSRF/isolamento; literal mantido. | Faixa '172.16.0.0' é entrada deliberada da política de bloqueio/reserva de endereços. Substituir por configuração arbitrária afetaria SSRF/isolamento; literal mantido. | Faixa '100.64.0.0' é entrada deliberada da política de bloqueio/reserva de endereços. Substituir por configuração arbitrária afetaria SSRF/isolamento; literal mantido.",
+      "evidence": [
+        "apps/backend/src/modules/trials/trial-address-policy.ts"
+      ],
+      "sourceKeys": [
+        "14421ceb-0773-4872-b86e-453766845625",
+        "1d1925e1-6f0f-4805-affb-a4e83beabad9",
+        "45d9981d-0b91-416f-bdca-13a6240d1a40",
+        "4c43875f-ee98-4882-99f8-d295d081dfa0"
+      ]
+    },
+    {
+      "signature": "1aea4bdf8a9c6daa039c45205beb9d7723bba5e9f9c7d01c5b8d5197a282da5e",
+      "count": 5,
+      "status": "context_reviewed",
+      "reason": "Faixa '224.0.0.0' é entrada deliberada da política de bloqueio/reserva de endereços. Substituir por configuração arbitrária afetaria SSRF/isolamento; literal mantido. | Faixa '192.0.0.0' é entrada deliberada da política de bloqueio/reserva de endereços. Substituir por configuração arbitrária afetaria SSRF/isolamento; literal mantido. | Faixa '192.88.99.0' é entrada deliberada da política de bloqueio/reserva de endereços. Substituir por configuração arbitrária afetaria SSRF/isolamento; literal mantido. | Faixa '192.168.0.0' é entrada deliberada da política de bloqueio/reserva de endereços. Substituir por configuração arbitrária afetaria SSRF/isolamento; literal mantido. | Faixa '198.18.0.0' é entrada deliberada da política de bloqueio/reserva de endereços. Substituir por configuração arbitrária afetaria SSRF/isolamento; literal mantido.",
+      "evidence": [
+        "apps/backend/src/modules/trials/trial-address-policy.ts"
+      ],
+      "sourceKeys": [
+        "06f14c75-d6a4-4b43-911b-ad454436ff56",
+        "20741df4-375b-40e9-a539-97b8dc562a88",
+        "bced2a1b-fce1-4e38-a3b6-23fa0272eb7b",
+        "ec102774-f282-4408-8ccf-2dfc37fc7a76",
+        "ffa5a33d-c24f-47aa-ae44-7ef1bc1a58e9"
+      ]
+    },
+    {
+      "signature": "83853842fe21edcd1b79f0e9824bcad5f01c585c4d695938759f69d536dc2fab",
+      "count": 1,
+      "status": "context_reviewed",
+      "reason": "Fingerprint recebido é validado por labSchema com formato SHA256 e exatamente 43 caracteres Base64 mais padding opcional; remoção de padding opera sobre entrada limitada. Não há cadeia arbitrária nesta chamada.",
+      "evidence": [
+        "apps/backend/src/modules/trials/trial-machines.ts",
+        "apps/backend/src/modules/trials/trial-contract.ts",
+        "apps/backend/src/modules/trials/provider-contract.test.ts"
+      ],
+      "sourceKeys": [
+        "25702922-b8ea-47a6-a8bd-e814faa9d7cc"
+      ]
+    },
+    {
+      "signature": "bae4a616613d624a67f5915fed5c2abb83bcd81cd1b5c55afc72bb05de470f35",
+      "count": 1,
+      "status": "context_reviewed",
+      "reason": "Fingerprint recebido é validado por labSchema com formato SHA256 e exatamente 43 caracteres Base64 mais padding opcional; remoção de padding opera sobre entrada limitada. Não há cadeia arbitrária nesta chamada.",
+      "evidence": [
+        "apps/backend/src/modules/trials/trial-machines.ts",
+        "apps/backend/src/modules/trials/trial-contract.ts",
+        "apps/backend/src/modules/trials/provider-contract.test.ts"
+      ],
+      "sourceKeys": [
+        "b1bded3c-7381-47c6-a49c-e11cf1fc1c57"
+      ]
+    },
+    {
+      "signature": "f41ee9af8a59e27775475589a7fe8a7a8ae04364d7ee9d3ab1dd8b6a4bc9699c",
+      "count": 1,
+      "status": "context_reviewed",
+      "reason": "Fingerprint recebido é validado por labSchema com formato SHA256 e exatamente 43 caracteres Base64 mais padding opcional; remoção de padding opera sobre entrada limitada. Não há cadeia arbitrária nesta chamada.",
+      "evidence": [
+        "apps/backend/src/modules/trials/trial.service.ts",
+        "apps/backend/src/modules/trials/trial-contract.ts",
+        "apps/backend/src/modules/trials/provider-contract.test.ts"
+      ],
+      "sourceKeys": [
+        "3377b223-d97d-4932-a99a-5bf0d10eb9c9"
+      ]
+    },
+    {
+      "signature": "2bc674be4f8832df2bdca4398a81956f4f8496b6a7ea1e6af43a390ddc0640d3",
+      "count": 4,
+      "status": "context_reviewed",
+      "reason": "Input file oculto por display:none; é acionado por botão/dropzone nomeado do fluxo. Não integra árvore acessível nem navegação Tab. Revisada a marcação específica em ImportHostsModal.vue:1921; nenhum valor de credencial foi extraído. | Input file oculto por display:none; é acionado por botão/dropzone nomeado do fluxo. Não integra árvore acessível nem navegação Tab. Revisada a marcação específica em ImportHostsModal.vue:2072; nenhum valor de credencial foi extraído. | Input file oculto por display:none; é acionado por botão/dropzone nomeado do fluxo. Não integra árvore acessível nem navegação Tab. Revisada a marcação específica em ImportHostsModal.vue:2105; nenhum valor de credencial foi extraído. | Input file oculto por display:none; é acionado por botão/dropzone nomeado do fluxo. Não integra árvore acessível nem navegação Tab. Revisada a marcação específica em ImportHostsModal.vue:2254; nenhum valor de credencial foi extraído.",
+      "evidence": [
+        "apps/frontend/src/components/ImportHostsModal.vue:1921",
+        "apps/frontend/src/components/ImportHostsModal.vue:2072",
+        "apps/frontend/src/components/ImportHostsModal.vue:2105",
+        "apps/frontend/src/components/ImportHostsModal.vue:2254"
+      ],
+      "sourceKeys": [
+        "37509f88-2ee7-4d6d-bc37-494774e1b76c",
+        "6a458e75-14da-4f35-819d-e4cf7511f500",
+        "a4a4ac67-1571-4e32-8c90-843e7c8ed168",
+        "a571a75e-1826-4f29-adf7-da031092ec50"
+      ]
+    },
+    {
+      "signature": "abac99c1f56a75f163df53040c1c8f635ede1ff8bc0a955d2b2c01214c123932",
+      "count": 4,
+      "status": "context_reviewed",
+      "reason": "Bloco pre de comando/configuração (133) possui nome acessível e overflow horizontal; foco permite leitura/scroll e seleção do conteúdo sem converter texto em botão. | Bloco pre de comando/configuração (150) possui nome acessível e overflow horizontal; foco permite leitura/scroll e seleção do conteúdo sem converter texto em botão. | Bloco pre de comando/configuração (166) possui nome acessível e overflow horizontal; foco permite leitura/scroll e seleção do conteúdo sem converter texto em botão. | Bloco pre de comando/configuração (195) possui nome acessível e overflow horizontal; foco permite leitura/scroll e seleção do conteúdo sem converter texto em botão.",
+      "evidence": [
+        "apps/frontend/src/components/mcp/McpAgentSetup.vue:133",
+        "apps/frontend/src/components/mcp/McpAgentSetup.vue:150",
+        "apps/frontend/src/components/mcp/McpAgentSetup.vue:166",
+        "apps/frontend/src/components/mcp/McpAgentSetup.vue:195"
+      ],
+      "sourceKeys": [
+        "76693a96-55cf-497b-b5c4-af0393ca2e56",
+        "84adc557-c63f-48b8-8072-4454abed948b",
+        "3c252e24-150c-4efc-849f-e9cafcf20ee8",
+        "86ece36a-8222-4fea-9a77-8eb9259976bb"
+      ]
+    },
+    {
+      "signature": "da64a8f589c0120ce8feac0de9d3b1f8009e0b4142477ae3e4e9613fc05f3604",
+      "count": 1,
+      "status": "context_reviewed",
+      "reason": "Label desta ocorrência envolve textbox; o componente renderiza input/textarea nativo dentro do label. DOM confirmou nome \"snippets.macro.timeoutMs\" e foco. Não é campo sem associação apesar do scanner estático.",
+      "evidence": [
+        "docs/changes/2026/11/NA-0087-sonar-frontend/dom-label-evidence.json#6b3dbbd2-f165-49b8-8c08-6f2233a0f5b1",
+        "tools/frontend/sonar-frontend-review.cjs"
+      ],
+      "sourceKeys": [
+        "6b3dbbd2-f165-49b8-8c08-6f2233a0f5b1"
+      ]
+    },
+    {
+      "signature": "a5b0c5646adf46a795cd25dfbbeac2e9501507accf51995767ba37d056db8fd1",
+      "count": 1,
+      "status": "context_reviewed",
+      "reason": "Label desta ocorrência envolve textbox; o componente renderiza input/textarea nativo dentro do label. DOM confirmou nome \"snippets.macro.durationMs\" e foco. Não é campo sem associação apesar do scanner estático.",
+      "evidence": [
+        "docs/changes/2026/11/NA-0087-sonar-frontend/dom-label-evidence.json#ce693eb8-2ada-454c-a936-a1f0b0680fbd",
+        "tools/frontend/sonar-frontend-review.cjs"
+      ],
+      "sourceKeys": [
+        "ce693eb8-2ada-454c-a936-a1f0b0680fbd"
+      ]
+    },
+    {
+      "signature": "4c060fe183f521e25fea7ad7a2ab491a70450c52cf3c7f25999f84b5a3a3e763",
+      "count": 1,
+      "status": "context_reviewed",
+      "reason": "Label desta ocorrência envolve textbox; o componente renderiza input/textarea nativo dentro do label. DOM confirmou nome \"Campo de demonstração Please Input\" e foco. Não é campo sem associação apesar do scanner estático.",
+      "evidence": [
+        "docs/changes/2026/11/NA-0087-sonar-frontend/dom-label-evidence.json#eaa3c373-f07d-4d30-b489-0aee1d8b58b8",
+        "tools/frontend/sonar-frontend-review.cjs"
+      ],
+      "sourceKeys": [
+        "eaa3c373-f07d-4d30-b489-0aee1d8b58b8"
+      ]
+    },
+    {
+      "signature": "ee204e74e94e701c66f66d1a28a7695a215f50ab519b6b4ebfdb373f1e1e5377",
+      "count": 1,
+      "status": "context_reviewed",
+      "reason": "Input file oculto por display:none; é acionado por botão/dropzone nomeado do fluxo. Não integra árvore acessível nem navegação Tab. Revisada a marcação específica em SnippetTransfer.vue:44; nenhum valor de credencial foi extraído.",
+      "evidence": [
+        "apps/frontend/src/components/snippets/SnippetTransfer.vue:44"
+      ],
+      "sourceKeys": [
+        "739a8fec-c667-4a25-a144-605e43a1ee18"
+      ]
+    },
+    {
+      "signature": "2c20db15dc6e2e67e4d34da42af2b64e7b8ff2ac7b0d71168c03a687ed072054",
+      "count": 1,
+      "status": "context_reviewed",
+      "reason": "Promise.resolve apenas inicializa fila serial sem tarefa pendente; não existe operação assíncrona executada no construtor. Trabalhos reais são encadeados depois.",
+      "evidence": [
+        "scripts/trial-lab/provider.mjs (contexto da linha base 44)"
+      ],
+      "sourceKeys": [
+        "1803f60d-4bea-4ede-a1bc-06bcb2d1e73d"
+      ]
+    },
+    {
+      "signature": "d9cf80170927d909b40f803840e7afab0ccae6f217cfad68404a66a4ac4cd49a",
+      "count": 1,
+      "status": "context_reviewed",
+      "reason": "Ordenação por unidades de código estabiliza capacidades e representação de plano antes do digest; localeCompare tornaria o contrato dependente da locale.",
+      "evidence": [
+        "scripts/trial-lab/provider.mjs (contexto da linha base 101)"
+      ],
+      "sourceKeys": [
+        "5d54a36e-7ca0-4d30-95dd-d4256057c154"
+      ]
+    },
+    {
+      "signature": "d368f6d03c3df6e2964e61af0cd4ba0a597017e986ebed34a7ec736c1f8afa51",
+      "count": 1,
+      "status": "context_reviewed",
+      "reason": "Ordenação por unidades de código estabiliza capacidades e representação de plano antes do digest; localeCompare tornaria o contrato dependente da locale.",
+      "evidence": [
+        "scripts/trial-lab/provider.mjs (contexto da linha base 156)"
+      ],
+      "sourceKeys": [
+        "a76b3a56-32a5-451c-a916-819b69dc6376"
+      ]
+    },
+    {
+      "signature": "4d89ca5313b28712bae9ec9f04cd4683e036ac558a779958d680e29da534672c",
+      "count": 1,
+      "status": "context_reviewed",
+      "reason": "Ordenação por unidades de código estabiliza capacidades e representação de plano antes do digest; localeCompare tornaria o contrato dependente da locale.",
+      "evidence": [
+        "scripts/trial-lab/provider.mjs (contexto da linha base 161)"
+      ],
+      "sourceKeys": [
+        "1d6b5ef9-9e53-4e40-8828-352c37686c42"
+      ]
+    },
+    {
+      "signature": "3cfcd29276c22c49c157f6d5bf1d9e045f7ba80395dd66dd99fb57dec7b36f54",
+      "count": 1,
+      "status": "context_reviewed",
+      "reason": "CLI/harness invocado pelo desenvolvedor/CI, não endpoint do produto: executável fixo com argv separado e sem shell. PATH pertence ao ambiente já confiado que executa o checkout; preservar git/docker/openssl/Node instalados pelo operador evita quebra de ferramentas/version managers. Não executar checkout não confiado com privilégios.",
+      "evidence": [
+        "tools/frontend/host-duplicate-playwright.cjs (contexto da linha base 23)"
+      ],
+      "sourceKeys": [
+        "7bf890ec-ffbb-4f17-bbd0-63cd54de7ee9"
+      ]
+    },
+    {
+      "signature": "9dfc26e9688f783ec963f32b8d8036488b33184aaa5c6c27f350c1bf62fdb0da",
+      "count": 1,
+      "status": "context_reviewed",
+      "reason": "state.failSave muda de booleano para status 403 durante a simulação; a comparação não é constante.",
+      "evidence": [
+        "tools/frontend/host-duplicate-playwright.cjs (contexto da linha base 65)"
+      ],
+      "sourceKeys": [
+        "3e4d5302-3e32-47f5-b618-022860f4617d"
+      ]
+    },
+    {
+      "signature": "6a6b7cf0a3fe9d9e8391c70db9c3b05dce5378ced36d1540f8b81b0a59523dcd",
+      "count": 1,
+      "status": "context_reviewed",
+      "reason": "Regex de assertiva opera somente no tooltip de data formatada da fixture fixa; entrada pequena controlada, sem processamento de texto remoto arbitrário.",
+      "evidence": [
+        "tools/frontend/recent-host-access-playwright.cjs (contexto da linha base 97)"
+      ],
+      "sourceKeys": [
+        "71b49306-2ce3-4b18-b0c1-aee0cb2e0029"
+      ]
+    },
+    {
+      "signature": "ae4683596fb3db32c140b5b58ec7f440e3a4a3446da28049d456b5d8cd6dc6a0",
+      "count": 1,
+      "status": "context_reviewed",
+      "reason": "SSH usa fixture opt-in de rede privada e senha exigida via ambiente; script exige env descartável e banco localhost/na0068 antes de conectar.",
+      "evidence": [
+        "tools/frontend/trial-live-playwright.mts (contexto da linha base 20)"
+      ],
+      "sourceKeys": [
+        "7f790b45-ad73-40b5-9b9f-cb13fde93cf4"
+      ]
+    },
+    {
+      "signature": "1b4f6a7a8382296496cb4a465b21e8321622c951f1b08b2e592ec447182040cc",
+      "count": 1,
+      "status": "context_reviewed",
+      "reason": "Senha sintética exclusiva de usuários do teste; script exige env descartável e base localhost/na0068. Não é segredo operacional, nem default de conta do produto.",
+      "evidence": [
+        "tools/frontend/trial-live-playwright.mts (contexto da linha base 38)"
+      ],
+      "sourceKeys": [
+        "6053ef1d-a1bf-442f-a362-24a01e522e08"
+      ]
+    },
+    {
+      "signature": "a3f482cbe78a26f77bacba4eb444c0559512ab87d4fee6ed16b6ebf72dcaec09",
+      "count": 1,
+      "status": "context_reviewed",
+      "reason": "Remoção de padding base64 aplicada ao fingerprint SHA256, de comprimento limitado; não há entrada arbitrária longa para backtracking.",
+      "evidence": [
+        "tools/frontend/trial-live-playwright.mts (contexto da linha base 44)"
+      ],
+      "sourceKeys": [
+        "51491d54-5a04-409a-bfa5-9379a9dc6e08"
+      ]
+    },
+    {
+      "signature": "8649f3e52a440549ccccb71e9788da3c0e9d7b6d6ba60e334f32d2deb9163dc1",
+      "count": 1,
+      "status": "context_reviewed",
+      "reason": "Endereço é denylist protectedAddresses para impedir provisionamento sobre host protegido; não é destino de conexão.",
+      "evidence": [
+        "tools/frontend/trial-live-playwright.mts (contexto da linha base 47)"
+      ],
+      "sourceKeys": [
+        "087751d9-875c-4501-aa5e-556ab0984c34"
+      ]
+    },
+    {
+      "signature": "dc78dcfd93d196f0a68581d8e635a720505641724b5870be2bf4ab62a97e313f",
+      "count": 1,
+      "status": "context_reviewed",
+      "reason": "CIDR pertence ao template da fixture de provisionamento; limita os hosts atribuídos ao trial descartável.",
+      "evidence": [
+        "tools/frontend/trial-live-playwright.mts (contexto da linha base 66)"
+      ],
+      "sourceKeys": [
+        "726e9475-bee2-4470-a178-1fa17acb2fff"
+      ]
+    },
+    {
+      "signature": "d787d9a742c1141c99adfddbefc8c3cdf55e7f4fa50d24ad49c4f4af991651a7",
+      "count": 1,
+      "status": "context_reviewed",
+      "reason": "Senha sintética exclusiva de usuários do teste; script exige env descartável e base localhost/na0068. Não é segredo operacional, nem default de conta do produto.",
+      "evidence": [
+        "tools/frontend/trial-live-playwright.mts (contexto da linha base 148)"
+      ],
+      "sourceKeys": [
+        "12934fac-ef9a-44e2-a1ca-8f1c80a98c0b"
+      ]
+    },
+    {
+      "signature": "50d99c70d647e3e6ced9b64c2a85c43d1ef671bc809080be1068598d6518ecea",
+      "count": 1,
+      "status": "context_reviewed",
+      "reason": "Destino fictício é payload de POST esperado 403; verifica que visitante não consegue criar host arbitrário.",
+      "evidence": [
+        "tools/frontend/trial-live-playwright.mts (contexto da linha base 148)"
+      ],
+      "sourceKeys": [
+        "53fa91e5-6dc2-4eb7-9575-54104ecc631e"
+      ]
+    },
+    {
+      "signature": "6a42fb87665a17b593db92128445fe688d6c3b86d57df17a9f4496f62f5b4863",
+      "count": 1,
+      "status": "context_reviewed",
+      "reason": "IPv4 é dado do fluxo BYOH na base descartável, usado para validar restrições; não se inicia SSH desse host.",
+      "evidence": [
+        "tools/frontend/trial-live-playwright.mts (contexto da linha base 159)"
+      ],
+      "sourceKeys": [
+        "fa474b5c-e559-419d-8c3e-fb37993fffa2"
+      ]
+    },
+    {
+      "signature": "2221d4597d0ed92094c4e7d2855e978e3308e4d3b3ac897d8de9fb7e3cb09b64",
+      "count": 1,
+      "status": "context_reviewed",
+      "reason": "IPv4 é filtro de consulta do host criado no teste BYOH, não conexão de rede.",
+      "evidence": [
+        "tools/frontend/trial-live-playwright.mts (contexto da linha base 164)"
+      ],
+      "sourceKeys": [
+        "46a440e3-36c5-4cad-bb2f-e9482aac37cb"
+      ]
+    },
+    {
+      "signature": "9d678d596aa57a0c5291586ca27efcc1be4f44342e67cbde2dd65cfe512eaef6",
+      "count": 2,
+      "status": "context_reviewed",
+      "reason": "CLI/harness invocado pelo desenvolvedor/CI, não endpoint do produto: executável fixo com argv separado e sem shell. PATH pertence ao ambiente já confiado que executa o checkout; preservar git/docker/openssl/Node instalados pelo operador evita quebra de ferramentas/version managers. Não executar checkout não confiado com privilégios. | CLI/harness invocado pelo desenvolvedor/CI, não endpoint do produto: executável fixo com argv separado e sem shell. PATH pertence ao ambiente já confiado que executa o checkout; preservar git/docker/openssl/Node instalados pelo operador evita quebra de ferramentas/version managers. Não executar checkout não confiado com privilégios.",
+      "evidence": [
+        "tools/frontend/trial-onboarding-playwright.cjs (contexto da linha base 243)"
+      ],
+      "sourceKeys": [
+        "0fb8ef31-e096-489b-a236-072d10a4df88",
+        "df2c960f-16d4-4b79-b226-571e028ed441"
+      ]
+    },
+    {
+      "signature": "5e228e8852dd4da59633aa21f26be78844cc16789e509de25f2fa2f7bef79059",
+      "count": 1,
+      "status": "context_reviewed",
+      "reason": "Endereço é dado de fixture do cenário trial-resources-playwright (linha base 71), servido por rotas/sockets simulados ou usado em assertiva/UI; não seleciona servidor operacional nem abre conexão SSH nesse endereço.",
+      "evidence": [
+        "tools/frontend/trial-resources-playwright.cjs (contexto da linha base 71)"
+      ],
+      "sourceKeys": [
+        "e46e4bb7-fc00-49e8-8a0d-738469d724de"
+      ]
+    },
+    {
+      "signature": "7f2474c3d4f9905e5f18f342794349e83cca0cc9f6aa45bd8c6e3c2c5db0a7c5",
+      "count": 1,
+      "status": "context_reviewed",
+      "reason": "CLI/harness invocado pelo desenvolvedor/CI, não endpoint do produto: executável fixo com argv separado e sem shell. PATH pertence ao ambiente já confiado que executa o checkout; preservar git/docker/openssl/Node instalados pelo operador evita quebra de ferramentas/version managers. Não executar checkout não confiado com privilégios.",
+      "evidence": [
+        "tools/snippets/macro-progress-mysql.mts (contexto da linha base 7)"
+      ],
+      "sourceKeys": [
+        "600b14dd-bef9-4541-9f92-c8e7c1dc0e57"
+      ]
+    },
+    {
+      "signature": "53fe99c68b8023549b935fbd380b42581252ee409eacb41f4b1ae89de3321c2f",
+      "count": 1,
+      "status": "context_reviewed",
+      "reason": "CLI/harness invocado pelo desenvolvedor/CI, não endpoint do produto: executável fixo com argv separado e sem shell. PATH pertence ao ambiente já confiado que executa o checkout; preservar git/docker/openssl/Node instalados pelo operador evita quebra de ferramentas/version managers. Não executar checkout não confiado com privilégios.",
+      "evidence": [
+        "tools/snippets/macro-progress-mysql.mts (contexto da linha base 9)"
+      ],
+      "sourceKeys": [
+        "8b9377a7-d9c2-42d4-8680-c7fc5e5fb288"
+      ]
+    },
+    {
+      "signature": "6d83aa268dbb43317c41df9bdf8806306f200f742ec27028b7ead4d12f2d4a9d",
+      "count": 1,
+      "status": "context_reviewed",
+      "reason": "CLI/harness invocado pelo desenvolvedor/CI, não endpoint do produto: executável fixo com argv separado e sem shell. PATH pertence ao ambiente já confiado que executa o checkout; preservar git/docker/openssl/Node instalados pelo operador evita quebra de ferramentas/version managers. Não executar checkout não confiado com privilégios.",
+      "evidence": [
+        "tools/frontend/host-form-tabs-playwright.cjs (contexto da linha base 23)"
+      ],
+      "sourceKeys": [
+        "e15abec7-b36e-43ef-aba9-c9b6e0d859e8"
+      ]
+    },
+    {
+      "signature": "99387254308f9999886ecd7e6b805536e1ad911427890e9574937197f9f97778",
+      "count": 1,
+      "status": "context_reviewed",
+      "reason": "Lista canônica de permissões usa ordenação lexical determinística; não se trata de ordenação numérica.",
+      "evidence": [
+        "scripts/deploy/runtime-permissions.mjs (contexto da linha base 32)"
+      ],
+      "sourceKeys": [
+        "be6062d4-f1d2-4979-b9b9-6e36fd70b81a"
+      ]
+    },
+    {
+      "signature": "c23d16978711a412524efe7a0dd91f4a0b42d93207b3740da53e403a04f77812",
+      "count": 1,
+      "status": "context_reviewed",
+      "reason": "CLI/harness invocado pelo desenvolvedor/CI, não endpoint do produto: executável fixo com argv separado e sem shell. PATH pertence ao ambiente já confiado que executa o checkout; preservar git/docker/openssl/Node instalados pelo operador evita quebra de ferramentas/version managers. Não executar checkout não confiado com privilégios.",
+      "evidence": [
+        "tools/deploy/runtime-nonroot-real.mjs (contexto da linha base 16)"
+      ],
+      "sourceKeys": [
+        "a4dec299-69b4-4548-a6ef-acf6b1aabbba"
+      ]
+    },
+    {
+      "signature": "19d27814c023cc2e92bc5367a2335256d73ff5215a3619750d22568128754633",
+      "count": 1,
+      "status": "context_reviewed",
+      "reason": "CLI/harness invocado pelo desenvolvedor/CI, não endpoint do produto: executável fixo com argv separado e sem shell. PATH pertence ao ambiente já confiado que executa o checkout; preservar git/docker/openssl/Node instalados pelo operador evita quebra de ferramentas/version managers. Não executar checkout não confiado com privilégios.",
+      "evidence": [
+        "scripts/recovery.mjs (contexto da linha base 8)"
+      ],
+      "sourceKeys": [
+        "1ee93983-533f-452b-af10-c0cd9c92747e"
+      ]
+    },
+    {
+      "signature": "6a8ddb38b0cd4629808c4e1c9228fafa22d0edc4c528bfd5fe0777150069684d",
+      "count": 1,
+      "status": "context_reviewed",
+      "reason": "CLI/harness invocado pelo desenvolvedor/CI, não endpoint do produto: executável fixo com argv separado e sem shell. PATH pertence ao ambiente já confiado que executa o checkout; preservar git/docker/openssl/Node instalados pelo operador evita quebra de ferramentas/version managers. Não executar checkout não confiado com privilégios.",
+      "evidence": [
+        "scripts/release/release-provenance.mjs (contexto da linha base 9)"
+      ],
+      "sourceKeys": [
+        "517bffb9-78de-4cf5-8c50-77cc96e43890"
+      ]
+    },
+    {
+      "signature": "1090646ebc9bf53a19009d495f24a501067a9bb0e6688ffe56b0e73d90bc2e42",
+      "count": 1,
+      "status": "context_reviewed",
+      "reason": "Caminhos e repoDigests são strings; ordenação lexical determinística mantém proveniência reproduzível entre locales.",
+      "evidence": [
+        "scripts/release/release-provenance.mjs (contexto da linha base 23)"
+      ],
+      "sourceKeys": [
+        "e1fbc810-1f77-4dbc-9b12-2ebbe1e3bafa"
+      ]
+    },
+    {
+      "signature": "27fb1cc8179004f12216e8b8390beb236802fb6b127dc728cd2a406a2cd0a724",
+      "count": 1,
+      "status": "context_reviewed",
+      "reason": "inspect aceita booleano ou a política available; teste release-provenance.test.mjs cobre falha tolerada apenas nessa política.",
+      "evidence": [
+        "scripts/release/release-provenance.mjs; tools/deploy/release-provenance.test.mjs"
+      ],
+      "sourceKeys": [
+        "33f39287-656d-4183-b324-9c6585ec4e64"
+      ]
+    },
+    {
+      "signature": "f0fa99b742db7fe05ed09f01ae702add260e401b0850db66a8b3e2475ac07237",
+      "count": 1,
+      "status": "context_reviewed",
+      "reason": "Caminhos e repoDigests são strings; ordenação lexical determinística mantém proveniência reproduzível entre locales.",
+      "evidence": [
+        "scripts/release/release-provenance.mjs (contexto da linha base 59)"
+      ],
+      "sourceKeys": [
+        "17b7851d-4055-4574-9ba8-6af5cf3a147e"
+      ]
+    },
+    {
+      "signature": "aaf015dd9f5f7e7e660dd29663d8e34907ac1aa656c7a834cf12d828e68a191f",
+      "count": 1,
+      "status": "context_reviewed",
+      "reason": "Parâmetro do construtor é callback que retorna Promise; corpo não é executado no construtor. Inicialização permanece síncrona e consumidores aguardam a invalidação.",
+      "evidence": [
+        "apps/backend/src/modules/agents/agent.service.ts"
+      ],
+      "sourceKeys": [
+        "12d93f64-f9d7-4eb4-8440-c085092416bd"
+      ]
+    },
+    {
+      "signature": "e7bd41734146467a49ef22a3e40007d950b63781741f81170b0ae5c29e41e1de",
+      "count": 1,
+      "status": "context_reviewed",
+      "reason": "Input file oculto por display:none; é acionado por botão/dropzone nomeado do fluxo. Não integra árvore acessível nem navegação Tab. Revisada a marcação específica em FileManager.vue:685; nenhum valor de credencial foi extraído.",
+      "evidence": [
+        "apps/frontend/src/components/FileManager.vue:685"
+      ],
+      "sourceKeys": [
+        "17a7c454-1215-476c-9512-a55c4660791d"
+      ]
+    },
+    {
+      "signature": "abe05b7436ad218b2d7cdef552a3a3fa1a55765902e32226ad5d907106a0e624",
+      "count": 1,
+      "status": "context_reviewed",
+      "reason": "Contêiner de dependências é região com rolagem limitada e nome acessível; tabindex permite rolar pelo teclado antes dos campos internos.",
+      "evidence": [
+        "apps/frontend/src/components/ImportHostsModal.vue:2395"
+      ],
+      "sourceKeys": [
+        "e989d673-060b-46ef-b746-65433ca5e20b"
+      ]
+    },
+    {
+      "signature": "9cb8652c6591f3cb05bb1ed3984d6b6379b2d9b5cc472961e531cf1baa16f076",
+      "count": 1,
+      "status": "context_reviewed",
+      "reason": "Input file oculto por display:none; é acionado por botão/dropzone nomeado do fluxo. Não integra árvore acessível nem navegação Tab. Revisada a marcação específica em HostsView.vue:7468; nenhum valor de credencial foi extraído.",
+      "evidence": [
+        "apps/frontend/src/views/HostsView.vue:7468"
+      ],
+      "sourceKeys": [
+        "bb62b45e-9ab2-4860-94ec-479a18cc4a2a"
+      ]
+    },
+    {
+      "signature": "95b4fef868db6c275650a5e3a170c8ecb2aea4b65e05d1d3aa9e203a6b293374",
+      "count": 1,
+      "status": "context_reviewed",
+      "reason": "Input file oculto por display:none; é acionado por botão/dropzone nomeado do fluxo. Não integra árvore acessível nem navegação Tab. Revisada a marcação específica em TerminalView.vue:6011; nenhum valor de credencial foi extraído.",
+      "evidence": [
+        "apps/frontend/src/views/TerminalView.vue:6011"
+      ],
+      "sourceKeys": [
+        "b989b69e-d796-4659-aa6d-5679943326e9"
+      ]
+    },
+    {
+      "signature": "bb656e6f573cd305648fc5ce6bf443745589ccd4b68308b8cd4eb46095249c0b",
+      "count": 1,
+      "status": "context_reviewed",
+      "reason": "Input file oculto por display:none; é acionado por botão/dropzone nomeado do fluxo. Não integra árvore acessível nem navegação Tab. Revisada a marcação específica em IntegrationsView.vue:3569; nenhum valor de credencial foi extraído.",
+      "evidence": [
+        "apps/frontend/src/views/admin/IntegrationsView.vue:3569"
+      ],
+      "sourceKeys": [
+        "034a0e51-7fef-44f1-9251-a1b19ad6eb23"
+      ]
+    },
+    {
+      "signature": "741c7571335f83406a8c343eeb3758cf06e1766ffcd5d47967ee6b55a0c49e2a",
+      "count": 1,
+      "status": "context_reviewed",
+      "reason": "Viewport da reprodução xterm recebe foco para navegação e leitura do terminal gravado. Não deve ser convertido em botão ou removido da navegação.",
+      "evidence": [
+        "tools/frontend/audit-reconstruction-playwright.cjs",
+        "apps/frontend/src/views/admin/SessionAuditDetailView.vue"
+      ],
+      "sourceKeys": [
+        "4549f072-ce30-4397-b815-19201f93ff3f"
+      ]
+    },
+    {
+      "signature": "0e3f68d5a4539527c4de77f2705d7607803907819e83fb16e927361c0c7800b5",
+      "count": 1,
+      "status": "context_reviewed",
+      "reason": "CLI/harness invocado pelo desenvolvedor/CI, não endpoint do produto: executável fixo com argv separado e sem shell. PATH pertence ao ambiente já confiado que executa o checkout; preservar git/docker/openssl/Node instalados pelo operador evita quebra de ferramentas/version managers. Não executar checkout não confiado com privilégios.",
+      "evidence": [
+        "tools/tls/integration.cjs (contexto da linha base 107)"
+      ],
+      "sourceKeys": [
+        "959a983a-635e-41b3-b931-5e8396d28bb5"
+      ]
+    },
+    {
+      "signature": "d55f1c733e799ce35e0734abd2aef947f697cee5feda2edfc6aa7b40662d176f",
+      "count": 1,
+      "status": "context_reviewed",
+      "reason": "ESC/BEL identificam sequências de terminal no histórico, incluindo bracketed paste; retirar o byte alteraria reconstrução. Ocorrência individual revisada na linha base 4, coluna 61.",
+      "evidence": [
+        "apps/backend/src/modules/session-audit/session-audit-history.ts",
+        "apps/backend/src/modules/session-audit/session-audit-normalizer.test.ts"
+      ],
+      "sourceKeys": [
+        "1d322c3b-1a8a-4689-b46c-aa7e4570f1de"
+      ]
+    },
+    {
+      "signature": "804effa959f1206f5c51ccd6e96d14f4434a502373f927aa24f058cfc1612c1f",
+      "count": 1,
+      "status": "context_reviewed",
+      "reason": "Sequência de controle representa edição/tecla recebida do terminal; necessária para reconstruir o input sem registrar comandos incorretos. Ocorrência individual revisada na linha base 79, coluna 10.",
+      "evidence": [
+        "apps/backend/src/modules/session-audit/session-audit-input.ts",
+        "apps/backend/src/modules/session-audit/session-audit-normalizer.test.ts"
+      ],
+      "sourceKeys": [
+        "7113a98b-5138-47ee-9a6f-8e943882cebf"
+      ]
+    },
+    {
+      "signature": "4a44d6be35af0a5ab5f7227f44c489ed95691814b7f460d6bd3a9efc9890a3c4",
+      "count": 1,
+      "status": "context_reviewed",
+      "reason": "Sequência de controle representa edição/tecla recebida do terminal; necessária para reconstruir o input sem registrar comandos incorretos. Ocorrência individual revisada na linha base 83, coluna 41.",
+      "evidence": [
+        "apps/backend/src/modules/session-audit/session-audit-input.ts",
+        "apps/backend/src/modules/session-audit/session-audit-normalizer.test.ts"
+      ],
+      "sourceKeys": [
+        "9e7ea99f-3934-44f2-ade9-efaa84fda725"
+      ]
+    },
+    {
+      "signature": "1e70aeab893e074dabb9b21e15d03ea50ee50218c67cbe0d70ba3e9e4ffe986f",
+      "count": 1,
+      "status": "context_reviewed",
+      "reason": "Sequência de controle representa edição/tecla recebida do terminal; necessária para reconstruir o input sem registrar comandos incorretos. Ocorrência individual revisada na linha base 104, coluna 35.",
+      "evidence": [
+        "apps/backend/src/modules/session-audit/session-audit-input.ts",
+        "apps/backend/src/modules/session-audit/session-audit-normalizer.test.ts"
+      ],
+      "sourceKeys": [
+        "329e3968-3674-4e1c-9373-551eaaf8d1a6"
+      ]
+    },
+    {
+      "signature": "2d8b5e5e3e694dd43375d3c88486588f93fa21eefabc544eb27c9a3daab91a18",
+      "count": 2,
+      "status": "context_reviewed",
+      "reason": "NUL e BEL são removidos do texto visível do terminal antes da reconstrução/detecção de prompt. Ocorrência deliberada na linha base 426; removê-la contaminaria o texto de auditoria. | NUL e BEL são removidos do texto visível do terminal antes da reconstrução/detecção de prompt. Ocorrência deliberada na linha base 426; removê-la contaminaria o texto de auditoria.",
+      "evidence": [
+        "apps/backend/src/modules/session-audit/session-audit-normalizer.ts",
+        "apps/backend/src/modules/session-audit/session-audit-normalizer.test.ts"
+      ],
+      "sourceKeys": [
+        "5330fd0a-3eda-4807-9381-666d10f49446",
+        "bcaf109e-9efa-4bda-b884-305da244f5a9"
+      ]
+    },
+    {
+      "signature": "0f6c7a9458ea43e3358621c9e0da7c66482425dc4a2da51f2feba9f2241083cb",
+      "count": 1,
+      "status": "context_reviewed",
+      "reason": "TerminalHighlightRulesSchema.parse antecede o verificador: máximo 160 caracteres por padrão e 40 regras. A busca de quantificador suspeito opera dentro desse limite, e não sobre o buffer do terminal.",
+      "evidence": [
+        "apps/backend/src/modules/terminal-highlights/terminal-highlight.service.ts",
+        "packages/shared/src/schemas/terminal-highlight.schema.ts"
+      ],
+      "sourceKeys": [
+        "3f86540b-6f80-4ea5-a65c-bdd9d3d710fd"
+      ]
+    },
+    {
+      "signature": "3873e679dc4d0701818cf6180339ebc11eb033fed060636d4a5eebe4fda66266",
+      "count": 1,
+      "status": "context_reviewed",
+      "reason": "Correção anterior img→application preservada: canvas é a superfície remota que recebe keydown/keyup, pointer, wheel e paste, não imagem estática ou botão. Handler conectado converte KeyboardEvent em keysym e instrução Guacamole. Role application descreve esta região interativa nomeada; scanner persiste pela regra genérica sobre elemento não interativo. Não trocar papel para satisfazer scanner. Revisão de contexto após correção, não alegação de ausência do alerta.",
+      "evidence": [
+        "apps/frontend/src/views/GraphicalSessionView.vue:1270",
+        "apps/frontend/src/services/graphical-guacd-client.test.ts",
+        "docs/changes/2026/11/NA-0087-sonar-frontend/followup-review.md"
+      ],
+      "sourceKeys": [
+        "0087ae89-303e-45f7-9348-faf429a64cfc"
+      ]
+    },
+    {
+      "signature": "34ab53c18c05dc334e8e24b4f82ddfefeb5c48bbc5d5e40a0fb7f63173034197",
+      "count": 1,
+      "status": "context_reviewed",
+      "reason": "Endereço é dado de fixture do cenário terminal-experience-playwright (linha base 18), servido por rotas/sockets simulados ou usado em assertiva/UI; não seleciona servidor operacional nem abre conexão SSH nesse endereço.",
+      "evidence": [
+        "tools/frontend/terminal-experience-playwright.cjs (contexto da linha base 18)"
+      ],
+      "sourceKeys": [
+        "a6553238-5d64-41d0-b835-35675cc544a4"
+      ]
+    },
+    {
+      "signature": "6c718af1914a3a4a33859a9478b2c5c90624d59615fd2c12bbce7e0493b07f55",
+      "count": 1,
+      "status": "context_reviewed",
+      "reason": "CLI/harness invocado pelo desenvolvedor/CI, não endpoint do produto: executável fixo com argv separado e sem shell. PATH pertence ao ambiente já confiado que executa o checkout; preservar git/docker/openssl/Node instalados pelo operador evita quebra de ferramentas/version managers. Não executar checkout não confiado com privilégios.",
+      "evidence": [
+        "tools/tls/integration.cjs (contexto da linha base 6)"
+      ],
+      "sourceKeys": [
+        "cedff12b-10c1-42cc-b0de-2641890c28d8"
+      ]
+    },
+    {
+      "signature": "8db8dfdcf8eda061eed6b0acc099facded55b60fe01e146b560c98ea633f7357",
+      "count": 1,
+      "status": "context_reviewed",
+      "reason": "CLI/harness invocado pelo desenvolvedor/CI, não endpoint do produto: executável fixo com argv separado e sem shell. PATH pertence ao ambiente já confiado que executa o checkout; preservar git/docker/openssl/Node instalados pelo operador evita quebra de ferramentas/version managers. Não executar checkout não confiado com privilégios.",
+      "evidence": [
+        "tools/tls/integration.cjs (contexto da linha base 7)"
+      ],
+      "sourceKeys": [
+        "8793b0a9-e2a6-4952-9cfe-13acaa0ed6aa"
+      ]
+    },
+    {
+      "signature": "422dbaf336a77565a62780a89ac2c25bfa320afd3bcccee7ed1a205b5f238cb8",
+      "count": 1,
+      "status": "context_reviewed",
+      "reason": "CLI/harness invocado pelo desenvolvedor/CI, não endpoint do produto: executável fixo com argv separado e sem shell. PATH pertence ao ambiente já confiado que executa o checkout; preservar git/docker/openssl/Node instalados pelo operador evita quebra de ferramentas/version managers. Não executar checkout não confiado com privilégios.",
+      "evidence": [
+        "tools/tls/integration.cjs (contexto da linha base 36)"
+      ],
+      "sourceKeys": [
+        "00bf2ac9-df75-4f0d-8860-7cf1cdd3200d"
+      ]
+    },
+    {
+      "signature": "de5c3e755e7618ce956c7265bc292b6eefd3194917afd00e746e2d49a1a10f44",
+      "count": 1,
+      "status": "context_reviewed",
+      "reason": "CLI/harness invocado pelo desenvolvedor/CI, não endpoint do produto: executável fixo com argv separado e sem shell. PATH pertence ao ambiente já confiado que executa o checkout; preservar git/docker/openssl/Node instalados pelo operador evita quebra de ferramentas/version managers. Não executar checkout não confiado com privilégios.",
+      "evidence": [
+        "tools/tls/integration.cjs (contexto da linha base 47)"
+      ],
+      "sourceKeys": [
+        "ff4c8100-c58d-453d-97b9-e8308768a0cf"
+      ]
+    },
+    {
+      "signature": "17ec4ba1c39e23dfcb8a1fd59621bf8e9552abb172d0988751262b0a6a4fd1b0",
+      "count": 1,
+      "status": "context_reviewed",
+      "reason": "CLI/harness invocado pelo desenvolvedor/CI, não endpoint do produto: executável fixo com argv separado e sem shell. PATH pertence ao ambiente já confiado que executa o checkout; preservar git/docker/openssl/Node instalados pelo operador evita quebra de ferramentas/version managers. Não executar checkout não confiado com privilégios.",
+      "evidence": [
+        "scripts/security/scan-images.mjs (contexto da linha base 21)"
+      ],
+      "sourceKeys": [
+        "5a01276f-19d8-49dd-8715-0eaa79098c10"
+      ]
+    },
+    {
+      "signature": "c18ae045ae978f42e66f58127c77a53a59ce96ff8ece3cd5df11fc732b75b20a",
+      "count": 1,
+      "status": "context_reviewed",
+      "reason": "Remoção de padding base64 aplicada ao fingerprint SHA256, de comprimento limitado; não há entrada arbitrária longa para backtracking.",
+      "evidence": [
+        "tools/deploy/container-stack-real.mjs (contexto da linha base 205)"
+      ],
+      "sourceKeys": [
+        "ca3c7e88-3dd1-4223-a139-ad509f031e53"
+      ]
+    },
+    {
+      "signature": "2baeaf7d2faa47a22f0459012ddb5280b3f0355bc2cc2decd70dd50fded17367",
+      "count": 1,
+      "status": "context_reviewed",
+      "reason": "DATABASE_URL é placeholder de importação; containers do upgrade recebem senha aleatória por execução, com nomes aleatórios e limpeza dos recursos próprios.",
+      "evidence": [
+        "tools/deploy/stack-upgrade-real.mjs (contexto da linha base 17)"
+      ],
+      "sourceKeys": [
+        "73c395e4-0617-4616-a206-e488cfc6cb94"
+      ]
+    },
+    {
+      "signature": "c205539d0a5102518a0a1c4b84157c0e6cc27c5998df4a4b3b10c646ec9c9a33",
+      "count": 2,
+      "status": "context_reviewed",
+      "reason": "Faixa '10.0.0.0' é entrada deliberada da política de bloqueio/reserva de endereços. Substituir por configuração arbitrária afetaria SSRF/isolamento; literal mantido. | Faixa '100.64.0.0' é entrada deliberada da política de bloqueio/reserva de endereços. Substituir por configuração arbitrária afetaria SSRF/isolamento; literal mantido.",
+      "evidence": [
+        "apps/backend/src/shared/ssrf-guard.ts"
+      ],
+      "sourceKeys": [
+        "31a66372-8f8f-4821-b1d4-e97e8fb5f55f",
+        "6eac06ec-58b7-4960-bbd3-e0da9722449a"
+      ]
+    },
+    {
+      "signature": "d2e2708cc8a9b5a30378b84dca51411d85311affad7ae724370a38727129b03a",
+      "count": 3,
+      "status": "context_reviewed",
+      "reason": "Faixa '192.0.0.0' é entrada deliberada da política de bloqueio/reserva de endereços. Substituir por configuração arbitrária afetaria SSRF/isolamento; literal mantido. | Faixa '169.254.0.0' é entrada deliberada da política de bloqueio/reserva de endereços. Substituir por configuração arbitrária afetaria SSRF/isolamento; literal mantido. | Faixa '172.16.0.0' é entrada deliberada da política de bloqueio/reserva de endereços. Substituir por configuração arbitrária afetaria SSRF/isolamento; literal mantido.",
+      "evidence": [
+        "apps/backend/src/shared/ssrf-guard.ts"
+      ],
+      "sourceKeys": [
+        "5483fed1-911a-4b50-8abd-b3c18775b584",
+        "6dc68b07-0d2b-4410-a18d-2eab9726dab6",
+        "b7fbbc64-d861-4644-9edc-86622ea1b04f"
+      ]
+    },
+    {
+      "signature": "e867ac9a95889b8e133f4726df0b8e7147f6c0ae2d6192e42a1fa0dbe29d9c64",
+      "count": 2,
+      "status": "context_reviewed",
+      "reason": "Faixa '192.168.0.0' é entrada deliberada da política de bloqueio/reserva de endereços. Substituir por configuração arbitrária afetaria SSRF/isolamento; literal mantido. | Faixa '198.18.0.0' é entrada deliberada da política de bloqueio/reserva de endereços. Substituir por configuração arbitrária afetaria SSRF/isolamento; literal mantido.",
+      "evidence": [
+        "apps/backend/src/shared/ssrf-guard.ts"
+      ],
+      "sourceKeys": [
+        "33d02c02-d09c-450a-bb63-f63b61b29922",
+        "b387e874-3b8d-4db9-85c9-c39f098b9167"
+      ]
+    },
+    {
+      "signature": "92ed9053ac8684c37f43e080a88ae12afdaee999f344e7cdc3ca348cfa76f5bc",
+      "count": 1,
+      "status": "context_reviewed",
+      "reason": "Faixa '224.0.0.0' é entrada deliberada da política de bloqueio/reserva de endereços. Substituir por configuração arbitrária afetaria SSRF/isolamento; literal mantido.",
+      "evidence": [
+        "apps/backend/src/shared/ssrf-guard.ts"
+      ],
+      "sourceKeys": [
+        "d544c375-1c1f-4b49-977e-2c5c88d17bd8"
+      ]
+    },
+    {
+      "signature": "3064038e3206db74e1ded8ade838cf8e927c8a8b5a4f154d7ee8f52d9528f4f7",
+      "count": 1,
+      "status": "context_reviewed",
+      "reason": "2000::/3 define o conjunto IPv6 global unicast aceito como público; a allowlist é combinada com bloqueios específicos, não configura destino remoto.",
+      "evidence": [
+        "apps/backend/src/shared/ssrf-guard.ts"
+      ],
+      "sourceKeys": [
+        "5fa1ef6e-cef6-43cd-9f2c-920d8fadbe5e"
+      ]
+    },
+    {
+      "signature": "0b8313499fe737e42bacce25664c05d518d42588d1040276d20fbf87ad1cb14c",
+      "count": 1,
+      "status": "context_reviewed",
+      "reason": "::ffff:0:0/96 identifica IPv4 mapeado em IPv6 para aplicar a mesma política de bloqueio IPv4; não é endereço de serviço.",
+      "evidence": [
+        "apps/backend/src/shared/ssrf-guard.ts"
+      ],
+      "sourceKeys": [
+        "30451ab3-b8ae-4901-8c3b-bf8c62680c10"
+      ]
+    },
+    {
+      "signature": "e66360f5794b36dadc8f8f3d5bf5db36dfa488aa9b6c16829ab2ee5748d8e8c5",
+      "count": 3,
+      "status": "context_reviewed",
+      "reason": "Faixa '2001::' é entrada deliberada da política de bloqueio/reserva de endereços. Substituir por configuração arbitrária afetaria SSRF/isolamento; literal mantido. | Faixa '2002::' é entrada deliberada da política de bloqueio/reserva de endereços. Substituir por configuração arbitrária afetaria SSRF/isolamento; literal mantido. | Faixa '3fff::' é entrada deliberada da política de bloqueio/reserva de endereços. Substituir por configuração arbitrária afetaria SSRF/isolamento; literal mantido.",
+      "evidence": [
+        "apps/backend/src/shared/ssrf-guard.ts"
+      ],
+      "sourceKeys": [
+        "46abbbed-2951-4129-a4fa-bf491804b000",
+        "87d9ad28-6eac-45a6-85ce-0aee1861ad0f",
+        "9aca2f59-4760-4aab-b1c4-638896efe306"
+      ]
+    },
+    {
+      "signature": "076a60d6ebf82625516b89d7e70fc1a29ef34290b2f2c77b9d574403f287dc27",
+      "count": 1,
+      "status": "context_reviewed",
+      "reason": "Math.random adiciona jitter ao atraso de retry de outbox; não gera token, segredo ou decisão de autorização. Tokens de claim são independentes; aleatoriedade criptográfica não é necessária para distribuir tentativas.",
+      "evidence": [
+        "apps/backend/src/modules/integrations/jira-interaction.repository.ts"
+      ],
+      "sourceKeys": [
+        "2894d177-b76a-40d9-9152-9752b53d15ca"
+      ]
+    },
+    {
+      "signature": "3dce203d7718c64def13fd871b9b7017375257f5a4c6f93841ff23afe60639cf",
+      "count": 1,
+      "status": "context_reviewed",
+      "reason": "TemporaryDirectory cria diretório aleatório privado atomicamente; usado como raiz descartável da fixture Nginx e removido ao encerrar o contexto.",
+      "evidence": [
+        "tools/deploy/engineering-security-headers-harness.py (contexto da linha base 7)"
+      ],
+      "sourceKeys": [
+        "7fbf0fc1-dacd-4726-96ae-2b3c1832c7c4"
+      ]
+    },
+    {
+      "signature": "54f8b2277d1e468fb61321c518d3d4842ba1c2bff989651d1e675715c28a9459",
+      "count": 1,
+      "status": "context_reviewed",
+      "reason": "Guarda CommonJS require.main === module distingue importação de execução CLI; comparação é dinâmica no runtime Node, não constante.",
+      "evidence": [
+        "tools/frontend/observability-cdp-harness.cjs (contexto da linha base 626)"
+      ],
+      "sourceKeys": [
+        "1cd97ee3-703b-4ddd-b89c-fbc707b36b91"
+      ]
+    },
+    {
+      "signature": "6ed8b7191cc64e5d43b75568a6e15d1452497d7d3f6acac9f4a4d65b54356a0c",
+      "count": 1,
+      "status": "context_reviewed",
+      "reason": "failure recebe 503 e depois offline nos cenários; a comparação distingue erro HTTP e falha de transporte.",
+      "evidence": [
+        "tools/frontend/observability-resilience-playwright.cjs (contexto da linha base 24)"
+      ],
+      "sourceKeys": [
+        "30a33c4b-1e10-4f3e-8e7e-e88572bf3c8e"
+      ]
+    },
+    {
+      "signature": "372d4f0e9259f51bb0ae0ec1638129462918779e3d06ce78e214f9f0caa73e5a",
+      "count": 1,
+      "status": "context_reviewed",
+      "reason": "Endereço é dado de fixture do cenário recent-host-access-playwright (linha base 12), servido por rotas/sockets simulados ou usado em assertiva/UI; não seleciona servidor operacional nem abre conexão SSH nesse endereço.",
+      "evidence": [
+        "tools/frontend/recent-host-access-playwright.cjs (contexto da linha base 12)"
+      ],
+      "sourceKeys": [
+        "61b58233-50b1-4da6-9492-85d5ba8b43f7"
+      ]
+    },
+    {
+      "signature": "eaaf1b8bb1edb75fd3a87eb04b9e97720a3f1de2c43d72edc1d6ad5c27a196d6",
+      "count": 1,
+      "status": "context_reviewed",
+      "reason": "Endereço é dado de fixture do cenário recent-host-access-playwright (linha base 13), servido por rotas/sockets simulados ou usado em assertiva/UI; não seleciona servidor operacional nem abre conexão SSH nesse endereço.",
+      "evidence": [
+        "tools/frontend/recent-host-access-playwright.cjs (contexto da linha base 13)"
+      ],
+      "sourceKeys": [
+        "e03ddebb-7fff-4a4f-9d7d-83285910c051"
+      ]
+    },
+    {
+      "signature": "36d834fde34a979c38e54a48aca56782156163254cf2d881ea4d2708e2282157",
+      "count": 1,
+      "status": "context_reviewed",
+      "reason": "Guarda CommonJS require.main === module distingue importação de execução CLI; comparação é dinâmica no runtime Node, não constante.",
+      "evidence": [
+        "tools/frontend/session-playback-playwright.cjs (contexto da linha base 496)"
+      ],
+      "sourceKeys": [
+        "902e8ae3-53f9-4b45-ad2e-d0c78fbbb39d"
+      ]
+    },
+    {
+      "signature": "878c8a148d762f91860fbf7ae4b169ef9a1fdc8ea9da91344b464beb6be04818",
+      "count": 1,
+      "status": "context_reviewed",
+      "reason": "Guarda CommonJS require.main === module distingue importação de execução CLI; comparação é dinâmica no runtime Node, não constante.",
+      "evidence": [
+        "tools/manual/build.cjs (contexto da linha base 48)"
+      ],
+      "sourceKeys": [
+        "e49e93e3-fb18-45ea-af19-607dd5ab5169"
+      ]
+    },
+    {
+      "signature": "d2ae929d5ad914b6fda2651024f83da1865903a8225627d5b43d0fb5549e7130",
+      "count": 1,
+      "status": "context_reviewed",
+      "reason": "IDs/hash de sessões são strings; ordenação lexical compara conjuntos equivalentes no teste SQL.",
+      "evidence": [
+        "tools/session-audit/reconstruction-sql-review.mts (contexto da linha base 136)"
+      ],
+      "sourceKeys": [
+        "059dd274-fa85-4c4e-81f6-4cb610c27f23"
+      ]
+    },
+    {
+      "signature": "00588a978f6dfbe506625ff912fff66e9e7b05bb21a76c430e7e7af4987bf1b4",
+      "count": 5,
+      "status": "context_reviewed",
+      "reason": "Caractere de controle é parte intencional do regex que reconhece sequências ANSI/ESC no terminal gravado; removê-lo quebraria limpeza da transcrição. Não é segredo nem comando executado. | Caractere de controle é parte intencional do regex que reconhece sequências ANSI/ESC no terminal gravado; removê-lo quebraria limpeza da transcrição. Não é segredo nem comando executado. | Caractere de controle é parte intencional do regex que reconhece sequências ANSI/ESC no terminal gravado; removê-lo quebraria limpeza da transcrição. Não é segredo nem comando executado. | Caractere de controle é parte intencional do regex que reconhece sequências ANSI/ESC no terminal gravado; removê-lo quebraria limpeza da transcrição. Não é segredo nem comando executado. | Caractere de controle é parte intencional do regex que reconhece sequências ANSI/ESC no terminal gravado; removê-lo quebraria limpeza da transcrição. Não é segredo nem comando executado.",
+      "evidence": [
+        "tools/session-audit/review-recorded-sessions.ts (contexto da linha base 31)"
+      ],
+      "sourceKeys": [
+        "0baf7aa1-5b49-405b-a35b-afa03dab2831",
+        "4bf58bc9-3791-417f-b1ab-1f0bf0ffd966",
+        "6fb54138-86d4-4007-be04-ba3ec9e64679",
+        "86bdfc47-f5ae-4e76-aa51-04b145fc48b4",
+        "abe65275-52bd-4966-8ac5-241a2819a160"
+      ]
+    },
+    {
+      "signature": "587b8d597c76e40efb17ced4d03f2e1833fba9ec5d7c0d1a1b309d55401c19d0",
+      "count": 2,
+      "status": "context_reviewed",
+      "reason": "Desafio HTTP-01 usa diretórios 0755 e arquivo 0644 para leitura pública pelo Nginx; conteúdo é nonce público aleatório, não chave TLS, e arquivo removido no finally. | Desafio HTTP-01 usa diretórios 0755 e arquivo 0644 para leitura pública pelo Nginx; conteúdo é nonce público aleatório, não chave TLS, e arquivo removido no finally.",
+      "evidence": [
+        "tools/tls/adapter.mjs (contexto da linha base 28)"
+      ],
+      "sourceKeys": [
+        "2ab3ec46-2ba6-4822-942e-e604bf3e8b17",
+        "fa21b890-0c38-4c89-a0b6-d097194371a9"
+      ]
+    },
+    {
+      "signature": "02b1c8dc87186d02cd1c57a8ecee7e4d5e39f8e27f053107c5683b28f2eb0bc9",
+      "count": 1,
+      "status": "context_reviewed",
+      "reason": "Desafio HTTP-01 usa diretórios 0755 e arquivo 0644 para leitura pública pelo Nginx; conteúdo é nonce público aleatório, não chave TLS, e arquivo removido no finally.",
+      "evidence": [
+        "tools/tls/adapter.mjs (contexto da linha base 29)"
+      ],
+      "sourceKeys": [
+        "d2a021e9-eb95-46a5-a95b-e745b94f87a6"
+      ]
+    },
+    {
+      "signature": "137980f902e52ca25a8c3250909e7e2f6e6d5917b391289ab87b54fe448bef1b",
+      "count": 1,
+      "status": "context_reviewed",
+      "reason": "nginx -t é executado sem shell dentro da imagem TLS controlada; Dockerfile instala o binário e PATH padrão da imagem contém diretórios do sistema controlados por root. Nenhuma entrada HTTP modifica executável/PATH.",
+      "evidence": [
+        "docker/frontend.Dockerfile (tls-agent); tools/tls/adapter.mjs"
+      ],
+      "sourceKeys": [
+        "bfaec988-7e99-46b9-89f7-c90ef484cd0b"
+      ]
+    },
+    {
+      "signature": "65209db6a94eb40b7b1be61df6178bb7ee20a2bae22bd195b0d3b6d7e3a6f629",
+      "count": 1,
+      "status": "context_reviewed",
+      "reason": "CLI/harness invocado pelo desenvolvedor/CI, não endpoint do produto: executável fixo com argv separado e sem shell. PATH pertence ao ambiente já confiado que executa o checkout; preservar git/docker/openssl/Node instalados pelo operador evita quebra de ferramentas/version managers. Não executar checkout não confiado com privilégios.",
+      "evidence": [
+        "tools/tls/audit-integration.ts (contexto da linha base 9)"
+      ],
+      "sourceKeys": [
+        "7080df1e-8fcf-4c0c-be0f-e9eaf6d78477"
+      ]
+    },
+    {
+      "signature": "3d8241056de756cabc8e226e9272673b9bac1524342286dcdd04d5d9527fc1f0",
+      "count": 1,
+      "status": "context_reviewed",
+      "reason": "Ordenação lexical das chaves produz representação canônica para comparação/digest de estado TLS.",
+      "evidence": [
+        "tools/tls/manager.mjs (contexto da linha base 15)"
+      ],
+      "sourceKeys": [
+        "a202c21e-60d3-46d8-aca1-5f8605556ff5"
+      ]
+    },
+    {
+      "signature": "fbced4db1735fb4f00a1b5ed1acd918a8969a0add6743063371a473ffdac3b86",
+      "count": 1,
+      "status": "context_reviewed",
+      "reason": "Promise.resolve apenas inicializa fila serial sem tarefa pendente; não existe operação assíncrona executada no construtor. Trabalhos reais são encadeados depois.",
+      "evidence": [
+        "tools/tls/manager.mjs (contexto da linha base 28)"
+      ],
+      "sourceKeys": [
+        "c0150fe9-5e9f-4ea6-8a93-495dd79da0c2"
+      ]
+    },
+    {
+      "signature": "43661e76e090d678b9739016b15e19d46b05d61b2fb27a3ee62f6ac6a84a7616",
+      "count": 1,
+      "status": "context_reviewed",
+      "reason": "Falha de persistência no finally precisa propagar e restaurar state.pending, mesmo após rollback, para não declarar operação segura sem durabilidade. Alterar prioridade esconderia falha de armazenamento. Testes cobrem recuperação de pending e publicação somente após commit durável.",
+      "evidence": [
+        "tools/tls/manager.test.mjs (restart pending swap; completion durable commit)"
+      ],
+      "sourceKeys": [
+        "7817bd82-93c1-490a-85e0-3a84f44cbaab"
+      ]
+    },
+    {
+      "signature": "6aacfc08ce68add44c24753936dea847fbd0e200065693c0c4b442cf7fcf0bd9",
+      "count": 1,
+      "status": "context_reviewed",
+      "reason": "Objeto padrão é contrato completo de política e é criado a cada chamada. Default allowLocalPort nega toda abertura; substituir por merge parcial alteraria contrato de segurança do chamador.",
+      "evidence": [
+        "apps/agent/src/local-listeners.js",
+        "apps/agent/src/local-listeners.test.js"
+      ],
+      "sourceKeys": [
+        "6f08bb36-06ce-43b6-ac45-3544ce696b80"
+      ]
+    },
+    {
+      "signature": "cd68f49cab9176e80d0865fff56778f172003bcf7a21ee93104a8fa5cf6d073c",
+      "count": 1,
+      "status": "context_reviewed",
+      "reason": "Entrada é digest SHA-256 gerado internamente e codificado Base64 (44 caracteres); regex de padding não opera sobre tamanho controlável pelo cliente.",
+      "evidence": [
+        "apps/backend/src/modules/native-ssh-gateway/native-ssh-gateway.host-key.ts"
+      ],
+      "sourceKeys": [
+        "c1484cd2-7b4a-40a7-bb38-8ece5b7f93c1"
+      ]
+    },
+    {
+      "signature": "0ac14048d73cfa73dad0362fc15f872d38df39da8b07d479e0e4e6ca266efdf0",
+      "count": 1,
+      "status": "context_reviewed",
+      "reason": "MD5 implementa a ofuscação definida pelo protocolo TACACS+ (RFC 8907), não armazenamento de senha. Trocar algoritmo unilateralmente quebra interoperabilidade. Proteção de rede/VPN e segredo forte continuam necessários.",
+      "evidence": [
+        "apps/backend/src/modules/network-access/tacacs-protocol.ts",
+        "apps/backend/src/modules/network-access/tacacs.test.ts"
+      ],
+      "sourceKeys": [
+        "52b546bb-6169-4d21-8a4c-95b3a290df12"
+      ]
+    },
+    {
+      "signature": "a5641cacb1d37c38f4c916d36f9161770c51512fe1dd6e231e35722ff977b060",
+      "count": 1,
+      "status": "context_reviewed",
+      "reason": "Objeto padrão contém limites completos de conexões, fontes, operações e timeout; TypeScript exige todos os campos quando fornecido. Não é estado compartilhado nem configuração parcial documentada.",
+      "evidence": [
+        "apps/backend/src/modules/network-access/tacacs-server.ts"
+      ],
+      "sourceKeys": [
+        "6bc86845-9e6f-473f-a781-6445af489247"
+      ]
+    },
+    {
+      "signature": "21b9a9ef90af667ad8156117015a2a99cbe9a745d9f3dba56cbd92d948241fa4",
+      "count": 1,
+      "status": "context_reviewed",
+      "reason": "Valor identifica origem de BroadcastChannel para não reaplicar invalidação local; não é token, permissão, segredo ou autenticação.",
+      "evidence": [
+        "apps/frontend/src/services/service-cache.ts:94"
+      ],
+      "sourceKeys": [
+        "58537d45-fe46-4910-aa3f-845520ec34b1"
+      ]
+    },
+    {
+      "signature": "8085df229bd239a9162498a7bd08aba63eaed8e582fd950af4eb754ace5de485",
+      "count": 1,
+      "status": "context_reviewed",
+      "reason": "ESC identifica atalhos de movimento de palavra e marca inferência de linha como não confiável; remover byte rompe protocolo terminal.",
+      "evidence": [
+        "apps/frontend/src/services/terminal-input-model.service.ts:43",
+        "docs/changes/2026/11/NA-0087-sonar-frontend/test-results.md"
+      ],
+      "sourceKeys": [
+        "b9900a35-4b3d-4816-98dd-1724aa8f69a8"
+      ]
+    },
+    {
+      "signature": "4c6a7c1b3c9274355758fda57cf6072994bafc65531efb1912fc5d25021f85cb",
+      "count": 1,
+      "status": "context_reviewed",
+      "reason": "CLI/harness invocado pelo desenvolvedor/CI, não endpoint do produto: executável fixo com argv separado e sem shell. PATH pertence ao ambiente já confiado que executa o checkout; preservar git/docker/openssl/Node instalados pelo operador evita quebra de ferramentas/version managers. Não executar checkout não confiado com privilégios.",
+      "evidence": [
+        "scripts/release/prepare-agent-windows.mjs (contexto da linha base 18)"
+      ],
+      "sourceKeys": [
+        "ea96801a-5f0b-4b26-a19f-2a2bd3f45016"
+      ]
+    },
+    {
+      "signature": "1541bae9da0c1e14b8a63e9843f98665f692e996e5290a02405144dbb452fb3d",
+      "count": 1,
+      "status": "context_reviewed",
+      "reason": "CLI/harness invocado pelo desenvolvedor/CI, não endpoint do produto: executável fixo com argv separado e sem shell. PATH pertence ao ambiente já confiado que executa o checkout; preservar git/docker/openssl/Node instalados pelo operador evita quebra de ferramentas/version managers. Não executar checkout não confiado com privilégios.",
+      "evidence": [
+        "tools/agents/security-live.mjs (contexto da linha base 59)"
+      ],
+      "sourceKeys": [
+        "a9fdf1a9-5c8b-4b12-b5ca-049a3d86ab78"
+      ]
+    },
+    {
+      "signature": "a21a156c0d803c5df456cb9cb42e3cf654fbfd9614841f7b0c12699739d19efa",
+      "count": 1,
+      "status": "context_reviewed",
+      "reason": "Endereço é dado de fixture do cenário forwardings-resilience-playwright (linha base 13), servido por rotas/sockets simulados ou usado em assertiva/UI; não seleciona servidor operacional nem abre conexão SSH nesse endereço.",
+      "evidence": [
+        "tools/frontend/forwardings-resilience-playwright.cjs (contexto da linha base 13)"
+      ],
+      "sourceKeys": [
+        "b5abd9cf-d0f8-4da4-8f8a-d0f3d6b33b0a"
+      ]
+    },
+    {
+      "signature": "4b8fe2e3d3da55d7038eb8c5b9ad1257fbe76f0f93dfa2e1010ecbbe47e4f66b",
+      "count": 1,
+      "status": "context_reviewed",
+      "reason": "Endereço é dado de fixture do cenário forwardings-resilience-playwright (linha base 33), servido por rotas/sockets simulados ou usado em assertiva/UI; não seleciona servidor operacional nem abre conexão SSH nesse endereço.",
+      "evidence": [
+        "tools/frontend/forwardings-resilience-playwright.cjs (contexto da linha base 33)"
+      ],
+      "sourceKeys": [
+        "fb113cdc-66f4-40c5-b33d-39afdfc86bad"
+      ]
+    },
+    {
+      "signature": "90a6ec81ea0a89e2aa164416ff46c2fec764da89e3f9fe360a856251b30c0387",
+      "count": 1,
+      "status": "context_reviewed",
+      "reason": "Endereço é dado de fixture do cenário host-secret-credentials-playwright (linha base 6), servido por rotas/sockets simulados ou usado em assertiva/UI; não seleciona servidor operacional nem abre conexão SSH nesse endereço.",
+      "evidence": [
+        "tools/frontend/host-secret-credentials-playwright.cjs (contexto da linha base 6)"
+      ],
+      "sourceKeys": [
+        "9025d17b-b87d-4e31-a583-87aa048c6186"
+      ]
+    },
+    {
+      "signature": "03642463447a93bd0cb12fee9fc6d5530216f15bedcdaab6fffd8dec07b192c9",
+      "count": 1,
+      "status": "context_reviewed",
+      "reason": "Endereço é dado de fixture do cenário host-shortcut-navigation-playwright (linha base 4), servido por rotas/sockets simulados ou usado em assertiva/UI; não seleciona servidor operacional nem abre conexão SSH nesse endereço.",
+      "evidence": [
+        "tools/frontend/host-shortcut-navigation-playwright.cjs (contexto da linha base 4)"
+      ],
+      "sourceKeys": [
+        "60d30f9d-b75a-4693-9359-0b7ff041ad60"
+      ]
+    },
+    {
+      "signature": "a1f5167af5e442e6a47d7ad7b35276a6f246336dd3d50a0d08d5938198d4c227",
+      "count": 1,
+      "status": "context_reviewed",
+      "reason": "Endereço é dado de fixture do cenário hosts-acl-resilience-playwright (linha base 15), servido por rotas/sockets simulados ou usado em assertiva/UI; não seleciona servidor operacional nem abre conexão SSH nesse endereço.",
+      "evidence": [
+        "tools/frontend/hosts-acl-resilience-playwright.cjs (contexto da linha base 15)"
+      ],
+      "sourceKeys": [
+        "036cba68-c9a9-440e-a1cb-a269870dfe11"
+      ]
+    },
+    {
+      "signature": "89e647c699d23d406072d6ef0c9091de799e8f98173256d058f7b0e2172a7001",
+      "count": 1,
+      "status": "context_reviewed",
+      "reason": "Laço já é limitado a 100 iterações com intervalo de 20/25ms e assertiva/erro ao não receber callback; não há espera ilimitada. Preservado para não enfraquecer simulação.",
+      "evidence": [
+        "tools/frontend/hosts-acl-resilience-playwright.cjs (contexto da linha base 167)"
+      ],
+      "sourceKeys": [
+        "8dd768a6-c4e4-4c94-bec2-96d6a88a60a4"
+      ]
+    },
+    {
+      "signature": "5daedcedf1d0a7c561e35bd71416605f5ec74cfdf3afc1be892e5fb9fddcae09",
+      "count": 1,
+      "status": "context_reviewed",
+      "reason": "Laço já é limitado a 100 iterações com intervalo de 20/25ms e assertiva/erro ao não receber callback; não há espera ilimitada. Preservado para não enfraquecer simulação.",
+      "evidence": [
+        "tools/frontend/hosts-acl-resilience-playwright.cjs (contexto da linha base 203)"
+      ],
+      "sourceKeys": [
+        "af78b9f8-314d-499b-ad11-708e2b371d43"
+      ]
+    },
+    {
+      "signature": "0a40d9c7bbe8f89dae4680ef264ab0db9b9f8a8167132581656978b8c617ef56",
+      "count": 1,
+      "status": "context_reviewed",
+      "reason": "Laço já é limitado a 100 iterações com intervalo de 20/25ms e assertiva/erro ao não receber callback; não há espera ilimitada. Preservado para não enfraquecer simulação.",
+      "evidence": [
+        "tools/frontend/hosts-acl-resilience-playwright.cjs (contexto da linha base 244)"
+      ],
+      "sourceKeys": [
+        "7c22b1be-1abf-4c0f-a454-9f0c1e1434c1"
+      ]
+    },
+    {
+      "signature": "5e1169b608042edc7a05e32742a1bd9bbc557bac6c0f9b204b4d9a1d1e6f7b95",
+      "count": 1,
+      "status": "context_reviewed",
+      "reason": "Endereço é dado de fixture do cenário hosts-corporate-folders-playwright (linha base 13), servido por rotas/sockets simulados ou usado em assertiva/UI; não seleciona servidor operacional nem abre conexão SSH nesse endereço.",
+      "evidence": [
+        "tools/frontend/hosts-corporate-folders-playwright.cjs (contexto da linha base 13)"
+      ],
+      "sourceKeys": [
+        "940ba870-d37b-4db7-868c-9592e7244794"
+      ]
+    },
+    {
+      "signature": "c14a7f4c2dcc0c85a997be4c19b005d6a793f864e090601ac4583745e4a902c9",
+      "count": 1,
+      "status": "context_reviewed",
+      "reason": "sftpFailure recebe valor network durante os cenários; o ramo simula falha de transporte em oposição a status HTTP.",
+      "evidence": [
+        "tools/frontend/hosts-feedback-ux-playwright.cjs (contexto da linha base 33)"
+      ],
+      "sourceKeys": [
+        "f4fdded7-0d76-47fc-af00-957569f7cdc8"
+      ]
+    },
+    {
+      "signature": "c9e34595a970d36e4ea8d8260a8c840106ae3062e098a6adc320c898b0ddf6d5",
+      "count": 1,
+      "status": "context_reviewed",
+      "reason": "Endereço é dado de fixture do cenário hosts-presence-resilience-playwright (linha base 14), servido por rotas/sockets simulados ou usado em assertiva/UI; não seleciona servidor operacional nem abre conexão SSH nesse endereço.",
+      "evidence": [
+        "tools/frontend/hosts-presence-resilience-playwright.cjs (contexto da linha base 14)"
+      ],
+      "sourceKeys": [
+        "b700f81d-8c59-491f-b31f-f4b8f505acc5"
+      ]
+    },
+    {
+      "signature": "950953f2ad7709ba41365ec2bb19c04b9d0c6f9f8ce62f8bd78b0790b0fb4c72",
+      "count": 1,
+      "status": "context_reviewed",
+      "reason": "Endereço é dado de fixture do cenário mobaxterm-import-playwright (linha base 53), servido por rotas/sockets simulados ou usado em assertiva/UI; não seleciona servidor operacional nem abre conexão SSH nesse endereço.",
+      "evidence": [
+        "tools/frontend/mobaxterm-import-playwright.cjs (contexto da linha base 53)"
+      ],
+      "sourceKeys": [
+        "b3788cef-4925-49dd-8c2b-7f64092bad01"
+      ]
+    },
+    {
+      "signature": "5411176871f6bbbb06ea6a7626db58263818e2c98ab28cee5741bf20ae40d906",
+      "count": 1,
+      "status": "context_reviewed",
+      "reason": "Laço já é limitado a 100 iterações com intervalo de 20/25ms e assertiva/erro ao não receber callback; não há espera ilimitada. Preservado para não enfraquecer simulação.",
+      "evidence": [
+        "tools/frontend/sharing-flows-playwright.cjs (contexto da linha base 164)"
+      ],
+      "sourceKeys": [
+        "1c319cf3-8338-4c66-a4e4-018d2c934fce"
+      ]
+    },
+    {
+      "signature": "310b6e09755979cfd277fe03c8f902b4824f4787dc8d89f86392c5f5d9aeb8f4",
+      "count": 1,
+      "status": "context_reviewed",
+      "reason": "CLI/harness invocado pelo desenvolvedor/CI, não endpoint do produto: executável fixo com argv separado e sem shell. PATH pertence ao ambiente já confiado que executa o checkout; preservar git/docker/openssl/Node instalados pelo operador evita quebra de ferramentas/version managers. Não executar checkout não confiado com privilégios.",
+      "evidence": [
+        "tools/frontend/terminal-autocomplete-pty.ts (contexto da linha base 11)"
+      ],
+      "sourceKeys": [
+        "369f75e2-77b5-421b-808e-21349efcfcd3"
+      ]
+    },
+    {
+      "signature": "0a91e214ee9275d307bf7a5b9bc4cd4c20bfd7a6309b8240377d19d3a0e93b70",
+      "count": 1,
+      "status": "context_reviewed",
+      "reason": "Endereço é dado de fixture do cenário user-dashboard-playwright (linha base 35), servido por rotas/sockets simulados ou usado em assertiva/UI; não seleciona servidor operacional nem abre conexão SSH nesse endereço.",
+      "evidence": [
+        "tools/frontend/user-dashboard-playwright.cjs (contexto da linha base 35)"
+      ],
+      "sourceKeys": [
+        "1e4b0d76-950c-4086-bfdb-8a200014562d"
+      ]
+    },
+    {
+      "signature": "a0d29a9bf99d3ca377ffab10410ae6169f83bd01cb7336432de2cae31a1228f9",
+      "count": 1,
+      "status": "context_reviewed",
+      "reason": "Endereço é dado de fixture do cenário user-dashboard-playwright (linha base 36), servido por rotas/sockets simulados ou usado em assertiva/UI; não seleciona servidor operacional nem abre conexão SSH nesse endereço.",
+      "evidence": [
+        "tools/frontend/user-dashboard-playwright.cjs (contexto da linha base 36)"
+      ],
+      "sourceKeys": [
+        "4bf929d8-3321-42d8-a12a-70a0f91710bb"
+      ]
+    },
+    {
+      "signature": "509ab9ceecf1359b2708007c02edfb9de423140aec96d5c7ebd3a179597a16de",
+      "count": 1,
+      "status": "context_reviewed",
+      "reason": "Endereço é dado de fixture do cenário user-dashboard-playwright (linha base 40), servido por rotas/sockets simulados ou usado em assertiva/UI; não seleciona servidor operacional nem abre conexão SSH nesse endereço.",
+      "evidence": [
+        "tools/frontend/user-dashboard-playwright.cjs (contexto da linha base 40)"
+      ],
+      "sourceKeys": [
+        "6ea64dae-0567-4c3d-b999-9499551f0f50"
+      ]
+    },
+    {
+      "signature": "a57c84ecab639e82a267e8662be7bb17dc2e4f9ea70678808fb3b0220bc76ce3",
+      "count": 1,
+      "status": "context_reviewed",
+      "reason": "Endereço é dado de fixture do cenário user-dashboard-playwright (linha base 41), servido por rotas/sockets simulados ou usado em assertiva/UI; não seleciona servidor operacional nem abre conexão SSH nesse endereço.",
+      "evidence": [
+        "tools/frontend/user-dashboard-playwright.cjs (contexto da linha base 41)"
+      ],
+      "sourceKeys": [
+        "71d115ca-e6c3-4c36-af61-a703bb1cd0cc"
+      ]
+    },
+    {
+      "signature": "5e4b881a63c82a8727c4e22006b8a40a0e3473a424cbf53b04b3a454063dc363",
+      "count": 1,
+      "status": "context_reviewed",
+      "reason": "Endereço é dado de fixture do cenário ux (linha base 64), servido por rotas/sockets simulados ou usado em assertiva/UI; não seleciona servidor operacional nem abre conexão SSH nesse endereço.",
+      "evidence": [
+        "tools/network-access/ux.cjs (contexto da linha base 64)"
+      ],
+      "sourceKeys": [
+        "21cf2bef-aa24-4bec-b219-2c153164b155"
+      ]
+    },
+    {
+      "signature": "1fa4098332d9f64a6d20079d42a6503b02ca284c4ddcdf37c534121bded8ab55",
+      "count": 1,
+      "status": "context_reviewed",
+      "reason": "reduce está no ramo idFilters.length > 0; coleção vazia retorna null antes da redução. Inicializar com [] mudaria a interseção e negaria todos os hosts.",
+      "evidence": [
+        "apps/backend/src/modules/hosts/host.repository.ts"
+      ],
+      "sourceKeys": [
+        "40822519-fa60-4e2e-abc6-503d70faa38c"
+      ]
+    },
+    {
+      "signature": "3a55e8e0e5116bc3957dbfe0827833a110ea2832b57cddd67c547fc8c08d46a4",
+      "count": 1,
+      "status": "context_reviewed",
+      "reason": "Label desta ocorrência envolve textbox; o componente renderiza input/textarea nativo dentro do label. DOM confirmou nome \"Quantidade máxima de usuários Please Input Não pode ser menor que os Campo de demonstração usuários atualmente ativos.\" e foco. Não é campo sem associação apesar do scanner estático.",
+      "evidence": [
+        "docs/changes/2026/11/NA-0087-sonar-frontend/dom-label-evidence.json#ae05e55c-7fdf-480b-8b31-7abf36b98ee2",
+        "tools/frontend/sonar-frontend-review.cjs"
+      ],
+      "sourceKeys": [
+        "ae05e55c-7fdf-480b-8b31-7abf36b98ee2"
+      ]
+    },
+    {
+      "signature": "af188d11e67aaf8776a586aff68b906849fb7fe50ef25d2cc1ffd0e94a177bbd",
+      "count": 1,
+      "status": "context_reviewed",
+      "reason": "Ordenação de identificadores técnicos de tipos/protocolos por UTF-16 é determinística e independente de locale; os valores são strings, não números.",
+      "evidence": [
+        "apps/frontend/src/services/mobaxterm-import.service.ts:215",
+        "docs/changes/2026/11/NA-0087-sonar-frontend/test-results.md"
+      ],
+      "sourceKeys": [
+        "5e3e2f4a-6e2e-4321-b005-155915b7583b"
+      ]
+    },
+    {
+      "signature": "e1cb3a32a6ec18c1b97f6d22b29471ff3d8e2d9a99699646dbda941394ecf99c",
+      "count": 2,
+      "status": "context_reviewed",
+      "reason": "OSC 133;D extrai código de saída; ESC inicia sequência e BEL/ST a encerra. Bytes são delimitadores intencionais do protocolo. | OSC 133;D extrai código de saída; ESC inicia sequência e BEL/ST a encerra. Bytes são delimitadores intencionais do protocolo.",
+      "evidence": [
+        "apps/frontend/src/services/terminal-osc-command.service.ts:5",
+        "docs/changes/2026/11/NA-0087-sonar-frontend/test-results.md"
+      ],
+      "sourceKeys": [
+        "5be8a4e5-1585-44bf-b336-f0abfefb13e8",
+        "8e96c3c6-a328-4ec7-92c1-ca14252d691f"
+      ]
+    },
+    {
+      "signature": "78b5fca20af07784f16ed62c6fbea05bac70b0af498ce6b5bec503bdc1236bdf",
+      "count": 6,
+      "status": "context_reviewed",
+      "reason": "OSC 7 file:// extrai diretório corrente. ESC e BEL/ST delimitam sequência e são excluídos do caminho; cada ocorrência é necessária ao parser. | OSC 7 file:// extrai diretório corrente. ESC e BEL/ST delimitam sequência e são excluídos do caminho; cada ocorrência é necessária ao parser. | OSC 7 file:// extrai diretório corrente. ESC e BEL/ST delimitam sequência e são excluídos do caminho; cada ocorrência é necessária ao parser. | OSC 7 file:// extrai diretório corrente. ESC e BEL/ST delimitam sequência e são excluídos do caminho; cada ocorrência é necessária ao parser. | OSC 7 file:// extrai diretório corrente. ESC e BEL/ST delimitam sequência e são excluídos do caminho; cada ocorrência é necessária ao parser. | OSC 7 file:// extrai diretório corrente. ESC e BEL/ST delimitam sequência e são excluídos do caminho; cada ocorrência é necessária ao parser.",
+      "evidence": [
+        "apps/frontend/src/services/terminal-osc-directory.service.ts:5",
+        "docs/changes/2026/11/NA-0087-sonar-frontend/test-results.md"
+      ],
+      "sourceKeys": [
+        "2de0581d-4ec3-41cc-b313-93006fc3eb5c",
+        "54effdb2-129d-46d1-82ab-520a90c9d5a2",
+        "560176a2-6772-4170-828d-74ef224ac53f",
+        "72bbfbfd-9e08-4565-bbe5-df1c8d06005e",
+        "c1829053-a40e-4399-9d9b-3e6c51fb8737",
+        "daaa581a-7de7-459b-961c-93abf6f8d327"
+      ]
+    },
+    {
+      "signature": "7666d07519ea6fd34c0467cac9ae4622bb27d174956c69e2658fad19f472e6f4",
+      "count": 1,
+      "status": "context_reviewed",
+      "reason": "Avanço explícito do índice pula separadores simples/duplos já consumidos (;, |, &&), preservando início do próximo comando. Não é atualização acidental de contador.",
+      "evidence": [
+        "apps/frontend/src/services/terminal-path-autocomplete.service.ts",
+        "apps/frontend/src/services/terminal-path-autocomplete.service.test.ts"
+      ],
+      "sourceKeys": [
+        "525c047a-f7c2-41e0-a7af-9c916a99bfd5"
+      ]
+    },
+    {
+      "signature": "6d5bfccf87d3f7523534853a2003e349c107220a4c76c62d527277cc21406831",
+      "count": 2,
+      "status": "context_reviewed",
+      "reason": "Separador ajustável real: role=separator, orientação, limites e valor ARIA; pointerdown e keydown manipulam divisão. tabindex é necessário ao redimensionamento por teclado. | Separador ajustável real: role=separator, orientação, limites e valor ARIA; pointerdown e keydown manipulam divisão. tabindex é necessário ao redimensionamento por teclado.",
+      "evidence": [
+        "tools/frontend/terminal-experience-playwright.cjs",
+        "apps/frontend/src/views/TerminalView.vue:4391",
+        "apps/frontend/src/views/TerminalView.vue:4408"
+      ],
+      "sourceKeys": [
+        "636a6118-ffaf-49c1-a6ce-3a2e9637c4f8",
+        "9a5ede13-349c-4765-8d7c-24156b6103f7"
+      ]
+    },
+    {
+      "signature": "e2e827dc03fb62f3904162c10c97b02fae1a1d1749faa82ec82c357b7cdc1fc8",
+      "count": 2,
+      "status": "context_reviewed",
+      "reason": "Endereço é dado de fixture do cenário agents-experience-playwright (linha base 16), servido por rotas/sockets simulados ou usado em assertiva/UI; não seleciona servidor operacional nem abre conexão SSH nesse endereço. | Endereço é dado de fixture do cenário agents-experience-playwright (linha base 16), servido por rotas/sockets simulados ou usado em assertiva/UI; não seleciona servidor operacional nem abre conexão SSH nesse endereço.",
+      "evidence": [
+        "tools/frontend/agents-experience-playwright.cjs (contexto da linha base 16)"
+      ],
+      "sourceKeys": [
+        "131b663c-07de-4a04-8987-7a9c68723160",
+        "e3e9eafc-6bab-4b45-a31d-9e241cce08af"
+      ]
+    },
+    {
+      "signature": "ce8816bc1a407a6e0964487fc7062120f5b3c46707bdabfc0fae2aa5261a1b6e",
+      "count": 1,
+      "status": "context_reviewed",
+      "reason": "Endereço é dado de fixture do cenário agents-experience-playwright (linha base 20), servido por rotas/sockets simulados ou usado em assertiva/UI; não seleciona servidor operacional nem abre conexão SSH nesse endereço.",
+      "evidence": [
+        "tools/frontend/agents-experience-playwright.cjs (contexto da linha base 20)"
+      ],
+      "sourceKeys": [
+        "2ecd3d20-ea72-42a3-9583-d0e276773f80"
+      ]
+    },
+    {
+      "signature": "867b020e388a0eea6e7cf535e93aade06aefd5d785bf0498c12cfa4c0bf8df55",
+      "count": 1,
+      "status": "context_reviewed",
+      "reason": "Endereço é dado de fixture do cenário agents-experience-playwright (linha base 62), servido por rotas/sockets simulados ou usado em assertiva/UI; não seleciona servidor operacional nem abre conexão SSH nesse endereço.",
+      "evidence": [
+        "tools/frontend/agents-experience-playwright.cjs (contexto da linha base 62)"
+      ],
+      "sourceKeys": [
+        "7d69e3a7-624b-41b6-affe-b4bd0bca181e"
+      ]
+    },
+    {
+      "signature": "288cdd1534de06ffa4f68e23a906ae7a6f320bbd21d87e16cc84f9d68de0038b",
+      "count": 1,
+      "status": "context_reviewed",
+      "reason": "Endereço é dado de fixture do cenário hosts-personal-folders-playwright (linha base 25), servido por rotas/sockets simulados ou usado em assertiva/UI; não seleciona servidor operacional nem abre conexão SSH nesse endereço.",
+      "evidence": [
+        "tools/frontend/hosts-personal-folders-playwright.cjs (contexto da linha base 25)"
+      ],
+      "sourceKeys": [
+        "4acf4719-f4e6-4ffa-9206-2a61e54a1614"
+      ]
+    },
+    {
+      "signature": "17a1045db07020291a8abdcfe309f22bbec58ec7ba393a76f892dd78574dcbb3",
+      "count": 1,
+      "status": "context_reviewed",
+      "reason": "Endereço é dado de fixture do cenário mobaxterm-import-playwright (linha base 70), servido por rotas/sockets simulados ou usado em assertiva/UI; não seleciona servidor operacional nem abre conexão SSH nesse endereço.",
+      "evidence": [
+        "tools/frontend/mobaxterm-import-playwright.cjs (contexto da linha base 70)"
+      ],
+      "sourceKeys": [
+        "605ae85f-d5dd-49ca-b4d3-0300e83e49a6"
+      ]
+    },
+    {
+      "signature": "815cd96621a337ca63ef4392574b50d2f00e4b32f1438567aad77fb9f9d640b3",
+      "count": 1,
+      "status": "context_reviewed",
+      "reason": "Endereço é dado de fixture do cenário terminal-experience-playwright (linha base 35), servido por rotas/sockets simulados ou usado em assertiva/UI; não seleciona servidor operacional nem abre conexão SSH nesse endereço.",
+      "evidence": [
+        "tools/frontend/terminal-experience-playwright.cjs (contexto da linha base 35)"
+      ],
+      "sourceKeys": [
+        "cfef0f80-070a-45e7-bdcb-30633a929ebd"
+      ]
+    },
+    {
+      "signature": "208781a8738b48f9aa0013e1b7a08ee4c2dcc5d1b16a652f436efa1d19a4af0a",
+      "count": 1,
+      "status": "context_reviewed",
+      "reason": "Endereço é dado de fixture do cenário terminal-experience-playwright (linha base 36), servido por rotas/sockets simulados ou usado em assertiva/UI; não seleciona servidor operacional nem abre conexão SSH nesse endereço.",
+      "evidence": [
+        "tools/frontend/terminal-experience-playwright.cjs (contexto da linha base 36)"
+      ],
+      "sourceKeys": [
+        "a77610db-7f7c-4fad-8d59-812cffb3f060"
+      ]
+    },
+    {
+      "signature": "9a3cda19174e3ddce7ad9af2f8c6cdaa18828741b155ea0349ad8652ddafae5b",
+      "count": 1,
+      "status": "context_reviewed",
+      "reason": "Sanitizador remove controles de terminal antes de formar contexto enviado ao provedor IA. Ocorrência individual revisada na linha base 4, coluna 14.",
+      "evidence": [
+        "apps/backend/src/modules/local-ai/local-ai-terminal-context.ts"
+      ],
+      "sourceKeys": [
+        "9507ac72-b5b8-4115-86a9-a859b95dfa4d"
+      ]
+    },
+    {
+      "signature": "6a05f8990d4a7ba2d52b5d2e021cae801deb4ca5bae34c30cb1849081992ad5f",
+      "count": 1,
+      "status": "context_reviewed",
+      "reason": "Credencial inutilizada de banco na certificação cria secret somente no cluster kind descartável criado pelo próprio script; não é credencial de ambiente operacional.",
+      "evidence": [
+        "tools/deploy/helm-ollama-kind-certification.sh (contexto da linha base 22)"
+      ],
+      "sourceKeys": [
+        "4abb2a68-195b-4a2e-a5e4-2185ea88969a"
+      ]
+    },
+    {
+      "signature": "986cbc39e1ff2472e9cc0601f705fcee496eb1ec00a7d6fb43535cdd0b404431",
+      "count": 1,
+      "status": "context_reviewed",
+      "reason": "Endereço é dado de fixture do cenário action-run-audit-playwright (linha base 13), servido por rotas/sockets simulados ou usado em assertiva/UI; não seleciona servidor operacional nem abre conexão SSH nesse endereço.",
+      "evidence": [
+        "tools/frontend/action-run-audit-playwright.cjs (contexto da linha base 13)"
+      ],
+      "sourceKeys": [
+        "3af3c35d-f247-481c-b38b-da1fef3fd8b3"
+      ]
+    },
+    {
+      "signature": "6273390755080f399c931c31847832fc6a2d1a7395fb59ef5bb9e408a7702e57",
+      "count": 1,
+      "status": "context_reviewed",
+      "reason": "Endereço é dado de fixture do cenário ai-investigations-playwright (linha base 7), servido por rotas/sockets simulados ou usado em assertiva/UI; não seleciona servidor operacional nem abre conexão SSH nesse endereço.",
+      "evidence": [
+        "tools/frontend/ai-investigations-playwright.cjs (contexto da linha base 7)"
+      ],
+      "sourceKeys": [
+        "15f5eb04-a72b-4dea-b009-6c1b72366713"
+      ]
+    },
+    {
+      "signature": "3f0110080e689e1762c0891cd2a93b1d3c0bf0537ed788f8ef16cb5667f01deb",
+      "count": 1,
+      "status": "context_reviewed",
+      "reason": "Endereço é dado de fixture do cenário jira-integration-playwright (linha base 83), servido por rotas/sockets simulados ou usado em assertiva/UI; não seleciona servidor operacional nem abre conexão SSH nesse endereço.",
+      "evidence": [
+        "tools/frontend/jira-integration-playwright.cjs (contexto da linha base 83)"
+      ],
+      "sourceKeys": [
+        "f6f05851-95ac-4c25-ad27-a364edc0ccfb"
+      ]
+    },
+    {
+      "signature": "54552b87a241760166fc9dcd8ba1dea2e837d629ce5d26ec0e2a01f257231943",
+      "count": 1,
+      "status": "context_reviewed",
+      "reason": "Endereço é dado de fixture do cenário local-ai-playwright (linha base 87), servido por rotas/sockets simulados ou usado em assertiva/UI; não seleciona servidor operacional nem abre conexão SSH nesse endereço.",
+      "evidence": [
+        "tools/frontend/local-ai-playwright.cjs (contexto da linha base 87)"
+      ],
+      "sourceKeys": [
+        "724edb5d-4d06-4b91-ae3b-e5c36e7a741f"
+      ]
+    },
+    {
+      "signature": "f7dbb17e27799596cf5b3b34610837ec468f7973534123fe230f27fdd7d1c3d5",
+      "count": 1,
+      "status": "context_reviewed",
+      "reason": "Endereço é dado de fixture do cenário local-ai-playwright (linha base 94), servido por rotas/sockets simulados ou usado em assertiva/UI; não seleciona servidor operacional nem abre conexão SSH nesse endereço.",
+      "evidence": [
+        "tools/frontend/local-ai-playwright.cjs (contexto da linha base 94)"
+      ],
+      "sourceKeys": [
+        "9c872ea7-4c22-4411-b9dd-e7410f5331db"
+      ]
+    },
+    {
+      "signature": "d23212c2a8e6d018adb060dedef87cb98164f5a14b4707aeeeb1715e7a7dd589",
+      "count": 1,
+      "status": "context_reviewed",
+      "reason": "Endereço é dado de fixture do cenário host-backed-bastions-playwright (linha base 14), servido por rotas/sockets simulados ou usado em assertiva/UI; não seleciona servidor operacional nem abre conexão SSH nesse endereço.",
+      "evidence": [
+        "tools/frontend/host-backed-bastions-playwright.cjs (contexto da linha base 14)"
+      ],
+      "sourceKeys": [
+        "3b53cdef-0356-4c70-8bc4-61d32753c04f"
+      ]
+    },
+    {
+      "signature": "9adbbf1eccf9b85ed3dd9d83df922e715067cb5e36fef39cf08aeb0acb5f2f5e",
+      "count": 1,
+      "status": "context_reviewed",
+      "reason": "Endereço é dado de fixture do cenário jira-integration-playwright (linha base 23), servido por rotas/sockets simulados ou usado em assertiva/UI; não seleciona servidor operacional nem abre conexão SSH nesse endereço.",
+      "evidence": [
+        "tools/frontend/jira-integration-playwright.cjs (contexto da linha base 23)"
+      ],
+      "sourceKeys": [
+        "ae699274-627f-4b55-a6b3-ea098376df23"
+      ]
+    },
+    {
+      "signature": "6b704ef38931b946fe2492928d677f5f6d0be75e4f335b652ed703c09a55d622",
+      "count": 1,
+      "status": "context_reviewed",
+      "reason": "Endereço é dado de fixture do cenário session-playback-playwright (linha base 22), servido por rotas/sockets simulados ou usado em assertiva/UI; não seleciona servidor operacional nem abre conexão SSH nesse endereço.",
+      "evidence": [
+        "tools/frontend/session-playback-playwright.cjs (contexto da linha base 22)"
+      ],
+      "sourceKeys": [
+        "1936579c-7b50-4e05-941c-1db18b833672"
+      ]
+    },
+    {
+      "signature": "553b52a85232f5e259b12358614c8a76fe717d4037f53b53491686a7adcc7916",
+      "count": 1,
+      "status": "context_reviewed",
+      "reason": "INVALID_DATABASE_URL é deliberadamente inválida para provocar falha de migração; a URL válida é exigida via ambiente e não está embutida no código. Execução exige cluster de teste explícito.",
+      "evidence": [
+        "tools/deploy/helm-migration-recovery-harness.sh (contexto da linha base 13)"
+      ],
+      "sourceKeys": [
+        "eb6fea74-53ec-4125-8fb6-712aeb35eeb4"
+      ]
+    },
+    {
+      "signature": "5c4f1e1620ea0c958d7a83a5371334eff7a397ebb891d8846c552daa2ef0345d",
+      "count": 1,
+      "status": "context_reviewed",
+      "reason": "Label desta ocorrência envolve textbox; o componente renderiza input/textarea nativo dentro do label. DOM confirmou nome \"admin.integrations.authPolicy.lockoutAttempts Please Input\" e foco. Não é campo sem associação apesar do scanner estático.",
+      "evidence": [
+        "docs/changes/2026/11/NA-0087-sonar-frontend/dom-label-evidence.json#837cb40c-e519-4569-a645-2fe22f255c74",
+        "tools/frontend/sonar-frontend-review.cjs"
+      ],
+      "sourceKeys": [
+        "837cb40c-e519-4569-a645-2fe22f255c74"
+      ]
+    },
+    {
+      "signature": "b7822fe9ce58c2aa3036bccb87ea3bddaa6930c1a9c4e837170ea276d12ca4b8",
+      "count": 1,
+      "status": "context_reviewed",
+      "reason": "Label desta ocorrência envolve textbox; o componente renderiza input/textarea nativo dentro do label. DOM confirmou nome \"admin.integrations.authPolicy.lockoutMinutes Please Input\" e foco. Não é campo sem associação apesar do scanner estático.",
+      "evidence": [
+        "docs/changes/2026/11/NA-0087-sonar-frontend/dom-label-evidence.json#b11287e3-9121-4ef2-b1de-3f4e068123ed",
+        "tools/frontend/sonar-frontend-review.cjs"
+      ],
+      "sourceKeys": [
+        "b11287e3-9121-4ef2-b1de-3f4e068123ed"
+      ]
+    },
+    {
+      "signature": "6d2ca245e9e9717c983ba6de9ef73d44e96fdb7691e436a6a6068fa068bfc790",
+      "count": 1,
+      "status": "context_reviewed",
+      "reason": "Label desta ocorrência envolve textbox; o componente renderiza input/textarea nativo dentro do label. DOM confirmou nome \"admin.integrations.authPolicy.accessMinutes Please Input\" e foco. Não é campo sem associação apesar do scanner estático.",
+      "evidence": [
+        "docs/changes/2026/11/NA-0087-sonar-frontend/dom-label-evidence.json#87095c85-f631-4cbe-bc4c-a65ba78e4709",
+        "tools/frontend/sonar-frontend-review.cjs"
+      ],
+      "sourceKeys": [
+        "87095c85-f631-4cbe-bc4c-a65ba78e4709"
+      ]
+    },
+    {
+      "signature": "521126945f281fd9f7d3a7c2c7b46c277bfa7cd8c63fb65b004d4c955ca8589a",
+      "count": 1,
+      "status": "context_reviewed",
+      "reason": "Label desta ocorrência envolve textbox; o componente renderiza input/textarea nativo dentro do label. DOM confirmou nome \"admin.integrations.authPolicy.refreshDays Please Input\" e foco. Não é campo sem associação apesar do scanner estático.",
+      "evidence": [
+        "docs/changes/2026/11/NA-0087-sonar-frontend/dom-label-evidence.json#d5ec8fbb-fe40-4f34-926d-aeb1d94bf79f",
+        "tools/frontend/sonar-frontend-review.cjs"
+      ],
+      "sourceKeys": [
+        "d5ec8fbb-fe40-4f34-926d-aeb1d94bf79f"
+      ]
+    },
+    {
+      "signature": "a5a6bf15e599675cb3ef7b71fc390b1c4a3a12035b0aec171c7139274b783c32",
+      "count": 1,
+      "status": "context_reviewed",
+      "reason": "CLI/harness invocado pelo desenvolvedor/CI, não endpoint do produto: executável fixo com argv separado e sem shell. PATH pertence ao ambiente já confiado que executa o checkout; preservar git/docker/openssl/Node instalados pelo operador evita quebra de ferramentas/version managers. Não executar checkout não confiado com privilégios.",
+      "evidence": [
+        "tools/deploy/helm-chart-harness.cjs (contexto da linha base 10)"
+      ],
+      "sourceKeys": [
+        "9f3f163a-424a-4186-a664-99add28cfd13"
+      ]
+    },
+    {
+      "signature": "5ad3329fddaac3f3f355004723fdfae45d49349afb16959f5630066cedab9325",
+      "count": 1,
+      "status": "context_reviewed",
+      "reason": "Endereço é dado de fixture do cenário session-command-policies-playwright (linha base 28), servido por rotas/sockets simulados ou usado em assertiva/UI; não seleciona servidor operacional nem abre conexão SSH nesse endereço.",
+      "evidence": [
+        "tools/frontend/session-command-policies-playwright.cjs (contexto da linha base 28)"
+      ],
+      "sourceKeys": [
+        "1c51e782-d898-419f-ab0a-b32911bfcba5"
+      ]
+    },
+    {
+      "signature": "be8b65cd5df5c792bcc03602ee290ae1e7f51459e8625923eb8727af352ca9f3",
+      "count": 1,
+      "status": "context_reviewed",
+      "reason": "Objeto default de viewport é criado por chamada para isolar cenários; não há estado compartilhado nem custo relevante. Hoisting introduziria referência compartilhada sem benefício.",
+      "evidence": [
+        "tools/frontend/session-command-policies-playwright.cjs (contexto da linha base 68)"
+      ],
+      "sourceKeys": [
+        "7ff8efea-8102-4462-846a-a518199f9f70"
+      ]
+    },
+    {
+      "signature": "4e1bd2a987195381cbd9b7c8cda0c85666739510cfb837561eaa45c5ed42c3d4",
+      "count": 1,
+      "status": "context_reviewed",
+      "reason": "CLI/harness invocado pelo desenvolvedor/CI, não endpoint do produto: executável fixo com argv separado e sem shell. PATH pertence ao ambiente já confiado que executa o checkout; preservar git/docker/openssl/Node instalados pelo operador evita quebra de ferramentas/version managers. Não executar checkout não confiado com privilégios.",
+      "evidence": [
+        "scripts/change-status.mjs (contexto da linha base 105)"
+      ],
+      "sourceKeys": [
+        "e6db4527-d205-4b65-82a4-20473c7a0af2"
+      ]
+    },
+    {
+      "signature": "0050e295610434e757f30b2947d49daf5d282e1b74adcdfa4332ed7caaad7002",
+      "count": 2,
+      "status": "context_reviewed",
+      "reason": "CLI/harness invocado pelo desenvolvedor/CI, não endpoint do produto: executável fixo com argv separado e sem shell. PATH pertence ao ambiente já confiado que executa o checkout; preservar git/docker/openssl/Node instalados pelo operador evita quebra de ferramentas/version managers. Não executar checkout não confiado com privilégios. | CLI/harness invocado pelo desenvolvedor/CI, não endpoint do produto: executável fixo com argv separado e sem shell. PATH pertence ao ambiente já confiado que executa o checkout; preservar git/docker/openssl/Node instalados pelo operador evita quebra de ferramentas/version managers. Não executar checkout não confiado com privilégios.",
+      "evidence": [
+        "scripts/change-status.mjs (contexto da linha base 136)",
+        "scripts/change-status.mjs (contexto da linha base 145)"
+      ],
+      "sourceKeys": [
+        "cbf76345-d77a-46cf-a00c-27978215d7e0",
+        "7a9dd819-63b3-4925-8bf1-a23a64a017d8"
+      ]
+    },
+    {
+      "signature": "54e63dcb2e2c7b3464d423a1c3efe1151a8ffd56ada132c90d5ee0c7cdf4e222",
+      "count": 1,
+      "status": "context_reviewed",
+      "reason": "Caminhos de arquivos são strings; ordem lexical estável é suficiente para invocar lint.",
+      "evidence": [
+        "scripts/lint-changed.mjs (contexto da linha base 21)"
+      ],
+      "sourceKeys": [
+        "cf08cfec-0aab-4d31-9bc8-9727ff272f51"
+      ]
+    },
+    {
+      "signature": "46aebc54df1fcb4cf6411b8f5588c21890a151d776f78b2f1a879abd46a42952",
+      "count": 1,
+      "status": "context_reviewed",
+      "reason": "CLI/harness invocado pelo desenvolvedor/CI, não endpoint do produto: executável fixo com argv separado e sem shell. PATH pertence ao ambiente já confiado que executa o checkout; preservar git/docker/openssl/Node instalados pelo operador evita quebra de ferramentas/version managers. Não executar checkout não confiado com privilégios.",
+      "evidence": [
+        "scripts/lint-changed.mjs (contexto da linha base 42)"
+      ],
+      "sourceKeys": [
+        "8a0e3005-99ec-4f1b-935c-955e696763b4"
+      ]
+    },
+    {
+      "signature": "07480e8e86bfef12c4d58910ee3c71040f56badf51743997f962e9e4ac67d01d",
+      "count": 1,
+      "status": "context_reviewed",
+      "reason": "Nomes de arquivos de planos são strings; ordenação lexical fornece lista determinística.",
+      "evidence": [
+        "scripts/change-governance-lib.mjs (contexto da linha base 63)"
+      ],
+      "sourceKeys": [
+        "885c7415-28e0-4e87-bd9a-45166a651ed6"
+      ]
+    },
+    {
+      "signature": "bf0db62c1170ef99c98dd5ffc3cee2eab3c69cd89559065af40bce577c42546c",
+      "count": 1,
+      "status": "context_reviewed",
+      "reason": "CLI/harness invocado pelo desenvolvedor/CI, não endpoint do produto: executável fixo com argv separado e sem shell. PATH pertence ao ambiente já confiado que executa o checkout; preservar git/docker/openssl/Node instalados pelo operador evita quebra de ferramentas/version managers. Não executar checkout não confiado com privilégios.",
+      "evidence": [
+        "scripts/change-governance-lib.mjs (contexto da linha base 140)"
+      ],
+      "sourceKeys": [
+        "f4b38745-7be4-49d8-9e0f-c01d1680718a"
+      ]
+    },
+    {
+      "signature": "a095561b87c0959bef7f2eaea4b450323b4f2873a5275818d2d57d2a7fa10922",
+      "count": 1,
+      "status": "context_reviewed",
+      "reason": "Raiz padrão de avatares preservada para não perder dados existentes. Escrita foi endurecida por writePrivateStorageFile: raiz dedicada pertencente ao UID, sem symlink e sem escrita por terceiros; diretórios 0700, arquivos 0600, temporário exclusivo e rename atômico. Literal /tmp pode continuar sinalizado; raiz compartilhada é rejeitada.",
+      "evidence": [
+        "apps/backend/src/config/env.ts",
+        "apps/backend/src/shared/private-storage.ts",
+        "apps/backend/src/shared/private-storage.test.ts",
+        "apps/backend/src/modules/session-audit/session-audit.storage.test.ts"
+      ],
+      "sourceKeys": [
+        "c2ee4394-aa20-4ba7-b15b-74616258fe5d"
+      ]
+    },
+    {
+      "signature": "633cc57030f8543ceddb2a4a5ddabc6afed46280d5c0a45cfc66e63eac16bccd",
+      "count": 1,
+      "status": "context_reviewed",
+      "reason": "O padrão identifica NUL para escapá-lo no filtro LDAP; remover o controle reintroduziria injeção. Não é caractere acidental. Ocorrência individual revisada na linha base 137, coluna 25.",
+      "evidence": [
+        "apps/backend/src/modules/auth/ldap-identity.provider.ts"
+      ],
+      "sourceKeys": [
+        "788b0121-b72c-4a93-9c48-a4d6bd618e15"
+      ]
+    },
+    {
+      "signature": "76bb4c8d1f8f3870ed3640461140b7dc7f4f589d8b48d71bc9fb9132e7c5029f",
+      "count": 1,
+      "status": "context_reviewed",
+      "reason": "PrismaPromise inserida via splice pertence ao array statements consumido imediatamente por await db.$transaction(statements). Await isolado anteciparia SQL e quebraria atomicidade.",
+      "evidence": [
+        "apps/backend/src/modules/ha/ha.service.ts"
+      ],
+      "sourceKeys": [
+        "3ee9e363-2ddc-4073-9296-55afbefa849c"
+      ]
+    },
+    {
+      "signature": "a18ebee0a680aa32a49421c7e2a5ce4f1cf74d0b785a050034e7205baa9569a1",
+      "count": 1,
+      "status": "context_reviewed",
+      "reason": "Endereço faz parte de exemplo Guacamole gerado no navegador; não é endpoint de serviço nem conexão automática.",
+      "evidence": [
+        "apps/frontend/src/components/ImportHostsModal.vue:662"
+      ],
+      "sourceKeys": [
+        "802e7b24-b894-43ab-a3c0-660dbc6a115e"
+      ]
+    },
+    {
+      "signature": "304e5f8094e94691a1544339e4c0c2ed73d562c8ef977caad7bccb52ce93ce24",
+      "count": 1,
+      "status": "context_reviewed",
+      "reason": "Coerção int32 é intencional no hash de cor de avatar; Math.trunc não reproduz overflow e mudaria cores estáveis dos usuários. Não é arredondamento numérico de negócio.",
+      "evidence": [
+        "apps/frontend/src/components/UserAvatar.vue:42"
+      ],
+      "sourceKeys": [
+        "dc176616-0f62-47ea-b291-d61aff75e56f"
+      ]
+    },
+    {
+      "signature": "e41d90320535b7bbc3a4d7802990f382b8f78d17db48217e8ca1bc8dda738b44",
+      "count": 2,
+      "status": "context_reviewed",
+      "reason": "Ordenação de identificadores técnicos de tipos/protocolos por UTF-16 é determinística e independente de locale; os valores são strings, não números. | Ordenação de identificadores técnicos de tipos/protocolos por UTF-16 é determinística e independente de locale; os valores são strings, não números.",
+      "evidence": [
+        "apps/frontend/src/services/guacamole-import.service.ts:172",
+        "docs/changes/2026/11/NA-0087-sonar-frontend/test-results.md",
+        "apps/frontend/src/services/guacamole-import.service.ts:301"
+      ],
+      "sourceKeys": [
+        "b7da7a39-c1a8-478c-abb6-9a132c494cea",
+        "624de923-600c-4122-85e0-91d2568eedd5"
+      ]
+    },
+    {
+      "signature": "519c147a9a1c1c44d4b5b1c514595ec7c28a0e04f05f210e52419f20a3098327",
+      "count": 1,
+      "status": "context_reviewed",
+      "reason": "Ordenação de nomes de principals usa ordem de código determinística para importação/revisão; localeCompare mudaria ordenação entre ambientes. Não há número sendo ordenado lexicalmente.",
+      "evidence": [
+        "apps/frontend/src/services/guacamole-import.service.ts:174",
+        "docs/changes/2026/11/NA-0087-sonar-frontend/test-results.md"
+      ],
+      "sourceKeys": [
+        "0f2487e8-4c5c-4d4f-88d9-7e547578da32"
+      ]
+    },
+    {
+      "signature": "19c2f4054027117ed4f3c99a2b989127722c68e54b1d05b029e1b0c1b55a445f",
+      "count": 1,
+      "status": "context_reviewed",
+      "reason": "Ordenação de nomes de principals usa ordem de código determinística para importação/revisão; localeCompare mudaria ordenação entre ambientes. Não há número sendo ordenado lexicalmente.",
+      "evidence": [
+        "apps/frontend/src/services/guacamole-import.service.ts:305",
+        "docs/changes/2026/11/NA-0087-sonar-frontend/test-results.md"
+      ],
+      "sourceKeys": [
+        "e3393cf9-d69e-42e1-ad02-27f82e8d55ee"
+      ]
+    },
+    {
+      "signature": "a8402528ca0d2bea936c658e24bf14a075c50d1c8ca82169d23f437b052ae3e4",
+      "count": 1,
+      "status": "context_reviewed",
+      "reason": "Input file oculto por display:none; é acionado por botão/dropzone nomeado do fluxo. Não integra árvore acessível nem navegação Tab. Revisada a marcação específica em ProfileView.vue:286; nenhum valor de credencial foi extraído.",
+      "evidence": [
+        "apps/frontend/src/views/ProfileView.vue:286"
+      ],
+      "sourceKeys": [
+        "5130a863-488e-42ac-8257-afcc4fe5952e"
+      ]
+    },
+    {
+      "signature": "13865a482587347002e0beff9b262770f953545f480be511463c615a87bfeb2b",
+      "count": 1,
+      "status": "context_reviewed",
+      "reason": "Entrada é exclusivamente Date.toISOString(), de tamanho fixo produzido pela própria aplicação; sufixo fracionário limitado. Não recebe entrada adversarial nem justifica alteração cosmética.",
+      "evidence": [
+        "apps/frontend/src/views/admin/HighAvailabilityView.vue:320"
+      ],
+      "sourceKeys": [
+        "46318762-793a-478e-90cc-e0b93ae7d526"
+      ]
+    },
+    {
+      "signature": "3cbe65f6c6736178d03d27c550fc5ef296c4e7cfa7913e63868c8d346ddc0c8c",
+      "count": 4,
+      "status": "context_reviewed",
+      "reason": "Limpeza/detecção de controle da auditoria em linha 800 trata ESC, BEL e terminadores de OSC/DCS/CSI de saída SSH. Remover controles invalidaria transcrição e classificação de conteúdo. | Limpeza/detecção de controle da auditoria em linha 800 trata ESC, BEL e terminadores de OSC/DCS/CSI de saída SSH. Remover controles invalidaria transcrição e classificação de conteúdo. | Limpeza/detecção de controle da auditoria em linha 800 trata ESC, BEL e terminadores de OSC/DCS/CSI de saída SSH. Remover controles invalidaria transcrição e classificação de conteúdo. | Limpeza/detecção de controle da auditoria em linha 800 trata ESC, BEL e terminadores de OSC/DCS/CSI de saída SSH. Remover controles invalidaria transcrição e classificação de conteúdo.",
+      "evidence": [
+        "apps/frontend/src/views/admin/SessionAuditDetailView.vue:800",
+        "docs/changes/2026/11/NA-0087-sonar-frontend/test-results.md"
+      ],
+      "sourceKeys": [
+        "3487a5af-f76e-4323-a02d-64f6562dd25b",
+        "3685a6e6-d0ea-48dd-88e6-12f161062375",
+        "a1c79e7d-46b6-475d-8cd3-16381e212563",
+        "a9f0e611-4fe5-4a35-bee7-78aacadf516a"
+      ]
+    },
+    {
+      "signature": "a5305a8ed8ee0ccb5665faf13f71369961ca14a50e772cb91e067cd1379facbf",
+      "count": 3,
+      "status": "context_reviewed",
+      "reason": "Limpeza/detecção de controle da auditoria em linha 801 trata ESC, BEL e terminadores de OSC/DCS/CSI de saída SSH. Remover controles invalidaria transcrição e classificação de conteúdo. | Limpeza/detecção de controle da auditoria em linha 801 trata ESC, BEL e terminadores de OSC/DCS/CSI de saída SSH. Remover controles invalidaria transcrição e classificação de conteúdo. | Limpeza/detecção de controle da auditoria em linha 801 trata ESC, BEL e terminadores de OSC/DCS/CSI de saída SSH. Remover controles invalidaria transcrição e classificação de conteúdo.",
+      "evidence": [
+        "apps/frontend/src/views/admin/SessionAuditDetailView.vue:801",
+        "docs/changes/2026/11/NA-0087-sonar-frontend/test-results.md"
+      ],
+      "sourceKeys": [
+        "09ee6126-cd1d-46b0-a3cc-4ccf8b4ce0bf",
+        "736dba82-a117-4326-896e-1e9c27ba3254",
+        "a87faa89-0064-4fe7-8df3-e11e90a4ff69"
+      ]
+    },
+    {
+      "signature": "1c0a1062138fbb97e7b3f1191461327196b46830dc9a544ef400962132e36143",
+      "count": 1,
+      "status": "context_reviewed",
+      "reason": "Limpeza/detecção de controle da auditoria em linha 803 trata ESC, BEL e terminadores de OSC/DCS/CSI de saída SSH. Remover controles invalidaria transcrição e classificação de conteúdo.",
+      "evidence": [
+        "apps/frontend/src/views/admin/SessionAuditDetailView.vue:803",
+        "docs/changes/2026/11/NA-0087-sonar-frontend/test-results.md"
+      ],
+      "sourceKeys": [
+        "fe92b416-ad6c-4791-b2b1-3b6a1861e310"
+      ]
+    },
+    {
+      "signature": "252ded1c9f39084f2ede6576f7ed71507deec21da64f44dd4b4dd338cb0b8c6a",
+      "count": 1,
+      "status": "context_reviewed",
+      "reason": "Limpeza/detecção de controle da auditoria em linha 804 trata ESC, BEL e terminadores de OSC/DCS/CSI de saída SSH. Remover controles invalidaria transcrição e classificação de conteúdo.",
+      "evidence": [
+        "apps/frontend/src/views/admin/SessionAuditDetailView.vue:804",
+        "docs/changes/2026/11/NA-0087-sonar-frontend/test-results.md"
+      ],
+      "sourceKeys": [
+        "a367d93e-9d8c-421c-8b46-4dec0464e86b"
+      ]
+    },
+    {
+      "signature": "d6c474473909bef45a75feb28b513c085c02d75b2f4b49c6aba6670d2f2aa8e1",
+      "count": 1,
+      "status": "context_reviewed",
+      "reason": "Limpeza/detecção de controle da auditoria em linha 805 trata ESC, BEL e terminadores de OSC/DCS/CSI de saída SSH. Remover controles invalidaria transcrição e classificação de conteúdo.",
+      "evidence": [
+        "apps/frontend/src/views/admin/SessionAuditDetailView.vue:805",
+        "docs/changes/2026/11/NA-0087-sonar-frontend/test-results.md"
+      ],
+      "sourceKeys": [
+        "9011cf17-5c88-4a04-bc04-eff61b7ef495"
+      ]
+    },
+    {
+      "signature": "07f71b8df42e22bb3c8d7d469cd27eeb60556414af8b07762f51fcfa26fc9869",
+      "count": 7,
+      "status": "context_reviewed",
+      "reason": "Limpeza/detecção de controle da auditoria em linha 932 trata ESC, BEL e terminadores de OSC/DCS/CSI de saída SSH. Remover controles invalidaria transcrição e classificação de conteúdo. | Limpeza/detecção de controle da auditoria em linha 932 trata ESC, BEL e terminadores de OSC/DCS/CSI de saída SSH. Remover controles invalidaria transcrição e classificação de conteúdo. | Limpeza/detecção de controle da auditoria em linha 932 trata ESC, BEL e terminadores de OSC/DCS/CSI de saída SSH. Remover controles invalidaria transcrição e classificação de conteúdo. | Limpeza/detecção de controle da auditoria em linha 932 trata ESC, BEL e terminadores de OSC/DCS/CSI de saída SSH. Remover controles invalidaria transcrição e classificação de conteúdo. | Limpeza/detecção de controle da auditoria em linha 932 trata ESC, BEL e terminadores de OSC/DCS/CSI de saída SSH. Remover controles invalidaria transcrição e classificação de conteúdo. | Limpeza/detecção de controle da auditoria em linha 932 trata ESC, BEL e terminadores de OSC/DCS/CSI de saída SSH. Remover controles invalidaria transcrição e classificação de conteúdo. | Limpeza/detecção de controle da auditoria em linha 932 trata ESC, BEL e terminadores de OSC/DCS/CSI de saída SSH. Remover controles invalidaria transcrição e classificação de conteúdo.",
+      "evidence": [
+        "apps/frontend/src/views/admin/SessionAuditDetailView.vue:932",
+        "docs/changes/2026/11/NA-0087-sonar-frontend/test-results.md"
+      ],
+      "sourceKeys": [
+        "25a45bc9-4f10-4dbb-b161-37616ca58930",
+        "4cc6162f-7900-423c-b4a6-ce8060863ebd",
+        "6e9576d8-088d-4bb8-8356-be76a88ec569",
+        "a1917e2b-b10b-4c35-9302-b5cf80309e78",
+        "beeb18b0-02f9-478d-b589-226149f79c31",
+        "cd643ed1-287f-40c8-a2bd-4e25f14160f7",
+        "d40afe8e-6f8f-42cb-9f79-08b90a312128"
+      ]
+    },
+    {
+      "signature": "88fe64e2d48edeab15743649ae270d9e9f9bf88abfd3116951522b452eae4f7a",
+      "count": 1,
+      "status": "context_reviewed",
+      "reason": "Configuração fictícia gravada sob mktemp -d, consumida por doubles locais do backup e removida pelo trap; nenhum banco operacional é autenticado.",
+      "evidence": [
+        "tools/deploy/backup-user-avatars-harness.sh (contexto da linha base 19)"
+      ],
+      "sourceKeys": [
+        "0786f01d-e9b3-4bcc-8165-fbd61ecee004"
+      ]
+    },
+    {
+      "signature": "55ecdfc117f842d7806547548e2fd3db1d2df724e4ba60e594815a24c4c2d528",
+      "count": 1,
+      "status": "context_reviewed",
+      "reason": "URL de banco fictícia sob fs.mkdtempSync é entrada do diagnóstico; Docker é um executável fake no mesmo diretório privado.",
+      "evidence": [
+        "tools/deploy/doctor-nodeaccess-harness.cjs (contexto da linha base 26)"
+      ],
+      "sourceKeys": [
+        "08a38452-6346-47dc-ad4c-c37b39ef72dd"
+      ]
+    },
+    {
+      "signature": "f7ae1def8145e021e014946c85bbeb824b4df79306097074f21a641f3d72f019",
+      "count": 1,
+      "status": "context_reviewed",
+      "reason": "Executável fake do Docker recebe 0755 dentro de raiz mkdtemp privada para que o diagnóstico possa invocá-lo; não concede acesso à raiz nem contém segredo operacional.",
+      "evidence": [
+        "tools/deploy/doctor-nodeaccess-harness.cjs (contexto da linha base 104)"
+      ],
+      "sourceKeys": [
+        "47ffe909-38d1-4c9b-acfb-07a6151f88e0"
+      ]
+    },
+    {
+      "signature": "4cb59191588b041c3badc54369f6ffdf04968c0a8d31bb4dd1e4efcdb2de2e3b",
+      "count": 1,
+      "status": "context_reviewed",
+      "reason": "bash executa o script diagnóstico do checkout; PATH fake é intencional para simular Docker e está dentro de mkdtemp privado. Não há entrada de usuário remoto nem elevação de privilégios.",
+      "evidence": [
+        "tools/deploy/doctor-nodeaccess-harness.cjs (contexto da linha base 107)"
+      ],
+      "sourceKeys": [
+        "5a7afb65-b563-49e4-8ab4-8f25f0682c6f"
+      ]
+    },
+    {
+      "signature": "a2649a6e0cdedf5abb9fdd02690398924d60a0b509c8029f43e353d2fc180634",
+      "count": 1,
+      "status": "context_reviewed",
+      "reason": "Configuração fictícia sob mktemp -d exercita diagnóstico de prontidão com doubles; trap elimina somente o diretório de teste.",
+      "evidence": [
+        "tools/deploy/ha-state-readiness-harness.sh (contexto da linha base 20)"
+      ],
+      "sourceKeys": [
+        "5fd8556e-09be-4952-a3a0-f17e1d555459"
+      ]
+    },
+    {
+      "signature": "07cde5ed1ed218444c3ac774aef38274841677b7cf4070b6d0a40231c307c691",
+      "count": 1,
+      "status": "context_reviewed",
+      "reason": "Senha de fixture é restrita ao Compose isolado de restauração, projeto/volume descartáveis próprios; não representa segredo operacional. Override de ambiente continua responsabilidade do operador.",
+      "evidence": [
+        "tools/deploy/restore-mysql-isolated-harness.sh (contexto da linha base 66)"
+      ],
+      "sourceKeys": [
+        "c580abfd-2d2c-494d-bc3a-859a9d7a32cc"
+      ]
+    },
+    {
+      "signature": "16487ba6a77e9dcd7cb05dcfbf1dc6ede713c043f7b4ef0f11a3c552c0701d4a",
+      "count": 1,
+      "status": "context_reviewed",
+      "reason": "URL de banco é fixture no env do teste de restauração de volume, criado sob mktemp -d; o teste não usa essa senha para banco operacional.",
+      "evidence": [
+        "tools/deploy/restore-session-audit-isolated-harness.sh (contexto da linha base 50)"
+      ],
+      "sourceKeys": [
+        "5d9ecf0d-1bd4-423a-9aeb-5b71e2b39cb4"
+      ]
+    },
+    {
+      "signature": "1121244dfbd33e8910bf2e8b4d23d82cb2bfab05a239fe8050b997a2b8d45ffb",
+      "count": 1,
+      "status": "context_reviewed",
+      "reason": "Endereço é dado de fixture do cenário ha-playwright-smoke (linha base 53), servido por rotas/sockets simulados ou usado em assertiva/UI; não seleciona servidor operacional nem abre conexão SSH nesse endereço.",
+      "evidence": [
+        "tools/frontend/ha-playwright-smoke.cjs (contexto da linha base 53)"
+      ],
+      "sourceKeys": [
+        "f4923f5c-aa4d-43c1-8ae6-68d5249d1873"
+      ]
+    },
+    {
+      "signature": "aa5fd2420f762b809ffeb1fc47da625329ca48229d52a0a259fe886ad75cc077",
+      "count": 2,
+      "status": "context_reviewed",
+      "reason": "Endereço é dado de fixture do cenário ha-playwright-smoke (linha base 57), servido por rotas/sockets simulados ou usado em assertiva/UI; não seleciona servidor operacional nem abre conexão SSH nesse endereço. | Endereço é dado de fixture do cenário ha-playwright-smoke (linha base 96), servido por rotas/sockets simulados ou usado em assertiva/UI; não seleciona servidor operacional nem abre conexão SSH nesse endereço.",
+      "evidence": [
+        "tools/frontend/ha-playwright-smoke.cjs (contexto da linha base 57)",
+        "tools/frontend/ha-playwright-smoke.cjs (contexto da linha base 96)"
+      ],
+      "sourceKeys": [
+        "91a4e737-4e9d-4366-aa82-d768c2dc6c4b",
+        "606380be-50cd-482b-8b48-a398f4317ccd"
+      ]
+    },
+    {
+      "signature": "04b3aaf2178a489d9a5c38e113d0b9be1631103848e890e41d12815c65576714",
+      "count": 1,
+      "status": "context_reviewed",
+      "reason": "Endereço é dado de fixture do cenário ha-playwright-smoke (linha base 92), servido por rotas/sockets simulados ou usado em assertiva/UI; não seleciona servidor operacional nem abre conexão SSH nesse endereço.",
+      "evidence": [
+        "tools/frontend/ha-playwright-smoke.cjs (contexto da linha base 92)"
+      ],
+      "sourceKeys": [
+        "4ef58e07-6dfc-4244-ba84-baed4cee4b64"
+      ]
+    },
+    {
+      "signature": "ef07e322d78e5b09b5edf5466a6d3c9194ba508a6d4f2392c9d0f68014bf82e5",
+      "count": 1,
+      "status": "context_reviewed",
+      "reason": "CLI/harness invocado pelo desenvolvedor/CI, não endpoint do produto: executável fixo com argv separado e sem shell. PATH pertence ao ambiente já confiado que executa o checkout; preservar git/docker/openssl/Node instalados pelo operador evita quebra de ferramentas/version managers. Não executar checkout não confiado com privilégios.",
+      "evidence": [
+        "tools/frontend/terminal-cdp-load.cjs (contexto da linha base 149)"
+      ],
+      "sourceKeys": [
+        "23c425a3-9828-45c6-b699-2696506b35ad"
+      ]
+    },
+    {
+      "signature": "4877bd05ea41ba0a0e8f15f1cc6902f424af5cade683be455c654bdc267ace9c",
+      "count": 1,
+      "status": "context_reviewed",
+      "reason": "Endereço é dado de fixture do cenário terminal-cdp-simulated-flow (linha base 28), servido por rotas/sockets simulados ou usado em assertiva/UI; não seleciona servidor operacional nem abre conexão SSH nesse endereço.",
+      "evidence": [
+        "tools/frontend/terminal-cdp-simulated-flow.cjs (contexto da linha base 28)"
+      ],
+      "sourceKeys": [
+        "977d1229-8ca0-4967-89e0-5157d29fc3f3"
+      ]
+    },
+    {
+      "signature": "9740933aac7f21e1629a8951f996345abe996b18a93120799ce43f1d69cbdf7b",
+      "count": 1,
+      "status": "context_reviewed",
+      "reason": "CLI/harness invocado pelo desenvolvedor/CI, não endpoint do produto: executável fixo com argv separado e sem shell. PATH pertence ao ambiente já confiado que executa o checkout; preservar git/docker/openssl/Node instalados pelo operador evita quebra de ferramentas/version managers. Não executar checkout não confiado com privilégios.",
+      "evidence": [
+        "tools/frontend/terminal-playwright-load.cjs (contexto da linha base 164)"
+      ],
+      "sourceKeys": [
+        "537d0961-fdf8-4197-a0da-882109f3207b"
+      ]
+    },
+    {
+      "signature": "27d83ae0967921f034a236c5a4a21f6c7012414f8a7cdd715ca5510e886e727c",
+      "count": 1,
+      "status": "context_reviewed",
+      "reason": "CLI/harness invocado pelo desenvolvedor/CI, não endpoint do produto: executável fixo com argv separado e sem shell. PATH pertence ao ambiente já confiado que executa o checkout; preservar git/docker/openssl/Node instalados pelo operador evita quebra de ferramentas/version managers. Não executar checkout não confiado com privilégios.",
+      "evidence": [
+        "tools/load-tests/scripts/run-gateway-with-metrics.js (contexto da linha base 132)"
+      ],
+      "sourceKeys": [
+        "b3b3cd3d-4ffc-45be-bdc2-fa9b9fd6beb5"
+      ]
+    },
+    {
+      "signature": "4b2131d97e1e190b6eb2028fd7ebeab59d3f70e5201ae89f351d74db0a8fa4ec",
+      "count": 1,
+      "status": "context_reviewed",
+      "reason": "Math.random seleciona jitter de carga/pausa na simulação; não gera token, senha, ID autenticável nem material criptográfico.",
+      "evidence": [
+        "tools/load-tests/ws/baseline-gateway.js (contexto da linha base 93)"
+      ],
+      "sourceKeys": [
+        "dbaf22ef-6d8c-4e87-bd3b-cfb5853eb5c9"
+      ]
+    },
+    {
+      "signature": "01c20ab4c7edd73cd80e1676e26ae121767556a757d81476cd2ab3cb5d678b66",
+      "count": 1,
+      "status": "context_reviewed",
+      "reason": "Caminho aparece no texto sintético de terminal remoto usado para verificar reconstrução; não é aberto nem escrito no filesystem local.",
+      "evidence": [
+        "tools/session-audit/reconstruction-fidelity.ts (contexto da linha base 264)"
+      ],
+      "sourceKeys": [
+        "db8f5a61-6c0f-4a7d-bc54-c47240949a51"
+      ]
+    },
+    {
+      "signature": "b332b27d085464de554d6bae64b9c38a61e14a167570a6133f80a35a77c56b8d",
+      "count": 1,
+      "status": "context_reviewed",
+      "reason": "Endereço integra saída esperada de comando gravado/sintético (ip a/ifconfig), comparado pela reconstrução; não inicia conexão.",
+      "evidence": [
+        "tools/session-audit/reconstruction-fidelity.ts (contexto da linha base 291)"
+      ],
+      "sourceKeys": [
+        "73b727d6-2b13-43c1-8b46-914999543374"
+      ]
+    },
+    {
+      "signature": "8377421f142424d59d4961ec51aa679f723cb5aa57d1744e84fb4152b18b1bbd",
+      "count": 1,
+      "status": "context_reviewed",
+      "reason": "Caminho aparece no texto sintético de terminal remoto usado para verificar reconstrução; não é aberto nem escrito no filesystem local.",
+      "evidence": [
+        "tools/session-audit/reconstruction-fidelity.ts (contexto da linha base 301)"
+      ],
+      "sourceKeys": [
+        "e5560c7f-1c97-4de2-8146-5cc423119655"
+      ]
+    },
+    {
+      "signature": "2f35d921cb202e28e5074100f8603619cf543e517c0da149cebb96b031b19229",
+      "count": 1,
+      "status": "context_reviewed",
+      "reason": "Endereço integra saída esperada de comando gravado/sintético (ip a/ifconfig), comparado pela reconstrução; não inicia conexão.",
+      "evidence": [
+        "tools/session-audit/reconstruction-fidelity.ts (contexto da linha base 412)"
+      ],
+      "sourceKeys": [
+        "31ea97a5-38d9-4b1d-af92-981f86b3610a"
+      ]
+    },
+    {
+      "signature": "9748f174fc03348ec6971eb632c36ee632f9d4dbadb023e63566a34e2c4ad4da",
+      "count": 1,
+      "status": "context_reviewed",
+      "reason": "Input file oculto por display:none; é acionado por botão/dropzone nomeado do fluxo. Não integra árvore acessível nem navegação Tab. Revisada a marcação específica em PemKeysView.vue:199; nenhum valor de credencial foi extraído.",
+      "evidence": [
+        "apps/frontend/src/views/PemKeysView.vue:199"
+      ],
+      "sourceKeys": [
+        "ba8d47c8-3b80-44bf-8f69-35607b633fbb"
+      ]
+    },
+    {
+      "signature": "f25910d90f31f9df999e2146fa86d0466c6428516bfe1d99b45e19cf2bac0b0e",
+      "count": 1,
+      "status": "context_reviewed",
+      "reason": "Endereço privado demonstrativo no campo/exemplo SSH Gateway (37); usuário escolhe destino e revisa comando. Não determina conexão automática nem configuração de infraestrutura.",
+      "evidence": [
+        "apps/frontend/src/views/admin/NativeSshGatewayView.vue:37"
+      ],
+      "sourceKeys": [
+        "32469d52-2866-4ebf-b024-8225fe5fb9be"
+      ]
+    },
+    {
+      "signature": "16e95d66c0c31d942c1a12630b26612fdd07fbd6072b4da2c7a1f69134eaa86e",
+      "count": 1,
+      "status": "context_reviewed",
+      "reason": "Endereço privado demonstrativo no campo/exemplo SSH Gateway (61); usuário escolhe destino e revisa comando. Não determina conexão automática nem configuração de infraestrutura.",
+      "evidence": [
+        "apps/frontend/src/views/admin/NativeSshGatewayView.vue:61"
+      ],
+      "sourceKeys": [
+        "13f51efd-0eb5-4e93-a1eb-fcd3495f55a2"
+      ]
+    },
+    {
+      "signature": "505902b3c19fdc473d10a78dae97315736523e3348a4abfc9139e44a51ab8bf0",
+      "count": 1,
+      "status": "context_reviewed",
+      "reason": "Endereço privado demonstrativo no campo/exemplo SSH Gateway (65); usuário escolhe destino e revisa comando. Não determina conexão automática nem configuração de infraestrutura.",
+      "evidence": [
+        "apps/frontend/src/views/admin/NativeSshGatewayView.vue:65"
+      ],
+      "sourceKeys": [
+        "583835f7-b72e-47de-88b3-4990813c965c"
+      ]
+    },
+    {
+      "signature": "cb0e81dbe6b4628cde71de0d1ad6eaeb21899d725fd36abcb0d1bed8f1ca1ad6",
+      "count": 1,
+      "status": "context_reviewed",
+      "reason": "Endereço privado demonstrativo no campo/exemplo SSH Gateway (70); usuário escolhe destino e revisa comando. Não determina conexão automática nem configuração de infraestrutura.",
+      "evidence": [
+        "apps/frontend/src/views/admin/NativeSshGatewayView.vue:70"
+      ],
+      "sourceKeys": [
+        "3572e6ae-d574-4859-8a15-09a08adcb8ec"
+      ]
+    },
+    {
+      "signature": "574de1bac2a94eaf9201e6358cc523d4577a405df9cfe519e40474983781f3a9",
+      "count": 1,
+      "status": "context_reviewed",
+      "reason": "Endereço privado demonstrativo no campo/exemplo SSH Gateway (75); usuário escolhe destino e revisa comando. Não determina conexão automática nem configuração de infraestrutura.",
+      "evidence": [
+        "apps/frontend/src/views/admin/NativeSshGatewayView.vue:75"
+      ],
+      "sourceKeys": [
+        "b41f16f6-a42c-4176-9303-6d286f19211b"
+      ]
+    },
+    {
+      "signature": "d80141d5e39cbee44dead1a9b158c8736ba530194358a59ea43d0d13a1fd6e52",
+      "count": 2,
+      "status": "context_reviewed",
+      "reason": "Label desta ocorrência envolve textbox; o componente renderiza input/textarea nativo dentro do label. DOM confirmou nome \"Host destino para exemplo Please Input\" e foco. Não é campo sem associação apesar do scanner estático. | Label desta ocorrência envolve textbox; o componente renderiza input/textarea nativo dentro do label. DOM confirmou nome \"Usuário SSH opcional do destino Please Input\" e foco. Não é campo sem associação apesar do scanner estático.",
+      "evidence": [
+        "docs/changes/2026/11/NA-0087-sonar-frontend/dom-label-evidence.json#af7180f2-a438-4bd1-b586-4e6e8df1af16",
+        "tools/frontend/sonar-frontend-review.cjs",
+        "docs/changes/2026/11/NA-0087-sonar-frontend/dom-label-evidence.json#965f1baa-23a6-4e19-a71f-0c9fecbc6e1a"
+      ],
+      "sourceKeys": [
+        "af7180f2-a438-4bd1-b586-4e6e8df1af16",
+        "965f1baa-23a6-4e19-a71f-0c9fecbc6e1a"
+      ]
+    },
+    {
+      "signature": "12bb98bbff4c5bda3d06cd2e976658e725d1e01022f86febd50f6225219d534e",
+      "count": 1,
+      "status": "context_reviewed",
+      "reason": "Valor é instrução/exemplo OpenAPI para entrada do usuário, não senha de conta nem segredo operacional. Não participa de autenticação ou configuração do servidor.",
+      "evidence": [
+        "apps/backend/src/modules/auth/auth.routes.ts"
+      ],
+      "sourceKeys": [
+        "ec011108-1e25-45d4-9a43-eb2b5aca2676"
+      ]
+    },
+    {
+      "signature": "302713e15c035825e878597217ed07e51fea620b5b423dbb81242ed5aed6616e",
+      "count": 2,
+      "status": "context_reviewed",
+      "reason": "Exemplo OpenAPI estático '10.0.10.15'; não define destino de conexão nem credencial. Conexões usam host autorizado e dados persistidos. | Exemplo OpenAPI estático '10.0.10.15'; não define destino de conexão nem credencial. Conexões usam host autorizado e dados persistidos.",
+      "evidence": [
+        "apps/backend/src/modules/hosts/host.routes.ts"
+      ],
+      "sourceKeys": [
+        "2f9bc285-572a-444d-b770-50d2f6ba4d8f",
+        "e5c6eb8d-afdf-41b5-96d6-695d954777e2"
+      ]
+    },
+    {
+      "signature": "f3952c605fbbb5c67077e05e9b0c7c025c8f4797eb5bc52e113fa17d06e94759",
+      "count": 1,
+      "status": "context_reviewed",
+      "reason": "Exemplo OpenAPI estático '10.0.20.25'; não define destino de conexão nem credencial. Conexões usam host autorizado e dados persistidos.",
+      "evidence": [
+        "apps/backend/src/modules/hosts/host.routes.ts"
+      ],
+      "sourceKeys": [
+        "a7b29bad-5cea-494d-a4b5-f613c8c94561"
+      ]
+    },
+    {
+      "signature": "45612142072e230186ed049a4551a4b2d9c4683b92a7f26f8cd3657d2c9bcd1d",
+      "count": 1,
+      "status": "context_reviewed",
+      "reason": "Valor é instrução/exemplo OpenAPI para entrada do usuário, não senha de conta nem segredo operacional. Não participa de autenticação ou configuração do servidor.",
+      "evidence": [
+        "apps/backend/src/modules/hosts/host.routes.ts"
+      ],
+      "sourceKeys": [
+        "d4809b65-03d2-4b2d-b954-aab3a203cf8b"
+      ]
+    },
+    {
+      "signature": "6e0fd08b48adc6f95a218e74cf4074ebe5231589235ae1cfd2d7b38f5da701a1",
+      "count": 1,
+      "status": "context_reviewed",
+      "reason": "Padrão de normalização interpreta/remove controles ANSI, OSC, CSI ou edição; byte intencional do protocolo, necessário para preservar playback e inferência de comandos. Ocorrência individual revisada na linha base 16, coluna 14.",
+      "evidence": [
+        "apps/backend/src/modules/session-audit/session-audit-normalizer.ts",
+        "apps/backend/src/modules/session-audit/session-audit-normalizer.test.ts"
+      ],
+      "sourceKeys": [
+        "fe3621db-2fe1-465a-9cc0-50358532e3ff"
+      ]
+    },
+    {
+      "signature": "a0fb02ec0a36352eeb96809927d089e33d7aac8cf2543e467aae6b7c4a951d60",
+      "count": 2,
+      "status": "context_reviewed",
+      "reason": "NUL e BEL são removidos do texto visível do terminal antes da reconstrução/detecção de prompt. Ocorrência deliberada na linha base 35; removê-la contaminaria o texto de auditoria. | NUL e BEL são removidos do texto visível do terminal antes da reconstrução/detecção de prompt. Ocorrência deliberada na linha base 35; removê-la contaminaria o texto de auditoria.",
+      "evidence": [
+        "apps/backend/src/modules/session-audit/session-audit-normalizer.ts",
+        "apps/backend/src/modules/session-audit/session-audit-normalizer.test.ts"
+      ],
+      "sourceKeys": [
+        "1e5e63e5-6cac-4288-8559-4fe8a4bd4d64",
+        "7fa5b04f-9b1f-4045-8848-d3d4129d2a36"
+      ]
+    },
+    {
+      "signature": "5bdb72fcccfeb3dd8722a477d7cfea61362dc3fc6f60411af99f15dd67b930e9",
+      "count": 2,
+      "status": "context_reviewed",
+      "reason": "NUL e BEL são removidos do texto visível do terminal antes da reconstrução/detecção de prompt. Ocorrência deliberada na linha base 39; removê-la contaminaria o texto de auditoria. | NUL e BEL são removidos do texto visível do terminal antes da reconstrução/detecção de prompt. Ocorrência deliberada na linha base 39; removê-la contaminaria o texto de auditoria.",
+      "evidence": [
+        "apps/backend/src/modules/session-audit/session-audit-normalizer.ts",
+        "apps/backend/src/modules/session-audit/session-audit-normalizer.test.ts"
+      ],
+      "sourceKeys": [
+        "c4144b19-7e57-4d6e-89fc-8d1df30ef8ec",
+        "e2282065-360b-44ad-bf41-615d93948604"
+      ]
+    },
+    {
+      "signature": "45c7ff17b394b300ce42f478e48978b7f85380684ba0af3b99a04cd67a41d285",
+      "count": 1,
+      "status": "context_reviewed",
+      "reason": "NUL é sentinela interna temporária para contar compressões :: de IPv6 e rejeitar múltiplas compressões. Não é literal acidental nem transmitido ao host.",
+      "evidence": [
+        "apps/frontend/src/views/HostsView.vue:3294",
+        "docs/changes/2026/11/NA-0087-sonar-frontend/test-results.md"
+      ],
+      "sourceKeys": [
+        "70968de4-2f43-43ac-a7a2-87781cc597fe"
+      ]
+    },
+    {
+      "signature": "170f24efd316527ddc677d46984654ca577db2c85cc4335e77cbdce6ccbff666",
+      "count": 1,
+      "status": "context_reviewed",
+      "reason": "ID de correlação de execução de snippet prefere crypto.randomUUID; fallback timestamp+Math.random não concede acesso nem autentica comando. Uso não criptográfico revisto no chamador.",
+      "evidence": [
+        "apps/frontend/src/views/TerminalView.vue:1893"
+      ],
+      "sourceKeys": [
+        "82e86ed8-7ffd-45a7-a0dc-27893a7e4ef0"
+      ]
+    },
+    {
+      "signature": "67464b1de68537f30e84e3c12eb9e974b8e5a5a80cc1e53dca3f978ad778c64c",
+      "count": 1,
+      "status": "context_reviewed",
+      "reason": "Input artificial oculto e tabindex=-1 usado como isca de autofill; não é campo operável. Nomeá-lo não melhora interação e alterá-lo arrisca comportamento de gerenciadores de senha. Revisada a marcação específica em WebhooksView.vue:1078; nenhum valor de credencial foi extraído.",
+      "evidence": [
+        "apps/frontend/src/views/admin/WebhooksView.vue:1078"
+      ],
+      "sourceKeys": [
+        "2cbebbc8-bb22-4019-84df-0c6abcf41900"
+      ]
+    },
+    {
+      "signature": "74ebd131b7dfec12b90fe862aca0c6e2c067d714939efec99fae80b1906a380b",
+      "count": 1,
+      "status": "context_reviewed",
+      "reason": "Input artificial oculto e tabindex=-1 usado como isca de autofill; não é campo operável. Nomeá-lo não melhora interação e alterá-lo arrisca comportamento de gerenciadores de senha. Revisada a marcação específica em WebhooksView.vue:1079; nenhum valor de credencial foi extraído.",
+      "evidence": [
+        "apps/frontend/src/views/admin/WebhooksView.vue:1079"
+      ],
+      "sourceKeys": [
+        "41d12852-dd37-4c69-939b-065e369a35d8"
+      ]
+    },
+    {
+      "signature": "490806aa26e8e5eee66a5cdd35534f67c8cd75becc12f76237974281f05c1908",
+      "count": 1,
+      "status": "context_reviewed",
+      "reason": "A substituição imediatamente anterior converte cada corrida não alfanumérica em um único hífen; o trim recebe no máximo um hífen em cada extremidade, sem corrida que permita retries quadráticos.",
+      "evidence": [
+        "apps/backend/src/modules/diagnostic-playbooks/diagnostic-run.controller.ts"
+      ],
+      "sourceKeys": [
+        "aeae7543-2978-4208-81e2-eb4099b55129"
+      ]
+    },
+    {
+      "signature": "614c1b114e5e20441a54070dd237b2bbbd617c207602681753035faa32097fbf",
+      "count": 2,
+      "status": "context_reviewed",
+      "reason": "Controle BEL/backspace é removido ou interpretado antes do resumo IA, evitando ruído e representação incorreta do terminal. Ocorrência individual revisada na linha base 295, coluna 14. | Controle BEL/backspace é removido ou interpretado antes do resumo IA, evitando ruído e representação incorreta do terminal. Ocorrência individual revisada na linha base 305, coluna 14.",
+      "evidence": [
+        "apps/backend/src/modules/session-audit/session-audit-ai.worker.ts",
+        "apps/backend/src/modules/session-audit/session-audit-normalizer.test.ts"
+      ],
+      "sourceKeys": [
+        "5c450adf-ed23-48d4-90d4-94c19be488f7",
+        "c047f3d5-0661-42cf-9a5e-2b79d955cdc9"
+      ]
+    },
+    {
+      "signature": "08cbd5945136eb1e8b334d42eb7cce8a371bfc087c361873730945b5155a5268",
+      "count": 1,
+      "status": "context_reviewed",
+      "reason": "Controle BEL/backspace é removido ou interpretado antes do resumo IA, evitando ruído e representação incorreta do terminal. Ocorrência individual revisada na linha base 297, coluna 14.",
+      "evidence": [
+        "apps/backend/src/modules/session-audit/session-audit-ai.worker.ts",
+        "apps/backend/src/modules/session-audit/session-audit-normalizer.test.ts"
+      ],
+      "sourceKeys": [
+        "6fb3b772-5c8b-485c-b390-8e617394a273"
+      ]
+    },
+    {
+      "signature": "9f496a554643d28098826409efa1b86940f15d2b5cd633ec8bf21b224aa84979",
+      "count": 4,
+      "status": "context_reviewed",
+      "reason": "Padrão de normalização interpreta/remove controles ANSI, OSC, CSI ou edição; byte intencional do protocolo, necessário para preservar playback e inferência de comandos. Ocorrência individual revisada na linha base 14, coluna 22. | Padrão de normalização interpreta/remove controles ANSI, OSC, CSI ou edição; byte intencional do protocolo, necessário para preservar playback e inferência de comandos. Ocorrência individual revisada na linha base 14, coluna 26. | Padrão de normalização interpreta/remove controles ANSI, OSC, CSI ou edição; byte intencional do protocolo, necessário para preservar playback e inferência de comandos. Ocorrência individual revisada na linha base 14, coluna 35. | Padrão de normalização interpreta/remove controles ANSI, OSC, CSI ou edição; byte intencional do protocolo, necessário para preservar playback e inferência de comandos. Ocorrência individual revisada na linha base 14, coluna 40.",
+      "evidence": [
+        "apps/backend/src/modules/session-audit/session-audit-normalizer.ts",
+        "apps/backend/src/modules/session-audit/session-audit-normalizer.test.ts"
+      ],
+      "sourceKeys": [
+        "7a85f7dc-f9ae-43cb-a52f-3f102323bd20",
+        "927516dd-ba45-4ab0-acb0-4a7aa0f7710f",
+        "a12d62f1-0eb4-4cb9-8747-0ee10edcafbe",
+        "e7f23b6a-59f3-4165-b5b4-b81f13cefc91"
+      ]
+    },
+    {
+      "signature": "28b3c026c714978a813cb83f307342f651d31ae89d91b1e8228eaf75c8e8c5d6",
+      "count": 1,
+      "status": "context_reviewed",
+      "reason": "Padrão de normalização interpreta/remove controles ANSI, OSC, CSI ou edição; byte intencional do protocolo, necessário para preservar playback e inferência de comandos. Ocorrência individual revisada na linha base 17, coluna 14.",
+      "evidence": [
+        "apps/backend/src/modules/session-audit/session-audit-normalizer.ts",
+        "apps/backend/src/modules/session-audit/session-audit-normalizer.test.ts"
+      ],
+      "sourceKeys": [
+        "2b24edc7-0f08-40c7-bea0-ff87d150e6d6"
+      ]
+    },
+    {
+      "signature": "8fcd51bbdbd6c2889328eedfe6d164f3858b6087085303a559d997f07ee80dfd",
+      "count": 1,
+      "status": "context_reviewed",
+      "reason": "Padrão de normalização interpreta/remove controles ANSI, OSC, CSI ou edição; byte intencional do protocolo, necessário para preservar playback e inferência de comandos. Ocorrência individual revisada na linha base 18, coluna 14.",
+      "evidence": [
+        "apps/backend/src/modules/session-audit/session-audit-normalizer.ts",
+        "apps/backend/src/modules/session-audit/session-audit-normalizer.test.ts"
+      ],
+      "sourceKeys": [
+        "96334ff4-494b-4eb1-a94f-4289001d3445"
+      ]
+    },
+    {
+      "signature": "14c3ad3bd80c5165eeda45ca183b79662fbb7fff2e06a44f2bf313231faaf135",
+      "count": 1,
+      "status": "context_reviewed",
+      "reason": "MULTI_PROMPT_LINE é ancorado; alternativas começam por classes disjuntas (colchete ou palavra), cada token termina por delimitador fora da classe da palavra e colchetes fecham no primeiro ]. Espaço opcional não pertence ao início do token seguinte. Não há partição ambígua entre repetições.",
+      "evidence": [
+        "apps/backend/src/modules/session-audit/session-audit-normalizer.ts"
+      ],
+      "sourceKeys": [
+        "d15a994c-d963-4e30-96cd-26acdf21d66f"
+      ]
+    },
+    {
+      "signature": "a816369c9b1907c8adbcf3c7849fa13656ffedf81094cf573a8eb976250a9286",
+      "count": 1,
+      "status": "context_reviewed",
+      "reason": "PAGER_STATUS_LINE é ancorado; segmentos numéricos são separados por hífen/barra e a cauda .* não possui sufixo que force tentativas em cada início. Alternativas têm prefixos disjuntos. Mantido por semântica de pager.",
+      "evidence": [
+        "apps/backend/src/modules/session-audit/session-audit-normalizer.ts"
+      ],
+      "sourceKeys": [
+        "516c475a-b608-40f0-a09a-b1f6b6d4db22"
+      ]
+    },
+    {
+      "signature": "3ef969bebab06600f8fc6ceddd3d46fc42a56dbb3755a1fcc9a067b3ca40b082",
+      "count": 1,
+      "status": "context_reviewed",
+      "reason": "Padrão de normalização interpreta/remove controles ANSI, OSC, CSI ou edição; byte intencional do protocolo, necessário para preservar playback e inferência de comandos. Ocorrência individual revisada na linha base 150, coluna 14.",
+      "evidence": [
+        "apps/backend/src/modules/session-audit/session-audit-normalizer.ts",
+        "apps/backend/src/modules/session-audit/session-audit-normalizer.test.ts"
+      ],
+      "sourceKeys": [
+        "2082229e-822b-4bf7-800b-db37b6f22414"
+      ]
+    },
+    {
+      "signature": "06552d5f1d77fa8ddd1b12186a479c91d896b46a277d6c653dec2b463c8558ce",
+      "count": 3,
+      "status": "context_reviewed",
+      "reason": "Padrão de normalização interpreta/remove controles ANSI, OSC, CSI ou edição; byte intencional do protocolo, necessário para preservar playback e inferência de comandos. Ocorrência individual revisada na linha base 215, coluna 52. | Padrão de normalização interpreta/remove controles ANSI, OSC, CSI ou edição; byte intencional do protocolo, necessário para preservar playback e inferência de comandos. Ocorrência individual revisada na linha base 215, coluna 67. | Padrão de normalização interpreta/remove controles ANSI, OSC, CSI ou edição; byte intencional do protocolo, necessário para preservar playback e inferência de comandos. Ocorrência individual revisada na linha base 215, coluna 72.",
+      "evidence": [
+        "apps/backend/src/modules/session-audit/session-audit-normalizer.ts",
+        "apps/backend/src/modules/session-audit/session-audit-normalizer.test.ts"
+      ],
+      "sourceKeys": [
+        "2dffd5d8-4e91-4273-86a8-4cc1541053b4",
+        "67c269bc-a669-452d-b279-b491b3dd5147",
+        "b2426cd7-bc4a-4826-aa50-573e69de3412"
+      ]
+    },
+    {
+      "signature": "a900755944f6c7f468acc974439b50c224b12c985980add8b5a4c35c5fcb1da8",
+      "count": 1,
+      "status": "context_reviewed",
+      "reason": "Construção de RegExp é validação deliberada: throws antes de persistir política inválida. Instância descartada porque execução da política ocorre em outro fluxo.",
+      "evidence": [
+        "apps/backend/src/modules/settings/settings.service.ts"
+      ],
+      "sourceKeys": [
+        "0c4c9794-c6bd-477d-b35d-2ae56af5bf21"
+      ]
+    },
+    {
+      "signature": "22aa66c80ca7f70bf22395ea5d307165d913b59bbb8570e8012b5821715fe025",
+      "count": 1,
+      "status": "context_reviewed",
+      "reason": "Revisada linha do exemplo de uso de secret salvo: argumento mysql referencia placeholder {{secret:...}}, não senha literal. Arquivo de tradução backup preservado; nenhum segredo ou conteúdo sensível publicado.",
+      "evidence": [
+        "apps/frontend/src/locales/en-BACKUP-UX.json:1522"
+      ],
+      "sourceKeys": [
+        "7dec507b-3e5e-426e-b161-00389785b295"
+      ]
+    },
+    {
+      "signature": "d6f3e93287cdc61ae813da8321cb26cb03e67139b63d41de79adc945b10a4cfc",
+      "count": 1,
+      "status": "context_reviewed",
+      "reason": "Revisada linha do exemplo de uso de secret salvo: argumento mysql referencia placeholder {{secret:...}}, não senha literal. Arquivo de tradução backup preservado; nenhum segredo ou conteúdo sensível publicado.",
+      "evidence": [
+        "apps/frontend/src/locales/en-NOTE-JEFF.json:1247"
+      ],
+      "sourceKeys": [
+        "459c43e5-ddb0-42a7-84ec-f5b4ea41a6fc"
+      ]
+    },
+    {
+      "signature": "9fc76fa5cb6d92a5850cdcd07af616623340478c00a351c8f8f33e20a0f6fd73",
+      "count": 1,
+      "status": "context_reviewed",
+      "reason": "Revisada linha do exemplo de uso de secret salvo: argumento mysql referencia placeholder {{secret:...}}, não senha literal. Arquivo de tradução backup preservado; nenhum segredo ou conteúdo sensível publicado.",
+      "evidence": [
+        "apps/frontend/src/locales/pt-BR-BACKUP-UX.json:1522"
+      ],
+      "sourceKeys": [
+        "304c953c-ca09-4f1b-8e01-41ae8777740d"
+      ]
+    },
+    {
+      "signature": "d1665fb9561c3d8f57ec82ac0e8c25fb32ea8844a72650b1b6f2657561981718",
+      "count": 1,
+      "status": "context_reviewed",
+      "reason": "Revisada linha do exemplo de uso de secret salvo: argumento mysql referencia placeholder {{secret:...}}, não senha literal. Arquivo de tradução backup preservado; nenhum segredo ou conteúdo sensível publicado.",
+      "evidence": [
+        "apps/frontend/src/locales/pt-BR-NOTE-JEFF.json:1247"
+      ],
+      "sourceKeys": [
+        "32464ed2-e9a3-4645-87b0-1f2a38f05a88"
+      ]
+    },
+    {
+      "signature": "4bf87359e55e68bc7e9f50ff2d81087305c63330214814e92155697e8f087048",
+      "count": 1,
+      "status": "context_reviewed",
+      "reason": "Input artificial oculto e tabindex=-1 usado como isca de autofill; não é campo operável. Nomeá-lo não melhora interação e alterá-lo arrisca comportamento de gerenciadores de senha. Revisada a marcação específica em HostsView-BACKUP-UX.vue:2264; nenhum valor de credencial foi extraído.",
+      "evidence": [
+        "apps/frontend/src/views/HostsView-BACKUP-UX.vue:2264"
+      ],
+      "sourceKeys": [
+        "833480a6-62e9-43a8-98dd-1750989ac29e"
+      ]
+    },
+    {
+      "signature": "5366dd60b64465e99f5b530e1f9bec9e864f4d00870f3de86664ab9ca40aaefd",
+      "count": 1,
+      "status": "context_reviewed",
+      "reason": "Input artificial oculto e tabindex=-1 usado como isca de autofill; não é campo operável. Nomeá-lo não melhora interação e alterá-lo arrisca comportamento de gerenciadores de senha. Revisada a marcação específica em HostsView-BACKUP-UX.vue:2265; nenhum valor de credencial foi extraído.",
+      "evidence": [
+        "apps/frontend/src/views/HostsView-BACKUP-UX.vue:2265"
+      ],
+      "sourceKeys": [
+        "cbe3d036-1644-4461-b7fa-af1e068b29ca"
+      ]
+    },
+    {
+      "signature": "f0249e2e829114e1e1fb360464c635d6f615104ae0ebe21511ec798c07364216",
+      "count": 1,
+      "status": "context_reviewed",
+      "reason": "Input artificial oculto e tabindex=-1 usado como isca de autofill; não é campo operável. Nomeá-lo não melhora interação e alterá-lo arrisca comportamento de gerenciadores de senha. Revisada a marcação específica em HostsView-NOTE-JEFF.vue:2007; nenhum valor de credencial foi extraído.",
+      "evidence": [
+        "apps/frontend/src/views/HostsView-NOTE-JEFF.vue:2007"
+      ],
+      "sourceKeys": [
+        "f625cc4f-4415-4aa0-bfba-7a4615c3a498"
+      ]
+    },
+    {
+      "signature": "d6cfb599d22085bcb1067b93d09e70204e9cbe5396e3b066a9644ddea70f7647",
+      "count": 1,
+      "status": "context_reviewed",
+      "reason": "Input artificial oculto e tabindex=-1 usado como isca de autofill; não é campo operável. Nomeá-lo não melhora interação e alterá-lo arrisca comportamento de gerenciadores de senha. Revisada a marcação específica em HostsView-NOTE-JEFF.vue:2008; nenhum valor de credencial foi extraído.",
+      "evidence": [
+        "apps/frontend/src/views/HostsView-NOTE-JEFF.vue:2008"
+      ],
+      "sourceKeys": [
+        "d12d496d-68ac-4023-8b3f-d8a798a0a3ff"
+      ]
+    },
+    {
+      "signature": "4ed68aecd9fb894973e87d0864113d37a01c652e6f3a42a05edc6f053bdc1e70",
+      "count": 1,
+      "status": "context_reviewed",
+      "reason": "Math.random seleciona jitter de carga/pausa na simulação; não gera token, senha, ID autenticável nem material criptográfico.",
+      "evidence": [
+        "tools/load-tests/k6/baseline-api.js (contexto da linha base 131)"
+      ],
+      "sourceKeys": [
+        "9e5f4b65-6bc0-46ee-b9da-1cde134bb908"
+      ]
+    },
+    {
+      "signature": "477560d0db759ee6e207f87678d2100f95ec43eaa1dcde22dcd365489f9b1435",
+      "count": 1,
+      "status": "context_reviewed",
+      "reason": "CLI/harness invocado pelo desenvolvedor/CI, não endpoint do produto: executável fixo com argv separado e sem shell. PATH pertence ao ambiente já confiado que executa o checkout; preservar git/docker/openssl/Node instalados pelo operador evita quebra de ferramentas/version managers. Não executar checkout não confiado com privilégios.",
+      "evidence": [
+        "tools/load-tests/scripts/mock-ssh-server.js (contexto da linha base 25)"
+      ],
+      "sourceKeys": [
+        "bc6bff92-4617-4e65-a26c-b343e134a847"
+      ]
+    },
+    {
+      "signature": "9735558c8fb3adc57abe350dbc8be885e4586d3e8fd05efdca379bac54f1461a",
+      "count": 1,
+      "status": "context_reviewed",
+      "reason": "Input artificial oculto e tabindex=-1 usado como isca de autofill; não é campo operável. Nomeá-lo não melhora interação e alterá-lo arrisca comportamento de gerenciadores de senha. Revisada a marcação específica em SecretsView.vue:483; nenhum valor de credencial foi extraído.",
+      "evidence": [
+        "apps/frontend/src/views/SecretsView.vue:483"
+      ],
+      "sourceKeys": [
+        "2fc01788-1448-4cbd-80e4-8aa88ddcd828"
+      ]
+    },
+    {
+      "signature": "5573c742390e974308ae0d9d75fc1bf8b5829020390a8d591de1231f9212e113",
+      "count": 1,
+      "status": "context_reviewed",
+      "reason": "Input artificial oculto e tabindex=-1 usado como isca de autofill; não é campo operável. Nomeá-lo não melhora interação e alterá-lo arrisca comportamento de gerenciadores de senha. Revisada a marcação específica em SecretsView.vue:484; nenhum valor de credencial foi extraído.",
+      "evidence": [
+        "apps/frontend/src/views/SecretsView.vue:484"
+      ],
+      "sourceKeys": [
+        "a9f5d014-437d-4323-ae23-0a4944ac8ef0"
+      ]
+    },
+    {
+      "signature": "8ad410e0f8283677bbc60b7eed393d88266cda3ba6f84d4dd85992c864745786",
+      "count": 1,
+      "status": "context_reviewed",
+      "reason": "Input artificial oculto e tabindex=-1 usado como isca de autofill; não é campo operável. Nomeá-lo não melhora interação e alterá-lo arrisca comportamento de gerenciadores de senha. Revisada a marcação específica em SecretsView.vue:540; nenhum valor de credencial foi extraído.",
+      "evidence": [
+        "apps/frontend/src/views/SecretsView.vue:540"
+      ],
+      "sourceKeys": [
+        "d588759e-235d-4423-9039-a401b0b93bfd"
+      ]
+    },
+    {
+      "signature": "405bff83b6c6c08fc6463c6d62c3a7a2678e20f8bc645e4d8f4fcc5082b5e9a9",
+      "count": 1,
+      "status": "context_reviewed",
+      "reason": "Input artificial oculto e tabindex=-1 usado como isca de autofill; não é campo operável. Nomeá-lo não melhora interação e alterá-lo arrisca comportamento de gerenciadores de senha. Revisada a marcação específica em SecretsView.vue:541; nenhum valor de credencial foi extraído.",
+      "evidence": [
+        "apps/frontend/src/views/SecretsView.vue:541"
+      ],
+      "sourceKeys": [
+        "b813dac2-d404-4ced-904b-95be0a919162"
+      ]
+    },
+    {
+      "signature": "4a4424ad79e8943584678f778ef8209268b1a0e99974e2ef04a2fe9061864f8c",
+      "count": 1,
+      "status": "context_reviewed",
+      "reason": "Raiz padrão de auditoria preservada para não perder dados existentes. Escrita foi endurecida por writePrivateStorageFile: raiz dedicada pertencente ao UID, sem symlink e sem escrita por terceiros; diretórios 0700, arquivos 0600, temporário exclusivo e rename atômico. Literal /tmp pode continuar sinalizado; raiz compartilhada é rejeitada.",
+      "evidence": [
+        "apps/backend/src/config/env.ts",
+        "apps/backend/src/shared/private-storage.ts",
+        "apps/backend/src/shared/private-storage.test.ts",
+        "apps/backend/src/modules/session-audit/session-audit.storage.test.ts"
+      ],
+      "sourceKeys": [
+        "fd531dd3-db54-4b67-95e7-00758d2d00a0"
+      ]
+    },
+    {
+      "signature": "2b1e30030467a3138db53f351c114c7bcd3a9ba1ffc276cc975144cea2e5412e",
+      "count": 1,
+      "status": "context_reviewed",
+      "reason": "Área pre do modo cópia é selecionável e rolável; foco é deliberado para navegação/seleção de texto e não representa ação.",
+      "evidence": [
+        "tools/frontend/terminal-experience-playwright.cjs",
+        "apps/frontend/src/components/TerminalPane.vue"
+      ],
+      "sourceKeys": [
+        "a330cd3b-b4f9-4cd4-9b1a-1614d8f626ed"
+      ]
+    }
+  ]
+}

@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+const { artifactPath } = require('../shared/private-artifacts.cjs')
 // Isolated browser fixtures: no real credentials, host access or SSH.
 const assert = require('node:assert/strict')
 const { chromium } = require('playwright')
@@ -296,7 +297,7 @@ async function validatePermissions(page, state) {
   await page.waitForTimeout(350)
   const box = await modal.boundingBox()
   assert(box.x>=0 && box.x+box.width<=page.viewportSize().width)
-  await page.screenshot({path:'/tmp/na0057-permissions-details-'+page.viewportSize().width+'.png',fullPage:true})
+  await page.screenshot({path:artifactPath('na0057-permissions-details-')+page.viewportSize().width+'.png',fullPage:true})
   await page.keyboard.press('Escape')
   await modal.waitFor({state:'hidden'})
   assert(await trigger.evaluate(el=>document.activeElement===el),'Focus must return')
@@ -305,7 +306,7 @@ async function validatePermissions(page, state) {
   await page.keyboard.press('Escape')
   await modal.waitFor({state:'hidden'})
   assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth))
-  await page.screenshot({path:'/tmp/na0057-permissions-table-'+page.viewportSize().width+'.png',fullPage:true})
+  await page.screenshot({path:artifactPath('na0057-permissions-table-')+page.viewportSize().width+'.png',fullPage:true})
   await page.getByRole('button',{name:'Editar',exact:true}).first().click()
   const edit = page.locator('.n-modal').filter({hasText:'Editar token MCP'})
   await edit.waitFor()
@@ -342,7 +343,7 @@ async function validatePermissions(page, state) {
   await createSelector.getByTestId('mcp-capability-option-fixture_19').getByRole('checkbox').check()
   await createSearch.fill('absent_query')
   assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth))
-  await page.screenshot({path:'/tmp/na0057-permissions-create-'+page.viewportSize().width+'.png',fullPage:true})
+  await page.screenshot({path:artifactPath('na0057-permissions-create-')+page.viewportSize().width+'.png',fullPage:true})
   await create.getByRole('button',{name:'Criar token',exact:true}).click()
   await page.getByTestId('created-token-result').waitFor()
   assert.deepEqual(state.created.allowedCapabilities,['fixture_19'])

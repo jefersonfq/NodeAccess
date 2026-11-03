@@ -1,3 +1,4 @@
+import { trimTrailingSlashes } from '../../shared/linear-text.js'
 import type { FastifyInstance, FastifyRequest } from 'fastify'
 import { requireAuth } from '../../shared/guards.js'
 import type { AgentController } from './agent.controller.js'
@@ -54,7 +55,7 @@ function firstHeader(value: string | string[] | undefined): string | undefined {
 }
 
 function cleanBaseUrl(value: string): string {
-  return value.replace(/\/+$/, '')
+  return trimTrailingSlashes(value)
 }
 
 function isHttpUrl(value: string): boolean {

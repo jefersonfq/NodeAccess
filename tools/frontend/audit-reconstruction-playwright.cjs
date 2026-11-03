@@ -1,8 +1,9 @@
+const { artifactPath } = require('../shared/private-artifacts.cjs')
 const fs=require('node:fs')
 const {chromium}=require('playwright')
 const {installRoutes,authenticate,SESSION_ID}=require('./session-playback-playwright.cjs')
 const base=process.env.FRONTEND_BASE||'http://127.0.0.1:5182'
-const artifacts='/tmp/nodeaccess-audit-reconstruction-ui'
+const artifacts=artifactPath('nodeaccess-audit-reconstruction-ui')
 const metadata={id:'a'.repeat(64),sourceFingerprint:'b'.repeat(64),processorVersion:'ssh-readline-2026-09-29.1',createdAt:'2026-09-29T12:00:00Z',state:'complete',eventCount:20,commandCount:3,persisted:true,issues:[]}
 async function scenario(browser,width,mode){
  const context=await browser.newContext({viewport:{width,height:900},acceptDownloads:true})

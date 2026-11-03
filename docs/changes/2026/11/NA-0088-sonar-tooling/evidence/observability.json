@@ -1,0 +1,30 @@
+[
+  {
+    "theme": "dark",
+    "requests": 15,
+    "initial503": true,
+    "staleDataAndNetworkRecovery": true,
+    "dockerReasons": 5,
+    "emptyStates": true,
+    "forbiddenClearsData": true,
+    "geometry": {
+      "width": 390,
+      "body": 390
+    },
+    "runtimeErrors": []
+  },
+  {
+    "theme": "light",
+    "requests": 15,
+    "initial503": true,
+    "staleDataAndNetworkRecovery": true,
+    "dockerReasons": 5,
+    "emptyStates": true,
+    "forbiddenClearsData": true,
+    "geometry": {
+      "width": 390,
+      "body": 390
+    },
+    "runtimeErrors": []
+  }
+]

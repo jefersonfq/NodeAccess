@@ -462,7 +462,6 @@ function formatUptime(seconds: number): string {
             <template #trigger>
               <article
                 class="metric-tile"
-                tabindex="0"
                 :aria-label="`Carga por núcleo ${formatPercent(snapshot.host.cpu.loadPercentOfCores)}. Load de 1 minuto ${snapshot.host.cpu.loadAverage.oneMinute}, 5 minutos ${snapshot.host.cpu.loadAverage.fiveMinutes}, 15 minutos ${snapshot.host.cpu.loadAverage.fifteenMinutes}. Alerta em ${cpuThreshold()}%.`"
               >
                 <span>Carga por núcleo</span>
@@ -483,7 +482,6 @@ function formatUptime(seconds: number): string {
             <template #trigger>
               <article
                 class="metric-tile"
-                tabindex="0"
                 :aria-label="`Memória ${formatPercent(snapshot.host.memory.usedPercent)}. Heap Node ${formatBytes(snapshot.host.memory.processHeapUsedBytes)}. RSS ${formatBytes(snapshot.host.memory.processRssBytes)}. Alerta em ${memoryThreshold()}%.`"
               >
                 <span>Memória</span>
@@ -503,7 +501,6 @@ function formatUptime(seconds: number): string {
             <template #trigger>
               <article
                 class="metric-tile"
-                tabindex="0"
                 :aria-label="`Disco ${formatPercent(highestDisk?.usedPercent)}. ${snapshot.host.disks.length} volumes. Alerta em ${diskThreshold()}%.`"
               >
                 <span>Disco</span>
@@ -614,28 +611,24 @@ function formatUptime(seconds: number): string {
         >
           <article
             class="api-metric"
-            tabindex="0"
             :aria-label="`Latência mediana p50 ${formatDuration(snapshot.apiPerformance.p50Ms)}`"
           >
             <span>p50</span><strong>{{ formatDuration(snapshot.apiPerformance.p50Ms) }}</strong><small>experiência habitual</small>
           </article>
           <article
             class="api-metric"
-            tabindex="0"
             :aria-label="`Latência p95 ${formatDuration(snapshot.apiPerformance.p95Ms)}, limite ${formatDuration(snapshot.thresholds.apiP95WarningMs)}`"
           >
             <span>p95</span><strong>{{ formatDuration(snapshot.apiPerformance.p95Ms) }}</strong><small>limite {{ formatDuration(snapshot.thresholds.apiP95WarningMs) }}</small>
           </article>
           <article
             class="api-metric"
-            tabindex="0"
             :aria-label="`Latência p99 ${formatDuration(snapshot.apiPerformance.p99Ms)}`"
           >
             <span>p99</span><strong>{{ formatDuration(snapshot.apiPerformance.p99Ms) }}</strong><small>cauda de latência</small>
           </article>
           <article
             class="api-metric"
-            tabindex="0"
             :aria-label="`Taxa de erros cinco xx ${formatPercent(snapshot.apiPerformance.errorRatePercent)}, ${snapshot.apiPerformance.errorCount} erros`"
           >
             <span>Erros 5xx</span><strong>{{ formatPercent(snapshot.apiPerformance.errorRatePercent) }}</strong><small>{{ snapshot.apiPerformance.errorCount }} ocorrência(s)</small>
@@ -730,8 +723,8 @@ function formatUptime(seconds: number): string {
               <template #trigger>
                 <div
                   class="component-row"
-                  tabindex="0"
-                  :aria-label="`${componentLabels[component.name]}: ${statusLabel[component.status]}, ${component.latencyMs} ms. ${component.message || 'Sem mensagem adicional.'}`"
+                  role="group"
+                    :aria-label="`${componentLabels[component.name]}: ${statusLabel[component.status]}, ${component.latencyMs} ms. ${component.message || 'Sem mensagem adicional.'}`"
                 >
                   <span
                     class="status-dot"
@@ -789,8 +782,8 @@ function formatUptime(seconds: number): string {
               <template #trigger>
                 <div
                   class="component-row"
-                  tabindex="0"
-                  :aria-label="`${backupLabels[backup.type]}: ${statusLabel[backup.status]}, ${backup.ageHours === null ? 'idade indisponível' : `${backup.ageHours} horas`}. ${backup.latestFile || backup.message || backup.directory}`"
+                  role="group"
+                    :aria-label="`${backupLabels[backup.type]}: ${statusLabel[backup.status]}, ${backup.ageHours === null ? 'idade indisponível' : `${backup.ageHours} horas`}. ${backup.latestFile || backup.message || backup.directory}`"
                 >
                   <span
                     class="status-dot"

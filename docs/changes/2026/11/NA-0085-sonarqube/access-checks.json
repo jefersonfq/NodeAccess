@@ -1,0 +1,6 @@
+{
+  "anonymous-private-project": 401,
+  "review-project-read": 200,
+  "review-admin-denied": 403,
+  "analysis-admin-denied": 403
+}

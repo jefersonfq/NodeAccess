@@ -1,9 +1,10 @@
 #!/usr/bin/env node
+const { artifactPath } = require('../shared/private-artifacts.cjs')
 const fs = require('node:fs')
 const { chromium } = require('playwright')
 
 const FRONTEND = (process.env.FRONTEND_BASE || 'http://127.0.0.1:5173').replace(/\/$/, '')
-const REPORT_PATH = process.env.REPORT_PATH || '/tmp/nodeaccess-sessions-filters.json'
+const REPORT_PATH = process.env.REPORT_PATH || artifactPath('nodeaccess-sessions-filters.json')
 const users = [
   { id: 1, name: 'Ana Admin', email: 'ana@example.test' },
   { id: 2, name: 'Bruno Operador', email: 'bruno@example.test' },

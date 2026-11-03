@@ -1,3 +1,4 @@
+const { artifactPath } = require('../shared/private-artifacts.cjs')
 const { chromium } = require('playwright')
 const assert = require('node:assert/strict')
 const FRONTEND = process.env.FRONTEND_BASE || 'http://127.0.0.1:5177'
@@ -80,7 +81,7 @@ async function main() {
     await page.setViewportSize({ width: 390, height: 844 })
     const box = await modal.boundingBox()
     assert.ok(box.x >= 0 && box.x + box.width <= 391, 'Inbound modal fits mobile width')
-    await page.screenshot({ path: '/tmp/nodeaccess-webhooks-inbound.png', fullPage: true })
+    await page.screenshot({ path: artifactPath('nodeaccess-webhooks-inbound.png'), fullPage: true })
     await modal.getByRole('button', { name: 'Done', exact: true }).click()
     await page.setViewportSize({ width: 1440, height: 1000 })
     await page.locator('tr').filter({ hasText: 'Monitor' }).getByRole('button', { name: 'Edit', exact: true }).click()
@@ -132,7 +133,7 @@ async function main() {
     await page.getByRole('button', { name: 'Load more', exact: true }).click()
     await page.getByRole('button', { name: 'Load more', exact: true }).waitFor({ state: 'hidden' })
     assert.ok(cursors.some(item => item.path.endsWith('/deliveries') && item.cursor === '76'))
-    await page.screenshot({ path: '/tmp/nodeaccess-webhooks-deliveries.png', fullPage: true })
+    await page.screenshot({ path: artifactPath('nodeaccess-webhooks-deliveries.png'), fullPage: true })
     await page.keyboard.press('Escape')
     await page.locator('tr').filter({ hasText: 'Outbound test' }).getByRole('button', { name: 'Edit', exact: true }).click()
     await page.locator('.n-modal').getByRole('button', { name: /Test/ }).click()

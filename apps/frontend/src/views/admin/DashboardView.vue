@@ -275,7 +275,7 @@ const cacheSummary = computed(() => {
 })
 
 const cacheAttentionNames = computed(() =>
-  cacheSummary.value.attentionCaches
+  [...cacheSummary.value.attentionCaches]
     .sort((a, b) => b.totalReads - a.totalReads)
     .slice(0, 3)
     .map((row) => row.name),

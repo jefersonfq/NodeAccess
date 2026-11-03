@@ -43,7 +43,7 @@ export class TerminalSessionEntityIndex {
       const pods = this.entities.get('kubernetes')
       for (const identity of this.podNamespaces.keys()) if (!pods?.has(identity)) this.podNamespaces.delete(identity)
     }
-    if (/^\s*git\s+(?:branch|status)\b/.test(command)) this.addMany('git', [...clean.matchAll(/^\s*\*?\s*([A-Za-z0-9][A-Za-z0-9._/-]*)\s*$/gm)].map((match) => match[1]!))
+    if (/^\s*git\s+(?:branch|status)\b/.test(command)) this.addMany('git', clean.split('\n').map(line => line.trim().replace(/^\*/, '').trim()).filter(line => /^[A-Za-z0-9][A-Za-z0-9._/-]*$/.test(line)))
   }
 
   suggest(line: string, limit = 6): TerminalCompletion[] {

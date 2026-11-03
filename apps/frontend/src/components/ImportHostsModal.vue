@@ -115,11 +115,14 @@ async function processDetectedFiles(files: File[], forceSource?: SessionImportSo
   const detection = detectSessionImportSource(primary.name, content)
   if (detection.source === 'ssh' && files.length > 1) {
     const included = new Map(await Promise.all(files.slice(1).map(async file => [file.name.toLowerCase(), await file.text()] as const)))
-    content = content.replace(/^\s*Include\s+(.+)$/gim, (line, rawPath: string) => {
+    content = content.split('\n').map(line => {
+      const directive = line.trimStart()
+      if (directive.slice(0, 7).toLowerCase() !== 'include' || !/\s/.test(directive[7] ?? '')) return line
+      const rawPath = directive.slice(8)
       const path = rawPath.trim().replace(/^["']|["']$/g, '')
       const name = path.split(/[\\/]/).pop()?.toLowerCase() ?? ''
       return included.get(name) ?? line
-    })
+    }).join('\n')
   }
   if (revision !== importFileRevision) return
   await processDetectedFile(primary, content, forceSource)
@@ -1998,10 +2001,13 @@ async function doImport(): Promise<void> {
           <div class="min-w-60 flex-1">
             <label
               id="royalts-protocol-label"
+              for="royalts-protocol-input"
               class="mb-1 block text-xs"
             >{{ $t('import.royalts.protocol') }}</label>
             <NSelect
               v-model:value="royaltsProtocol"
+              filterable
+              :input-props="{ id: 'royalts-protocol-input', 'aria-labelledby': 'royalts-protocol-label' }"
               clearable
               aria-labelledby="royalts-protocol-label"
               :placeholder="$t('import.royalts.detectProtocol')"
@@ -2733,6 +2739,7 @@ async function doImport(): Promise<void> {
           >
             <input
               v-model="bulkPort"
+              :aria-label="$t('hosts.form.port')"
               type="number"
               min="1"
               max="65535"

@@ -34,7 +34,7 @@ export function sshRoutes(app: FastifyInstance, gateway: SshGateway, agentGatewa
       const ipInfo = getClientIpInfo(request, env.TRUST_PROXY)
       const userAgent = request.headers['user-agent']
 
-      if (isNaN(hostId)) {
+      if (Number.isNaN(hostId)) {
         socket.send(JSON.stringify({ type: 'error', message: 'hostId inválido' }))
         socket.close(1008)
         return

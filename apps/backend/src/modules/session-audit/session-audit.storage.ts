@@ -1,9 +1,10 @@
-import { mkdir, readFile, writeFile, stat } from 'node:fs/promises'
+import { readFile, stat } from 'node:fs/promises'
 import path from 'node:path'
 import { gzip, gunzip } from 'node:zlib'
 import { promisify } from 'node:util'
 import { env } from '../../config/env.js'
 import { logger } from '../../config/logger.js'
+import { writePrivateStorageFile } from '../../shared/private-storage.js'
 
 const gzipAsync = promisify(gzip)
 const gunzipAsync = promisify(gunzip)
@@ -18,14 +19,13 @@ export interface StoredSessionAuditChunk {
 export class SessionAuditStorage {
   async writeChunk(sessionId: number, seq: number, content: string): Promise<StoredSessionAuditChunk> {
     const dir = path.join(env.SESSION_AUDIT_STORAGE_DIR, String(sessionId))
-    await mkdir(dir, { recursive: true })
 
     const raw = Buffer.from(content, 'utf-8')
     const compressed = await gzipAsync(raw)
 
     const filename = `chunk-${String(seq).padStart(6, '0')}.jsonl.gz`
     const fullPath = path.join(dir, filename)
-    await writeFile(fullPath, compressed)
+    await writePrivateStorageFile(env.SESSION_AUDIT_STORAGE_DIR, path.join(String(sessionId), filename), compressed)
 
     return {
       storageKey: fullPath,

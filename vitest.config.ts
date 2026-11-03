@@ -1,10 +1,17 @@
+import vue from '@vitejs/plugin-vue'
+import { sourcePatterns, nonSourcePatterns, globalThresholds, legacyServicePattern } from './tools/coverage/sources.mjs'
 
 import { defineConfig } from 'vitest/config'
 import { resolve } from 'node:path'
 
 export default defineConfig({
+  plugins: [vue()],
   resolve: {
-    alias: { '@': resolve(__dirname, 'apps/frontend/src') },
+    alias: [
+      { find: '@', replacement: resolve(__dirname, 'apps/frontend/src') },
+      { find: /^@nodeaccess\/shared$/, replacement: resolve(__dirname, 'packages/shared/src/index.ts') },
+      { find: /^@nodeaccess\/shared\/(.*)$/, replacement: resolve(__dirname, 'packages/shared/src/$1.ts') },
+    ],
   },
   test: {
     globals: true,
@@ -23,18 +30,14 @@ export default defineConfig({
     include: ['apps/*/src/**/*.test.ts', 'packages/*/src/**/*.test.ts'],
     coverage: {
       provider: 'v8',
-      reporter: ['text', 'lcov'],
-      include: ['apps/backend/src/modules/**/*.service.ts'],
-      exclude: [
-        'apps/backend/src/modules/**/*.routes.ts',
-        'apps/backend/src/modules/**/*.controller.ts',
-        'apps/backend/src/modules/**/*.repository.ts',
-      ],
-      thresholds: {
-        lines:     70,
-        functions: 70,
-        branches:  60,
-      },
+      reporter: ['text-summary', 'json', 'json-summary', 'lcovonly'],
+      reportsDirectory: 'coverage/vitest',
+      include: sourcePatterns,
+      exclude: nonSourcePatterns,
+      excludeAfterRemap: true,
+      reportOnFailure: true,
+      // The aggregate command enforces these same gates after adding Node-runner coverage.
+      thresholds: process.env.NODEACCESS_COVERAGE_COLLECT === '1' ? undefined : { [legacyServicePattern]: globalThresholds },
     },
   },
 })

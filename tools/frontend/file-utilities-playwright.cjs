@@ -1,5 +1,6 @@
+const { artifactPath } = require('../shared/private-artifacts.cjs')
 const fs = require('node:fs')
-const out = '/tmp/nodeaccess-file-utilities-ui'
+const out = artifactPath('nodeaccess-file-utilities-ui')
 module.exports = async function ({ page, context }) {
   fs.mkdirSync(out, { recursive: true })
   await page.evaluate(() => { window.__terminalExperience.reviewFiles = true; window.__terminalExperience.fileUtilitiesReview = true })

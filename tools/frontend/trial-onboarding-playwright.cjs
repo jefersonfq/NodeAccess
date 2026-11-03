@@ -1,11 +1,12 @@
 #!/usr/bin/env node
+const { artifactPath } = require('../shared/private-artifacts.cjs')
 // Browser UX simulation only. All APIs mocked; no emails, VMs or production hosts.
 const assert = require('node:assert/strict')
 const fs = require('node:fs/promises')
 const { execFileSync } = require('node:child_process')
 const { chromium } = require('playwright')
 const base = process.env.FRONTEND_BASE || 'http://127.0.0.1:5188'
-const output = process.env.TRIAL_ARTIFACTS || '/tmp/nodeaccess-trial-browser'
+const output = process.env.TRIAL_ARTIFACTS || artifactPath('nodeaccess-trial-browser')
 const config = { enabled: true, privacyUrl: 'https://example.test/privacy', termsUrl: 'https://example.test/terms', privacyVersion: 'v1', profile: { name: 'Teste', durationDays: 7, maxUsers: 2, maxHosts: 2, machineCount: 1, maxMachines: 2, allowCustomHosts: true, maxCustomHosts: 1, maxSessions: 2, retentionDays: 30, resources: ['ssh', 'sftp'] } }
 const token = `${Buffer.from('{}').toString('base64url')}.${Buffer.from(JSON.stringify({ sub: '41', tenantId: 7, name: 'Admin fixture', role: 'admin', isPlatformAdmin: true, email: 'admin@example.test', stage: 'authenticated', exp: 4102444800 })).toString('base64url')}.fixture`
 async function main() {
@@ -131,6 +132,7 @@ async function main() {
       await page.getByRole('button', { name: 'Solicitar meu ambiente de teste' }).click()
       await page.getByRole('heading', { name: 'Confira seu e-mail' }).waitFor()
       const registration = state.calls.filter(c => c.path.endsWith('/register')).at(-1)
+      assert.ok(registration?.payload, 'Registration request payload was not captured')
       assert.equal(registration.payload.phone, '+55 (11) 99999-1234')
       assert.equal(await page.evaluate(() => JSON.stringify(localStorage).includes('99999-1234') || JSON.stringify(sessionStorage).includes('99999-1234')), false)
       await page.screenshot({ path: `${output}/email-${theme}-${width}.png`, fullPage: true })

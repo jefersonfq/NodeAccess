@@ -1,3 +1,4 @@
+const { artifactPath } = require('../shared/private-artifacts.cjs')
 // Run after test:terminal-pty:real, against the same disposable HOST_ID/CDP browser.
 const { chromium } = require('playwright')
 const fs = require('node:fs')
@@ -39,10 +40,10 @@ async function main() {
     await page.getByText(/Active sessions|Sessões ativas/i).first().waitFor()
     const client = await page.context().newCDPSession(page)
     const screenshot = await client.send('Page.captureScreenshot', { format: 'png' })
-    fs.writeFileSync('/tmp/nodeaccess-session-close-dashboard.png', Buffer.from(screenshot.data, 'base64'))
+    fs.writeFileSync(artifactPath('nodeaccess-session-close-dashboard.png'), Buffer.from(screenshot.data, 'base64'))
     await client.detach()
     const result = { ok: true, hostId, closedSessionIds: ids, activeBefore: summaryBefore.activeSessions, activeAfter: summaryAfter.activeSessions }
-    fs.writeFileSync(process.env.REPORT_PATH || '/tmp/nodeaccess-session-close-live.json', JSON.stringify(result, null, 2))
+    fs.writeFileSync(process.env.REPORT_PATH || artifactPath('nodeaccess-session-close-live.json'), JSON.stringify(result, null, 2))
     console.log(JSON.stringify(result))
   } finally { await browser.close() }
 }

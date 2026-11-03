@@ -1,3 +1,4 @@
+import { jsonFenceBody } from '../../shared/linear-text.js'
 import { trialFeatureAvailable } from '../trials/trial-policy.js'
 import { terminalAssistJsonSchema } from './terminal-assist-contract.js'
 import { terminalAiError } from './terminal-ai-errors.js'
@@ -988,8 +989,7 @@ function buildTerminalAssistPrompt(intent: LocalAiTerminalAssistRequest['intent'
 
 function parseProviderJson(answer: string): unknown {
   const trimmed = answer.trim()
-  const fenced = trimmed.match(/^```(?:json)?\s*([\s\S]*?)\s*```$/i)
-  const source = fenced?.[1] ?? trimmed
+  const source = jsonFenceBody(trimmed, true) ?? trimmed
   return JSON.parse(source)
 }
 

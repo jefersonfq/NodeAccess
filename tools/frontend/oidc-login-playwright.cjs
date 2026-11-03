@@ -1,9 +1,10 @@
 #!/usr/bin/env node
+const { artifactPath } = require('../shared/private-artifacts.cjs')
 const fs = require('node:fs')
 const { chromium } = require('playwright')
 
 const FRONTEND = (process.env.FRONTEND_BASE || 'http://127.0.0.1:5174').replace(/\/$/, '')
-const REPORT_PATH = process.env.REPORT_PATH || '/tmp/nodeaccess-oidc-login-playwright.json'
+const REPORT_PATH = process.env.REPORT_PATH || artifactPath('nodeaccess-oidc-login-playwright.json')
 const EXECUTABLE_PATH = process.env.PLAYWRIGHT_EXECUTABLE_PATH || '/usr/bin/chromium-browser'
 
 function fakeJwt() {

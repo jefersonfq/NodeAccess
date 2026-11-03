@@ -8,7 +8,8 @@ with tempfile.TemporaryDirectory(prefix='nodeaccess-header-lab-',dir='/tmp') as 
     lab=Path(temp); (lab/'html/assets').mkdir(parents=True)
     (lab/'html/index.html').write_text('<!doctype html><title>Disposable test</title>')
     (lab/'html/assets/test.js').write_text('console.log("lab")')
-    run(['openssl','req','-x509','-nodes','-newkey','rsa:2048','-subj','/CN=localhost','-days','1','-keyout',str(lab/'privkey.pem'),'-out',str(lab/'fullchain.pem')])
+    run(['openssl','req','-x509','-nodes','-newkey','rsa:2048','-subj','/CN=localhost','-addext','subjectAltName=IP:127.0.0.1,DNS:localhost','-days','1','-keyout',str(lab/'privkey.pem'),'-out',str(lab/'fullchain.pem')])
+    tls_context=ssl.create_default_context(cafile=str(lab/'fullchain.pem'))
     for index, profile in enumerate(['http','https','prod','k8s']):
         filename='docker/nginx.k8s.conf.template' if profile=='k8s' else f'docker/nginx.{profile}.conf'
         config=(root/filename).read_text().replace('/usr/share/nginx/html','/lab/html').replace('/etc/nginx/certs','/lab')
@@ -21,7 +22,7 @@ with tempfile.TemporaryDirectory(prefix='nodeaccess-header-lab-',dir='/tmp') as 
         try:
             scheme='https' if profile in ['https','prod'] else 'http'
             def request(path):
-                try: return urllib.request.urlopen(f'{scheme}://127.0.0.1:{port}{path}',context=ssl._create_unverified_context(),timeout=3)
+                try: return urllib.request.urlopen(f'{scheme}://127.0.0.1:{port}{path}',context=tls_context,timeout=3)
                 except urllib.error.HTTPError as error: return error
             for attempt in range(30):
                 try: response=request('/'); break
@@ -49,6 +50,14 @@ with tempfile.TemporaryDirectory(prefix='nodeaccess-header-lab-',dir='/tmp') as 
             combined=subprocess.run(['docker','logs',name],capture_output=True,text=True,check=True)
             assert marker not in combined.stdout+combined.stderr, (profile,'token in proxy logs')
         finally: run(['docker','rm','-f',name])
-output=Path(os.environ.get('NGINX_EVIDENCE_PATH', '/tmp/nodeaccess-nginx-headers.json'))
+# Keep the persistent report in a private, owned per-worktree directory, shared with JS harnesses.
+artifact_root=Path(tempfile.gettempdir()) / ('nodeaccess-harness-'+str(os.getuid())+'-'+__import__('hashlib').sha256(str(root).encode()).hexdigest()[:12])
+try: artifact_root.mkdir(mode=0o700)
+except FileExistsError: pass
+metadata=artifact_root.lstat()
+if artifact_root.is_symlink() or not artifact_root.is_dir() or metadata.st_uid != os.getuid() or metadata.st_mode & 0o077:
+    raise RuntimeError('Artifact root must be owned and private')
+output=Path(os.environ.get('NGINX_EVIDENCE_PATH', str(artifact_root/'nodeaccess-nginx-headers.json')))
+if output.is_symlink(): raise RuntimeError('Artifact report must not be a symlink')
 output.parent.mkdir(parents=True,exist_ok=True)
 output.write_text(json.dumps({'success':True,'cases':results},indent=2)); print(f'{len(results)} real Nginx response checks passed')

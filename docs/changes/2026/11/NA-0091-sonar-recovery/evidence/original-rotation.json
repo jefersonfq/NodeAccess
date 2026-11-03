@@ -1,0 +1,18 @@
+{
+  "published": true,
+  "expires": "2026-12-03",
+  "overlapHours": 48,
+  "retiring": 2,
+  "scopes": {
+    "analysis": {
+      "valid": true,
+      "administrationDenied": true,
+      "projectScopeVerified": true
+    },
+    "review": {
+      "valid": true,
+      "administrationDenied": true,
+      "projectScopeVerified": true
+    }
+  }
+}

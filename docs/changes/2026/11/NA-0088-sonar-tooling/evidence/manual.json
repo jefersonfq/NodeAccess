@@ -1,0 +1,15 @@
+{
+  "passed": true,
+  "chapters": 5,
+  "disabledByDefault": true,
+  "adminToggle": true,
+  "helpIntegrated": true,
+  "popupWithoutReconnection": true,
+  "versionMatchesBuild": true,
+  "search": true,
+  "mobile": true,
+  "saveFailure": true,
+  "readFailureRetry": true,
+  "unknownChapter": true,
+  "screenshots": "<private-artifact-root>/nodeaccess-manual-review"
+}

@@ -1,0 +1,15 @@
+
+describe('MCP regression probes',()=>{
+ it('reserves per-token capacity while concurrent opens are pending',async()=>{
+  const s=setup();env.MCP_INTERACTIVE_SSH_MAX_SESSIONS_PER_TOKEN=1
+  const results=await Promise.allSettled([s.open(),s.open()])
+  expect(results.filter(result=>result.status==='fulfilled')).toHaveLength(1)
+  expect(results.filter(result=>result.status==='rejected')).toHaveLength(1)
+ })
+ it('respects maxBytes for multibyte UTF-8 output',async()=>{
+  const s=setup(),opened=await s.open();clients()[0]!.channel.push(Buffer.from('éé'));await tick()
+  const result=await s.service.read(user,{sessionId:opened.sessionId,maxBytes:3},audit)
+  expect(Buffer.byteLength(result.output)).toBeLessThanOrEqual(3)
+  expect(result.output).toBe('é')
+ })
+})

@@ -1,3 +1,4 @@
+import { artifactPath } from '../shared/private-artifacts.cjs'
 // Opt-in disposable MySQL: never uses DATABASE_URL from the developer or production environment.
 import {execFileSync} from 'node:child_process'
 import {randomBytes,randomUUID} from 'node:crypto'
@@ -37,6 +38,6 @@ async function main(){
  assert.ok(acknowledgements>=3)
  await first.stop();await second.stop()
  const report={passed:true,realMySqlMigration:true,lostAcknowledgement:true,concurrentCollectors:true,noDuplicateEvents:true,systemActorPreserved:true}
- writeFileSync('/tmp/nodeaccess-tls-audit-integration.json',JSON.stringify(report,null,2));console.log(JSON.stringify(report,null,2))
+ writeFileSync(artifactPath('nodeaccess-tls-audit-integration.json'),JSON.stringify(report,null,2));console.log(JSON.stringify(report,null,2))
 }
 main().catch(()=>{console.error('TLS audit integration failed. Disposable database or assertion unavailable.');process.exitCode=1}).finally(async()=>{await db?.$disconnect();try{docker('rm','-f','-v',name)}catch{}})

@@ -1,10 +1,11 @@
 #!/usr/bin/env node
+const { artifactPath } = require('../shared/private-artifacts.cjs')
 // Fault-oriented user simulations; API mocks are explicit, not a real SFTP certification.
 const { chromium } = require('playwright')
 const fs = require('node:fs')
 const path = require('node:path')
 const base = process.env.FRONTEND_BASE || 'http://127.0.0.1:5179'
-const out = process.env.REPORT_DIR || '/tmp/nodeaccess-sftp-review-playwright'
+const out = process.env.REPORT_DIR || artifactPath('nodeaccess-sftp-review-playwright')
 const results = []
 const settings = {
   tenant: { id: 1, name: 'Review', slug: 'review' },

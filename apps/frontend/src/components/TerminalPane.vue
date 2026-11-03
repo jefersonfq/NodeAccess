@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { trimTrailingCharacters } from '@/services/text-boundaries'
 import type { TerminalPaneHandle } from './terminal-pane-handle'
 import TerminalConnectionDiagnostic from '@/components/TerminalConnectionDiagnostic.vue'
 import NTooltip from '@/components/ActionTooltip'
@@ -751,7 +752,7 @@ function isEditableTarget(target: EventTarget | null): boolean {
 }
 
 function countMeaningfulLines(text: string): number {
-  const normalized = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n').replace(/\n+$/g, '')
+  const normalized = trimTrailingCharacters(text.replace(/\r\n/g, '\n').replace(/\r/g, '\n'), '\n')
   if (!normalized) return 0
   return normalized.split('\n').length
 }

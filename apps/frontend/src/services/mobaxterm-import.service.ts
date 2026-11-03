@@ -44,7 +44,6 @@ interface BookmarkSection {
 
 function folderPath(value: string): string[] {
   return value
-    .replace(/^\\+|\\+$/g, '')
     .split(/[\\/]+/)
     .map(part => part.trim())
     .filter(Boolean)

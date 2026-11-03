@@ -1,10 +1,11 @@
 #!/usr/bin/env node
+const { artifactPath } = require('../shared/private-artifacts.cjs')
 const { chromium } = require('playwright')
 
 const FRONTEND = (process.env.FRONTEND_BASE || 'http://127.0.0.1:5174').replace(/\/$/, '')
 const EXECUTABLE_PATH = process.env.PLAYWRIGHT_EXECUTABLE_PATH || '/usr/bin/chromium-browser'
 const CDP_URL = process.env.CHROMIUM_CDP_URL || ''
-const REPORT_PATH = process.env.REPORT_PATH || '/tmp/nodeaccess-terminal-split-layout.json'
+const REPORT_PATH = process.env.REPORT_PATH || artifactPath('nodeaccess-terminal-split-layout.json')
 const PERFORMANCE_BUDGETS = {
   // Covers the complete split journey, including mode and auxiliary-panel transitions.
   taskDurationMs: 2_000,

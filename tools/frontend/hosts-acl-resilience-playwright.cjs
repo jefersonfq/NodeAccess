@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+const { artifactPath } = require('../shared/private-artifacts.cjs')
 const { chromium } = require('playwright')
 
 const TARGET_HOST = process.env.ACL_TARGET === 'host'
@@ -257,7 +258,7 @@ const inherited = path.includes('/nodes/800/') ? [] : [{ id: 999, inventoryNodeI
   await page.waitForTimeout(300)
   const bounds = await modal.boundingBox()
   if (!bounds || bounds.x < 0 || bounds.x + bounds.width > 390) throw new Error('ACL modal does not fit mobile viewport')
-  await page.screenshot({ path: '/tmp/nodeaccess-acl-resilience.png' })
+  await page.screenshot({ path: artifactPath('nodeaccess-acl-resilience.png') })
   // Navigate to the ancestor through its own authorized origin action.
   await page.setViewportSize({ width: 1440, height: 900 })
   await modal.getByRole('button', { name: /Manage in folder Raiz corporativa|Gerenciar na pasta Raiz corporativa/ }).click()

@@ -1,12 +1,14 @@
+const { waitFor } = require('../shared/wait-for.cjs')
+const { artifactPath } = require('../shared/private-artifacts.cjs')
 const assert = require('node:assert/strict')
 const fs = require('node:fs/promises')
 const { chromium } = require('playwright')
 const { makeSnapshot, fakeJwt, mockApi } = require('./observability-cdp-harness.cjs')
 const base = process.env.FRONTEND_BASE || 'http://127.0.0.1:5178'
-const dir = '/tmp/nodeaccess-observability-review'
+const dir = artifactPath('nodeaccess-observability-review')
 async function main() {
   await fs.mkdir(dir, { recursive: true })
-  const browser = await chromium.launch({ executablePath: '/usr/bin/chromium-browser', headless: true })
+  const browser = await chromium.launch({ executablePath: process.env.PLAYWRIGHT_EXECUTABLE_PATH || '/usr/bin/chromium-browser', headless: true })
   const report = []
   try {
     for (const theme of ['dark', 'light']) {
@@ -59,7 +61,7 @@ async function main() {
       assert.equal(await page.getByRole('heading', { name: 'Visão geral' }).isVisible(), true)
       assert.equal(requests, before + 1)
       assert.equal(await page.getByTestId('observability-refresh').isEnabled(), false)
-      while (!release) await new Promise(resolve => setTimeout(resolve, 10))
+      await waitFor(() => release, { message: 'Delayed observability request was not observed' })
       release(); delayed = false
       await page.waitForFunction(() => !document.querySelector('button.n-button--loading'))
 

@@ -1,12 +1,13 @@
 #!/usr/bin/env node
+const { artifactPath } = require('../shared/private-artifacts.cjs')
 const fs = require('node:fs')
 const crypto = require('node:crypto')
 const { chromium } = require('playwright')
 
 const FRONTEND = (process.env.FRONTEND_BASE || 'http://127.0.0.1:5174').replace(/\/$/, '')
 const EXECUTABLE_PATH = process.env.PLAYWRIGHT_EXECUTABLE_PATH || '/usr/bin/chromium-browser'
-const REPORT_PATH = process.env.REPORT_PATH || '/tmp/nodeaccess-session-command-policies-playwright.json'
-const SCREENSHOT_PATH = process.env.SCREENSHOT_PATH || '/tmp/nodeaccess-session-command-policies.png'
+const REPORT_PATH = process.env.REPORT_PATH || artifactPath('nodeaccess-session-command-policies-playwright.json')
+const SCREENSHOT_PATH = process.env.SCREENSHOT_PATH || artifactPath('nodeaccess-session-command-policies.png')
 
 function fakeJwt() {
   const now = Math.floor(Date.now() / 1000)

@@ -451,7 +451,7 @@ export class SftpService {
       ? rawCode
       : typeof rawCode === 'string' && rawCode.trim() !== ''
         ? Number(rawCode)
-        : NaN
+        : Number.NaN
     const message = err instanceof Error ? err.message.toLowerCase() : String(err).toLowerCase()
     return numericCode === 2 || /no such file|not found|enoent/.test(message)
   }

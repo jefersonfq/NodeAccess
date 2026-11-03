@@ -29,7 +29,7 @@ export function parseFrontmatter(content) {
   if (!match) return {}
   const result = {}
   for (const line of match[1].split(/\r?\n/)) {
-    const field = line.match(/^([a-z_]+):\s*(.*)$/)
+    const field = line.match(/^([a-z_]+):(.*)$/)
     if (!field) continue
     const value = field[2].trim().replace(/^['"]|['"]$/g, '')
     result[field[1]] = value === 'null' ? null : value
@@ -99,8 +99,8 @@ export function validateCommit(commit, { changeId, planPath }) {
 export function parseTrailers(body) {
   const trailers = {}
   for (const line of body.split(/\r?\n/)) {
-    const match = line.match(/^([A-Za-z][A-Za-z-]+):\s+(.+)$/)
-    if (match) trailers[match[1]] = match[2].trim()
+    const match = line.match(/^([A-Za-z][A-Za-z-]+):(.*)$/)
+    if (match && /^\s/.test(match[2]) && match[2].trim()) trailers[match[1]] = match[2].trim()
   }
   return trailers
 }

@@ -1116,6 +1116,7 @@ watch(() => auth.user?.tenantId, () => {
         <NFormItem label="Expira em">
           <input
             v-model="form.expiresAt"
+            aria-label="Expira em"
             class="native-datetime-input"
             type="datetime-local"
           >
@@ -1134,17 +1135,18 @@ watch(() => auth.user?.tenantId, () => {
               Aplica-se à capability `request_action_run`.
             </div>
             <div class="mode-grid">
-              <label
+              <div
                 v-for="option in actionModeOptions"
                 :key="option.value"
                 class="mode-option"
               >
                 <NCheckbox
+                  :label="option.label"
                   :checked="form.allowedActionModes.includes(option.value)"
                   @update:checked="(checked) => toggleActionMode(option.value, checked)"
                 />
                 <div class="mode-copy">
-                  <span>{{ option.label }}</span>
+
                   <NTooltip
                     trigger="hover"
                     placement="top"
@@ -1163,7 +1165,7 @@ watch(() => auth.user?.tenantId, () => {
                     <div class="tooltip-copy">{{ actionModeTooltip(option.value) }}</div>
                   </NTooltip>
                 </div>
-              </label>
+              </div>
             </div>
             <NAlert
               v-if="requiresFullOperationalAccessConfirmation"
@@ -1351,6 +1353,7 @@ watch(() => auth.user?.tenantId, () => {
         <NFormItem label="Expira em">
           <input
             v-model="form.expiresAt"
+            aria-label="Expira em"
             class="native-datetime-input"
             type="datetime-local"
           >
@@ -1369,17 +1372,18 @@ watch(() => auth.user?.tenantId, () => {
               Se nenhum modo for marcado, o token não adiciona restrição por modo ao `ActionRun`.
             </div>
             <div class="mode-grid">
-              <label
+              <div
                 v-for="option in actionModeOptions"
                 :key="option.value"
                 class="mode-option"
               >
                 <NCheckbox
+                  :label="option.label"
                   :checked="form.allowedActionModes.includes(option.value)"
                   @update:checked="(checked) => toggleActionMode(option.value, checked)"
                 />
                 <div class="mode-copy">
-                  <span>{{ option.label }}</span>
+
                   <NTooltip
                     trigger="hover"
                     placement="top"
@@ -1398,7 +1402,7 @@ watch(() => auth.user?.tenantId, () => {
                     <div class="tooltip-copy">{{ actionModeTooltip(option.value) }}</div>
                   </NTooltip>
                 </div>
-              </label>
+              </div>
             </div>
             <NAlert
               v-if="requiresFullOperationalAccessConfirmation"

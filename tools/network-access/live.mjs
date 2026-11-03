@@ -1,3 +1,4 @@
+import { artifactPath } from '../shared/private-artifacts.cjs'
 // Opt-in: creates and removes ONLY its own database tenant; listener binds loopback.
 import assert from 'node:assert/strict'
 import { randomUUID } from 'node:crypto'
@@ -158,7 +159,7 @@ try{
  await service.remove(tenant.id,user.id,'devices',deviceId)
  const events=await db.adminLog.findMany({where:{adminId:user.id}});assert.ok(events.some(e=>e.action==='NETWORK_REMOVED'));assert.ok(!JSON.stringify(events).includes(secret));checked('revocation and deletion retain redacted administrative audit')
  const report={ok:true,checks,emulation,soak,daemonHealth,concurrency:{authorizationRequests:32,accountingRequests:12,parallelClients:4,elapsedMs:concurrencyMs},authorizationMs:{p50:durations[12],p95:durations[23],max:durations[24]},protocolStats:process.env.NETWORK_TACACS_EXTERNAL_PORT?null:runtime.stats,externalDaemon:Boolean(process.env.NETWORK_TACACS_EXTERNAL_PORT),limits:'Local pilot only; vendor hardware and production load not certified'}
- writeFileSync(process.env.NETWORK_REPORT_PATH??'/tmp/nodeaccess-network-live.json',JSON.stringify(report,null,2));console.log(JSON.stringify(report))
+ writeFileSync(process.env.NETWORK_REPORT_PATH??artifactPath('nodeaccess-network-live.json'),JSON.stringify(report,null,2));console.log(JSON.stringify(report))
 }finally{
  if(runtime.server.listening)await runtime.close();await api.close()
  if(tenant){for(const table of ['network_tacacs_events','network_tacacs_grants','network_tacacs_credentials','network_tacacs_devices','network_settings'])await db.$executeRaw(Prisma.sql`DELETE FROM ${Prisma.raw(table)} WHERE tenant_id=${tenant.id}`);await db.resourceAclEntry.deleteMany({where:{tenantId:tenant.id}})}

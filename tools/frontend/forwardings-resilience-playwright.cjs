@@ -1,3 +1,4 @@
+const { artifactPath } = require('../shared/private-artifacts.cjs')
 const { chromium } = require('playwright')
 const assert = require('node:assert/strict')
 const FRONTEND = process.env.FRONTEND_BASE || 'http://127.0.0.1:5190'
@@ -149,7 +150,7 @@ async function main() {
     assert.equal(creates, 3)
     assert.deepEqual(errors, [])
     assert.deepEqual(transitionWarnings, [], 'No Transition warnings throughout the workflow')
-    await page.screenshot({ path: '/tmp/nodeaccess-forwardings-manager.png', fullPage: true })
+    await page.screenshot({ path: artifactPath('nodeaccess-forwardings-manager.png'), fullPage: true })
     console.log(JSON.stringify({ ok: true, scenarios: ['route root and transition remount without Vue warnings', 'no eligible personal agent', 'exclude other user and service agents', 'invalid local ports blocked', 'occupied local port retry preserves input', 'published endpoint shown', 'auto-start persisted enabled', 'toggle failure preserves enabled', 'toggle confirmed disabled', 'external tunnel open/close convergence', 'load 503 retry', 'SSH failure retry', 'assigned port fallback', 'close failure preserves state', 'close recovery', 'terminal host switch ignores stale response', 'manual tunnel mapped to template', 'terminal stop removes active state'] }))
   } finally { await browser.close() }
 }

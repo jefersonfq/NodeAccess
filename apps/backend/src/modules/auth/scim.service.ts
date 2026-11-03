@@ -58,7 +58,9 @@ export class ScimService {
   }
 
   async authenticate(authorization: string | undefined): Promise<number> {
-    const token = authorization?.match(/^Bearer\s+(.+)$/i)?.[1]
+    // Reject oversized HTTP credentials before any parsing or hashing.
+    if (authorization && authorization.length > 1024) throw new ScimError(401, 'Credencial SCIM inválida')
+    const token = parseScimBearerToken(authorization)
     if (!token || token.length > 256) throw new ScimError(401, 'Credencial SCIM inválida')
     const hash = tokenHash(token)
     const config = await this.db.scimConfig.findFirst({ where: { tokenHash: hash, enabled: true }, select: { tenantId: true, tokenHash: true } })
@@ -230,6 +232,19 @@ export class ScimService {
   }
 }
 
+/** Preserve the existing Bearer grammar without repartitioning whitespace on failure. */
+export function parseScimBearerToken(authorization: string | undefined): string | undefined {
+  if (!authorization || authorization.slice(0, 6).toLowerCase() !== 'bearer'
+    || authorization.length <= 7 || !/\s/.test(authorization[6]!)) return undefined
+  let start = 7
+  while (start < authorization.length && /\s/.test(authorization[start]!)) start += 1
+  // The legacy grammar captures one final whitespace character when all content is whitespace.
+  // It still cannot authenticate unless its hash matches a stored credential.
+  if (start === authorization.length) start -= 1
+  const token = authorization.slice(start)
+  return /[\r\n\u2028\u2029]/.test(token) ? undefined : token
+}
+
 function tokenHash(token: string): string { return createHash('sha256').update(token, 'utf8').digest('hex') }
 function safeEqual(left: string, right: string): boolean { const a = Buffer.from(left); const b = Buffer.from(right); return a.length === b.length && timingSafeEqual(a, b) }
 function parseUserNameFilter(filter?: string): string | undefined {
@@ -241,7 +256,9 @@ function parseUserNameFilter(filter?: string): string | undefined {
 function normalizedEmail(input: ScimUserInput): string {
   const value = input.userName ?? input.emails?.find((email) => email.primary)?.value ?? input.emails?.[0]?.value
   const email = value?.trim().toLowerCase()
-  if (!email || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) throw new ScimError(400, 'userName deve ser um e-mail válido', 'invalidValue')
+  const at = email?.indexOf('@') ?? -1
+  const domain = email?.slice(at + 1) ?? ''
+  if (!email || at <= 0 || email.indexOf('@', at + 1) !== -1 || /\s/.test(email) || !domain.slice(1, -1).includes('.')) throw new ScimError(400, 'userName deve ser um e-mail válido', 'invalidValue')
   return email
 }
 function displayName(input: ScimUserInput, fallback: string): string { return input.displayName?.trim() || input.name?.formatted?.trim() || [input.name?.givenName, input.name?.familyName].filter(Boolean).join(' ').trim() || fallback }

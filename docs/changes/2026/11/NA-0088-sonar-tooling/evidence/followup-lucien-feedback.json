@@ -1,0 +1,72 @@
+[
+  {
+    "theme": "dark",
+    "name": "page purpose, scope and empty state",
+    "passed": true
+  },
+  {
+    "theme": "dark",
+    "name": "reason validation and keyboard activation",
+    "passed": true
+  },
+  {
+    "theme": "dark",
+    "name": "observer output, no input and explicit end state",
+    "passed": true
+  },
+  {
+    "theme": "dark",
+    "name": "mobile layout keeps actions and terminal inside page",
+    "passed": true
+  },
+  {
+    "theme": "dark",
+    "name": "permission failure cannot leave stale actionable sessions",
+    "passed": true
+  },
+  {
+    "theme": "dark",
+    "name": "failed permission load is safe and can be retried",
+    "passed": true
+  },
+  {
+    "theme": "dark",
+    "name": "impact failure, dynamic use and maintenance recovery",
+    "passed": true
+  },
+  {
+    "theme": "light",
+    "name": "page purpose, scope and empty state",
+    "passed": true
+  },
+  {
+    "theme": "light",
+    "name": "reason validation and keyboard activation",
+    "passed": true
+  },
+  {
+    "theme": "light",
+    "name": "observer output, no input and explicit end state",
+    "passed": true
+  },
+  {
+    "theme": "light",
+    "name": "mobile layout keeps actions and terminal inside page",
+    "passed": true
+  },
+  {
+    "theme": "light",
+    "name": "permission failure cannot leave stale actionable sessions",
+    "passed": true
+  },
+  {
+    "theme": "light",
+    "name": "failed permission load is safe and can be retried",
+    "passed": true
+  },
+  {
+    "theme": "light",
+    "name": "impact failure, dynamic use and maintenance recovery",
+    "passed": true
+  }
+]

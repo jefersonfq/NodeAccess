@@ -1,8 +1,9 @@
+const { artifactPath } = require('../shared/private-artifacts.cjs')
 const assert = require('node:assert/strict')
 const fs = require('node:fs/promises')
 const { chromium } = require('playwright')
 const base = process.env.FRONTEND_BASE || 'http://127.0.0.1:5173'
-const out = '/tmp/nodeaccess-auth-access-origin'
+const out = artifactPath('nodeaccess-auth-access-origin')
 const agents = ['native-ssh-gateway', 'Mozilla/5.0 (Windows NT 10.0) AppleWebKit/537.36 Chrome/130.0 Safari/537.36', null, 'curl/8.0', '<script>alert(1)</script>']
 const logs = agents.map((userAgent, i) => ({
   id: i + 1, userId: null, userName: null, userEmail: null, userAgent,

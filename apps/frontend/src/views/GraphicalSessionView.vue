@@ -1719,7 +1719,7 @@ onBeforeUnmount(() => {
         >
           <NInput
             v-model:value="rdpCredentialForm.username"
-            autocomplete="username"
+            :input-props="{ autocomplete: 'username', 'aria-label': 'Usuário' }"
             placeholder="usuario ou DOMINIO\\usuario"
           />
         </NFormItem>
@@ -1978,7 +1978,7 @@ onBeforeUnmount(() => {
               ref="canvasRef"
               class="absolute touch-none select-none outline-hidden focus:ring-2 focus:ring-emerald-500"
               tabindex="0"
-              role="img"
+              role="application"
               :aria-label="$t('graphicalSession.displayLabel')"
               @pointerdown="handleCanvasPointerDown"
               @pointerup="handleCanvasPointerUp"

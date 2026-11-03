@@ -1,3 +1,4 @@
+import { artifactPath } from '../shared/private-artifacts.cjs'
 import { spawn } from 'node:child_process'
 import { createServer } from 'node:http'
 import { PrismaClient } from '@prisma/client'
@@ -19,7 +20,7 @@ const secret = encrypt('disposable-jira-token')
 await db.integration.create({ data: { tenantId: tenant.id, provider: 'jira', enabled: true, config: JSON.stringify({ authMode: 'api_token', baseUrl: 'http://127.0.0.1:3189', serviceAccountEmail: 'lab@example.invalid', apiTokenEncrypted: secret.encrypted, apiTokenIv: secret.iv }) } })
 const event = await db.jiraOutboxEvent.create({ data: { tenantId: tenant.id, interactionId: randomUUID(), action: 'COMMENT_END', idempotencyKey: randomUUID(), payloadJson: { ticketKey: 'LAB-1' } } })
 let logs = ''
-const child = spawn(process.execPath, ['--import', 'tsx', 'apps/backend/src/server.ts'], { env: { ...process.env, APP_MODE: 'api', APP_PORT_API: '3188', FEATURE_SESSION_AUDIT_AI_SUMMARY: 'false', FEATURE_NATIVE_SSH_GATEWAY: 'false', TRUST_PROXY: 'false', SESSION_AUDIT_STORAGE_DIR: '/tmp/nodeaccess-hardening-audit', GOOGLE_DIRECTORY_SYNC_INITIAL_DELAY_MS: '300000' }, stdio: ['ignore', 'pipe', 'pipe'] })
+const child = spawn(process.execPath, ['--import', 'tsx', 'apps/backend/src/server.ts'], { env: { ...process.env, APP_MODE: 'api', APP_PORT_API: '3188', FEATURE_SESSION_AUDIT_AI_SUMMARY: 'false', FEATURE_NATIVE_SSH_GATEWAY: 'false', TRUST_PROXY: 'false', SESSION_AUDIT_STORAGE_DIR: artifactPath('nodeaccess-hardening-audit'), GOOGLE_DIRECTORY_SYNC_INITIAL_DELAY_MS: '300000' }, stdio: ['ignore', 'pipe', 'pipe'] })
 child.stdout.on('data', data => { logs += String(data) }); child.stderr.on('data', data => { logs += String(data) })
 const exit = new Promise<number | null>(resolve => child.once('exit', code => resolve(code)))
 try {

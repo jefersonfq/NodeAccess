@@ -1,0 +1,60 @@
+---
+change_id: NA-0093
+title: Entrega integrada das quatro pendencias SonarQube
+type: chore
+status: in-development
+created_at: 2026-11-03T15:52:18-03:00
+base_branch: master
+base_sha: f4a44b4b7ae87a8f688b1246d9e52a31f9a104bc
+branch: chore/NA-0093-20261103-sonar-delivery
+owner: NodeAccess
+planner: Codex
+risk: high
+---
+
+# NA-0093 — Entrega integrada SonarQube
+
+## Contexto e situação anterior
+
+O checkpoint NA-0089 (4a77f7139) registra 539 decisões: 244 achados corrigidos e ausentes, 295 revisados em contexto. Foram executados 2.714 testes e 33 testes dos validadores. A cobertura dos serviços era 41,03% de linhas, 40,34% de funções e 34,63% de branches, abaixo dos limites de 70/70/60. A cobertura nova no Sonar era 3,5%, abaixo de 80%. Não havia PR ou merge. O workspace principal contém trabalho não relacionado que precisa ser preservado.
+
+## Problema e objetivo
+
+Executar as quatro pendências autorizadas: cobertura real, entrega por PR condicionada aos gates, scanner automático no CI e continuidade operacional com backup, restauração e renovação de tokens. Construir uma entrega verificável sem flexibilizar limites nem presumir homologação.
+
+## Escopo
+
+Integrar NA-0085–0089 e as frentes NA-0090 (cobertura), NA-0091 (recuperação), NA-0092 (CI), além dos lotes de contratos e correções necessárias encontrados nas simulações. Preservar as branches de origem. Preparar o PR e executar checks e revisões; merge somente com gates e homologação humana. Backups e tokens ficam fora do Git. Sem implantação na VPS ou alteração persistente de kernel.
+
+## Critérios de aceitação
+
+- [ ] LCOV abrangente, com lacunas reais identificadas e sem exclusões para elevar a nota.
+- [ ] Testes significativos e limites 70/70/60 dos serviços e 80% de código novo preservados e atendidos.
+- [ ] Scanner real automático no CI, com credenciais efêmeras, baseline comparável e rejeição de novos achados sem revisão.
+- [x] Backup e restauração isolada verificados; renovação de tokens ensaiada com falhas e permissões.
+- [ ] PR rastreável, checks no SHA atual, revisão independente e homologação humana antes do merge.
+- [ ] Documentação, evidências e META-050 atualizadas no projeto atual.
+
+## Estratégia técnica
+
+Usar uma branch de integração sobre origin/master e aplicar patches consolidados com identidade NA-0093. Manter as branches de domínio para recuperação. Executar testes em worktrees isolados e serializar os scanners que usam a mesma instância. O CI usa Sonar efêmero em runner hospedado, evitando executar código de PR no WSL persistente.
+
+## Riscos e mitigações
+
+A ampliação da instrumentação pode reduzir percentuais: manter os denominadores e nunca fabricar LCOV. O GitHub é público: publicar somente fonte e evidências sanitizadas, sem relatórios brutos, credenciais ou backups. O projeto Sonar local continua privado. Os ensaios usam limites de recursos e portas e volumes isolados. Publicação não equivale a homologação.
+
+## Matriz de testes e evidências
+
+Executar cobertura ampla, suítes dirigidas e completa, testes dos validadores, CI real local e no GitHub após publicação, restauração isolada, rotação e expiração de tokens, simulações de falhas e permissões, revisões independentes e governança. Registrar resultados reais no implementation.md. Homologação funcional permanece Manual.
+
+## Baseline
+
+Base f4a44b4b7ae87a8f688b1246d9e52a31f9a104bc, origin/master confirmado via fetch. Checkpoint anterior 4a77f7139600e70aa612e753418978d9b31b10ae, com bloqueio de cobertura documentado.
+
+## Rollback ou recuperação
+
+Preservar branches de origem e worktree NA-0093. O PR pode permanecer draft enquanto os gates falham. Não resetar o workspace canônico nem restaurar o Sonar sobre volumes originais. A rotação mantém o token anterior durante a janela de verificação do substituto.
+
+## Aprovação
+
+Decisão: GO_WITH_RISKS. O pedido explícito cobre execução fim a fim das quatro frentes, incluindo PR. Homologação humana e checks não podem ser inferidos. Mudanças de proteção do repositório exigem necessidade e autorização específica.

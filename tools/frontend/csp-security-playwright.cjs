@@ -1,3 +1,4 @@
+const { artifactPath } = require('../shared/private-artifacts.cjs')
 // Opt-in browser test against a local Nginx serving the actual frontend build.
 const assert = require('node:assert/strict')
 const fs = require('node:fs')
@@ -76,7 +77,7 @@ async function main() {
     assert.ok(result.violations.some(item => item.blocked === 'eval' && item.disposition === 'enforce'))
     assert.deepEqual(result.violations.filter(item => !['inline', 'eval'].includes(item.blocked)), [])
     const report = { passed: true, policy, ...result }
-    fs.writeFileSync(process.env.REPORT_PATH || '/tmp/nodeaccess-csp-security.json', JSON.stringify(report, null, 2))
+    fs.writeFileSync(process.env.REPORT_PATH || artifactPath('nodeaccess-csp-security.json'), JSON.stringify(report, null, 2))
     console.log('CSP: inline/eval blocked; actual Monaco worker/editing and same-origin WebSocket passed')
   } finally { await browser.close(); for (const file of probeFiles) fs.unlinkSync(file) }
 }

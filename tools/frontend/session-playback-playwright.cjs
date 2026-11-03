@@ -1,12 +1,13 @@
 #!/usr/bin/env node
+const { artifactPath } = require('../shared/private-artifacts.cjs')
 const fs = require('node:fs')
 const path = require('node:path')
 const { chromium } = require('playwright')
 
 const FRONTEND = (process.env.FRONTEND_BASE || 'http://127.0.0.1:5173').replace(/\/$/, '')
 const EXECUTABLE_PATH = process.env.PLAYWRIGHT_EXECUTABLE_PATH || null
-const REPORT_PATH = process.env.REPORT_PATH || '/tmp/nodeaccess-session-playback-playwright.json'
-const ARTIFACTS_DIR = process.env.PLAYBACK_ARTIFACTS_DIR || '/tmp/nodeaccess-session-playback-artifacts'
+const REPORT_PATH = process.env.REPORT_PATH || artifactPath('nodeaccess-session-playback-playwright.json')
+const ARTIFACTS_DIR = process.env.PLAYBACK_ARTIFACTS_DIR || artifactPath('nodeaccess-session-playback-artifacts')
 const VISUAL_ARTIFACTS = process.env.PLAYBACK_VISUAL_ARTIFACTS === '1'
 const SESSION_ID = 4177
 

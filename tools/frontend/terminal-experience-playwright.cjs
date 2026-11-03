@@ -1,17 +1,18 @@
 #!/usr/bin/env node
+const { artifactPath } = require('../shared/private-artifacts.cjs')
 const fs = require('node:fs')
 const { chromium } = require('playwright')
 
 const FRONTEND = (process.env.FRONTEND_BASE || 'http://127.0.0.1:5174').replace(/\/$/, '')
-const REPORT_PATH = process.env.REPORT_PATH || '/tmp/nodeaccess-terminal-experience.json'
-const SCREENSHOT_PATH = process.env.SCREENSHOT_PATH || '/tmp/nodeaccess-terminal-htop.png'
-const AUTOCOMPLETE_SCREENSHOT_PATH = process.env.AUTOCOMPLETE_SCREENSHOT_PATH || '/tmp/nodeaccess-terminal-autocomplete.png'
-const AUTOCOMPLETE_MOBILE_SCREENSHOT_PATH = process.env.AUTOCOMPLETE_MOBILE_SCREENSHOT_PATH || '/tmp/nodeaccess-terminal-autocomplete-mobile.png'
+const REPORT_PATH = process.env.REPORT_PATH || artifactPath('nodeaccess-terminal-experience.json')
+const SCREENSHOT_PATH = process.env.SCREENSHOT_PATH || artifactPath('nodeaccess-terminal-htop.png')
+const AUTOCOMPLETE_SCREENSHOT_PATH = process.env.AUTOCOMPLETE_SCREENSHOT_PATH || artifactPath('nodeaccess-terminal-autocomplete.png')
+const AUTOCOMPLETE_MOBILE_SCREENSHOT_PATH = process.env.AUTOCOMPLETE_MOBILE_SCREENSHOT_PATH || artifactPath('nodeaccess-terminal-autocomplete-mobile.png')
 const EXECUTABLE_PATH = process.env.PLAYWRIGHT_EXECUTABLE_PATH || '/usr/bin/chromium-browser'
 const CDP_URL = process.env.CHROMIUM_CDP_URL || ''
 const UI_THEME = process.env.UI_THEME === 'light' ? 'light' : 'dark'
 const THEME_SCREENSHOT_PATH = process.env.THEME_SCREENSHOT_PATH || `/tmp/nodeaccess-terminal-sessions-${UI_THEME}.png`
-const HIGHLIGHT_SCREENSHOT_PATH = process.env.HIGHLIGHT_SCREENSHOT_PATH || '/tmp/nodeaccess-terminal-highlight-warning.png'
+const HIGHLIGHT_SCREENSHOT_PATH = process.env.HIGHLIGHT_SCREENSHOT_PATH || artifactPath('nodeaccess-terminal-highlight-warning.png')
 const NETWORK_PROFILE = process.env.NETWORK_DEVICE_PROFILE || null
 const host = {
   ...(NETWORK_PROFILE ? { deviceProfile: NETWORK_PROFILE } : {}),
@@ -330,8 +331,8 @@ async function main() {
   }
   if (process.env.FILE_UTILITIES_REVIEW === '1') {
     const review = await require('./file-utilities-playwright.cjs')({ page, context }).catch(async error => {
-      await page.screenshot({ path: '/tmp/nodeaccess-file-utilities-ui/failure.png' })
-      fs.writeFileSync('/tmp/nodeaccess-file-utilities-ui/failure.json', JSON.stringify({ message: error.message, body: await page.locator('body').innerText(), runtime: await page.evaluate(() => ({ sockets: window.__terminalExperience.sockets.map(socket => socket.url), messages: window.__terminalExperience.sent })) }, null, 2))
+      await page.screenshot({ path: artifactPath('nodeaccess-file-utilities-ui/failure.png') })
+      fs.writeFileSync(artifactPath('nodeaccess-file-utilities-ui/failure.json'), JSON.stringify({ message: error.message, body: await page.locator('body').innerText(), runtime: await page.evaluate(() => ({ sockets: window.__terminalExperience.sockets.map(socket => socket.url), messages: window.__terminalExperience.sent })) }, null, 2))
       throw error
     })
     fs.writeFileSync(REPORT_PATH, JSON.stringify(review, null, 2)); console.log(JSON.stringify(review, null, 2)); await browser.close(); return
@@ -428,7 +429,7 @@ async function main() {
   await highlightPanel.waitFor()
   const panelBox = await highlightPanel.boundingBox()
   if (!panelBox || panelBox.x < 0 || panelBox.x + panelBox.width > 391) throw new Error('Highlight controls overflow mobile viewport')
-  await page.screenshot({path:'/tmp/nodeaccess-highlight-toolbar-mobile.png'})
+  await page.screenshot({path:artifactPath('nodeaccess-highlight-toolbar-mobile.png')})
   await highlightButton.click()
   await page.setViewportSize({width:1440,height:900})
   await highlightButton.click()

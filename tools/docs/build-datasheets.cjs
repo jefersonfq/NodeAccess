@@ -1,3 +1,4 @@
+const { artifactPath } = require('../shared/private-artifacts.cjs')
 /* Generates audience editions from the reviewed source; no application changes. */
 const fs = require('node:fs/promises')
 const path = require('node:path')
@@ -95,9 +96,9 @@ async function main() {
       const pages=(pdf.toString('latin1').match(/\/Type \/Page\b/g)||[]).length
       assert.ok(pages >= structure.headings.length + (doc.noCover ? 0 : 1))
       await page.emulateMedia({ media:'screen' })
-      await fs.mkdir('/tmp/nodeaccess-datasheet-review', {recursive:true})
-      await page.screenshot({path:`/tmp/nodeaccess-datasheet-review/${doc.name}-cover.png`})
-      if(doc.name===docs[0].name) { await page.locator('.chapter').nth(4).screenshot({path:'/tmp/nodeaccess-datasheet-review/integracoes.png'}) }
+      await fs.mkdir(artifactPath('nodeaccess-datasheet-review'), {recursive:true})
+      await page.screenshot({path:artifactPath(`nodeaccess-datasheet-review/${doc.name}-cover.png`)})
+      if(doc.name===docs[0].name) { await page.locator('.chapter').nth(4).screenshot({path:artifactPath('nodeaccess-datasheet-review/integracoes.png')}) }
       results.push({ file:doc.name+'.pdf', pages, bytes:pdf.length, chapters:structure.headings.length, tables:structure.tables, pageErrors:errors })
       await page.close()
     }

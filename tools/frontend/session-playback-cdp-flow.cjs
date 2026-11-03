@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+const { artifactPath } = require('../shared/private-artifacts.cjs')
 /*
  * Session playback UX/performance check via Chromium CDP.
  *
@@ -32,7 +33,7 @@ const ADMIN_USER_ID = Number(process.env.ADMIN_USER_ID || '1')
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'admin@nodeaccess.local'
 const TENANT_ID = Number(process.env.TENANT_ID || '1')
 const SESSION_ID = Number(process.env.SESSION_ID || '0')
-const REPORT_PATH = process.env.REPORT_PATH || '/tmp/nodeaccess-session-playback-cdp.json'
+const REPORT_PATH = process.env.REPORT_PATH || artifactPath('nodeaccess-session-playback-cdp.json')
 const PLAYBACK_EVENT_LIMIT = Number(process.env.PLAYBACK_EVENT_LIMIT || '5000')
 
 function readJwtSecret() {

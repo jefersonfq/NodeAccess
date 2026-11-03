@@ -156,6 +156,7 @@ async function main() {
   await platformPage.locator('.n-message').getByText(/já estão em vigor/i).waitFor()
   if (state.savedPayloads.length !== 1) throw new Error('Licença não foi persistida exatamente uma vez')
   const saved = state.savedPayloads[0]
+  if (!saved || !saved.featureEntitlements || !saved.integrationEntitlements) throw new Error('License payload was not captured with required entitlements')
   if (saved.maxUsers !== 40 || saved.featureEntitlements.integrations !== false || saved.integrationEntitlements.jira !== false || saved.integrationEntitlements.oidc !== false || saved.featureEntitlements.localAi !== true || saved.featureEntitlements.terminalAi !== true) {
     throw new Error(`Dependências da licença incorretas: ${JSON.stringify(saved)}`)
   }

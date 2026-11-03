@@ -279,3 +279,20 @@ para não criar commits recursivos só para registrar o próprio hash.
 O CI valida presença e estrutura; a IA é responsável pelo conteúdo e veracidade.
 Consultar `docs/DEVELOPMENT-recovery.md` para checkpoints e recuperação. Nenhuma
 instrução autoriza commit/publicação fora do escopo já autorizado pelo usuário.
+
+## Validação SonarQube na rotina normal
+
+Por solicitação do usuário em 03/11/2026, toda alteração de código deve registrar
+validação SonarQube junto aos testes aplicáveis, antes de considerar a frente
+pronta. Usar `npm run validate:sonar` com servidor local e tokens separados;
+consultar docs/OPERATIONS-sonarqube.md. A rotina gera cobertura real, executa
+scanner, exporta e compara achados com decisões revisadas em docs/sonarqube.
+Falha de testes/cobertura continua falha mesmo com Quality Gate verde. Ausência
+de servidor/token ou relatório incompleto é bloqueio de validação, não aprovação.
+Não excluir código/regras nem reduzir thresholds para obter verde. Atualizar a
+tabela integral e evidência por achado, distinguindo correção, contexto revisado
+e presença na reanálise. Mudanças na baseline de achados exigem justificativa
+individual e revisão independente; nunca aceitar automaticamente novos achados.
+Manter branches/commits por frente recuperável e comparar o candidato final.
+Execução remota de CI não alcança localhost do WSL: testes da integração rodam
+no CI existente; análise real exige a rotina local ou runner devidamente preparado.

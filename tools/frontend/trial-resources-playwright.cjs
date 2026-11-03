@@ -1,10 +1,11 @@
 #!/usr/bin/env node
+const { artifactPath } = require('../shared/private-artifacts.cjs')
 // Real Vue component with simulated API responses; no infrastructure provisioning.
 const assert = require('node:assert/strict')
 const fs = require('node:fs/promises')
 const { chromium } = require('playwright')
 const base = process.env.FRONTEND_BASE || 'http://127.0.0.1:5188'
-const output = process.env.TRIAL_ARTIFACTS || '/tmp/na0068-trial-resources-browser'
+const output = process.env.TRIAL_ARTIFACTS || artifactPath('na0068-trial-resources-browser')
 async function main() {
   await fs.mkdir(output, { recursive: true })
   const browser = await chromium.launch({ headless: true, executablePath: process.env.PLAYWRIGHT_EXECUTABLE_PATH })

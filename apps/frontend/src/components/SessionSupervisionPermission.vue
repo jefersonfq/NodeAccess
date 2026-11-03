@@ -35,7 +35,7 @@ async function save() {
 </script>
 <template>
   <section class="mb-4 rounded border p-3">
-    <label class="flex items-center gap-3"><NSwitch aria-label="Pode supervisionar sessões SSH" v-model:value="enabled" :disabled="busy || !loaded" />Pode supervisionar sessões SSH</label>
+    <div class="flex items-center gap-3"><NSwitch aria-label="Pode supervisionar sessões SSH" v-model:value="enabled" :disabled="busy || !loaded" />Pode supervisionar sessões SSH</div>
     <p class="my-2 text-xs">Somente leitura, limitada aos hosts autorizados. Não avisa o operador a cada observação. Toda supervisão exige justificativa e fica auditada. A organização deve informar sua política de monitoramento.</p>
     <NAlert v-if="error" type="error">{{ error }}</NAlert>
     <NButton v-if="!loaded && error" size="small" :loading="busy" @click="load">Tentar novamente</NButton>

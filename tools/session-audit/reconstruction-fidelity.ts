@@ -1,4 +1,5 @@
 #!/usr/bin/env tsx
+import { artifactPath } from '../shared/private-artifacts.cjs'
 import fs from 'node:fs'
 import path from 'node:path'
 import { buildCommandTimeline, cleanCommandOutput, stripAnsi } from '../../apps/backend/src/modules/session-audit/session-audit-normalizer.js'
@@ -35,7 +36,7 @@ type CommandExpectation = {
 }
 
 const TS_BASE = Date.parse('2026-01-01T00:00:00.000Z')
-const REPORT_PATH = process.env.REPORT_PATH || '/tmp/nodeaccess-session-audit-reconstruction-fidelity.json'
+const REPORT_PATH = process.env.REPORT_PATH || artifactPath('nodeaccess-session-audit-reconstruction-fidelity.json')
 const RANDOM_COUNTS = (process.env.RANDOM_COUNTS || '100,200,300')
   .split(',')
   .map((item) => Number(item.trim()))

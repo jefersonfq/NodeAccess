@@ -88,3 +88,11 @@ docs/api/
 
 # Local security reports may contain repository details.
 /artifacts/security/
+
+# Local static-analysis reports and scanner runtime may contain source excerpts.
+.sonar-reports/
+.scannerwork/
+
+# Coverage tooling is source; generated coverage reports remain ignored.
+!tools/coverage/
+!tools/coverage/**

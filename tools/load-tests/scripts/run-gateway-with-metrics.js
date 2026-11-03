@@ -285,7 +285,7 @@ function parsePrometheusMetrics(text) {
   const values = {}
   for (const line of text.split('\n')) {
     if (!line || line.startsWith('#')) continue
-    const match = line.match(/^([a-zA-Z_:][a-zA-Z0-9_:]*)(?:\{[^}]*\})?\s+(-?(?:\d+\.?\d*|\.\d+)(?:e[+-]?\d+)?)$/i)
+    const match = line.match(/^([a-zA-Z_:][a-zA-Z0-9_:]*)(?:\{[^}]*\})?\s+(-?(?:\d+(?:\.\d*)?|\.\d+)(?:e[+-]?\d+)?)$/i)
     if (!match) continue
     const name = match[1]
     const value = Number(match[2])

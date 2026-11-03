@@ -28,6 +28,7 @@ jobs:
       - run: npm run build -w packages/shared
       - run: npm run lint:changed
       - run: npm run typecheck
+      - run: npm run test:sonar
       - run: npm run test:change-governance
       - run: npm run test:runtime-permissions
       - run: node --test scripts/recovery.test.mjs scripts/security/history-secrets.test.mjs

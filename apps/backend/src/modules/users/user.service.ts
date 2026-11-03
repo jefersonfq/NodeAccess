@@ -1,7 +1,7 @@
 import bcrypt from 'bcrypt'
 import { createHash, randomBytes } from 'node:crypto'
-import { mkdir, readFile, unlink, writeFile } from 'node:fs/promises'
-import { dirname, join } from 'node:path'
+import { readFile, unlink } from 'node:fs/promises'
+import { relative, join } from 'node:path'
 import type { Prisma } from '@prisma/client'
 import type { User } from '@prisma/client'
 import type { UserPublic, CreateUserDto, UpdateUserDto, UserPreferences, PatchUserPreferencesDto } from '@nodeaccess/shared'
@@ -19,6 +19,7 @@ import type { UserInventoryAccessRow, UserRepository, UserFilters } from './user
 import type { WebhookService } from '../webhooks/webhook.service.js'
 import type { AppEventBus } from '../app-events/app-event.bus.js'
 import { avatarUrlFor, avatarVersionFor } from './avatar-url.js'
+import { writePrivateStorageFile } from '../../shared/private-storage.js'
 
 const BCRYPT_ROUNDS = 12
 const MAX_AVATAR_BYTES = 512 * 1024
@@ -479,8 +480,7 @@ export class UserService {
     const previousAvatar = await this.userRepo.findAvatarMetadata(userId, tenantId)
 
     const avatarPath = userAvatarPath(tenantId, userId)
-    await mkdir(dirname(avatarPath), { recursive: true })
-    await writeFile(avatarPath, file.buffer)
+    await writePrivateStorageFile(env.USER_AVATAR_STORAGE_DIR, relative(env.USER_AVATAR_STORAGE_DIR, avatarPath), file.buffer)
 
     const avatarUpdatedAt = new Date()
     await this.userRepo.updateAvatarMetadata(userId, mimeType, avatarUpdatedAt)
