@@ -8,6 +8,8 @@ import reports from 'istanbul-reports'
 import { sourceInventory, sourceFingerprint, nodeTestFiles } from './inventory.mjs'
 import { nodeCoverageMap, normalizeBranchCounts } from './node-map.mjs'
 import { summarizeCoverage, mergeCollectorMaps } from './summary.mjs'
+import { browserCoverageRecords, overlayBrowserCoverage } from './browser-map.mjs'
+import { requiredBrowserHarnesses } from './browser.mjs'
 import { diffCoverage } from './lcov.mjs'
 
 const projectRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../..')
@@ -54,7 +56,7 @@ export async function runCoverage({ root = projectRoot, base, execute = command,
     result.collectors.browser = { exitCode: browserExit, ...browserReport }
     if (browserExit !== 0) result.failures.push('BROWSER_TESTS_FAILED')
     if (browserReport.status !== 'passed' || !Array.isArray(browserReport.harnesses)
-      || browserReport.harnesses.length !== 2 || !['frontend', 'table'].every(name => browserReport.harnesses.some(run => run.name === name && run.exitCode === 0 && run.timedOut === false))) {
+      || browserReport.harnesses.length !== requiredBrowserHarnesses.length || !requiredBrowserHarnesses.map(([name]) => name).every(name => browserReport.harnesses.some(run => run.name === name && run.exitCode === 0 && run.timedOut === false))) {
       result.failures.push('BROWSER_RESULT_NOT_VERIFIED')
     }
     const vitestReport = JSON.parse(readFileSync(join(output, 'vitest-tests.json'), 'utf8'))
@@ -72,6 +74,9 @@ export async function runCoverage({ root = projectRoot, base, execute = command,
     // JSON imports are data transformed by Vite, outside the executable source inventory.
     result.dataArtifacts = map.files().filter(file => file.endsWith('.json')).map(file => file.slice(root.length + 1))
     map.filter(file => !file.endsWith('.json'))
+    if (sourceFingerprint(root, sourceInventory(root)) !== fingerprint) result.failures.push('SOURCE_CHANGED_DURING_COVERAGE')
+    const browserRecords = await browserCoverageRecords({ root, directory: join(output, 'browser/chromium-v8'), files, fingerprint, capture: browserReport, anomalies: result.conversionAnomalies })
+    result.browserCoverage = { ...browserRecords.evidence, overlay: overlayBrowserCoverage(map, browserRecords.coverages, root) }
     const metrics = summarizeCoverage(map, root, files)
     const { failures: metricFailures, ...measurements } = metrics
     Object.assign(result, measurements)

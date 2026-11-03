@@ -1,0 +1,11 @@
+{
+  "file": "apps/frontend/src/views/admin/DashboardView.vue",
+  "base": "f4a44b4b7ae87a8f688b1246d9e52a31f9a104bc",
+  "scope": "Dashboard only; focused SSR test run, not integrated gate",
+  "lines": 106,
+  "coveredLines": 46,
+  "conditions": 104,
+  "coveredConditions": 78,
+  "total": 210,
+  "covered": 124
+}

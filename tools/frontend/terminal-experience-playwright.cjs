@@ -2,6 +2,7 @@
 const { artifactPath } = require('../shared/private-artifacts.cjs')
 const fs = require('node:fs')
 const { chromium } = require('playwright')
+const { attachBrowserCoverage } = require('../coverage/playwright-coverage.cjs')
 
 const FRONTEND = (process.env.FRONTEND_BASE || 'http://127.0.0.1:5174').replace(/\/$/, '')
 const REPORT_PATH = process.env.REPORT_PATH || artifactPath('nodeaccess-terminal-experience.json')
@@ -266,6 +267,7 @@ async function main() {
   })
 
   const page = await context.newPage()
+  await attachBrowserCoverage(page, browser)
   const cdp = await context.newCDPSession(page)
   await Promise.all([cdp.send('Runtime.enable'), cdp.send('Log.enable'), cdp.send('Network.enable'), cdp.send('Performance.enable')])
   const cdpAnomalies = []

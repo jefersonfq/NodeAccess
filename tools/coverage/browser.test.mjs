@@ -1,10 +1,10 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import http from 'node:http'
-import { mkdtempSync, writeFileSync, readFileSync, rmSync, statSync } from 'node:fs'
+import { mkdtempSync, mkdirSync, existsSync, symlinkSync, chmodSync, writeFileSync, readFileSync, rmSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
-import { collectBrowserCoverage, executeBrowserHarness, waitForBrowserModules } from './browser.mjs'
+import { collectBrowserCoverage, executeBrowserHarness, waitForBrowserModules, requiredBrowserHarnesses } from './browser.mjs'
 
 function fixture(t) {
   const root = mkdtempSync(join(tmpdir(), 'na0090-browser-'))
@@ -31,9 +31,12 @@ function fakeVite(options = {}) {
 }
 test('isolated browser orchestration uses loopback fixtures and private outputs without app/backend proxy', async t => {
   const root = fixture(t), vite = fakeVite(), runs = []
+  mkdirSync(join(root, 'coverage/browser/chromium-v8'), { recursive: true })
+  writeFileSync(join(root, 'coverage/browser/chromium-v8/stale.json'), 'previous run')
   const result = await collectBrowserCoverage({ root, env: { NODE_V8_COVERAGE: '/synthetic/raw', PLAYWRIGHT_EXECUTABLE_PATH: '/synthetic/chromium', SONAR_ASSIGNED: '/wrong/fixture', SONAR_TOKEN: 'synthetic-secret', SONAR_REVIEW_TOKEN: 'synthetic-read' }, create: vite.create,
     execute: async (_root, script, env) => {
       runs.push(script)
+      assert.equal(existsSync(join(root, 'coverage/browser/chromium-v8/stale.json')), false)
       assert.equal(env.SONAR_TOKEN, undefined); assert.equal(env.SONAR_REVIEW_TOKEN, undefined)
       assert.equal(env.SONAR_ASSIGNED, join(root, 'docs/changes/2026/11/NA-0087-sonar-frontend/dispositions.json'))
       assert.equal(env.NODE_V8_COVERAGE, '/synthetic/raw'); assert.equal(env.CHROMIUM_PATH, '/synthetic/chromium')
@@ -44,7 +47,7 @@ test('isolated browser orchestration uses loopback fixtures and private outputs 
       return { exitCode: 0, timedOut: false }
     } })
   assert.equal(result.status, 'passed'); assert.equal(vite.closed, true)
-  assert.deepEqual(runs, ['tools/frontend/sonar-frontend-review.cjs', 'tools/sonarqube/table-review.cjs'])
+  assert.deepEqual(runs, requiredBrowserHarnesses.map(([, script]) => script))
   assert.equal(JSON.parse(readFileSync(join(root, 'coverage/browser/summary.json'))).status, 'passed')
   assert.equal(statSync(join(root, 'coverage/browser')).mode & 0o777, 0o700)
 })
@@ -122,4 +125,17 @@ test('normal parent exit does not signal its descendant group', { skip: process.
   assert.ok(Number.isSafeInteger(descendant) && descendant > 1)
   assert.deepEqual(result, { exitCode: 0, timedOut: false })
   assert.doesNotThrow(() => process.kill(descendant, 0))
+})
+
+
+for (const segment of ['coverage', 'coverage/browser']) test(`refuses symlinked ${segment} before chmod or removal outside the checkout`, async t => {
+  const root = fixture(t), outside = fixture(t)
+  chmodSync(outside, 0o755)
+  mkdirSync(join(outside, 'chromium-v8')); writeFileSync(join(outside, 'chromium-v8/preserve'), 'unchanged')
+  if (segment.includes('/')) mkdirSync(join(root, 'coverage'))
+  symlinkSync(outside, join(root, segment), 'dir')
+  await assert.rejects(collectBrowserCoverage({ root, create: () => { throw new Error('must not start Vite') } }), /Unsafe/)
+  assert.equal(statSync(outside).mode & 0o777, 0o755)
+  assert.equal(readFileSync(join(outside, 'chromium-v8/preserve'), 'utf8'), 'unchanged')
+  if (segment === 'coverage') assert.equal(existsSync(join(outside, 'browser')), false)
 })

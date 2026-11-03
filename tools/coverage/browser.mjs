@@ -1,10 +1,18 @@
-import { mkdirSync, openSync, closeSync, writeFileSync } from 'node:fs'
+import { mkdirSync, openSync, closeSync, writeFileSync, rmSync, chmodSync, lstatSync, realpathSync, existsSync } from 'node:fs'
 import { join, resolve, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { spawn } from 'node:child_process'
 import { performance } from 'node:perf_hooks'
 import { createServer } from 'vite'
 import vue from '@vitejs/plugin-vue'
+import { createRequire } from 'node:module'
+import { randomUUID } from 'node:crypto'
+const { manualPlugin } = createRequire(import.meta.url)('../manual/build.cjs')
+export const requiredBrowserHarnesses = [
+  ['frontend', 'tools/frontend/sonar-frontend-review.cjs'], ['table', 'tools/sonarqube/table-review.cjs'],
+  ['terminal', 'tools/frontend/terminal-experience-playwright.cjs'], ['platform', 'tools/frontend/platform-settings-playwright.cjs'],
+  ['flows', 'tools/frontend/sonar-flow-coverage.cjs'],
+]
 
 const projectRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../..')
 export function executeBrowserHarness(root, script, env, logfile, timeoutMs = 120_000) {
@@ -48,8 +56,14 @@ export async function waitForBrowserModules(base, { timeoutMs = 60_000, fetcher 
 }
 export async function collectBrowserCoverage({ root = projectRoot, env = process.env, create = createServer, execute = executeBrowserHarness } = {}) {
   const output = join(root, 'coverage/browser')
-  mkdirSync(output, { recursive: true, mode: 0o700 })
-  const result = { status: 'failed', kind: 'real Chromium against isolated Vite fixtures; V8 credit is Node-only', harnesses: [] }
+  if (realpathSync(root) !== resolve(root)) throw new Error('Unsafe browser coverage root')
+  for (const directory of [join(root, 'coverage'), output]) {
+    if (!existsSync(directory)) mkdirSync(directory, { mode: 0o700 })
+    if (!lstatSync(directory).isDirectory() || lstatSync(directory).isSymbolicLink() || realpathSync(directory) !== resolve(directory)) throw new Error('Unsafe browser coverage output directory')
+  }
+  chmodSync(output, 0o700)
+  rmSync(join(output, 'chromium-v8'), { recursive: true, force: true })
+  const result = { status: 'failed', captureRunId: randomUUID(), startedAt: new Date().toISOString(), kind: 'real Chromium; Node and mapped browser coverage are collected separately', harnesses: [] }
   let server
   try {
     server = await create({ configFile: false, root: join(root, 'apps/frontend'), logLevel: 'error',
@@ -59,21 +73,26 @@ export async function collectBrowserCoverage({ root = projectRoot, env = process
           if (request.url?.startsWith('/api/')) { response.statusCode = 404; response.end('No backend in coverage fixture'); return }
           next()
         })
-      } }],
+      } }, manualPlugin()],
       resolve: { alias: { '@': join(root, 'apps/frontend/src') } },
-      optimizeDeps: { include: ['vue', 'naive-ui'], entries: [] },
+      optimizeDeps: { include: ['vue', 'naive-ui'], entries: ['index.html'] },
       server: { host: '127.0.0.1', port: 0, strictPort: false, proxy: {}, fs: { allow: [root] } },
     })
     await server.listen()
+    await server.environments?.client?.depsOptimizer?.scanProcessing
     const address = server.httpServer.address()
     if (!address || typeof address === 'string' || address.address !== '127.0.0.1') throw new Error('Browser fixture must bind loopback')
     const base = `http://127.0.0.1:${address.port}`
+    result.origin = base
     await waitForBrowserModules(base)
-    for (const [name, script] of [['frontend', 'tools/frontend/sonar-frontend-review.cjs'], ['table', 'tools/sonarqube/table-review.cjs']]) {
+    for (const [name, script] of requiredBrowserHarnesses) {
       const directory = join(output, name); mkdirSync(directory, { mode: 0o700, recursive: true })
-      const childEnv = { ...env, FRONTEND_BASE: base, SONAR_REVIEW_OUTPUT: directory,
+      const childEnv = { ...env, FRONTEND_BASE: base, SONAR_REVIEW_OUTPUT: directory, SONAR_FLOW_OUTPUT: directory, BROWSER_COVERAGE_DIR: join(output, 'chromium-v8'), BROWSER_COVERAGE_RUN_ID: result.captureRunId,
         SONAR_ASSIGNED: join(root, 'docs/changes/2026/11/NA-0087-sonar-frontend/dispositions.json') }
       delete childEnv.SONAR_TOKEN; delete childEnv.SONAR_REVIEW_TOKEN; delete childEnv.CHROMIUM_PATH
+      delete childEnv.CHROMIUM_CDP_URL; delete childEnv.NETWORK_DEVICE_PROFILE
+      for (const key of Object.keys(childEnv)) if (key.endsWith('_REVIEW') || key.endsWith('_SMOKE')) delete childEnv[key]
+      for (const key of ['REPORT_PATH', 'SCREENSHOT_PATH', 'AUTOCOMPLETE_SCREENSHOT_PATH', 'AUTOCOMPLETE_MOBILE_SCREENSHOT_PATH', 'THEME_SCREENSHOT_PATH', 'HIGHLIGHT_SCREENSHOT_PATH']) childEnv[key] = join(directory, key === 'REPORT_PATH' ? 'report.json' : key.toLowerCase() + '.png')
       if (env.PLAYWRIGHT_EXECUTABLE_PATH) childEnv.CHROMIUM_PATH = env.PLAYWRIGHT_EXECUTABLE_PATH
       const run = await execute(root, script, childEnv, join(output, `${name}.log`))
       result.harnesses.push({ name, ...run })
@@ -85,6 +104,7 @@ export async function collectBrowserCoverage({ root = projectRoot, env = process
     if (server) {
       try { await server.close() } catch { result.status = 'failed'; result.error = 'Browser fixture cleanup failed' }
     }
+    result.finishedAt = new Date().toISOString()
     writeFileSync(join(output, 'summary.json'), JSON.stringify(result, null, 2) + '\n', { mode: 0o600 })
   }
   return result

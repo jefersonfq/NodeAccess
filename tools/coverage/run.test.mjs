@@ -4,6 +4,9 @@ import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync } from 'nod
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { execFileSync } from 'node:child_process'
+import { createHash } from 'node:crypto'
+import { sourceInventory, sourceFingerprint } from './inventory.mjs'
+import { requiredBrowserHarnesses } from './browser.mjs'
 import { runCoverage, argumentsForCoverage } from './run.mjs'
 
 
@@ -16,6 +19,8 @@ function fixture(t, options = {}) {
   const root = mkdtempSync(join(tmpdir(), 'na0090-pipeline-')); t.after(() => rmSync(root, { recursive: true, force: true }))
   const source = 'apps/backend/src/modules/demo/demo.service.ts'
   mkdirSync(join(root, 'apps/backend/src/modules/demo'), { recursive: true }); mkdirSync(join(root, 'tools'))
+  const browserFile = 'apps/frontend/src/example.ts', browserSource = 'export const browser = 1\n'
+  mkdirSync(join(root, 'apps/frontend/src'), { recursive: true }); writeFileSync(join(root, browserFile), browserSource)
   writeFileSync(join(root, source), 'export function fixture() { return 1 }\n')
   writeFileSync(join(root, 'tools/demo.test.mjs'), '// Test fixture only\n')
   execFileSync('git', ['init', '-q'], { cwd: root })
@@ -28,15 +33,19 @@ function fixture(t, options = {}) {
     if (args.includes('--coverage')) {
       assert.equal(env.NODEACCESS_COVERAGE_COLLECT, '1')
       mkdirSync(join(root, 'coverage/vitest'), { recursive: true })
-      writeFileSync(join(root, 'coverage/vitest/coverage-final.json'), JSON.stringify({ [join(root, source)]: fileCoverage(join(root, source), options.lowCoverage ? 0 : 1), ...(options.jsonData ? { [join(root, 'tools/data.json')]: fileCoverage(join(root, 'tools/data.json')) } : {}) }))
+      writeFileSync(join(root, 'coverage/vitest/coverage-final.json'), JSON.stringify({ [join(root, browserFile)]: fileCoverage(join(root, browserFile)), [join(root, source)]: fileCoverage(join(root, source), options.lowCoverage ? 0 : 1), ...(options.jsonData ? { [join(root, 'tools/data.json')]: fileCoverage(join(root, 'tools/data.json')) } : {}) }))
       writeFileSync(join(root, 'coverage/vitest-tests.json'), JSON.stringify({ success: true, numPassedTests: 1, numFailedTests: 0, numPendingTests: 0, ...options.report }))
       return options.vitestFailure ? 1 : 0
     }
     assert.equal(env.NODE_V8_COVERAGE, join(root, 'coverage/node-v8'))
     if (args[0].endsWith('/tools/coverage/browser.mjs')) {
-      mkdirSync(join(root, 'coverage/browser'), { recursive: true })
-      writeFileSync(join(root, 'coverage/browser/summary.json'), JSON.stringify({ status: options.browserFailure ? 'failed' : 'passed',
-        harnesses: options.invalidBrowser ? [] : ['frontend', 'table'].map(name => ({ name, exitCode: 0, timedOut: false })) }))
+      mkdirSync(join(root, 'coverage/browser/chromium-v8'), { recursive: true })
+      const sourceMap = { version: 3, sources: ['example.ts'], sourcesContent: [browserSource], names: [], mappings: 'AAAA' }
+      const code = browserSource + '\n//# sourceMappingURL=data:application/json;base64,' + Buffer.from(JSON.stringify(sourceMap)).toString('base64')
+      const capture = { captureRunId: '00000000-0000-4000-8000-000000000001', origin: 'http://127.0.0.1:1234', startedAt: new Date(Date.now() - 1000).toISOString(), finishedAt: new Date(Date.now() + 1000).toISOString() }
+      writeFileSync(join(root, 'coverage/browser/chromium-v8/chromium-a.json'), JSON.stringify({ ...capture, root, schemaVersion: 1, fingerprint: sourceFingerprint(root, sourceInventory(root)), capturedAt: new Date().toISOString(), excluded: {}, scripts: [{ url: capture.origin + '/src/example.ts', source: code, codeSha256: createHash('sha256').update(code).digest('hex'), functions: [{ functionName: '', isBlockCoverage: true, ranges: [{ startOffset: 0, endOffset: code.length, count: 1 }] }] }] }))
+      writeFileSync(join(root, 'coverage/browser/summary.json'), JSON.stringify({ ...capture, status: options.browserFailure ? 'failed' : 'passed',
+        harnesses: options.invalidBrowser ? [] : requiredBrowserHarnesses.map(([name]) => ({ name, exitCode: 0, timedOut: false })) }))
       return options.browserFailure ? 1 : 0
     }
     writeFileSync(join(root, 'coverage/node-v8/coverage-fixture.json'), JSON.stringify({ result: [] }))

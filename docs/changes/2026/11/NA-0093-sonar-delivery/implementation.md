@@ -8,13 +8,13 @@ Executar as quatro pendências SonarQube até entrega verificável: cobertura, P
 
 SHA base: f4a44b4b7ae87a8f688b1246d9e52a31f9a104bc (origin/master). Worktree isolada preserva alterações não relacionadas do workspace principal. Integração por patches das branches de origem, sem misturar Change IDs na ancestralidade da branch de entrega.
 
-Incorporados o checkpoint NA-0089, coletor abrangente NA-0090, recuperação/rotação NA-0091, CI real NA-0092 e testes adicionais NA-0094/95/96/98/99/0101. NA-0097 corrige query/fragmento em links do proxy, defeito comprovado nos novos testes. Demais lotes de cobertura seguem em branches próprias, ainda não integrados.
+Incorporados o checkpoint NA-0089, coletor abrangente NA-0090, recuperação/rotação NA-0091, CI real NA-0092 e testes adicionais NA-0094/95/96/98/99/0101. NA-0097 corrige query/fragmento em links do proxy, defeito comprovado nos novos testes. Lotes adicionais até NA-0119 registrados abaixo; NA-0117 e contratos SSR seguem em validação, com integração pendente.
 
 | Pendência | Evidência disponível | Falta para encerrar |
 | --- | --- | --- |
-| Cobertura | Inventário JS/TS/Vue, Vitest + Node/V8, LCOV e diff reais; revisão independente; limites preservados nos mesmos serviços | Atingir gates 70/70/60 e 80% de código novo e repetir no candidato final |
+| Cobertura | Serviços 73,15% linhas / 70,28% funções / 64,36% branches PASS; após lint, diff 67,88% FAIL | Concluir testes dos componentes e atingir 80% de código novo, sem alterar limites/denominador |
 | Entrega | Branch de integração a partir de master, branches de origem recuperáveis e documentação canônica | Commit final, PR, checks, homologação humana, merge e sincronização |
-| CI real | Ensaio com três análises reais; aprovação com 100% de código novo e reprovação com 42,9%; cleanup validado | Executar fluxo completo do produto no checkout consolidado e GitHub |
+| CI real | Três análises reais com configuração efetiva idêntica; gate 100% PASS e 42,9% FAIL; cleanup validado | Repetir produto completo após NA-0116 e executar GitHub |
 | Continuidade | Restore real equivalente, tokens rotacionados, cron instalado e execução manual aprovada | Revisão integrada e acompanhamento da primeira execução agendada; antigos elegíveis à revogação após 48h |
 
 ## Validação
@@ -82,3 +82,7 @@ Integrados checkpoints NA-0116 297675508 e 80cd6e0db. Causa confirmada: o scanne
 ### 2026-11-03T21:03:32+00:00 — Regressões de UX verificadas em navegador
 
 Integrados NA-0119 (b2eb4d937, associação nativa de quatro labels e quebra de linha das ações do diagnóstico) e NA-0118 (49c277663, fixtures/contratos e harness real). Ran: seis grupos de cenários Chromium, quatro cliques em labels com foco correto, sete ações nomeadas dentro da largura mobile de 390px, desktop 1440px, nenhum pageerror; três testes de schemas e lint focal PASS. Antes da correção, label nativo ausente foi reproduzido e ações cortadas identificadas em captura; depois, reexecução/revisão raiz e independente PASS_WITH_WARNINGS. APIs e Jira são simulados, sem alegar integração externa; Chromium local1234 documentado. DiagnosticRunDetail não está no manifest do manual. Servidores isolados encerrados após ensaio. Próximo passo: integrar coletor e contratos de componentes, repetir gates completos; permanece sem publicação/merge.
+
+### 2026-11-03T21:09:28+00:00 — Cobertura real de navegador e contratos de dashboard
+
+Integrados NA-0117 cc332da58 (captura Chromium e sobreposição somente por localização exata, denominadores/zeros preservados, 84 contratos e cinco harnesses PASS na origem) e NA-0120 dfbc028a6 (15 contratos Vue SSR do dashboard PASS, lint/tipos/governança e revisão independente). As duas frentes mantêm os limites existentes. Reprodução raiz dos validadores Sonar: 135 testes PASS. Guarda de symlink impede limpeza/chmod fora do diretório de cobertura; negativos validados independentemente. META-050 atualizada no XLSX canônico; ZIP/XML e demais entradas preservadas. Próximo passo: medir união real, incorporar diagnóstico/licenças/configurações e repetir scanner/CI. Sem usar resultados focais como aprovação integrada.

@@ -47,7 +47,7 @@ node node_modules/playwright/cli.js install --with-deps chromium
 
 A CI Ubuntu24 realiza essa instalação após `npm ci`. O WSL Ubuntu20.04 usado nesta frente não é suportado pelo Chromium1248 esperado pelo Playwright instalado; a tentativa de instalação falhou explicitamente. O ensaio local foi executado com `PLAYWRIGHT_EXECUTABLE_PATH=/root/.cache/ms-playwright/chromium-1234/chrome-linux64/chrome` (Chrome for Testing151.0.7922.34), como override consciente do ambiente de automação. Não há downgrade da dependência nem fallback automático. Esse ensaio local não substitui a validação do browser fixado no runner GitHub.
 
-A fase browser usa HTML sintético e componentes reais selecionados; não inicia a aplicação completa nem conecta backend, VPN ou hosts. O servidor responde404 em `/api/` e encerra no `finally`. Os dois scripts herdam ranges V8 da coleta; funções executadas exclusivamente dentro de `page.evaluate` permanecem não cobertas no Node. `coverage/browser/summary.json`, logs e cinco capturas guardam a evidência local. Requisições de módulo e subprocessos têm deadline; falhas de preparação, execução e cleanup reprovam o gate.
+A fase browser combina HTML sintético para controles isolados e rotas reais da aplicação cliente com APIs interceptadas por fixtures. Não inicia backend nem conecta VPN ou hosts. O servidor responde404 em `/api/` e encerra no `finally`. Os scripts herdam ranges V8 Node da coleta; funções executadas exclusivamente dentro de `page.evaluate` permanecem não cobertas no Node. `coverage/browser/summary.json`, logs e cinco capturas guardam a evidência local. Requisições de módulo e subprocessos têm deadline; falhas de preparação, execução e cleanup reprovam o gate.
 
 ## Git confiável e entrada CI local
 
@@ -60,3 +60,12 @@ SONAR_CI_BASE=<SHA-base-completo> npm run sonar:ci
 ```
 
 Execute pela entrada npm: ela fornece `npm_execpath` ao processo, inclusive quando Node e npm estão em instalações diferentes. A chamada direta ao arquivo JavaScript depende de npm adjacente ao Node e pode falhar nesse ambiente. O fluxo coleta cobertura e inicia SonarQube/PostgreSQL descartáveis para analisar base/head; os pré-requisitos e limites são distintos de `npm run test:coverage`. Não use a instância persistente como destino desse ensaio.
+
+
+## Cobertura real no Chromium
+
+A fase browser executa fixtures de labels/tabela e jornadas reais de terminal, plataforma/licenças e diagnóstico/dashboard. As jornadas da aplicação interceptam APIs com dados sintéticos; não acessam servidores de usuários. `attachBrowserCoverage` é ativado somente por `BROWSER_COVERAGE_DIR` e pelo identificador privado da execução definido pelo coletor. Execuções habituais dos harnesses permanecem sem coleta.
+
+Os ranges CDP e o JavaScript realmente executado ficam em `coverage/browser/chromium-v8`, com arquivos0600. A conversão exige origem exata, UUID/horário da execução, fingerprint, sourcemap inline e `sourcesContent` idêntico à fonte local no inventário, sem symlinks. Scripts anônimos de `page.evaluate`, dependências e glue CSS não recebem crédito de fontes Vue/TS. Uma réplica de markup não prova execução do componente original.
+
+O mapa existente de Vitest/Node continua autoritativo. A cobertura browser só acrescenta hits quando os descriptors originais de statement/function/branch coincidem integralmente e sem ambiguidades; não aproxima por linha. Todos os denominadores e zeros são preservados. `summary.json.browserCoverage` registra fontes/hash, exclusões classificadas e correspondências entre capturas. Contagens de correspondência são observações entre capturas, não novos denominadores. Diferenças de compilação Vue SSR/client podem deixar código executado sem crédito: esse limite é conservador e não autoriza reduzir o gate.
