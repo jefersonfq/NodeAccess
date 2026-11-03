@@ -466,7 +466,7 @@ onBeforeUnmount(() => {
                   Rastreabilidade e evidências consolidadas desta execução.
                 </NText>
               </div>
-              <div class="flex items-center gap-2">
+              <div class="report-actions">
                 <NTag
                   size="small"
                   type="info"
@@ -867,8 +867,8 @@ onBeforeUnmount(() => {
               class="mb-1 block text-sm text-zinc-300"
             >ID da sessão</label>
             <NInput
-              id="diagnostic-origin-session"
               v-model:value="traceabilityForm.sessionId"
+              :input-props="{ id: 'diagnostic-origin-session' }"
               placeholder="Ex.: 1824"
             />
           </div>
@@ -878,8 +878,8 @@ onBeforeUnmount(() => {
               class="mb-1 block text-sm text-zinc-300"
             >Ticket Jira</label>
             <NInput
-              id="diagnostic-origin-ticket"
               v-model:value="traceabilityForm.ticketKey"
+              :input-props="{ id: 'diagnostic-origin-ticket' }"
               placeholder="Ex.: OPS-1234"
             />
           </div>
@@ -889,8 +889,8 @@ onBeforeUnmount(() => {
               class="mb-1 block text-sm text-zinc-300"
             >ID do ActionRun</label>
             <NInput
-              id="diagnostic-origin-action"
               v-model:value="traceabilityForm.actionRunId"
+              :input-props="{ id: 'diagnostic-origin-action' }"
               placeholder="Ex.: 74"
             />
           </div>
@@ -992,8 +992,8 @@ onBeforeUnmount(() => {
                   class="mb-1 block text-sm text-zinc-300"
                 >Execução de referência (antes)</label>
                 <NSelect
-                  id="diagnostic-comparison-baseline"
                   v-model:value="baselineRunId"
+                  :input-props="{ id: 'diagnostic-comparison-baseline' }"
                   :options="comparisonOptions"
                   filterable
                   @update:value="comparison = null"
@@ -1154,7 +1154,17 @@ onBeforeUnmount(() => {
 }
 
 .detail-header {
+  flex-wrap: wrap;
   margin-bottom: 24px;
+}
+
+.detail-actions,
+.report-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  max-width: 100%;
 }
 
 .detail-header h1 {
@@ -1224,6 +1234,7 @@ onBeforeUnmount(() => {
 
 .ai-summary-header {
   display: flex;
+  flex-wrap: wrap;
   align-items: flex-start;
   justify-content: space-between;
   gap: 12px;
@@ -1446,6 +1457,15 @@ onBeforeUnmount(() => {
 }
 
 @media (max-width: 640px) {
+  .detail-header {
+    flex-direction: column;
+  }
+
+  .detail-actions,
+  .report-actions {
+    width: 100%;
+  }
+
   .detail-summary {
     grid-template-columns: 1fr;
   }

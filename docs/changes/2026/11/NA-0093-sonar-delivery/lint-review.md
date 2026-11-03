@@ -2,7 +2,7 @@
 
 Execução inicial sobre os 80 arquivos TypeScript/Vue staged, com a configuração existente e `--max-warnings 0`. Resultado FAIL: 81 erros e 1.619 avisos. Esta tabela é o retrato inicial, não uma alegação de que todos são novos ou continuam presentes após correções. O script padrão lint:changed compara commits; por isso a execução pré-commit usou a lista staged explicitamente.
 
-Erros em testes novos de MCP e DOM do proxy foram corrigidos em NA-0105 e NA-0097, com testes e lint focal repetidos. Helpers novos do frontend são tratados na NA-0111. Comparação do restante com origin/master em andamento. Nenhuma regra desativada ou limiar reduzido. A aprovação do CI exige nova execução sobre o SHA publicado.
+Erros em testes novos de MCP e DOM do proxy foram corrigidos em NA-0105 e NA-0097, com testes e lint focal repetidos. Helpers novos do frontend são tratados na NA-0111. Comparação com origin/master confirmou 42 erros legados (25 frontend e 17 backend), tratados nas branches NA-0113 e NA-0114 após autorização do usuário. Nenhuma regra desativada ou limiar reduzido. A aprovação do CI exige nova execução sobre o SHA publicado.
 
 | Arquivo | Erros iniciais | Avisos iniciais |
 |---|---:|---:|
@@ -33,3 +33,7 @@ Erros em testes novos de MCP e DOM do proxy foram corrigidos em NA-0105 e NA-009
 | `apps/frontend/src/views/admin/McpTokensView.vue` | 0 | 6 |
 | `apps/frontend/src/views/admin/ObservabilityView.vue` | 0 | 2 |
 | `apps/frontend/src/views/admin/SettingsView.vue` | 0 | 71 |
+
+## Revalidação após saneamento
+
+No checkpoint fb2eb5c9ea0a9ed878c7b76d65ef7a39abcbd6dd, ESLint dos 82 arquivos TypeScript/Vue alterados PASS com zero erros e avisos. Log local: /tmp/na0093-lint-final.log. Correções novas e legadas permanecem em branches separadas; sem supressões. A integração posterior de testes/CI/UX exige nova execução no candidato final.
