@@ -1,0 +1,101 @@
+{
+  "source": "https://nodejs.org/en/blog/release/v24.22.1/",
+  "baseImage": "node:24.22.1-alpine@sha256:06d7adf3e0ef61a13f1d28682726366f97a15aa1888c934d3ecec86c33918b53",
+  "scanner": "anchore/grype@sha256:e4a44ef45d285b829ce6efe2642980329661bd2d18eab5fc539138d4adaebbbe",
+  "passed": true,
+  "images": [
+    {
+      "ref": "nodeaccess-backend:na0136",
+      "id": "sha256:1f62e46e5613d33091e9546fd7ecc7574b5633ef373d20f99faaba89e3c61c29",
+      "counts": {
+        "Medium": 3
+      },
+      "passed": true,
+      "databaseBuilt": "2026-11-03T06:20:47Z"
+    },
+    {
+      "ref": "nodeaccess-tls-agent:na0136",
+      "id": "sha256:942ecf10f9abf95a18193657b8f66904847deabb5f4e804eb8dae8ba3794b62e",
+      "counts": {
+        "Medium": 5,
+        "Low": 1
+      },
+      "passed": true,
+      "databaseBuilt": "2026-11-03T06:20:47Z"
+    }
+  ],
+  "nativeContract": {
+    "node": "v24.22.1",
+    "openssl": "3.5.9",
+    "checks": [
+      "valid IP certificate",
+      "noncanonical and fullwidth IP rejected",
+      "DNS NUL rejected",
+      "Brotli roundtrip and malformed input rejected",
+      "fixed Brotli format error exported"
+    ]
+  },
+  "tlsIntegration": {
+    "passed": true,
+    "runnerSocketOwnership": true,
+    "readOnlyVolumeRecovery": true,
+    "readOnlyCertificatesRecovery": true,
+    "durableAuditOutbox": true,
+    "installationPreparation": true,
+    "repeatedStartup": true,
+    "singleWorkerLock": true,
+    "realNginx": true,
+    "realCertbotAcme": true,
+    "realHttp01": true,
+    "blockedChallengeRecovery": true,
+    "dryRun": true,
+    "realTlsSwap": true,
+    "workerPrivileges": true,
+    "acmeWebroot": true,
+    "realSshPty": true,
+    "websocketPreserved": true,
+    "sshConnections": 1,
+    "wsConnections": 1,
+    "failedConfigPreservesLiveSession": true,
+    "workerRestartRecovery": true
+  },
+  "containerStack": {
+    "passed": true,
+    "images": {
+      "mysql": {
+        "ref": "nodeaccess-mysql:8.4.12-1",
+        "id": "sha256:cafe2c0faa2915ec9978f98fdf196e799541f1a1d2d5780798b311e0a4378949"
+      },
+      "redis": {
+        "ref": "nodeaccess-redis:8.2.10-1",
+        "id": "sha256:23193d04e3e03b52d875d959dd7e320c00363524efdd4d0f4d04fd37496a771c"
+      },
+      "backend": {
+        "ref": "nodeaccess-backend:na0136",
+        "id": "sha256:1f62e46e5613d33091e9546fd7ecc7574b5633ef373d20f99faaba89e3c61c29"
+      },
+      "frontend": {
+        "ref": "nodeaccess-frontend:na0136",
+        "id": "sha256:52e49d01cabdebc41264e24a842a9c897b22078364b6d3d7760346bedeb6a04b"
+      },
+      "kubernetes": {
+        "ref": "nodeaccess-frontend-k8s:security-local",
+        "id": "sha256:b079cd49e21ba4d4f279d9814b2d1fcc2582046f564c33f84d7aff5bc938526b"
+      },
+      "tls": {
+        "ref": "nodeaccess-tls-agent:na0136",
+        "id": "sha256:942ecf10f9abf95a18193657b8f66904847deabb5f4e804eb8dae8ba3794b62e"
+      }
+    },
+    "checks": [
+      "Runtime: real migrations twice including non-root/read-only, native bcrypt/client load, development tools/package managers removed",
+      "API/gateway UID1000, all capabilities dropped, no-new-privileges; default Compose adoption remains explicit",
+      "Nginx HTTPS and non-root Kubernetes: trusted TLS, SPA/assets, headers, cache, real WS upgrade/rejection; TLS worker Node 24",
+      "Real HTTP: schema validation, password login, MFA enrollment/verification, temporary-token denial, tenant isolation, refresh and logout revocation",
+      "Actual gateway -> disposable OpenSSH: cross-tenant denial, host-key challenge/verified approval, interactive credentials, shell, PTY resize, SFTP home/list and persisted session cleanup",
+      "Redis unavailable: ready=503, live=200, readiness recovers after restart",
+      "API and gateway SIGTERM exit cleanly; Nginx access logs omit query tokens"
+    ]
+  },
+  "frontendBuildImage": "sha256:52e49d01cabdebc41264e24a842a9c897b22078364b6d3d7760346bedeb6a04b"
+}

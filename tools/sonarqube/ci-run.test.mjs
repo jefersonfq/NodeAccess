@@ -222,3 +222,22 @@ test('reviewed baseline signature remains diagnostic only when new-code gate fai
   assert.ok(!JSON.stringify(result).includes('PRIVATE-SOURCE-MESSAGE'))
   assert.equal(result.cleanup, 'complete')
 })
+
+test('missing LCOV retains safe collector diagnosis and fails before server startup', async t => {
+  const f = fixture(t), rt = runtime(f)
+  rt.execute = () => {
+    mkdirSync(join(f.root, 'coverage'), { recursive: true })
+    writeFileSync(join(f.root, 'coverage/summary.json'), JSON.stringify({ status: 'failed',
+      failures: ['BROWSER_TESTS_FAILED', 'COVERAGE_PIPELINE_FAILED'], error: 'ENOENT: private-token-and-path',
+      collectors: { vitest: { exitCode: 0 }, node: { exitCode: 0 }, browser: { exitCode: 1, error: 'private-token-and-path' } } }))
+    return 1
+  }
+  const result = await run({ ...f, runtime: rt })
+  assert.equal(result.passed, false)
+  assert.deepEqual(result.failures, ['CI_FRESH_LCOV_REQUIRED'])
+  assert.equal(result.phase, 'coverage')
+  assert.equal(result.coverageDiagnostics.collectors.browser.exitCode, 1)
+  assert.equal(result.coverageDiagnostics.errorCategory, 'FILE_MISSING')
+  assert.equal(result.cleanup, 'complete'); assert.equal(rt.events.includes('start'), false)
+  assert.doesNotMatch(readFileSync(join(f.root, 'coverage/sonar-ci-summary.json'), 'utf8'), /private-token-and-path/)
+})

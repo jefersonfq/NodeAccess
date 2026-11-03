@@ -1,5 +1,5 @@
 import { spawnSync } from 'node:child_process'
-import { mkdirSync, mkdtempSync, openSync, closeSync, readFileSync, writeFileSync, rmSync, statSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, openSync, closeSync, readFileSync, writeFileSync, rmSync } from 'node:fs'
 import { resolve, join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { fileURLToPath, pathToFileURL } from 'node:url'
@@ -7,6 +7,7 @@ import { startServer, configureProject, pause } from './ci-server.mjs'
 import { baselineSummary, commitSha, scannerEnvironment, ciOutcome, validateCoverageMetadata } from './ci-policy.mjs'
 import { client, exportReport } from './export.mjs'
 import { compareFindings } from './ledger.mjs'
+import { coverageDiagnostics } from './ci-coverage-diagnostics.mjs'
 import { newCodeDiagnostics } from './ci-new-code.mjs'
 import { assertConfiguration, materializeBaseConfiguration, verifyScannerContext } from './ci-config.mjs'
 
@@ -77,7 +78,7 @@ export async function run({ root = resolve(fileURLToPath(new URL('../..', import
   const output = mkdtempSync(join(tmpdir(), 'nodeaccess-sonar-ci-'))
   const publicOutput = join(root, 'coverage/sonar-ci-summary.json')
   let instance, baseRoot
-  const summary = { schemaVersion: 1, base, head, baseline, startedAt: new Date().toISOString(), passed: false, failures: [] }
+  const summary = { schemaVersion: 1, base, head, baseline, startedAt: new Date().toISOString(), passed: false, failures: [], phase: 'coverage' }
   try {
     // Collect coverage before starting Elasticsearch. A failed coverage gate remains
     // a final failure, but must not silently skip the real scanner if data is valid.
@@ -86,8 +87,10 @@ export async function run({ root = resolve(fileURLToPath(new URL('../..', import
     const npm = process.env.npm_execpath || resolve(process.execPath, '..', '..', 'lib/node_modules/npm/bin/npm-cli.js')
     const coverageStarted = Date.now()
     summary.coverageExit = execute(root, [npm, 'run', 'test:coverage', '--', '--base', base], scannerEnvironment(process.env, '', ''), join(output, 'coverage.log'))
+    summary.coverageDiagnostics = coverageDiagnostics(root)
     const lcovPath = join(root, 'coverage/lcov.info')
-    if (!statSync(lcovPath).isFile() || !statSync(lcovPath).size) throw new Error('CI_FRESH_LCOV_REQUIRED')
+    if (summary.coverageDiagnostics.artifacts.lcov !== 'present') throw new Error('CI_FRESH_LCOV_REQUIRED')
+    summary.phase = 'coverage_validation'
     const coverage = JSON.parse(readFileSync(join(root, 'coverage/summary.json'), 'utf8'))
     const coveragePassed = validateCoverageMetadata(coverage, { base, head, started: coverageStarted, fingerprint: await fingerprint(root) })
     if (git(root, ['status', '--porcelain', '--untracked-files=no'])) throw new Error('CI_SOURCE_CHANGED_DURING_COVERAGE')
@@ -96,6 +99,7 @@ export async function run({ root = resolve(fileURLToPath(new URL('../..', import
     const diffCoveragePassed = summary.newCoverage.status === 'passed' && summary.newCoverage.threshold === 80
       && summary.newCoverage.base === base && summary.newCoverage.head === head && summary.newCoverage.includesWorkingTree === false
     summary.coverage = { legacy: coverage.legacy, global: coverage.global, inventory: coverage.inventory }
+    summary.phase = 'server'
     instance = await start()
     const tokens = await configure(instance)
     summary.privateProjectVerified = true
@@ -114,14 +118,17 @@ export async function run({ root = resolve(fileURLToPath(new URL('../..', import
         || JSON.stringify(evidence.effectiveProperties) !== JSON.stringify(configuration.properties)) throw new Error('CI_EFFECTIVE_SETTINGS_NOT_VERIFIED')
       return analysis
     }
+    summary.phase = 'base_analysis'
     summary.baseAnalysisId = await scanSnapshot(baseRoot, configuration.baseSettings, base, 'base')
     await instance.admin('/api/new_code_periods/set', { project: 'nodeaccess', type: 'SPECIFIC_ANALYSIS', value: summary.baseAnalysisId })
+    summary.phase = 'head_analysis'
     summary.headAnalysisId = await scanSnapshot(root, configuration.settings, head, 'head')
     if (git(root, ['rev-parse', 'HEAD']) !== head || await fingerprint(root) !== coverage.sourceFingerprint
       || git(root, ['status', '--porcelain', '--untracked-files=no'])) throw new Error('CI_SOURCE_CHANGED_DURING_ANALYSIS')
     const request = readClient({ server: instance.server, token: tokens.review })
     const latest = async () => (await request('/api/project_analyses/search', { project: 'nodeaccess', ps: 1 })).analyses?.[0]?.key
     if (await latest() !== summary.headAnalysisId || summary.headAnalysisId === summary.baseAnalysisId) throw new Error('CI_HEAD_ANALYSIS_NOT_CURRENT')
+    summary.phase = 'export'
     const exported = await exportFindings({ server: instance.server, token: tokens.review, outputRoot: output })
     const issues = JSON.parse(readFileSync(join(exported.output, 'issues.json'), 'utf8')).issues
     summary.gate = JSON.parse(readFileSync(join(exported.output, 'quality-gate.json'), 'utf8')).projectStatus
@@ -134,6 +141,7 @@ export async function run({ root = resolve(fileURLToPath(new URL('../..', import
     const comparison = compareFindings(issues, JSON.parse(baselineText))
     summary.comparison = { ...comparison, unexpected: comparison.unexpected.map(({ rule, file, line }) => ({ rule, file, line })) }
     summary.hotspotsToReview = hotspots.filter(h => h.status !== 'REVIEWED' || !['SAFE', 'FIXED'].includes(h.resolution)).length
+    summary.phase = 'gates'
     Object.assign(summary, ciOutcome({ coverageExit: summary.coverageExit, diffCoveragePassed, comparison,
       gate: summary.gate, analysisVerified: true, hotspotsToReview: summary.hotspotsToReview }))
   } catch (error) {

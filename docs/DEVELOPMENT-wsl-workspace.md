@@ -16,7 +16,13 @@ maiúsculas de minúsculas. A migração retirou o trabalho ativo do disco `/mnt
 | Pasta antiga `NodeAccess` no OneDrive | Cópia anterior preservada; não é o checkout ativo. |
 
 `nodeaccess-workspace` não é uma segunda cópia do código. Seu comando `bin/dev`
-entra na `NodeAccess-current` e seleciona Node 24.21.0/npm 11.12.1 para o processo.
+entra na `NodeAccess-current` e seleciona o toolchain configurado na pasta de suporte.
+Para a rotina atual, use **Node 24.22.1 e npm 12.2.1**, alinhados aos pins do CI e à
+`.nvmrc`. Node 24.22.1 é uma [release de segurança oficial](https://nodejs.org/en/blog/release/v24.22.1/).
+O launcher externo não é atualizado automaticamente por este repositório: confira
+`node -v` e `npm -v` antes das validações e ajuste a seleção local quando necessário.
+O intervalo em `engines` e as guardas de versão representam compatibilidade funcional;
+não substituem os pins corrigidos da rotina de segurança.
 O arquivo `NodeAccess.code-workspace` abre o ambiente no VS Code.
 Não remova o checkout histórico Linux: a `current` é um worktree e depende dos
 metadados Git dele. Não remova a pasta de suporte: isso afetaria launcher e backup.

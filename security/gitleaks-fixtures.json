@@ -293,22 +293,22 @@
       "path": ".github/workflows/manual-pilot.yml",
       "rule": "generic-api-key",
       "line": 23,
-      "fileSha256": "02b31296f54f5a7909b6245f54433f6b324fafe645f3f53a3d211cc6a80ada68",
-      "reason": "Constante sintética de 64 dígitos hexadecimais usada somente pelo job de captura manual em ambiente CI; não é obtida de secret nem credencial de ambiente implantado. Revalidado na integração NA-0093: somente bootstrap npm12.2.1 acrescentado; constante e linha preservadas."
+      "fileSha256": "2ff86a9faac1a7f481c553dd264a6863def9e07127104ecf9d4d5cb19ace4a05",
+      "reason": "Constante sintética de 64 dígitos hexadecimais usada somente pelo job de captura manual em ambiente CI; não é obtida de secret nem credencial de ambiente implantado. Revalidado na integração NA-0093: somente bootstrap npm12.2.1 acrescentado; constante e linha preservadas. Revalidado após NA-0137: somente pin Node24.21.0 para24.22.1; constante e linha preservadas."
     },
     {
       "path": ".github/workflows/quality-gate.yml",
       "rule": "generic-api-key",
       "line": 13,
-      "fileSha256": "2608ae5653fa437144615b07649bf2458c25956843f1165029da4705c2327789",
-      "reason": "Constante sintética de criptografia para testes/build do quality gate; valor de exemplo público, sem vínculo com chaves PEM ou dados de produção. Revalidado na integração NA-0093: somente bootstrap npm12.2.1 acrescentado; constante e linha preservadas."
+      "fileSha256": "056d3ddb2b74d1b3531eaaf3c7edc03add77cb6b0b05fd303252f2042e59627b",
+      "reason": "Constante sintética de criptografia para testes/build do quality gate; valor de exemplo público, sem vínculo com chaves PEM ou dados de produção. Revalidado na integração NA-0093: somente bootstrap npm12.2.1 acrescentado; constante e linha preservadas. Revalidado após NA-0137: somente pin Node24.21.0 para24.22.1; constante e linha preservadas."
     },
     {
       "path": ".github/workflows/sonarqube.yml",
       "rule": "generic-api-key",
       "line": 30,
-      "fileSha256": "47b72a951cf1e3b54d7013c7d94487ea9616444b59bf83c624b54ef0a7e2988d",
-      "reason": "Constante sintética PEM de teste no job Sonar efêmero; sem acesso a dados de produção; tokens reais do scanner são gerados separadamente em runtime. Revalidado na integração NA-0093: somente bootstrap npm12.2.1 acrescentado; constante e linha preservadas."
+      "fileSha256": "2c467b213511331a00d64539393a58374193e253382ac5a8d65595f91c1d428a",
+      "reason": "Constante sintética PEM de teste no job Sonar efêmero; sem acesso a dados de produção; tokens reais do scanner são gerados separadamente em runtime. Revalidado na integração NA-0093: somente bootstrap npm12.2.1 acrescentado; constante e linha preservadas. Revalidado após NA-0137: somente pin Node24.21.0 para24.22.1; constante e linha preservadas."
     },
     {
       "path": "apps/backend/src/modules/network-access/network-access.service.test.ts",

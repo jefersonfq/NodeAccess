@@ -1,6 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import http from 'node:http'
+import { chromium } from 'playwright'
 import { mkdtempSync, mkdirSync, existsSync, symlinkSync, chmodSync, writeFileSync, readFileSync, rmSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
@@ -138,4 +139,32 @@ for (const segment of ['coverage', 'coverage/browser']) test(`refuses symlinked 
   assert.equal(statSync(outside).mode & 0o777, 0o755)
   assert.equal(readFileSync(join(outside, 'chromium-v8/preserve'), 'utf8'), 'unchanged')
   if (segment === 'coverage') assert.equal(existsSync(join(outside, 'browser')), false)
+})
+
+for (const override of [undefined, '', '/explicit/chromium']) test(`all five children share ${override ? 'explicit' : 'managed'} Chromium without a system fallback`, async t => {
+  const root = fixture(t), vite = fakeVite(), paths = []
+  const expected = override || chromium.executablePath()
+  const result = await collectBrowserCoverage({ root, env: { PLAYWRIGHT_EXECUTABLE_PATH: override, CHROMIUM_PATH: '/conflicting/system-browser' }, create: vite.create,
+    execute: async (_root, _script, env) => {
+      assert.equal(env.PLAYWRIGHT_EXECUTABLE_PATH, expected)
+      assert.equal(env.CHROMIUM_PATH, expected)
+      paths.push(expected)
+      return { exitCode: 0, timedOut: false }
+    } })
+  assert.equal(result.status, 'passed', result.error)
+  assert.equal(paths.length, 5); assert.equal(vite.closed, true)
+})
+
+test('missing explicit browser stays explicit and failure cannot fall back to another executable', async t => {
+  const root = fixture(t), vite = fakeVite(), missing = join(root, 'missing-chromium')
+  let attempted = false
+  const result = await collectBrowserCoverage({ root, env: { PLAYWRIGHT_EXECUTABLE_PATH: missing }, create: vite.create,
+    execute: async (_root, _script, env) => {
+      assert.equal(env.PLAYWRIGHT_EXECUTABLE_PATH, missing); assert.equal(env.CHROMIUM_PATH, missing)
+      attempted = true
+      await assert.rejects(chromium.launch({ headless: true, executablePath: env.PLAYWRIGHT_EXECUTABLE_PATH }), /executable doesn't exist/)
+      return { exitCode: 1, timedOut: false }
+    } })
+  assert.equal(attempted, true); assert.equal(result.status, 'failed'); assert.equal(vite.closed, true)
+  assert.equal(result.harnesses.length, 1); assert.equal(result.harnesses[0].exitCode, 1)
 })

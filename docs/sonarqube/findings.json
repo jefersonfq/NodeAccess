@@ -10034,7 +10034,7 @@
       "domain": "Ferramentas",
       "signature": "e559e8a25fa5298c1480667afef97586f7cc19bd39c4b1df1939370905d12418",
       "status": "fixed",
-      "observed": "present",
+      "observed": "absent",
       "rationale": "NA-0132: scanner executado por process.execPath com npm-cli.js absoluto validado por realpath e arquivo regular; npm_execpath explícito ou layout padrão junto ao Node, sem resolução do executável via PATH. Pin, argumentos e token somente no ambiente preservados.",
       "evidence": [
         "tools/sonarqube/analyze-executable.test.mjs: execução real com CLI sintético e PATH envenenado, argumentos/ambiente/códigos de saída e negativos",
@@ -10718,6 +10718,151 @@
       "branch": "fix/NA-0125-20261103-private-flow-artifacts",
       "risk": "Override precisa ser diretório privado sob pai confiável; não promete proteção anti-race contra processo do mesmo UID.",
       "url": "http://localhost:9000/project/issues?id=nodeaccess&issues=e56f6cf5-7540-422b-88a0-6b198cdf4e3e"
+    },
+    {
+      "issueId": "df87f86b-f70b-41c4-bcc2-12fd403ac59b",
+      "id": "SQ-0552",
+      "rule": "javascript:S2699",
+      "type": "CODE_SMELL",
+      "severity": "BLOCKER",
+      "file": "scripts/dependency-patches/dependency-compatibility.test.cjs",
+      "baselineLine": 22,
+      "domain": "Ferramentas",
+      "signature": "ff1d50a657e0ddb7d073d431554eb21d850686a3174bddebb24b4cca030df44b",
+      "status": "fixed",
+      "observed": "present",
+      "rationale": "Processo filho emite resultados reais estruturados; pai verifica match adversarial negativo.",
+      "evidence": [
+        "scripts/dependency-patches/dependency-compatibility.test.cjs"
+      ],
+      "branch": "fix/NA-0133-20261103-sonar-callback-contracts",
+      "risk": "Baixo; sem mudança de política ou baseline. Ausência no próximo scanner ainda pendente.",
+      "url": "http://localhost:9000/project/issues?id=nodeaccess&issues=df87f86b-f70b-41c4-bcc2-12fd403ac59b"
+    },
+    {
+      "issueId": "a06d35f0-098d-4904-8f6c-9997a3a98667",
+      "id": "SQ-0553",
+      "rule": "javascript:S2699",
+      "type": "CODE_SMELL",
+      "severity": "BLOCKER",
+      "file": "scripts/dependency-patches/dependency-compatibility.test.cjs",
+      "baselineLine": 63,
+      "domain": "Ferramentas",
+      "signature": "a7e4b6778f6c379c63bfb1ba893cd1a9329584264da4d3dcdb08aac13107075b",
+      "status": "fixed",
+      "observed": "present",
+      "rationale": "Processo filho emite resultados reais estruturados; pai verifica erro string.email para whitespace e aceitação dos dois separadores válidos.",
+      "evidence": [
+        "scripts/dependency-patches/dependency-compatibility.test.cjs"
+      ],
+      "branch": "fix/NA-0133-20261103-sonar-callback-contracts",
+      "risk": "Baixo; sem mudança de política ou baseline. Ausência no próximo scanner ainda pendente.",
+      "url": "http://localhost:9000/project/issues?id=nodeaccess&issues=a06d35f0-098d-4904-8f6c-9997a3a98667"
+    },
+    {
+      "issueId": "5c7ea042-6889-44a3-89f6-048014debaf8",
+      "id": "SQ-0554",
+      "rule": "javascript:S7727",
+      "type": "BUG",
+      "severity": "MAJOR",
+      "file": "tools/frontend/sonar-frontend-review.cjs",
+      "baselineLine": 141,
+      "domain": "Ferramentas",
+      "signature": "c9316396aed6a1f85882c0f05ec13babd40d9ccd35f944d6bea86bf04ca457af",
+      "status": "fixed",
+      "observed": "present",
+      "rationale": "Callback unário explícito impede map de fornecer índice/array ao helper; transformação de identidade preservada.",
+      "evidence": [
+        "tools/sonarqube/issue-id.test.mjs",
+        "tools/sonarqube/ledger.test.mjs"
+      ],
+      "branch": "fix/NA-0133-20261103-sonar-callback-contracts",
+      "risk": "Baixo; sem mudança de política ou baseline. Ausência no próximo scanner ainda pendente.",
+      "url": "http://localhost:9000/project/issues?id=nodeaccess&issues=5c7ea042-6889-44a3-89f6-048014debaf8"
+    },
+    {
+      "issueId": "703e5ff5-2b52-47b0-ac37-93c63e7f2f95",
+      "id": "SQ-0555",
+      "rule": "javascript:S7727",
+      "type": "BUG",
+      "severity": "MAJOR",
+      "file": "tools/frontend/sonar-frontend-review.cjs",
+      "baselineLine": 141,
+      "domain": "Ferramentas",
+      "signature": "c9316396aed6a1f85882c0f05ec13babd40d9ccd35f944d6bea86bf04ca457af",
+      "status": "fixed",
+      "observed": "present",
+      "rationale": "Callback unário explícito impede map de fornecer índice/array ao helper; transformação de identidade preservada.",
+      "evidence": [
+        "tools/sonarqube/issue-id.test.mjs",
+        "tools/sonarqube/ledger.test.mjs"
+      ],
+      "branch": "fix/NA-0133-20261103-sonar-callback-contracts",
+      "risk": "Baixo; sem mudança de política ou baseline. Ausência no próximo scanner ainda pendente.",
+      "url": "http://localhost:9000/project/issues?id=nodeaccess&issues=703e5ff5-2b52-47b0-ac37-93c63e7f2f95"
+    },
+    {
+      "issueId": "760d5d10-de20-4639-ad4a-34a16695cf29",
+      "id": "SQ-0556",
+      "rule": "javascript:S7727",
+      "type": "BUG",
+      "severity": "MAJOR",
+      "file": "tools/sonarqube/ledger.mjs",
+      "baselineLine": 31,
+      "domain": "Ferramentas",
+      "signature": "c303aac94670470cc275144e2ade96c331ce06d0d15ae858ec025bcc373d1624",
+      "status": "fixed",
+      "observed": "present",
+      "rationale": "Callback unário explícito impede map de fornecer índice/array ao helper; transformação de identidade preservada.",
+      "evidence": [
+        "tools/sonarqube/issue-id.test.mjs",
+        "tools/sonarqube/ledger.test.mjs"
+      ],
+      "branch": "fix/NA-0133-20261103-sonar-callback-contracts",
+      "risk": "Baixo; sem mudança de política ou baseline. Ausência no próximo scanner ainda pendente.",
+      "url": "http://localhost:9000/project/issues?id=nodeaccess&issues=760d5d10-de20-4639-ad4a-34a16695cf29"
+    },
+    {
+      "issueId": "9c38f80e-1b06-41df-8e31-6766e34fc402",
+      "id": "SQ-0557",
+      "rule": "javascript:S7727",
+      "type": "BUG",
+      "severity": "MAJOR",
+      "file": "tools/sonarqube/ledger.mjs",
+      "baselineLine": 108,
+      "domain": "Ferramentas",
+      "signature": "a76db499001b3926c50ac7e6a0628a69f6a88c9e8686c4f7c6ea4a4a1462bdaa",
+      "status": "fixed",
+      "observed": "present",
+      "rationale": "Callback unário explícito impede map de fornecer índice/array ao helper; transformação de identidade preservada.",
+      "evidence": [
+        "tools/sonarqube/issue-id.test.mjs",
+        "tools/sonarqube/ledger.test.mjs"
+      ],
+      "branch": "fix/NA-0133-20261103-sonar-callback-contracts",
+      "risk": "Baixo; sem mudança de política ou baseline. Ausência no próximo scanner ainda pendente.",
+      "url": "http://localhost:9000/project/issues?id=nodeaccess&issues=9c38f80e-1b06-41df-8e31-6766e34fc402"
+    },
+    {
+      "issueId": "77db9af1-009d-4922-abcf-ac54be868728",
+      "id": "SQ-0558",
+      "rule": "javascript:S7727",
+      "type": "BUG",
+      "severity": "MAJOR",
+      "file": "tools/sonarqube/ledger.mjs",
+      "baselineLine": 109,
+      "domain": "Ferramentas",
+      "signature": "b76ce537ddad09715b785c38dee8e6dc7a33439bd67062d16372a09046007d00",
+      "status": "fixed",
+      "observed": "present",
+      "rationale": "Callback unário explícito impede map de fornecer índice/array ao helper; transformação de identidade preservada.",
+      "evidence": [
+        "tools/sonarqube/issue-id.test.mjs",
+        "tools/sonarqube/ledger.test.mjs"
+      ],
+      "branch": "fix/NA-0133-20261103-sonar-callback-contracts",
+      "risk": "Baixo; sem mudança de política ou baseline. Ausência no próximo scanner ainda pendente.",
+      "url": "http://localhost:9000/project/issues?id=nodeaccess&issues=77db9af1-009d-4922-abcf-ac54be868728"
     }
   ]
 }

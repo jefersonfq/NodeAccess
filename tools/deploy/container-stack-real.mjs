@@ -160,7 +160,7 @@ try {
     await rejectedSocket(base, 'invalid-credential')
   }
   assert.equal(docker(['exec', k8s, 'id', '-u']), '101')
-  assert.match(docker(['run', '--rm', '--entrypoint', 'node', images.tls, '--version']), /^v24\.21\.0$/)
+  assert.match(docker(['run', '--rm', '--entrypoint', 'node', images.tls, '--version']), /^v24\.22\.1$/)
   report.checks.push('Nginx HTTPS and non-root Kubernetes: trusted TLS, SPA/assets, headers, cache, real WS upgrade/rejection; TLS worker Node 24')
   const base = bases[0]
   const loginBody = { email: users[0].email, password, tenantSlug: tenants[0].slug }

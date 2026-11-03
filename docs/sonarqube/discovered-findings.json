@@ -162,6 +162,69 @@
       "hash": "69499e3c7bc3c1d9254b8081a43dff45",
       "severity": "CRITICAL",
       "type": "VULNERABILITY"
+    },
+    {
+      "issueId": "df87f86b-f70b-41c4-bcc2-12fd403ac59b",
+      "rule": "javascript:S2699",
+      "component": "nodeaccess:scripts/dependency-patches/dependency-compatibility.test.cjs",
+      "line": 22,
+      "hash": "c2d8489b084fb70ca461870a8b274d0c",
+      "severity": "BLOCKER",
+      "type": "CODE_SMELL"
+    },
+    {
+      "issueId": "a06d35f0-098d-4904-8f6c-9997a3a98667",
+      "rule": "javascript:S2699",
+      "component": "nodeaccess:scripts/dependency-patches/dependency-compatibility.test.cjs",
+      "line": 63,
+      "hash": "13b61d623675f60687269907bff74be6",
+      "severity": "BLOCKER",
+      "type": "CODE_SMELL"
+    },
+    {
+      "issueId": "5c7ea042-6889-44a3-89f6-048014debaf8",
+      "rule": "javascript:S7727",
+      "component": "nodeaccess:tools/frontend/sonar-frontend-review.cjs",
+      "line": 141,
+      "hash": "57bdb4b51c9ee3dedfe3312b6761d877",
+      "severity": "MAJOR",
+      "type": "BUG"
+    },
+    {
+      "issueId": "703e5ff5-2b52-47b0-ac37-93c63e7f2f95",
+      "rule": "javascript:S7727",
+      "component": "nodeaccess:tools/frontend/sonar-frontend-review.cjs",
+      "line": 141,
+      "hash": "57bdb4b51c9ee3dedfe3312b6761d877",
+      "severity": "MAJOR",
+      "type": "BUG"
+    },
+    {
+      "issueId": "760d5d10-de20-4639-ad4a-34a16695cf29",
+      "rule": "javascript:S7727",
+      "component": "nodeaccess:tools/sonarqube/ledger.mjs",
+      "line": 31,
+      "hash": "379d4bcf32123246ad1a87dd46c4e3dc",
+      "severity": "MAJOR",
+      "type": "BUG"
+    },
+    {
+      "issueId": "9c38f80e-1b06-41df-8e31-6766e34fc402",
+      "rule": "javascript:S7727",
+      "component": "nodeaccess:tools/sonarqube/ledger.mjs",
+      "line": 108,
+      "hash": "af6f0f49316bd1de97598b03bf17285d",
+      "severity": "MAJOR",
+      "type": "BUG"
+    },
+    {
+      "issueId": "77db9af1-009d-4922-abcf-ac54be868728",
+      "rule": "javascript:S7727",
+      "component": "nodeaccess:tools/sonarqube/ledger.mjs",
+      "line": 109,
+      "hash": "58ae610dd0b65bf971b73f76579b7702",
+      "severity": "MAJOR",
+      "type": "BUG"
     }
   ]
 }

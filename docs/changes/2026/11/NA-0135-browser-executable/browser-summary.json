@@ -1,0 +1,37 @@
+{
+  "status": "passed",
+  "captureRunId": "2c7388cb-5f8d-4fbd-bf61-515a89e625d2",
+  "startedAt": "2026-11-03T22:57:38.848Z",
+  "kind": "real Chromium; Node and mapped browser coverage are collected separately",
+  "harnesses": [
+    {
+      "name": "frontend",
+      "exitCode": 0,
+      "timedOut": false
+    },
+    {
+      "name": "table",
+      "exitCode": 0,
+      "timedOut": false
+    },
+    {
+      "name": "terminal",
+      "exitCode": 0,
+      "timedOut": false
+    },
+    {
+      "name": "platform",
+      "exitCode": 0,
+      "timedOut": false
+    },
+    {
+      "name": "flows",
+      "exitCode": 0,
+      "timedOut": false
+    }
+  ],
+  "origin": "http://127.0.0.1:39019",
+  "finishedAt": "2026-11-03T23:00:14.586Z",
+  "executableOverride": "/root/.cache/ms-playwright/chromium-1234/chrome-linux64/chrome",
+  "limitation": "Real run used explicit local Chromium1234; managed1248 propagation tested by contracts, actual managed install requires integrated CI rerun."
+}

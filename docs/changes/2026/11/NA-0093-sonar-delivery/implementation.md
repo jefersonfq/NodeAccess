@@ -142,3 +142,23 @@ Integrado NA-0132 3cec780ef: execução do scanner usa Node atual e CLI npm abso
 Revisão integrada independente verificou igualdade dos patches aprovados,17jobs/npm12,2COPY de hooks Docker,3fixtures exatas e551IDs únicos. Homologação humana não inferida. Próximo passo: concluir análise estática/segredos, registrar checkpointNA-0093 e executar cobertura e scanner no SHA congelado; atualizar PR somente com resultados e limitações reais.
 
 Ran antes do checkpoint: Gitleaks47/47fixtures exatas e zero pendentes; Semgrep863alvos/zeroachados/zeroerros, governança e diffcheck PASS. Cobertura/scanner/CI do próximo SHA permanecem Planned.
+
+### 2026-11-03T19:52:21-03:00 — Resultado integrado do candidato publicado
+
+Candidato b76faaec6031f3ebed1372a65dcede08f930cde0 COMMITTED/PUSHED/PR_OPEN (#59draft); merge e sincronização pendentes. Ran neste SHA:3.456Vitest PASS/125opt-in ignorados;443Node PASS/2ignorados; cinco harnesses Chromium PASS. Diff entre commits, sem working tree:81,067% (4.663/5.752 unidades), serviços73,15/70,28/64,37 PASS. Inventário1.008fontes sem ausentes. Global informativo27,22%linhas/19,13%funções/29,09%branches. Quatro capturas revisadas independentemente PASS_WITH_WARNINGS; cópias e limites em evidence/b76faaec6/visual-review.md no docs canônico.
+
+Scanner verificado: cobertura nova80,8% PASS, duplicação0,06372% PASS, S4036 corrigida confirmada; gate FAIL por sete novos achados (cinco S7727 callbacks map e dois S2699 em testes que verificam resultados no filho). Sem waiver/baseline alterada; NA-0133 corrige e fortalece contratos. Catálogo canônico atualizado:558ocorrências,551decisões e7pendentes. PR atualizada com FAIL real, permanece draft. GitHub dependências jáPASS; demais checks em andamento. Próximo passo: integrar correções revisadas e repetir gates no novo SHA.
+
+### 2026-11-03T20:28:26-03:00 — Correções finais integradas e runtime de manutenção atualizado
+
+Integradas como patches NA-0133 (3959c5123), NA-0134 (bf5fb564b), NA-0135 (76d40bb97), NA-0136 (613abdbc6) e NA-0137 (7db1e3aea), preservando branches recuperáveis. Corrigidos sete achados Sonar, diagnóstico sanitizado de falha da cobertura, seleção consistente do Chromium e vulnerabilidades Node com versão24.22.1 por digest. Causa interna histórica do coverageExit1 no CI anterior não é demonstrável porque o log bruto foi removido; divergência do navegador foi reproduzida por contratos e corrigida, aguardando execução hospedada real.
+
+Ran na integração WIP com Node24.22.1/npm12.2.1:201contratos PASS, build e typecheck PASS, auditoria npm de todas as dependências zero vulnerabilidades eSBOM PASS, Gitleaks47fixtures exatas/zero pendentes eSemgrep864alvos/zeroachados/zeroerros. Bundle UI1001,32kB/gzip284,24 igual ao build hospedado de referência com Vite7.3.7; aviso950kB permanece. Revisões independentes por frente concluídas; revisão integrada final em andamento. Catálogo558decisões:264correções e294revisões contextuais; sete correções aguardam observação pela nova análise, sem alterar baseline aceita.
+
+Ran na origem NA-0136: imagens backend/TLS zero High/Critical; três Medium backend são CVE-2025-60876 nos pacotes busybox/busybox-binsh/ssl_client. Após prune glob14.0.2/minimatch11.0.1 preservados; axios/follow-redirects/joi ausentes. Stack real descartável, SSH/PTY/SFTP, TLS/ACME, recuperação Redis e shutdown PASS. Detalhes e limites no documento da frente; não equivalem a deploy na VPS.
+
+Runtime do bundle de manutenção atualizado para24.22.1, cron03:20 preservado e release anterior retida. Ran backup real backup-2026-11-03T23-11-27.818Z-626be0e9-1a42-4332-92c5-6e8bcd2ba176 PASS; renewalDue=false, revoked=0, remaining=2, currentScopesVerified=true. Respeitada sobreposição mínima48h; restauração anterior PASS, repetição no runtime novo Planned. Nenhum ajuste persistente de kernel.
+
+Próximo passo: congelar novo checkpoint NA-0093 e executar cobertura/scanner e CI no SHA exato. Chromium local1234 é override explícito devido ao WSL20; execução1248 real depende do CI. PR59 permanece draft; homologação humana e autorização específica para adicionar sonar-real como check obrigatório ainda Manual. LOCAL_WIP sim, COMMITTED/PUSHED/PR_OPEN no candidato b76; MERGED/MASTER_SYNCED pendentes.
+
+Revisão integrada independente final PASS_WITH_WARNINGS:15fontes e workflows conferidos contra as origens, três fixtures com hash/linha/constante exatos, baseline e gates inalterados,558IDs únicos. Revisão somente leitura; não substitui cobertura/scanner/CI do próximo SHA.

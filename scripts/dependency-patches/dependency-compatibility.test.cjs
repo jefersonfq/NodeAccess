@@ -20,7 +20,8 @@ test('minimatch named/class APIs match expected Vue/TS/ESLint path patterns', ()
  ]) { assert.equal(minimatch(path,pattern,options),expected); assert.equal(new Minimatch(pattern,options).match(path),expected) }
 })
 test('minimatch adversarial preprocessing stays bounded with unchanged basic negative', () => {
- execFileSync(process.execPath,['-e',`const assert=require('node:assert/strict'); const {minimatch}=require('minimatch');assert.equal(minimatch('safe-file','**/../'.repeat(100)+'missing',{optimizationLevel:2}),false)`],{cwd:process.cwd(),timeout:3000,stdio:'pipe'})
+ const output = execFileSync(process.execPath,['-e',`const {minimatch}=require('minimatch');process.stdout.write(JSON.stringify({matched:minimatch('safe-file','**/../'.repeat(100)+'missing',{optimizationLevel:2})}))`],{cwd:process.cwd(),timeout:3000,stdio:'pipe',encoding:'utf8'})
+ assert.deepEqual(JSON.parse(output), {matched:false})
 })
 test('glob discovery and already-aborted traversal preserve filesystem and avoid reads', async () => {
  const { glob } = req('glob'), root = mkdtempSync(join(tmpdir(),'na0128-glob-'))
@@ -61,5 +62,6 @@ test('follow-redirects strips cross-realm sensitive header and retains harmless 
  } finally { await close(origin);await close(destination) }
 })
 test('Joi email multiple handles large whitespace and preserves valid/custom separator cases', () => {
- execFileSync(process.execPath,['-e',`const assert=require('node:assert/strict'),Joi=require('joi'),schema=Joi.string().email({multiple:true,tlds:{allow:false}});assert.ok(schema.validate(' '.repeat(200000)).error);assert.equal(schema.validate('a@example.test, b@example.test').error,undefined);assert.equal(Joi.string().email({multiple:true,separator:';',tlds:{allow:false}}).validate('a@example.test; b@example.test').error,undefined)`],{cwd:process.cwd(),timeout:3000,stdio:'pipe'})
+ const output = execFileSync(process.execPath,['-e',`const Joi=require('joi'),schema=Joi.string().email({multiple:true,tlds:{allow:false}});process.stdout.write(JSON.stringify({whitespaceError:schema.validate(' '.repeat(200000)).error?.details[0].type,commaValid:schema.validate('a@example.test, b@example.test').error===undefined,semicolonValid:Joi.string().email({multiple:true,separator:';',tlds:{allow:false}}).validate('a@example.test; b@example.test').error===undefined}))`],{cwd:process.cwd(),timeout:3000,stdio:'pipe',encoding:'utf8'})
+ assert.deepEqual(JSON.parse(output), {whitespaceError:'string.email',commaValid:true,semicolonValid:true})
 })

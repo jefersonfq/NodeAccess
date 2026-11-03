@@ -28,7 +28,7 @@ export function compareFindings(issues, accepted) {
     absentReviewedOccurrences: [...allowances.values()].reduce((a, b) => a + b, 0) }
 }
 export function discoverFindings(original, current = [], previous = []) {
-  previous = previous.map(readIssue)
+  previous = previous.map(issue => readIssue(issue))
   const known = new Set(original.map(i => i.key))
   const rows = []
   const fresh = [...current].sort((a, b) => a.component.localeCompare(b.component) || (a.line ?? 0) - (b.line ?? 0) || a.key.localeCompare(b.key))
@@ -105,8 +105,8 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
   const discovered = discoverFindings(issues, current ?? [], previous)
   const rows = catalog(issues, decisions, current, discovered)
   mkdirSync(output, { recursive: true })
-  writeFileSync(discoveredPath, JSON.stringify({ schemaVersion: 1, issues: discovered.map(publicIssue) }, null, 2)+'\n')
-  writeFileSync(join(output, 'findings.json'), JSON.stringify({ schemaVersion: 1, baselineCount: issues.length, findings: rows.map(publicIssue) }, null, 2)+'\n')
+  writeFileSync(discoveredPath, JSON.stringify({ schemaVersion: 1, issues: discovered.map(issue => publicIssue(issue)) }, null, 2)+'\n')
+  writeFileSync(join(output, 'findings.json'), JSON.stringify({ schemaVersion: 1, baselineCount: issues.length, findings: rows.map(issue => publicIssue(issue)) }, null, 2)+'\n')
   writeFileSync(join(output, 'findings.csv'), csv(rows)); writeFileSync(join(output, 'findings.html'), html(rows))
   console.log(JSON.stringify({ rows: rows.length, reviewed: rows.filter(r => r.status !== 'pending').length }))
 }

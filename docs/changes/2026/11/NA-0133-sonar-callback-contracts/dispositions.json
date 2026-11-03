@@ -1,0 +1,119 @@
+[
+  {
+    "issueId": "df87f86b-f70b-41c4-bcc2-12fd403ac59b",
+    "rule": "javascript:S2699",
+    "file": "scripts/dependency-patches/dependency-compatibility.test.cjs",
+    "baselineLine": 22,
+    "status": "fixed",
+    "rationale": "Processo filho emite resultados reais estruturados; pai verifica match adversarial negativo.",
+    "evidence": [
+      "scripts/dependency-patches/dependency-compatibility.test.cjs"
+    ],
+    "source": {
+      "analysisCommit": "b76faaec6031f3ebed1372a65dcede08f930cde0",
+      "validationArtifact": "validation-1793745661421-5c145afe-ea93-49da-8f3c-efd0dc922afa"
+    },
+    "risk": "Baixo; sem mudança de política ou baseline. Ausência no próximo scanner ainda pendente."
+  },
+  {
+    "issueId": "a06d35f0-098d-4904-8f6c-9997a3a98667",
+    "rule": "javascript:S2699",
+    "file": "scripts/dependency-patches/dependency-compatibility.test.cjs",
+    "baselineLine": 63,
+    "status": "fixed",
+    "rationale": "Processo filho emite resultados reais estruturados; pai verifica erro string.email para whitespace e aceitação dos dois separadores válidos.",
+    "evidence": [
+      "scripts/dependency-patches/dependency-compatibility.test.cjs"
+    ],
+    "source": {
+      "analysisCommit": "b76faaec6031f3ebed1372a65dcede08f930cde0",
+      "validationArtifact": "validation-1793745661421-5c145afe-ea93-49da-8f3c-efd0dc922afa"
+    },
+    "risk": "Baixo; sem mudança de política ou baseline. Ausência no próximo scanner ainda pendente."
+  },
+  {
+    "issueId": "5c7ea042-6889-44a3-89f6-048014debaf8",
+    "rule": "javascript:S7727",
+    "file": "tools/frontend/sonar-frontend-review.cjs",
+    "baselineLine": 141,
+    "status": "fixed",
+    "rationale": "Callback unário explícito impede map de fornecer índice/array ao helper; transformação de identidade preservada.",
+    "evidence": [
+      "tools/sonarqube/issue-id.test.mjs",
+      "tools/sonarqube/ledger.test.mjs"
+    ],
+    "source": {
+      "analysisCommit": "b76faaec6031f3ebed1372a65dcede08f930cde0",
+      "validationArtifact": "validation-1793745661421-5c145afe-ea93-49da-8f3c-efd0dc922afa"
+    },
+    "risk": "Baixo; sem mudança de política ou baseline. Ausência no próximo scanner ainda pendente."
+  },
+  {
+    "issueId": "703e5ff5-2b52-47b0-ac37-93c63e7f2f95",
+    "rule": "javascript:S7727",
+    "file": "tools/frontend/sonar-frontend-review.cjs",
+    "baselineLine": 141,
+    "status": "fixed",
+    "rationale": "Callback unário explícito impede map de fornecer índice/array ao helper; transformação de identidade preservada.",
+    "evidence": [
+      "tools/sonarqube/issue-id.test.mjs",
+      "tools/sonarqube/ledger.test.mjs"
+    ],
+    "source": {
+      "analysisCommit": "b76faaec6031f3ebed1372a65dcede08f930cde0",
+      "validationArtifact": "validation-1793745661421-5c145afe-ea93-49da-8f3c-efd0dc922afa"
+    },
+    "risk": "Baixo; sem mudança de política ou baseline. Ausência no próximo scanner ainda pendente."
+  },
+  {
+    "issueId": "760d5d10-de20-4639-ad4a-34a16695cf29",
+    "rule": "javascript:S7727",
+    "file": "tools/sonarqube/ledger.mjs",
+    "baselineLine": 31,
+    "status": "fixed",
+    "rationale": "Callback unário explícito impede map de fornecer índice/array ao helper; transformação de identidade preservada.",
+    "evidence": [
+      "tools/sonarqube/issue-id.test.mjs",
+      "tools/sonarqube/ledger.test.mjs"
+    ],
+    "source": {
+      "analysisCommit": "b76faaec6031f3ebed1372a65dcede08f930cde0",
+      "validationArtifact": "validation-1793745661421-5c145afe-ea93-49da-8f3c-efd0dc922afa"
+    },
+    "risk": "Baixo; sem mudança de política ou baseline. Ausência no próximo scanner ainda pendente."
+  },
+  {
+    "issueId": "9c38f80e-1b06-41df-8e31-6766e34fc402",
+    "rule": "javascript:S7727",
+    "file": "tools/sonarqube/ledger.mjs",
+    "baselineLine": 108,
+    "status": "fixed",
+    "rationale": "Callback unário explícito impede map de fornecer índice/array ao helper; transformação de identidade preservada.",
+    "evidence": [
+      "tools/sonarqube/issue-id.test.mjs",
+      "tools/sonarqube/ledger.test.mjs"
+    ],
+    "source": {
+      "analysisCommit": "b76faaec6031f3ebed1372a65dcede08f930cde0",
+      "validationArtifact": "validation-1793745661421-5c145afe-ea93-49da-8f3c-efd0dc922afa"
+    },
+    "risk": "Baixo; sem mudança de política ou baseline. Ausência no próximo scanner ainda pendente."
+  },
+  {
+    "issueId": "77db9af1-009d-4922-abcf-ac54be868728",
+    "rule": "javascript:S7727",
+    "file": "tools/sonarqube/ledger.mjs",
+    "baselineLine": 109,
+    "status": "fixed",
+    "rationale": "Callback unário explícito impede map de fornecer índice/array ao helper; transformação de identidade preservada.",
+    "evidence": [
+      "tools/sonarqube/issue-id.test.mjs",
+      "tools/sonarqube/ledger.test.mjs"
+    ],
+    "source": {
+      "analysisCommit": "b76faaec6031f3ebed1372a65dcede08f930cde0",
+      "validationArtifact": "validation-1793745661421-5c145afe-ea93-49da-8f3c-efd0dc922afa"
+    },
+    "risk": "Baixo; sem mudança de política ou baseline. Ausência no próximo scanner ainda pendente."
+  }
+]

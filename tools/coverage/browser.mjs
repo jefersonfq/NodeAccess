@@ -5,6 +5,7 @@ import { spawn } from 'node:child_process'
 import { performance } from 'node:perf_hooks'
 import { createServer } from 'vite'
 import vue from '@vitejs/plugin-vue'
+import { chromium } from 'playwright'
 import { createRequire } from 'node:module'
 import { randomUUID } from 'node:crypto'
 const { manualPlugin } = createRequire(import.meta.url)('../manual/build.cjs')
@@ -66,6 +67,7 @@ export async function collectBrowserCoverage({ root = projectRoot, env = process
   const result = { status: 'failed', captureRunId: randomUUID(), startedAt: new Date().toISOString(), kind: 'real Chromium; Node and mapped browser coverage are collected separately', harnesses: [] }
   let server
   try {
+    const executablePath = env.PLAYWRIGHT_EXECUTABLE_PATH || chromium.executablePath()
     server = await create({ configFile: false, root: join(root, 'apps/frontend'), logLevel: 'error',
       plugins: [vue(), { name: 'coverage-isolated-fixture', configureServer(vite) {
         vite.middlewares.use((request, response, next) => {
@@ -93,7 +95,8 @@ export async function collectBrowserCoverage({ root = projectRoot, env = process
       delete childEnv.CHROMIUM_CDP_URL; delete childEnv.NETWORK_DEVICE_PROFILE
       for (const key of Object.keys(childEnv)) if (key.endsWith('_REVIEW') || key.endsWith('_SMOKE')) delete childEnv[key]
       for (const key of ['REPORT_PATH', 'SCREENSHOT_PATH', 'AUTOCOMPLETE_SCREENSHOT_PATH', 'AUTOCOMPLETE_MOBILE_SCREENSHOT_PATH', 'THEME_SCREENSHOT_PATH', 'HIGHLIGHT_SCREENSHOT_PATH']) childEnv[key] = join(directory, key === 'REPORT_PATH' ? 'report.json' : key.toLowerCase() + '.png')
-      if (env.PLAYWRIGHT_EXECUTABLE_PATH) childEnv.CHROMIUM_PATH = env.PLAYWRIGHT_EXECUTABLE_PATH
+      childEnv.PLAYWRIGHT_EXECUTABLE_PATH = executablePath
+      childEnv.CHROMIUM_PATH = executablePath
       const run = await execute(root, script, childEnv, join(output, `${name}.log`))
       result.harnesses.push({ name, ...run })
       if (run.exitCode !== 0 || run.timedOut) throw new Error(`Browser coverage harness failed: ${name}`)

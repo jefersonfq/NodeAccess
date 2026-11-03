@@ -14,7 +14,7 @@ assert(fs.existsSync(gitExecutable), 'This WSL/Linux review harness requires /us
 const root = path.resolve(__dirname, '../..')
 const canonicalOutput = path.join(root, 'docs/changes/2026/11/NA-0087-sonar-frontend')
 const output = process.env.SONAR_REVIEW_OUTPUT ? path.resolve(process.env.SONAR_REVIEW_OUTPUT) : canonicalOutput
-const issues = JSON.parse(fs.readFileSync(process.env.SONAR_ASSIGNED || path.join(canonicalOutput, 'dispositions.json'), 'utf8')).map(readIssue).map(issue => ({...issue, component:issue.component || `nodeaccess:${issue.file}`, line:issue.line ?? issue.baselineLine}))
+const issues = JSON.parse(fs.readFileSync(process.env.SONAR_ASSIGNED || path.join(canonicalOutput, 'dispositions.json'), 'utf8')).map(issue => readIssue(issue)).map(issue => ({...issue, component:issue.component || `nodeaccess:${issue.file}`, line:issue.line ?? issue.baselineLine}))
 const parent = new WeakMap()
 function nodes(node, result = []) { if (node.type === 1) result.push(node); for (const child of node.children || []) { parent.set(child, node); nodes(child, result) } return result }
 function tree(source) { const template = parse(source).descriptor.template; return { all: nodes(baseParse(template.content, parserOptions)), offset: template.loc.start.line - 1 } }
@@ -138,7 +138,7 @@ async function main() {
  assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'mobile overflow')
  await page.evaluate(()=>scrollTo(0,0))
  await page.screenshot({path:path.join(output,'screenshots/labels-mobile.png')})
- fs.writeFileSync(path.join(output,'dom-label-evidence.json'),JSON.stringify({kind:'synthetic fixtures derived from current Vue markup; not full app workflow',count:results.length,results:results.map(publicIssue),nativeResults:nativeResults.map(publicIssue)},null,2)+'\n')
+ fs.writeFileSync(path.join(output,'dom-label-evidence.json'),JSON.stringify({kind:'synthetic fixtures derived from current Vue markup; not full app workflow',count:results.length,results:results.map(issue => publicIssue(issue)),nativeResults:nativeResults.map(issue => publicIssue(issue))},null,2)+'\n')
  console.log(`PASS ${results.length} labels + ${nativeResults.length} native controls: accessible name, focus, mobile no overflow`)
  } finally {await browser.close()}
 }

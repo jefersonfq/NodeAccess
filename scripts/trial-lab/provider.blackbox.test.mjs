@@ -81,7 +81,7 @@ test('real HTTPS provider isolates two labs and preserves tombstones across rest
     cert=await readFile(join(dir,'tls.crt'))
     await run('docker',['network','create','--internal',controlNet]); owned.add(controlNet)
     for (const name of controls) {
-      await run('docker',['run','-d','--name',name,'--network',controlNet,'--cap-drop','ALL','--read-only','node:24.21.0-alpine','node','-e','require("net").createServer(s=>s.end("CONTROL\\n")).listen(8080,"0.0.0.0");']); owned.add(name)
+      await run('docker',['run','-d','--name',name,'--network',controlNet,'--cap-drop','ALL','--read-only','node:24.22.1-alpine','node','-e','require("net").createServer(s=>s.end("CONTROL\\n")).listen(8080,"0.0.0.0");']); owned.add(name)
     }
     configPath=join(dir,'config.json')
     await writeFile(configPath,JSON.stringify({stateDir:join(dir,'state'),token,bind:'127.0.0.1',port:providerPort,tlsKey:join(dir,'tls.key'),tlsCert:join(dir,'tls.crt'),controls,image:'na0068-trial-ssh:test',networkCidr:profile.networkCidr,maxActiveTrials:2,maxMachinesPerTrial:2,maxTotalMachines:3}),{mode:0o600})
@@ -161,7 +161,7 @@ test('real HTTPS provider isolates two labs and preserves tombstones across rest
     }
     // A deployment may recreate controls; the provider must reconnect the new container.
     await run('docker',['rm','-f',controls[0]])
-    await run('docker',['run','-d','--name',controls[0],'--network',controlNet,'--cap-drop','ALL','--read-only','node:24.21.0-alpine','node','-e','require("net").createServer(s=>s.end("CONTROL\\n")).listen(8080,"0.0.0.0");'])
+    await run('docker',['run','-d','--name',controls[0],'--network',controlNet,'--cap-drop','ALL','--read-only','node:24.22.1-alpine','node','-e','require("net").createServer(s=>s.end("CONTROL\\n")).listen(8080,"0.0.0.0");'])
     assert.deepEqual((await http('PUT',ids[0],grownProfile)).body,grown.body)
     assert.deepEqual((await http('PUT',ids[1],profile)).body,second.body)
     assert.equal((await shell(first.body.hosts[0],'echo reconnected')).code,0)
@@ -181,7 +181,7 @@ test('real HTTPS provider isolates two labs and preserves tombstones across rest
     assert.equal((await shell(second.body.hosts[0],'echo still-isolated')).code,0)
     // Unexpected foreign endpoints must never be disconnected/destroyed by DELETE.
     const secondState=JSON.parse(await readFile(join(dir,'state',`${ids[1]}.json`),'utf8'))
-    await run('docker',['run','-d','--name',foreign,'--network',secondState.network,'--cap-drop','ALL','--read-only','node:24.21.0-alpine','node','-e','setInterval(()=>{},1000)']);owned.add(foreign)
+    await run('docker',['run','-d','--name',foreign,'--network',secondState.network,'--cap-drop','ALL','--read-only','node:24.22.1-alpine','node','-e','setInterval(()=>{},1000)']);owned.add(foreign)
     assert.equal((await http('DELETE',ids[1])).status,503)
     const foreignState=JSON.parse(await run('docker',['inspect',foreign]))[0]
     assert.equal(foreignState.State.Running,true); assert.ok(foreignState.NetworkSettings.Networks[secondState.network])

@@ -70,4 +70,10 @@ Classificação NECESSARY_CORRECTION, dentro da autorização de concluir a entr
 - NA-0131: preservar diagnóstico sanitizado das violações em código novo no CI descartável, para explicar diferenças entre períodos de análise e corrigir a causa mantendo o gate.
 - NA-0132: executar o npm usado pelo scanner por CLI absoluto validado via Node, eliminando a busca pelo PATH identificada pelo diagnóstico real (S4036), sem suprimir o achado ou alterar baseline.
 
+- NA-0133: corrigir os sete achados novos da reanálise (callbacks unários e asserções verificáveis no processo pai), sem alterar política ou inventário.
+- NA-0134: preservar diagnóstico sanitizado de falhas de cobertura e artefatos ausentes antes do scanner, sem publicar mensagens livres ou segredos.
+- NA-0135: propagar o Chromium gerenciado pelo Playwright aos cinco harnesses quando não houver override explícito, evitando fallback divergente para navegador de sistema.
+- NA-0136: corrigir vulnerabilidades Node identificadas no scanner das imagens, atualizando bases por digest e validando TLS, stack descartável e scanner reais.
+- NA-0137: alinhar pins ativos de CI, fixtures e .nvmrc ao Node24.22.1, mantendo npm12.2.1 e contratos de compatibilidade existentes.
+
 Riscos adicionais: npm e majors transitivos podem afetar ferramentas de documentação, matching de caminhos e publicação estática. Build/typecheck isolados não bastam; usar CLI e servidores reais, negativos e revisão independente. Nenhuma alteração em produção ou deploy está autorizada por esta ampliação técnica.
