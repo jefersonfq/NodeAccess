@@ -12,7 +12,7 @@ Incorporados o checkpoint NA-0089, coletor abrangente NA-0090, recuperação/rot
 
 | Pendência | Evidência disponível | Falta para encerrar |
 | --- | --- | --- |
-| Cobertura | Serviços 73,15% linhas / 70,28% funções / 64,36% branches PASS; após lint, diff 67,88% FAIL | Concluir testes dos componentes e atingir 80% de código novo, sem alterar limites/denominador |
+| Cobertura | Serviços 73,15% linhas / 70,28% funções / 64,37% branches PASS; última coleta completa, diff 79,72% FAIL | Concluir testes dos componentes e atingir 80% de código novo, sem alterar limites/denominador |
 | Entrega | Branch de integração a partir de master, branches de origem recuperáveis e documentação canônica | Commit final, PR, checks, homologação humana, merge e sincronização |
 | CI real | Três análises reais com configuração efetiva idêntica; gate 100% PASS e 42,9% FAIL; cleanup validado | Repetir produto completo após NA-0116 e executar GitHub |
 | Continuidade | Restore real equivalente, tokens rotacionados, cron instalado e execução manual aprovada | Revisão integrada e acompanhamento da primeira execução agendada; antigos elegíveis à revogação após 48h |
@@ -94,3 +94,13 @@ Ran no checkpoint 20b169ed4: 3.370 Vitest PASS/125 opt-in ignorados e 395 Node P
 ### 2026-11-03T21:21:45+00:00 — Contratos finais e corrida do harness corrigida
 
 Integrados NA-0121 572902fd5 (39 contratos do diagnóstico), NA-0122 f5082ab37 (24 contratos de licenças), NA-0123 9142389d4 (14 configurações/túneis) e NA-0124 1e6406c82 (asserção SFTP por alvo). Todos passaram lint/tipos aplicáveis e revisão independente. A corrida foi reproduzida por sequência de consultas: o teste antigo contava diretórios diferentes; agora aguarda a consulta anterior observável e exige exatamente uma nova listagem do alvo aquecido. Quatro contratos incluem negativos de ausência/duplicidade, reproduzidos pela raiz. Terminal completo PASS na origem, alvo /var de 3 para 4 consultas, sem regressão nas capturas. Ran na união anterior: 32 contratos SSR/fixtures e 16 guardas de coleta PASS. Nenhum componente foi alterado para aumentar cobertura; mocks/SSR não comprovam backend ou lifecycle DOM. Próximo passo: nova coleta completa no checkpoint consolidado, lint, build/tipos e scanner/CI reais; entrega ainda sem merge.
+
+### 2026-11-03T21:40:29+00:00 — Reanálise completa e últimos ajustes
+
+Ran no SHA 78d4a5c4ce55d23af79412184afec30883a3f6a8: 3.447 Vitest PASS/125 opt-in ignorados, 400 Node PASS/2 ignorados, cinco harnesses Chromium PASS, 135 validadores Sonar PASS e lint de 88 arquivos sem erros/avisos. Serviços: 73,15% linhas/70,28% funções/64,37% branches PASS; diff 79,716% (4.492/5.635) FAIL. Cobertura global informativa: 26,91% linhas, 18,67% funções, 28,91% branches; não confundir com serviços/código novo. Scanner verificado: cobertura nova 79,4% FAIL, duplicação 0,06638% PASS, zero hotspots pendentes e um novo S5443 no diretório do harness. Os 11 achados corrigidos em NA-0115 não reapareceram.
+
+Integrados NA-0125 b79c64aeb (helper privado, seis contratos Node e seis cenários Chromium PASS, revisão independente), delta NA-0123 ae8bf691f (cinco contratos SSR adicionais, 19 PASS) e NA-0126 5a9d7ea04 (paleta, quatro contratos/18 destinos, 35 de 40 unidades do diff focal). Nenhum limite ou mapa alterado. O bloco de Configurações com condições mutuamente exclusivas foi documentado em NA-0123 e preservado, inclusive zeros; não removido para elevar métricas. Catálogo atualizado para 551 ocorrências, todas com decisão; nova correção ainda aguarda confirmação na reanálise. Verificação limitada de padrões de segredos em 460 arquivos texto não encontrou candidatos; isso não equivale a auditoria completa de segredos. Próximo passo: build/tipos, candidato final congelado, validação Sonar e CI real completos; resultados finais/SHA ficam nos checks/PR para evitar commits recursivos.
+
+### 2026-11-03T21:44:46+00:00 — Candidato final preparado
+
+Ran: build completo e typecheck oficial PASS após integração; permanece aviso de chunk UI de 982,91 kB, sem alteração de limite. META-050 canônica atualizada para 551 ocorrências e última medição válida; ZIP/XML e demais entradas preservadas. Checkpoint consolidado preparado para reexecução local e CI real em checkout separado. Estado: COMMITTED; PUSHED/PR_OPEN/MERGED/MASTER_SYNCED ainda pendentes. A homologação humana não foi inferida das revisões ou testes. Próximo passo: confirmar gates e publicar PR com evidências no SHA final.

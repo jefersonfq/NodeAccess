@@ -1,9 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { createSSRApp, defineComponent, type ComponentOptions, type Ref, type SetupContext } from 'vue'
+import { createSSRApp, defineComponent, type ComponentOptions, type ComponentPublicInstance, type Ref, type SetupContext } from 'vue'
 import { renderToString } from 'vue/server-renderer'
 import Settings from './SettingsView.vue'
 import fixture from './settings-contracts.fixture.json'
-const mocks = vi.hoisted(() => ({ get: vi.fn(), platform: vi.fn(), policy: vi.fn(), users: vi.fn(), groups: vi.fn(), limits: vi.fn(), clear: vi.fn(), commandGet: vi.fn(), commandSave: vi.fn(), evaluate: vi.fn(), success: vi.fn(), error: vi.fn(), route: { name: 'admin-settings', query: {} } }))
+const mocks = vi.hoisted(() => ({ get: vi.fn(), platform: vi.fn(), policy: vi.fn(), users: vi.fn(), groups: vi.fn(), limits: vi.fn(), clear: vi.fn(), commandGet: vi.fn(), commandSave: vi.fn(), evaluate: vi.fn(), success: vi.fn(), error: vi.fn(), slotMode: 'vnode', route: { name: 'admin-settings', query: {} } }))
 vi.mock('@/services/settings.service', () => ({ settingsService: { get: mocks.get, getPlatform: mocks.platform, updateSessionLimits: mocks.limits, clear: mocks.clear } }))
 vi.mock('@/services/sessionAuditPolicy.service', () => ({ sessionAuditPolicyService: { get: mocks.policy } }))
 vi.mock('@/services/user.service', () => ({ userService: { list: mocks.users } }))
@@ -19,8 +19,20 @@ vi.mock('@/components/integrations/TenantAuthPolicyCard.vue', () => ({ default: 
 vi.mock('./EmailConfigView.vue', () => ({ default: { render: () => null } }))
 vi.mock('naive-ui', async () => {
   const { defineComponent, h } = await import('vue')
+  const { ssrRenderSlot, ssrRenderVNode, ssrRenderAttrs } = await import('vue/server-renderer')
   const names = ['NAlert', 'NButton', 'NCard', 'NDescriptions', 'NDescriptionsItem', 'NProgress', 'NSelect', 'NSpace', 'NSpin', 'NTag', 'NText', 'NTransfer', 'NCheckbox', 'NInputNumber', 'NInput', 'NTooltip', 'NCollapse', 'NCollapseItem']
-  return { ...Object.fromEntries(names.map(name => [name, defineComponent({ name, setup(_, { attrs, slots }) { return () => h(name, attrs, Object.values(slots).flatMap(slot => slot?.() ?? [])) } })])), useMessage: () => ({ success: mocks.success, error: mocks.error }) }
+  return { ...Object.fromEntries(names.map(name => [name, defineComponent({ name, inheritAttrs: false,
+    ssrRender(context: ComponentPublicInstance, push: Parameters<typeof ssrRenderSlot>[4], parent: Parameters<typeof ssrRenderSlot>[5]) {
+      const attrs = context.$attrs, slots = context.$slots
+      if (mocks.slotMode === 'ssr') {
+        push(`<${name}${ssrRenderAttrs(attrs, name)}>`)
+        for (const slot of Object.keys(slots)) ssrRenderSlot(slots, slot, {}, null, push, parent)
+        push(`</${name}>`)
+      } else {
+        ssrRenderVNode(push, h(name, attrs, Object.values(slots).flatMap(slot => slot?.() ?? [])), parent)
+      }
+    },
+  })])), useMessage: () => ({ success: mocks.success, error: mocks.error }) }
 })
 type State = { load: () => Promise<void>; sessionLimitsForm: Ref<{ maxPerUser: number | null; maxPerTenant: number | null }>; sessionLimitsSaving: Ref<boolean>; saveSessionLimits: () => Promise<void>; commandPolicyForm: Ref<{ safePatterns: string; approvalPatterns: string; blockedPatterns: string }>; saveCommandPolicy: () => Promise<void>; commandPolicyTest: Ref<{ command: string; loading: boolean; result: unknown }>; evaluateCommandPolicy: () => Promise<void> }
 let state: State | undefined
@@ -39,7 +51,7 @@ async function render(fresh = false): Promise<string> {
 }
 function current(): State { if (!state) throw new Error('Missing state'); return state }
 beforeEach(() => {
-  vi.clearAllMocks(); state = undefined; mocks.route.name = 'admin-settings'
+  vi.clearAllMocks(); state = undefined; mocks.route.name = 'admin-settings'; mocks.slotMode = 'vnode'
   mocks.get.mockResolvedValue({ data: structuredClone(fixture) }); mocks.platform.mockResolvedValue({ data: fixture.environment })
   mocks.policy.mockResolvedValue({ data: null }); mocks.users.mockResolvedValue({ data: { data: [] } }); mocks.groups.mockResolvedValue({ data: [] })
   mocks.commandGet.mockResolvedValue({ data: { safePatterns: ['^pwd$'], approvalPatterns: [], blockedPatterns: ['rm'] } })
@@ -94,4 +106,41 @@ describe('Settings compiled SSR contracts', () => {
     expect(current().commandPolicyTest.value.loading).toBe(false); expect(current().commandPolicyTest.value.result).toBeNull()
     expect(mocks.error).toHaveBeenCalledWith('Não foi possível avaliar o comando contra a policy.')
   })
+  it('renders effective platform flags and cache activity through official SSR slot callbacks', async () => {
+    mocks.slotMode = 'ssr'; mocks.route.name = 'platform-settings'
+    mocks.platform.mockResolvedValue({ data: { ...fixture.environment, cache: { ...fixture.environment.cache,
+      runtime: [{ domain: 'host_dashboard', hits: 8, misses: 2, hitRate: 0.8, writes: 4, invalidations: 2, errors: 1, disabled: 0, averageDurationMs: 1.25 }] } } })
+    const html = await render(true)
+    expect(html).toContain('FEATURE_NATIVE_SSH_GATEWAY'); expect(html).toContain('FEATURE_MCP')
+    expect(html.match(/>common.enabled</g)).toHaveLength(4)
+    expect(html.match(/>common.disabled</g)).toHaveLength(2)
+    expect(html).toContain('Hits / misses: 8 / 2'); expect(html).toContain('Hit rate: 80%')
+    expect(html).toContain('Erros: 1'); expect(html).toContain('Latência média: 1.3ms')
+    expect(html).toContain('Invalidações: 2'); expect(html).toContain('0 caches')
+    expect(mocks.get).not.toHaveBeenCalled()
+  })
+  it('renders tenant license, policy controls and saved session limits through official SSR slots', async () => {
+    mocks.slotMode = 'ssr'
+    let html = await render(true)
+    expect(html).toContain('admin.settings.license.sessionAudit'); expect(html).toContain('admin.settings.sessionLimits')
+    expect(html).toContain('^pwd$'); expect(html).not.toContain('backend-cache-settings')
+    current().sessionLimitsForm.value = { maxPerUser: 2, maxPerTenant: 19 }
+    mocks.limits.mockResolvedValue({ data: { ...fixture, sessionLimits: { activeSessions: 1, maxPerUser: 2, maxPerTenant: 19 } } })
+    await current().saveSessionLimits(); html = await render()
+    expect(html).toContain('value="19"'); expect(mocks.limits).toHaveBeenCalledWith({ maxPerUser: 2, maxPerTenant: 19 })
+    expect(mocks.clear).toHaveBeenCalledOnce()
+  })
+  it('renders platform load error and recovers to null cache measurements without misleading percentages', async () => {
+    mocks.slotMode = 'ssr'; mocks.route.name = 'platform-settings'
+    mocks.platform.mockRejectedValueOnce(new Error('offline'))
+    const failed = await render(true)
+    expect(failed).toContain('Erro ao carregar configurações'); expect(failed).not.toContain('backend-cache-runtime')
+    mocks.platform.mockResolvedValue({ data: { ...fixture.environment, cache: { ...fixture.environment.cache,
+      runtime: [{ domain: 'user_dashboard', hits: 0, misses: 0, hitRate: null, writes: 0, invalidations: 0, errors: 0, disabled: 2, averageDurationMs: null }] } } })
+    await current().load(); const recovered = await render()
+    expect(recovered).not.toContain('Erro ao carregar configurações')
+    expect(recovered).toContain('Hit rate: —'); expect(recovered).toContain('Latência média: —')
+    expect(recovered).toContain('Desabilitado: 2'); expect(recovered).not.toContain('NaN')
+  })
+
 })

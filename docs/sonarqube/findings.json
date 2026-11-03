@@ -10463,7 +10463,7 @@
       "domain": "Ferramentas",
       "signature": "b674cf0147320ac3632249b1a3cd488dc35c6d105f2d9813ba85b3a372bcb3a9",
       "status": "fixed",
-      "observed": "present",
+      "observed": "absent",
       "rationale": "Inventário e ordem de entrada do fingerprint: comparador explícito String.localeCompare com locale en. Valores são nomes de arquivo, não números; nenhum denominador ou crédito é descartado.",
       "evidence": [
         "tools/coverage/inventory.test.mjs",
@@ -10486,7 +10486,7 @@
       "domain": "Ferramentas",
       "signature": "db0e8550bc2da5cfcd83d0ac7d95791a5564f550a4676eba6024a8b2410c75d6",
       "status": "fixed",
-      "observed": "present",
+      "observed": "absent",
       "rationale": "Enumeração Git de arquivos versionados e não rastreados: execFileSync agora usa /usr/bin/git com argv separado, sem shell ou resolução pelo PATH. Contrato Linux/WSL/Ubuntu CI; ausência do binário falha em vez de fallback inseguro.",
       "evidence": [
         "tools/coverage/trusted-git.test.mjs",
@@ -10508,7 +10508,7 @@
       "domain": "Ferramentas",
       "signature": "b3523e2bac9917d835998eccbc73ddbfbf5aca8d5ec83e53fff1700cf13061cd",
       "status": "fixed",
-      "observed": "present",
+      "observed": "absent",
       "rationale": "Totais LCOV eram acumulados em objeto vazio inferido estaticamente. Map explícito mantém valores numéricos e presença de chave sem coerção: ausência, duplicação e divergência continuam rejeitadas; zero válido permanece aceito.",
       "evidence": [
         "tools/coverage/lcov.test.mjs"
@@ -10528,7 +10528,7 @@
       "domain": "Ferramentas",
       "signature": "396b995c8c8a373ee49e74ca5279dfb8f93be11ae226e93827db1f4dfb095d04",
       "status": "fixed",
-      "observed": "present",
+      "observed": "absent",
       "rationale": "Resolução dos SHAs e diff de linhas novas: execFileSync agora usa /usr/bin/git com argv separado, sem shell ou resolução pelo PATH. Contrato Linux/WSL/Ubuntu CI; ausência do binário falha em vez de fallback inseguro.",
       "evidence": [
         "tools/coverage/trusted-git.test.mjs",
@@ -10550,7 +10550,7 @@
       "domain": "Ferramentas",
       "signature": "fe14587de840caf7f33f8d768856d1d8d1e23fa4aeb4d76e417bfb752e10af41",
       "status": "fixed",
-      "observed": "present",
+      "observed": "absent",
       "rationale": "União de arquivos alterados/não rastreados no relatório diff: comparador explícito String.localeCompare com locale en. Valores são nomes de arquivo, não números; nenhum denominador ou crédito é descartado.",
       "evidence": [
         "tools/coverage/inventory.test.mjs",
@@ -10573,7 +10573,7 @@
       "domain": "Ferramentas",
       "signature": "afbbf881a3c934340d5bfaf7f95f13f4b3148fc700ae0022c05c95e1b964c754",
       "status": "fixed",
-      "observed": "present",
+      "observed": "absent",
       "rationale": "Ordem de leitura dos relatórios V8: comparador explícito String.localeCompare com locale en. Valores são nomes de arquivo, não números; nenhum denominador ou crédito é descartado.",
       "evidence": [
         "tools/coverage/inventory.test.mjs",
@@ -10596,7 +10596,7 @@
       "domain": "Ferramentas",
       "signature": "2d0621aa55d2f3cbbd90c9b42e9ef6e90e8dc06f378fbb6e1accd69a23eb2d7b",
       "status": "fixed",
-      "observed": "present",
+      "observed": "absent",
       "rationale": "Captura do SHA HEAD antes da coleta: execFileSync agora usa /usr/bin/git com argv separado, sem shell ou resolução pelo PATH. Contrato Linux/WSL/Ubuntu CI; ausência do binário falha em vez de fallback inseguro.",
       "evidence": [
         "tools/coverage/trusted-git.test.mjs",
@@ -10618,7 +10618,7 @@
       "domain": "Ferramentas",
       "signature": "4eb642b33361128d9922d2124e840e10f894790135e4a1734bd0eb0cb4f1d195",
       "status": "fixed",
-      "observed": "present",
+      "observed": "absent",
       "rationale": "Validação do SHA base solicitado: execFileSync agora usa /usr/bin/git com argv separado, sem shell ou resolução pelo PATH. Contrato Linux/WSL/Ubuntu CI; ausência do binário falha em vez de fallback inseguro.",
       "evidence": [
         "tools/coverage/trusted-git.test.mjs",
@@ -10640,7 +10640,7 @@
       "domain": "Ferramentas",
       "signature": "d85c52c73975f82161b81018ca7d26413348c70c6f39b995b8f20e6dc5a1b10e",
       "status": "fixed",
-      "observed": "present",
+      "observed": "absent",
       "rationale": "Lista informativa de fontes com autoridade Node: comparador explícito String.localeCompare com locale en. Valores são nomes de arquivo, não números; nenhum denominador ou crédito é descartado.",
       "evidence": [
         "tools/coverage/inventory.test.mjs",
@@ -10663,7 +10663,7 @@
       "domain": "Ferramentas",
       "signature": "34f9974b44aa9bcaf9a1974b8a15cbe5a42d38505505122e78629914fcc649d7",
       "status": "fixed",
-      "observed": "present",
+      "observed": "absent",
       "rationale": "Owner default movido para variável local fileOwner, avaliada no instante da chamada somente quando owner===undefined. UID/GID, owner explícito, rejeição de null, modo0600, FD ancorado e atomicidade preservados.",
       "evidence": [
         "tools/sonarqube/recovery.test.mjs",
@@ -10684,7 +10684,7 @@
       "domain": "Ferramentas",
       "signature": "e4e3a9fcb9486972b404510263164bac3aa985826dc21ab9fad36ee83c7a0600",
       "status": "fixed",
-      "observed": "present",
+      "observed": "absent",
       "rationale": "Proveniência HEAD/base e rechecagem após scanner: execFileSync agora usa /usr/bin/git com argv separado, sem shell ou resolução pelo PATH. Contrato Linux/WSL/Ubuntu CI; ausência do binário falha em vez de fallback inseguro.",
       "evidence": [
         "tools/coverage/trusted-git.test.mjs",
@@ -10694,6 +10694,27 @@
       "branch": "fix/NA-0115-20261103-sonar-tooling-followup",
       "risk": "Portabilidade deliberadamente limitada ao ambiente Linux/WSL/Ubuntu CI com Git do sistema; configuração e binário do SO continuam parte da base confiável.",
       "url": "http://localhost:9000/project/issues?id=nodeaccess&issues=4cb49b09-f9b0-4c34-a61a-3f6584c2cc14"
+    },
+    {
+      "id": "SQ-0551",
+      "key": "e56f6cf5-7540-422b-88a0-6b198cdf4e3e",
+      "rule": "javascript:S5443",
+      "type": "VULNERABILITY",
+      "severity": "CRITICAL",
+      "file": "tools/frontend/sonar-flow-coverage.cjs",
+      "baselineLine": 9,
+      "domain": "Ferramentas",
+      "signature": "6ff1fc95c76c78550929344496d293032dae3ff43c849efd131ac1708a35b777",
+      "status": "fixed",
+      "observed": "present",
+      "rationale": "Diretório temporário fixo substituído pelo namespace privado por UID/workspace do helper existente; destinos públicos e symlinks rejeitados antes de escrever.",
+      "evidence": [
+        "docs/changes/2026/11/NA-0125-private-flow-artifacts/implementation.md",
+        "tools/frontend/sonar-flow-artifacts.test.mjs"
+      ],
+      "branch": "fix/NA-0125-20261103-private-flow-artifacts",
+      "risk": "Override precisa ser diretório privado sob pai confiável; não promete proteção anti-race contra processo do mesmo UID.",
+      "url": "http://localhost:9000/project/issues?id=nodeaccess&issues=e56f6cf5-7540-422b-88a0-6b198cdf4e3e"
     }
   ]
 }

@@ -1,12 +1,12 @@
 #!/usr/bin/env node
 const assert = require('node:assert/strict')
-const { mkdirSync, writeFileSync } = require('node:fs')
-const { join } = require('node:path')
+const { writeFileSync } = require('node:fs')
+const { artifactPath } = require('../shared/private-artifacts.cjs')
 const { chromium } = require('playwright')
 const { harnessEndpoint } = require('../shared/harness-endpoint.cjs')
 const { settings, diagnosticFixture, dashboardFixture, jiraResult } = require('./sonar-flow-fixtures.cjs')
 const base = harnessEndpoint(process.env.FRONTEND_BASE || 'http://127.0.0.1:5199')
-const output = process.env.SONAR_FLOW_OUTPUT || '/tmp/nodeaccess-sonar-flow-review'
+const output = process.env.SONAR_FLOW_OUTPUT || artifactPath('sonar-flow-review')
 function authToken() {
   const now = Math.floor(Date.now() / 1000)
   return `${Buffer.from('{}').toString('base64url')}.${Buffer.from(JSON.stringify({ sub: '7', tenantId: 7, name: 'Operador de teste', role: 'admin', email: 'operator@example.invalid', isPlatformAdmin: false, stage: 'authenticated', iat: now, exp: now + 3600 })).toString('base64url')}.fixture`
@@ -25,7 +25,7 @@ async function geometry(page) {
   return result
 }
 async function main() {
-  mkdirSync(output, { recursive: true, mode: 0o700 })
+  artifactPath('report.json', output)
   const browser = await chromium.launch({ headless: true, executablePath: process.env.PLAYWRIGHT_EXECUTABLE_PATH, args: ['--no-sandbox'] })
   const evidence = { status: 'failed', scenarios: [], screenshots: [], geometry: [] }
   try {
@@ -107,16 +107,16 @@ async function main() {
     assert.equal(sent.includeAttachment, true); assert.equal(new URL(sent.reportUrl).pathname, '/diagnostic-runs/41')
     evidence.scenarios.push('Jira attachment explicit confirmation and queue failure recovery (API mocked)')
     await page.getByText('1 publicação(ões) enfileirada(s) para LAB-42.', { exact: true }).waitFor({ state: 'hidden' })
-    evidence.geometry.push(await geometry(page)); await page.screenshot({ path: join(output, 'diagnostic-desktop.png'), fullPage: true }); evidence.screenshots.push('diagnostic-desktop.png')
+    evidence.geometry.push(await geometry(page)); await page.screenshot({ path: artifactPath('diagnostic-desktop.png', output), fullPage: true }); evidence.screenshots.push('diagnostic-desktop.png')
     await page.setViewportSize({ width: 390, height: 844 }); evidence.geometry.push(await geometry(page))
     evidence.mobileActions = await page.locator('.detail-actions button, .report-panel .ai-summary-header button').evaluateAll(buttons => buttons.map(button => { const rect = button.getBoundingClientRect(); return { text: button.textContent.trim(), left: rect.left, right: rect.right, width: rect.width, viewport: innerWidth } }))
     const actionNames = ['Atualizar', 'Ajuda', 'Exportar JSON', 'Regerar resumo', 'Comparar antes/depois', 'Vincular origem', 'Publicar no Jira']
     assert.equal(evidence.mobileActions.length, actionNames.length)
     for (const name of actionNames) assert.equal(evidence.mobileActions.filter(action => action.text === name).length, 1, `Missing or duplicate mobile action: ${name}`)
     for (const action of evidence.mobileActions) assert.ok(action.width > 0 && action.left >= 0 && action.right <= action.viewport, `Clipped mobile action: ${action.text}`)
-    await page.screenshot({ path: join(output, 'diagnostic-mobile.png'), fullPage: true }); evidence.screenshots.push('diagnostic-mobile.png')
+    await page.screenshot({ path: artifactPath('diagnostic-mobile.png', output), fullPage: true }); evidence.screenshots.push('diagnostic-mobile.png')
     await page.setViewportSize({ width: 1440, height: 1000 }); await page.goto(`${base}/admin/dashboard`, { waitUntil: 'networkidle' }); await visible(page, 'Operador de teste')
-    evidence.geometry.push(await geometry(page)); await page.screenshot({ path: join(output, 'dashboard-desktop.png'), fullPage: true }); evidence.screenshots.push('dashboard-desktop.png')
+    evidence.geometry.push(await geometry(page)); await page.screenshot({ path: artifactPath('dashboard-desktop.png', output), fullPage: true }); evidence.screenshots.push('dashboard-desktop.png')
     const cards = page.locator('.stat-card[role="link"]'); assert.ok(await cards.count() >= 6)
     const destinations = ['/admin/users', '/hosts', '/admin/reports/sessions', '/admin/reports/sessions']
     for (let i = 0; i < destinations.length; i++) {
@@ -126,10 +126,10 @@ async function main() {
     evidence.scenarios.push('dashboard rendered aggregates and four keyboard navigation contracts')
     state.failDashboard = true; await page.getByRole('button', { name: /Atualizar|Refresh/ }).first().click(); await visible(page, 'Erro ao carregar estatísticas')
     state.failDashboard = false; await page.getByRole('button', { name: /Atualizar|Refresh/ }).first().click(); await visible(page, 'Operador de teste')
-    await page.setViewportSize({ width: 390, height: 844 }); evidence.geometry.push(await geometry(page)); await page.screenshot({ path: join(output, 'dashboard-mobile.png'), fullPage: true }); evidence.screenshots.push('dashboard-mobile.png')
+    await page.setViewportSize({ width: 390, height: 844 }); evidence.geometry.push(await geometry(page)); await page.screenshot({ path: artifactPath('dashboard-mobile.png', output), fullPage: true }); evidence.screenshots.push('dashboard-mobile.png')
     assert.deepEqual(errors, []); evidence.pageErrors = errors; evidence.status = 'passed'
     await context.close()
-  } finally { await browser.close(); writeFileSync(join(output, 'report.json'), JSON.stringify(evidence, null, 2) + '\n', { mode: 0o600 }) }
+  } finally { await browser.close(); writeFileSync(artifactPath('report.json', output), JSON.stringify(evidence, null, 2) + '\n', { mode: 0o600 }) }
   console.log(JSON.stringify(evidence))
 }
 main().catch(error => { console.error(error); process.exitCode = 1 })

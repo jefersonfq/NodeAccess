@@ -58,6 +58,8 @@ Reverter apenas commit de testes/documentação.
 
 ## Mudanças de escopo e decisões
 
+Em03/11, coordenação autorizou três contratos adicionais de conteúdo via rendererSSR oficial, preservando VNode e instrumentação. Objetivo: validar flags/cache/limites e medir execução efetiva das linhas ainda ausentes.
+
 Coordenação separou Diagnostic/TenantLicense (outros agentes) e Settings/TunnelManager (esta frente), sem sobreposição na instrumentação.
 
 ## Aprovação

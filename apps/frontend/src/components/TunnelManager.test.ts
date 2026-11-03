@@ -1,10 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { createSSRApp, defineComponent, type ComponentOptions, type Ref, type SetupContext } from 'vue'
+import { createSSRApp, defineComponent, type ComponentOptions, type ComponentPublicInstance, type Ref, type SetupContext } from 'vue'
 import { renderToString } from 'vue/server-renderer'
 import TunnelManager from './TunnelManager.vue'
 import type { PortForwarding, CreatePortForwardingDto } from '@/services/portForwarding.service'
 import type { ActiveTunnel } from '@/composables/useTerminal'
-const mocks = vi.hoisted(() => ({ list: vi.fn(), create: vi.fn(), update: vi.fn(), remove: vi.fn(), active: vi.fn(), open: vi.fn(), close: vi.fn(), test: vi.fn(), web: vi.fn(), success: vi.fn(), error: vi.fn(), warning: vi.fn(), info: vi.fn(), emit: vi.fn() }))
+const mocks = vi.hoisted(() => ({ list: vi.fn(), create: vi.fn(), update: vi.fn(), remove: vi.fn(), active: vi.fn(), open: vi.fn(), close: vi.fn(), test: vi.fn(), web: vi.fn(), success: vi.fn(), error: vi.fn(), warning: vi.fn(), info: vi.fn(), emit: vi.fn(), slotMode: 'vnode' }))
 vi.mock('@/services/portForwarding.service', () => ({ portForwardingService: { list: mocks.list, create: mocks.create, update: mocks.update, remove: mocks.remove } }))
 vi.mock('@/services/tunnel.service', () => ({ tunnelService: { list: mocks.active, create: mocks.open, close: mocks.close, testTarget: mocks.test } }))
 vi.mock('@/services/features.service', () => ({ featuresService: { get: vi.fn() } }))
@@ -17,7 +17,19 @@ vi.mock('@/composables/useTunnelPresence', async importOriginal => {
 vi.mock('vue-i18n', () => ({ useI18n: () => ({ t: (key: string, values?: unknown) => values ? `${key}:${JSON.stringify(values)}` : key }) }))
 vi.mock('naive-ui', async () => {
   const { defineComponent, h } = await import('vue')
-  return { ...Object.fromEntries(['NAlert', 'NButton', 'NEmpty', 'NSpin', 'NTooltip', 'NSwitch', 'NInput', 'NInputNumber'].map(name => [name, defineComponent({ name, setup(_, { attrs, slots }) { return () => h(name, attrs, Object.values(slots).flatMap(slot => slot?.() ?? [])) } })])), useMessage: () => ({ success: mocks.success, error: mocks.error, warning: mocks.warning, info: mocks.info }) }
+  const { ssrRenderSlot, ssrRenderVNode, ssrRenderAttrs } = await import('vue/server-renderer')
+  return { ...Object.fromEntries(['NAlert', 'NButton', 'NEmpty', 'NSpin', 'NTooltip', 'NSwitch', 'NInput', 'NInputNumber'].map(name => [name, defineComponent({ name, inheritAttrs: false,
+    ssrRender(context: ComponentPublicInstance, push: Parameters<typeof ssrRenderSlot>[4], parent: Parameters<typeof ssrRenderSlot>[5]) {
+      const attrs = context.$attrs, slots = context.$slots
+      if (mocks.slotMode === 'ssr') {
+        push(`<${name}${ssrRenderAttrs(attrs, name)}>`)
+        for (const slot of Object.keys(slots)) ssrRenderSlot(slots, slot, {}, null, push, parent)
+        push(`</${name}>`)
+      } else {
+        ssrRenderVNode(push, h(name, attrs, Object.values(slots).flatMap(slot => slot?.() ?? [])), parent)
+      }
+    },
+  })])), useMessage: () => ({ success: mocks.success, error: mocks.error, warning: mocks.warning, info: mocks.info }) }
 })
 const template: PortForwarding = { id: 3, hostId: 11, bindAddress: '127.0.0.1', localPort: 8080, remoteHost: '127.0.0.1', remotePort: 80, autoStart: false, webEnabled: true, webProtocol: 'http', description: ' Web console ', createdAt: '2026-11-03T12:00:00Z' }
 const tunnel = { id: 'tunnel-1', hostId: 11, portForwardingId: 3, bindAddress: '127.0.0.1', assignedLocalPort: 8081, requestedLocalPort: 8080, remoteHost: '127.0.0.1', remotePort: 80, usedPortFallback: true, connectionMethod: 'direct', description: 'Web console' } as ActiveTunnel
@@ -55,7 +67,7 @@ async function render(fresh = false, hostId: number | null = 11): Promise<string
 }
 function current(): State { if (!state) throw new Error('Missing setup state'); return state }
 beforeEach(() => {
-  vi.clearAllMocks(); state = undefined
+  vi.clearAllMocks(); state = undefined; mocks.slotMode = 'vnode'
   mocks.list.mockResolvedValue({ data: [structuredClone(template)] }); mocks.active.mockResolvedValue({ data: [] })
   mocks.create.mockResolvedValue({ data: template }); mocks.update.mockResolvedValue({ data: { ...template, autoStart: true } })
   mocks.remove.mockResolvedValue({}); mocks.open.mockResolvedValue({ data: tunnel }); mocks.close.mockResolvedValue({})
@@ -123,4 +135,27 @@ describe('TunnelManager compiled SSR contracts', () => {
     expect(mocks.web).toHaveBeenCalledWith(3); expect(open).toHaveBeenCalledWith('https://gateway.example.invalid/w/fixture', '_blank', 'noopener,noreferrer')
     writeText.mockRejectedValueOnce(new Error('denied')); await current().copyTunnelEndpoint(tunnel); expect(mocks.error).toHaveBeenCalledWith('tunnels.endpointCopyError')
   })
+  it('renders edit destination and assigned active endpoint through official SSR slots', async () => {
+    mocks.slotMode = 'ssr'
+    await render(true); current().openEditTemplate(template)
+    let html = await render()
+    expect(html).toContain('common.edit'); expect(html).toContain('value="8080"'); expect(html).toContain('value="80"')
+    current().closeTemplateForm(); await current().openTunnelFromTemplate(template)
+    html = await render()
+    expect(html).toContain('Web console'); expect(html).toContain('localhost:8081')
+    expect(html).toContain('tunnels.templateActiveWithFallbackEndpoint')
+    await current().closeTunnel('tunnel-1')
+    expect(await render()).not.toContain('localhost:8081')
+  })
+
+  it('renders SSR error feedback then a confirmed empty template state after recovery', async () => {
+    mocks.slotMode = 'ssr'; mocks.list.mockRejectedValueOnce(new Error('offline'))
+    const failed = await render(true)
+    expect(failed).toContain('tunnels.refreshError'); expect(failed).toContain('tunnels.retry')
+    mocks.list.mockResolvedValue({ data: [] }); await current().loadTemplates()
+    const empty = await render()
+    expect(empty).not.toContain('tunnels.refreshError'); expect(empty).toContain('tunnels.emptyTemplates')
+    expect(empty).toContain('tunnels.emptyTemplatesHint'); expect(empty).not.toContain('Web console')
+  })
+
 })

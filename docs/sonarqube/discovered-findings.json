@@ -153,6 +153,15 @@
       "hash": "783db67800289ddfafc00e189e438164",
       "severity": "MINOR",
       "type": "VULNERABILITY"
+    },
+    {
+      "key": "e56f6cf5-7540-422b-88a0-6b198cdf4e3e",
+      "rule": "javascript:S5443",
+      "component": "nodeaccess:tools/frontend/sonar-flow-coverage.cjs",
+      "line": 9,
+      "hash": "69499e3c7bc3c1d9254b8081a43dff45",
+      "severity": "CRITICAL",
+      "type": "VULNERABILITY"
     }
   ]
 }
