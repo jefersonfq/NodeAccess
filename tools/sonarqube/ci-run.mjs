@@ -7,6 +7,7 @@ import { startServer, configureProject, pause } from './ci-server.mjs'
 import { baselineSummary, commitSha, scannerEnvironment, ciOutcome, validateCoverageMetadata } from './ci-policy.mjs'
 import { client, exportReport } from './export.mjs'
 import { compareFindings } from './ledger.mjs'
+import { assertConfiguration, materializeBaseConfiguration, verifyScannerContext } from './ci-config.mjs'
 
 function git(root, args, optional = false) {
   const result = spawnSync('/usr/bin/git', args, { cwd: root, encoding: 'utf8', maxBuffer: 16 * 1024 * 1024 })
@@ -20,16 +21,18 @@ function command(root, args, env, logfile) {
     return result.status ?? 1
   } finally { closeSync(fd) }
 }
-export async function scan({ root, settings, revision, instance, tokens, output, stage }) {
+export async function scan({ root, settings, revision, instance, tokens, output, stage, settingsHash, onConfiguration = () => {} }) {
+  const configuration = assertConfiguration(root, settings, settingsHash)
   const taskFile = join(output, `${stage}-task.txt`)
   const npmCli = resolve(process.execPath, '..', '..', 'lib/node_modules/npm/bin/npm-cli.js')
   // npm may be supplied by an installation alongside another node binary (local WSL).
   const npm = process.env.npm_execpath || npmCli
   const status = command(root, [npm, 'exec', '--yes', '--package=@sonar/scan@5.0.2', '--', 'sonar-scanner-npm',
-    `-Dproject.settings=${settings}`, `-Dsonar.host.url=${instance.server}`, `-Dsonar.projectBaseDir=${root}`, `-Dsonar.projectVersion=${revision}`,
+    `-Dsonar.host.url=${instance.server}`, `-Dsonar.projectBaseDir=${root}`, `-Dsonar.projectVersion=${revision}`,
     '-Dsonar.scm.disabled=true', '-Dsonar.qualitygate.wait=false', `-Dsonar.scanner.metadataFilePath=${taskFile}`],
   scannerEnvironment(process.env, instance.server, tokens.scan), join(output, `${stage}-scanner.log`))
   if (status !== 0) throw new Error('CI_SCANNER_FAILED')
+  assertConfiguration(root, settings, configuration.sha256)
   const task = Object.fromEntries(readFileSync(taskFile, 'utf8').trim().split('\n').map(line => {
     const i = line.indexOf('='); return [line.slice(0, i), line.slice(i + 1)]
   }))
@@ -38,7 +41,13 @@ export async function scan({ root, settings, revision, instance, tokens, output,
   for (let attempt = 0; attempt < 300; attempt++) {
     const { task: ce } = await request('/api/ce/task', { id: task.ceTaskId })
     if (ce?.id !== task.ceTaskId || ce?.componentKey !== 'nodeaccess') throw new Error('CI_TASK_IDENTITY_MISMATCH')
-    if (ce.status === 'SUCCESS' && ce.analysisId) return ce.analysisId
+    if (ce.status === 'SUCCESS' && ce.analysisId) {
+      const { task: verified } = await instance.admin('/api/ce/task', { id: task.ceTaskId, additionalFields: 'scannerContext' }, 'GET')
+      if (verified?.status !== 'SUCCESS' || verified?.id !== ce.id || verified?.componentKey !== 'nodeaccess' || verified?.analysisId !== ce.analysisId) throw new Error('CI_TASK_IDENTITY_MISMATCH')
+      onConfiguration(verifyScannerContext(verified.scannerContext, configuration, { root, revision }))
+      assertConfiguration(root, settings, configuration.sha256)
+      return ce.analysisId
+    }
     if (!['PENDING', 'IN_PROGRESS'].includes(ce.status)) throw new Error('CI_ANALYSIS_FAILED')
     await pause(2000)
   }
@@ -93,10 +102,20 @@ export async function run({ root = resolve(fileURLToPath(new URL('../..', import
     git(root, ['worktree', 'add', '--detach', baseRoot, base])
     // Same scanner configuration and rules for both source snapshots, even when
     // the repository base predates adoption of Sonar (explicit bootstrap).
-    const settings = join(root, 'sonar-project.properties')
-    summary.baseAnalysisId = await analyze({ root: baseRoot, settings, revision: base, instance, tokens, output, stage: 'base' })
+    const configuration = materializeBaseConfiguration(root, baseRoot)
+    summary.scannerConfiguration = { sha256: configuration.sha256 }
+    const scanSnapshot = async (directory, settings, revision, stage) => {
+      const analysis = await analyze({ root: directory, settings, settingsHash: configuration.sha256, revision, instance, tokens, output, stage,
+        onConfiguration: evidence => { summary.scannerConfiguration[stage] = evidence } })
+      assertConfiguration(directory, settings, configuration.sha256)
+      const evidence = summary.scannerConfiguration[stage]
+      if (!evidence?.contextVerified || evidence.sha256 !== configuration.sha256
+        || JSON.stringify(evidence.effectiveProperties) !== JSON.stringify(configuration.properties)) throw new Error('CI_EFFECTIVE_SETTINGS_NOT_VERIFIED')
+      return analysis
+    }
+    summary.baseAnalysisId = await scanSnapshot(baseRoot, configuration.baseSettings, base, 'base')
     await instance.admin('/api/new_code_periods/set', { project: 'nodeaccess', type: 'SPECIFIC_ANALYSIS', value: summary.baseAnalysisId })
-    summary.headAnalysisId = await analyze({ root, settings, revision: head, instance, tokens, output, stage: 'head' })
+    summary.headAnalysisId = await scanSnapshot(root, configuration.settings, head, 'head')
     if (git(root, ['rev-parse', 'HEAD']) !== head || await fingerprint(root) !== coverage.sourceFingerprint
       || git(root, ['status', '--porcelain', '--untracked-files=no'])) throw new Error('CI_SOURCE_CHANGED_DURING_ANALYSIS')
     const request = readClient({ server: instance.server, token: tokens.review })

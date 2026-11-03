@@ -10,11 +10,15 @@ import { scan } from './ci-run.mjs'
 test('scanner launches pinned CLI with env-only token and verifies the matching compute task', async t => {
   const directory = mkdtempSync(join(tmpdir(), 'ci-scan-test-'))
   t.after(() => rmSync(directory, { recursive: true, force: true }))
+  const settings = join(directory, 'sonar-project.properties')
+  writeFileSync(settings, 'sonar.projectKey=nodeaccess\nsonar.sources=src\nsonar.tests=test\nsonar.test.inclusions=**/*.test.js\nsonar.exclusions=sentinel/**\n')
   const cli = join(directory, 'fixture-cli.mjs')
-  writeFileSync(cli, `import { writeFileSync } from 'node:fs';
+  writeFileSync(cli, `import { writeFileSync, readFileSync } from 'node:fs';
 import assert from 'node:assert/strict';
 assert.ok(process.argv.includes('--package=@sonar/scan@5.0.2'));
 assert.ok(process.argv.includes('-Dsonar.scm.disabled=true'));
+assert.ok(!process.argv.some(arg => arg.startsWith('-Dproject.settings=')));
+assert.match(readFileSync('sonar-project.properties','utf8'), /sonar.tests=test/);
 assert.ok(!process.argv.some(arg => arg.includes('private-token')));
 assert.equal(process.env.SONAR_TOKEN, 'private-token');
 assert.equal(process.env.GITHUB_TOKEN, undefined);
@@ -33,9 +37,22 @@ writeFileSync(file, 'ceTaskId=task-fixture\\nprojectKey=nodeaccess\\nserverUrl='
   })
   server.listen(0, '127.0.0.1'); await once(server, 'listening')
   t.after(() => { server.closeAllConnections(); server.close() })
-  const input = { root: directory, settings: join(directory, 'settings'), revision: 'a'.repeat(40),
-    instance: { server: `http://127.0.0.1:${server.address().port}` }, tokens: { scan: 'private-token' }, output: directory }
+  let scannerContext = ['sonar.projectKey=nodeaccess', 'sonar.sources=src', 'sonar.tests=test', 'sonar.test.inclusions=**/*.test.js', 'sonar.exclusions=sentinel/**',
+    `sonar.projectBaseDir=${directory}`, `sonar.projectVersion=${'a'.repeat(40)}`, 'sonar.scm.disabled=true', 'sonar.qualitygate.wait=false', 'sonar.token=must-not-export'].map(line => `  - ${line}`).join('\n')
+  const verified = []
+  const input = { root: directory, settings, revision: 'a'.repeat(40), onConfiguration: data => verified.push(data),
+    instance: { server: `http://127.0.0.1:${server.address().port}`, admin: async (path, params, method) => {
+      assert.equal(path, '/api/ce/task'); assert.equal(params.additionalFields, 'scannerContext'); assert.equal(method, 'GET')
+      return { task: { status: 'SUCCESS', id: 'task-fixture', componentKey: 'nodeaccess', analysisId: 'analysis-fixture', scannerContext } }
+    } }, tokens: { scan: 'private-token' }, output: directory }
   assert.equal(await scan({ ...input, stage: 'success' }), 'analysis-fixture')
+  assert.equal(verified[0].contextVerified, true); assert.ok(!JSON.stringify(verified).includes('must-not-export'))
+  const originalContext = scannerContext
+  scannerContext = undefined
+  await assert.rejects(scan({ ...input, stage: 'context-missing' }), /CI_SCANNER_CONTEXT_MISSING/)
+  scannerContext = originalContext.replace('sonar.tests=test', 'sonar.tests=wrong')
+  await assert.rejects(scan({ ...input, stage: 'context-wrong' }), /CI_SCANNER_CONTEXT_MISMATCH/)
+  scannerContext = originalContext
   taskStatus = 'FAILED'
   await assert.rejects(scan({ ...input, stage: 'failed' }), /CI_ANALYSIS_FAILED/)
   taskStatus = 'SUCCESS'; id = 'foreign-task'

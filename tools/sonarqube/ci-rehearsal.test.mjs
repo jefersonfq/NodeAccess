@@ -4,6 +4,7 @@ import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { rehearsal } from './ci-rehearsal.mjs'
+import { readConfiguration } from './ci-config.mjs'
 
 test('rehearsal exercises real Node coverage and requires positive and negative scanner outcomes', async t => {
   const dir = mkdtempSync(join(tmpdir(), 'ci-rehearsal-test-'))
@@ -13,7 +14,8 @@ test('rehearsal exercises real Node coverage and requires positive and negative 
   const result = await rehearsal(join(dir, 'summary.json'), {
     start: async () => ({ server: 'http://127.0.0.1:32145', admin: async () => {}, cleanup: async () => { cleaned = true } }),
     configure: async () => ({ scan: 'scan', review: 'review' }),
-    analyze: async ({ root, stage }) => {
+    analyze: async ({ root, stage, settings, onConfiguration }) => {
+      const config = readConfiguration(settings); onConfiguration({ sha256: config.sha256, effectiveProperties: config.properties, contextVerified: true })
       scans.push(stage)
       if (stage !== 'base') {
         const lcov = readFileSync(join(root, 'coverage/lcov.info'), 'utf8')
@@ -38,7 +40,7 @@ test('rehearsal cannot report success when a green first scan has no proven new 
   t.after(() => rmSync(dir, { recursive: true, force: true }))
   const result = await rehearsal(join(dir, 'summary.json'), {
     start: async () => ({ server: 'http://127.0.0.1:32145', admin: async () => {}, cleanup: async () => {} }),
-    configure: async () => ({ scan: 'scan', review: 'review' }), analyze: async () => 'id',
+    configure: async () => ({ scan: 'scan', review: 'review' }), analyze: async ({ onConfiguration }) => { onConfiguration({ contextVerified: true }); return 'id' },
     readClient: () => async path => path === '/api/measures/component' ? { component: { measures: [] } }
       : { projectStatus: { status: 'OK', conditions: [] } },
   })

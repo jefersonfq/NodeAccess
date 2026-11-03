@@ -1,0 +1,390 @@
+{
+  "schemaVersion": 1,
+  "base": "f4a44b4b7ae87a8f688b1246d9e52a31f9a104bc",
+  "head": "47f06b51e693d91f5ed724b7b86e5362af75bc35",
+  "baseline": {
+    "sha256": "18f7da99e04529765c24a0623836e70957fdb6663cb117b6b899cd7d98577d83",
+    "baseSha256": null,
+    "bootstrap": true,
+    "changed": true,
+    "signatures": 235,
+    "occurrences": 295,
+    "addedOccurrences": 295,
+    "removedOccurrences": 0,
+    "reviewRequired": true
+  },
+  "startedAt": "2026-11-03T20:26:31.082Z",
+  "passed": false,
+  "failures": [
+    "UNREVIEWED_FINDINGS",
+    "QUALITY_GATE_NOT_OK"
+  ],
+  "coverageExit": 0,
+  "newCoverage": {
+    "status": "passed",
+    "base": "f4a44b4b7ae87a8f688b1246d9e52a31f9a104bc",
+    "head": "47f06b51e693d91f5ed724b7b86e5362af75bc35",
+    "includesWorkingTree": false,
+    "threshold": 80,
+    "percent": 80.418571084917,
+    "lines": 2033,
+    "coveredLines": 1676,
+    "conditions": 2124,
+    "coveredConditions": 1667,
+    "files": [
+      "apps/backend/src/modules/agents/agent.routes.ts",
+      "apps/backend/src/modules/ai-ssh-actions/ai-script-artifact.repository.ts",
+      "apps/backend/src/modules/ai-ssh-actions/ai-ssh-action.execution.ts",
+      "apps/backend/src/modules/auth/scim.service.ts",
+      "apps/backend/src/modules/diagnostic-playbooks/diagnostic-run-ai.service.ts",
+      "apps/backend/src/modules/hosts/host.service-NOTE-JEFF.ts",
+      "apps/backend/src/modules/hosts/host.service.ts",
+      "apps/backend/src/modules/integrations/jira.service.ts",
+      "apps/backend/src/modules/integrations/local-ai.service.ts",
+      "apps/backend/src/modules/integrations/openai.service.ts",
+      "apps/backend/src/modules/local-ai/local-ai.service.ts",
+      "apps/backend/src/modules/mcp/mcp-interactive-ssh.service.ts",
+      "apps/backend/src/modules/native-ssh-gateway/native-ssh-gateway.routes.ts",
+      "apps/backend/src/modules/session-audit/session-audit-normalizer.ts",
+      "apps/backend/src/modules/session-audit/session-audit.storage.ts",
+      "apps/backend/src/modules/sftp/sftp.controller.ts",
+      "apps/backend/src/modules/sftp/sftp.service.ts",
+      "apps/backend/src/modules/shared-sessions/shared-session.ws-routes.ts",
+      "apps/backend/src/modules/ssh/ssh.routes.ts",
+      "apps/backend/src/modules/users/user.service.ts",
+      "apps/backend/src/modules/web-access/web-access.service.ts",
+      "apps/backend/src/shared/linear-text.ts",
+      "apps/backend/src/shared/private-storage.ts",
+      "apps/frontend/src/components/CommandPalette.vue",
+      "apps/frontend/src/components/HostAccessIndicator.vue",
+      "apps/frontend/src/components/ImportHostsModal.vue",
+      "apps/frontend/src/components/SessionSupervisionPermission.vue",
+      "apps/frontend/src/components/TerminalPane.vue",
+      "apps/frontend/src/components/TunnelManager.vue",
+      "apps/frontend/src/components/diagnostics/DiagnosticRunHistoryPanel.vue",
+      "apps/frontend/src/components/platform/TenantLicenseEditor.vue",
+      "apps/frontend/src/composables/useTerminal.ts",
+      "apps/frontend/src/services/audit-text-patterns.ts",
+      "apps/frontend/src/services/avatar-image-processing.ts",
+      "apps/frontend/src/services/host-view-preferences.service.ts",
+      "apps/frontend/src/services/mobaxterm-import.service.ts",
+      "apps/frontend/src/services/pem-key-encryption.ts",
+      "apps/frontend/src/services/session-import-detection.service.ts",
+      "apps/frontend/src/services/terminal-input-model.service.ts",
+      "apps/frontend/src/services/terminal-session-entity-index.service.ts",
+      "apps/frontend/src/services/text-boundaries.ts",
+      "apps/frontend/src/views/DiagnosticRunDetailView.vue",
+      "apps/frontend/src/views/ForwardingsView.vue",
+      "apps/frontend/src/views/GraphicalSessionView.vue",
+      "apps/frontend/src/views/SnippetsView.vue",
+      "apps/frontend/src/views/TerminalView.vue",
+      "apps/frontend/src/views/admin/DashboardView.vue",
+      "apps/frontend/src/views/admin/IntegrationsView.vue",
+      "apps/frontend/src/views/admin/McpTokensView.vue",
+      "apps/frontend/src/views/admin/ObservabilityView.vue",
+      "apps/frontend/src/views/admin/SessionAuditDetailView.vue",
+      "apps/frontend/src/views/admin/SettingsView.vue",
+      "apps/frontend/src/views/admin/TenantsView.vue",
+      "apps/frontend/src/views/auth/LoginView.vue",
+      "packages/shared/src/types/host-associated-link.ts",
+      "scripts/change-governance-lib.mjs",
+      "scripts/deploy/configure-trial.mjs",
+      "tools/backend/engineering-shutdown-real.mts",
+      "tools/backend/security-quota-real.mts",
+      "tools/coverage/browser.mjs",
+      "tools/coverage/inventory.mjs",
+      "tools/coverage/lcov.mjs",
+      "tools/coverage/node-map.mjs",
+      "tools/coverage/run.mjs",
+      "tools/coverage/sources.mjs",
+      "tools/coverage/summary.mjs",
+      "tools/deploy/container-stack-real.mjs",
+      "tools/deploy/runtime-nonroot-real.mjs",
+      "tools/deploy/stack-upgrade-real.mjs",
+      "tools/docs/build-datasheets.cjs",
+      "tools/frontend/audit-export-review-playwright.cjs",
+      "tools/frontend/audit-operational-playwright.cjs",
+      "tools/frontend/audit-reconstruction-playwright.cjs",
+      "tools/frontend/auth-access-origin-playwright.cjs",
+      "tools/frontend/csp-security-playwright.cjs",
+      "tools/frontend/file-utilities-playwright.cjs",
+      "tools/frontend/file-utilities-real-lab.mts",
+      "tools/frontend/forwardings-resilience-playwright.cjs",
+      "tools/frontend/ha-live-enrollment-harness.cjs",
+      "tools/frontend/ha-playwright-live-readonly.cjs",
+      "tools/frontend/ha-playwright-smoke.cjs",
+      "tools/frontend/host-access-dashboard-playwright.cjs",
+      "tools/frontend/host-duplicate-playwright.cjs",
+      "tools/frontend/host-form-tabs-playwright.cjs",
+      "tools/frontend/host-import-duplicates-playwright.cjs",
+      "tools/frontend/host-import-live.cjs",
+      "tools/frontend/hosts-acl-resilience-playwright.cjs",
+      "tools/frontend/hosts-feedback-ux-playwright.cjs",
+      "tools/frontend/hosts-personal-folders-playwright.cjs",
+      "tools/frontend/hosts-presence-resilience-playwright.cjs",
+      "tools/frontend/jira-breakglass-live-playwright.cjs",
+      "tools/frontend/ldap-integrations-harness.cjs",
+      "tools/frontend/lucien-feedback-ux-playwright.cjs",
+      "tools/frontend/manual-review-playwright.cjs",
+      "tools/frontend/mcp-agent-onboarding-playwright.cjs",
+      "tools/frontend/observability-cdp-harness.cjs",
+      "tools/frontend/observability-resilience-playwright.cjs",
+      "tools/frontend/oidc-login-playwright.cjs",
+      "tools/frontend/pem-key-passphrase-playwright.cjs",
+      "tools/frontend/platform-settings-playwright.cjs",
+      "tools/frontend/recent-host-access-playwright.cjs",
+      "tools/frontend/session-close-live.cjs",
+      "tools/frontend/session-command-policies-playwright.cjs",
+      "tools/frontend/session-playback-cdp-flow.cjs",
+      "tools/frontend/session-playback-playwright.cjs",
+      "tools/frontend/sessions-filters-playwright.cjs",
+      "tools/frontend/sftp-file-manager-harness.cjs",
+      "tools/frontend/sftp-review-playwright.cjs",
+      "tools/frontend/shared-viewer-geometry-playwright.cjs",
+      "tools/frontend/sharing-flows-playwright.cjs",
+      "tools/frontend/sidebar-cdp-ux.cjs",
+      "tools/frontend/snippets-macro-execution-playwright.cjs",
+      "tools/frontend/snippets-macros-playwright.cjs",
+      "tools/frontend/snippets-page-playwright.cjs",
+      "tools/frontend/sonar-fixture-expression.cjs",
+      "tools/frontend/sonar-frontend-review.cjs",
+      "tools/frontend/tenant-return-review-playwright.cjs",
+      "tools/frontend/terminal-ai-command-playwright.cjs",
+      "tools/frontend/terminal-cdp-load.cjs",
+      "tools/frontend/terminal-cdp-real-flow.cjs",
+      "tools/frontend/terminal-cdp-simulated-flow.cjs",
+      "tools/frontend/terminal-experience-playwright.cjs",
+      "tools/frontend/terminal-highlights-playwright.cjs",
+      "tools/frontend/terminal-lifecycle-review-playwright.cjs",
+      "tools/frontend/terminal-onboarding-playwright.cjs",
+      "tools/frontend/terminal-playwright-load.cjs",
+      "tools/frontend/terminal-split-layout-playwright.cjs",
+      "tools/frontend/tls-review-playwright.cjs",
+      "tools/frontend/trial-live-playwright.mts",
+      "tools/frontend/trial-onboarding-playwright.cjs",
+      "tools/frontend/trial-resources-playwright.cjs",
+      "tools/frontend/webhooks-resilience-playwright.cjs",
+      "tools/load-tests/scripts/run-gateway-with-metrics.js",
+      "tools/manual/capture.cjs",
+      "tools/network-access/health-live.mjs",
+      "tools/network-access/live.mjs",
+      "tools/network-access/ssh-live.cjs",
+      "tools/network-access/ux.cjs",
+      "tools/network-access/watchdog-live.mjs",
+      "tools/performance/frontend-entry.cjs",
+      "tools/session-audit/mysql-playback-fixture.ts",
+      "tools/session-audit/operational-api.mts",
+      "tools/session-audit/readable-export-review.mts",
+      "tools/session-audit/reconstruction-fidelity.ts",
+      "tools/session-audit/reconstruction-local-review.mts",
+      "tools/session-audit/reconstruction-mysql-integration.mts",
+      "tools/session-audit/reconstruction-sql-review.mts",
+      "tools/session-audit/review-recorded-sessions.ts",
+      "tools/shared/harness-endpoint.cjs",
+      "tools/shared/private-artifacts.cjs",
+      "tools/shared/wait-for.cjs",
+      "tools/sonarqube/analyze.mjs",
+      "tools/sonarqube/ci-policy.mjs",
+      "tools/sonarqube/ci-rehearsal.mjs",
+      "tools/sonarqube/ci-run.mjs",
+      "tools/sonarqube/ci-server.mjs",
+      "tools/sonarqube/export.mjs",
+      "tools/sonarqube/install-maintenance.mjs",
+      "tools/sonarqube/ledger.mjs",
+      "tools/sonarqube/maintenance-common.mjs",
+      "tools/sonarqube/maintenance.mjs",
+      "tools/sonarqube/recovery-real.mjs",
+      "tools/sonarqube/recovery.mjs",
+      "tools/sonarqube/table-review.cjs",
+      "tools/sonarqube/token-maintenance.mjs",
+      "tools/sonarqube/validate.mjs",
+      "tools/tls/audit-integration.ts",
+      "tools/tls/integration.cjs",
+      "tools/tls/manager.mjs"
+    ],
+    "missing": []
+  },
+  "coverage": {
+    "legacy": {
+      "pattern": "apps/backend/src/modules/**/*.service.ts",
+      "count": 97,
+      "thresholds": {
+        "lines": 70,
+        "functions": 70,
+        "branches": 60
+      },
+      "summary": {
+        "lines": {
+          "total": 9354,
+          "covered": 6843,
+          "skipped": 0,
+          "pct": 73.15
+        },
+        "statements": {
+          "total": 10916,
+          "covered": 7810,
+          "skipped": 0,
+          "pct": 71.54
+        },
+        "functions": {
+          "total": 2265,
+          "covered": 1592,
+          "skipped": 0,
+          "pct": 70.28
+        },
+        "branches": {
+          "total": 9844,
+          "covered": 6336,
+          "skipped": 0,
+          "pct": 64.36
+        },
+        "branchesTrue": {
+          "total": 0,
+          "covered": 0,
+          "skipped": 0,
+          "pct": "Unknown"
+        }
+      },
+      "passed": true
+    },
+    "global": {
+      "lines": {
+        "total": 79914,
+        "covered": 17747,
+        "skipped": 0,
+        "pct": 22.2
+      },
+      "statements": {
+        "total": 100137,
+        "covered": 21489,
+        "skipped": 0,
+        "pct": 21.45
+      },
+      "functions": {
+        "total": 26788,
+        "covered": 3986,
+        "skipped": 0,
+        "pct": 14.87
+      },
+      "branches": {
+        "total": 61135,
+        "covered": 15664,
+        "skipped": 0,
+        "pct": 25.62
+      },
+      "branchesTrue": {
+        "total": 0,
+        "covered": 0,
+        "skipped": 0,
+        "pct": "Unknown"
+      }
+    },
+    "inventory": {
+      "count": 999,
+      "reportedCount": 999,
+      "missing": [],
+      "unexpected": []
+    }
+  },
+  "privateProjectVerified": true,
+  "baseAnalysisId": "b77318a0-89fe-4b24-b7d5-363b6e3584a0",
+  "headAnalysisId": "5a113fde-dac1-4666-8a82-e6b55b8c4034",
+  "comparison": {
+    "passed": false,
+    "reviewed": 295,
+    "unexpected": [
+      {
+        "rule": "javascript:S2871",
+        "file": "tools/coverage/inventory.mjs",
+        "line": 12
+      },
+      {
+        "rule": "javascript:S4036",
+        "file": "tools/coverage/inventory.mjs",
+        "line": 12
+      },
+      {
+        "rule": "javascript:S3403",
+        "file": "tools/coverage/lcov.mjs",
+        "line": 29
+      },
+      {
+        "rule": "javascript:S4036",
+        "file": "tools/coverage/lcov.mjs",
+        "line": 67
+      },
+      {
+        "rule": "javascript:S2871",
+        "file": "tools/coverage/lcov.mjs",
+        "line": 73
+      },
+      {
+        "rule": "javascript:S2871",
+        "file": "tools/coverage/node-map.mjs",
+        "line": 13
+      },
+      {
+        "rule": "javascript:S4036",
+        "file": "tools/coverage/run.mjs",
+        "line": 29
+      },
+      {
+        "rule": "javascript:S4036",
+        "file": "tools/coverage/run.mjs",
+        "line": 40
+      },
+      {
+        "rule": "javascript:S2871",
+        "file": "tools/coverage/summary.mjs",
+        "line": 48
+      },
+      {
+        "rule": "javascript:S7737",
+        "file": "tools/sonarqube/maintenance-common.mjs",
+        "line": 51
+      },
+      {
+        "rule": "javascript:S4036",
+        "file": "tools/sonarqube/validate.mjs",
+        "line": 49
+      }
+    ],
+    "absentReviewedOccurrences": 0
+  },
+  "hotspotsToReview": 0,
+  "gate": {
+    "status": "ERROR",
+    "conditions": [
+      {
+        "status": "OK",
+        "metricKey": "new_coverage",
+        "comparator": "LT",
+        "errorThreshold": "80",
+        "actualValue": "80.2"
+      },
+      {
+        "status": "OK",
+        "metricKey": "new_duplicated_lines_density",
+        "comparator": "GT",
+        "errorThreshold": "3",
+        "actualValue": "0.096"
+      },
+      {
+        "status": "ERROR",
+        "metricKey": "new_violations",
+        "comparator": "GT",
+        "errorThreshold": "0",
+        "actualValue": "12"
+      }
+    ],
+    "ignoredConditions": false,
+    "period": {
+      "mode": "SPECIFIC_ANALYSIS",
+      "date": "2026-11-03T20:31:23+0000",
+      "parameter": "b77318a0-89fe-4b24-b7d5-363b6e3584a0"
+    },
+    "caycStatus": "compliant"
+  },
+  "cleanup": "complete",
+  "finishedAt": "2026-11-03T20:39:41.237Z"
+}

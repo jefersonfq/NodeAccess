@@ -1,0 +1,20 @@
+{
+  "scanner": "@sonar/scan@5.0.2",
+  "primaryFile": "src/properties.js",
+  "primaryFileSha256": "ab15a471edaba1cb36ac17ab01a8b1ff8993ceeceb4dca301ef321c03a3d6586",
+  "before": {
+    "alternativeProjectSettingsIgnored": true,
+    "sonarTestsMissing": true
+  },
+  "after": {
+    "baseHeadPropertiesEqual": true,
+    "propertiesVerified": [
+      "sonar.projectKey",
+      "sonar.sources",
+      "sonar.tests",
+      "sonar.test.inclusions",
+      "sonar.exclusions"
+    ]
+  },
+  "kind": "real installed wrapper property reader; no server analysis in this check"
+}

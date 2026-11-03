@@ -5,17 +5,19 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { execFileSync } from 'node:child_process'
 import { run } from './ci-run.mjs'
+import { readConfiguration } from './ci-config.mjs'
 
-function fixture(t) {
+function fixture(t, baseConfiguration = 'same') {
   const root = mkdtempSync(join(tmpdir(), 'sonar-ci-unit-'))
   t.after(() => rmSync(root, { recursive: true, force: true }))
   const git = args => execFileSync('/usr/bin/git', args, { cwd: root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).trim()
   git(['init']); git(['config', 'user.name', 'Fixture']); git(['config', 'user.email', 'fixture@example.invalid'])
   mkdirSync(join(root, 'docs/sonarqube'), { recursive: true })
   writeFileSync(join(root, 'docs/sonarqube/accepted-findings.json'), JSON.stringify({ schemaVersion: 1, findings: [] }))
-  writeFileSync(join(root, 'sonar-project.properties'), 'sonar.projectKey=nodeaccess\nsonar.sources=src\n')
+  if (baseConfiguration !== 'absent') writeFileSync(join(root, 'sonar-project.properties'), baseConfiguration === 'different' ? 'sonar.projectKey=legacy\nsonar.sources=.\n' : 'sonar.projectKey=nodeaccess\nsonar.sources=src\n')
   writeFileSync(join(root, '.gitignore'), 'coverage/\n')
   git(['add', '.']); git(['commit', '-m', 'base']); const base = git(['rev-parse', 'HEAD'])
+  writeFileSync(join(root, 'sonar-project.properties'), 'sonar.projectKey=nodeaccess\nsonar.sources=src\n')
   writeFileSync(join(root, 'candidate.txt'), 'candidate')
   git(['add', '.']); git(['commit', '-m', 'head']); const head = git(['rev-parse', 'HEAD'])
   return { root, base, head }
@@ -38,7 +40,7 @@ function runtime(f, options = {}) {
       admin: async (_, params) => { assert.equal(params.value, 'analysis-base'); events.push('specific-analysis') },
       cleanup: async () => { events.push('cleanup'); if (options.cleanupFailure) throw new Error('failure') } } },
     configure: async () => ({ scan: 'scan-fixture', review: 'review-fixture' }),
-    analyze: async ({ stage }) => { events.push(stage); if (options.scanFailure) throw new Error('CI_SCANNER_FAILED'); return `analysis-${stage}` },
+    analyze: async ({ stage, settings, onConfiguration }) => { events.push(stage); if (options.scanFailure) throw new Error('CI_SCANNER_FAILED'); const config = readConfiguration(settings); onConfiguration({ sha256: config.sha256, effectiveProperties: config.properties, contextVerified: true }); return `analysis-${stage}` },
     readClient: () => async () => ({ analyses: [{ key: options.replaced ? 'different-analysis' : 'analysis-head' }] }),
     exportFindings: async ({ outputRoot }) => {
       const output = join(outputRoot, 'export'); mkdirSync(output)
@@ -142,5 +144,30 @@ test('rejects source mutation after scanner while exporting findings', async t =
   }
   const result = await run({ ...f, runtime: rt })
   assert.ok(result.failures.includes('CI_SOURCE_CHANGED_DURING_EXPORT'))
+  assert.equal(rt.events.at(-1), 'cleanup')
+})
+
+for (const prior of ['absent', 'different']) test(`orchestration uses candidate config for a base with ${prior} properties`, async t => {
+  const f = fixture(t, prior), rt = runtime(f), snapshots = [], analyze = rt.analyze
+  rt.analyze = async input => { snapshots.push({ root: input.root, settings: input.settings, bytes: readFileSync(input.settings, 'utf8') }); return analyze(input) }
+  const result = await run({ ...f, runtime: rt })
+  assert.equal(result.passed, true, JSON.stringify(result)); assert.equal(snapshots.length, 2)
+  assert.notEqual(snapshots[0].root, snapshots[1].root)
+  assert.equal(snapshots[0].settings, join(snapshots[0].root, 'sonar-project.properties'))
+  assert.equal(snapshots[0].bytes, snapshots[1].bytes)
+  assert.deepEqual(result.scannerConfiguration.base, result.scannerConfiguration.head)
+})
+for (const mode of ['missing', 'wrong', 'mutated']) test(`orchestration refuses ${mode} effective configuration evidence`, async t => {
+  const f = fixture(t), rt = runtime(f), analyze = rt.analyze
+  rt.analyze = async input => {
+    if (mode === 'missing') return 'analysis-base'
+    const result = await analyze(input)
+    if (mode === 'wrong') input.onConfiguration({ contextVerified: true, sha256: input.settingsHash, effectiveProperties: { 'sonar.sources': '.' } })
+    else writeFileSync(input.settings, 'sonar.projectKey=nodeaccess\nsonar.sources=wrong\n')
+    return result
+  }
+  const result = await run({ ...f, runtime: rt })
+  assert.equal(result.passed, false)
+  assert.ok(result.failures.includes(mode === 'mutated' ? 'CI_SETTINGS_CHANGED' : 'CI_EFFECTIVE_SETTINGS_NOT_VERIFIED'), JSON.stringify(result))
   assert.equal(rt.events.at(-1), 'cleanup')
 })
