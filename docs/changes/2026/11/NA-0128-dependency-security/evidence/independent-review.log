@@ -1,0 +1,19 @@
+✔ minimatch named/class APIs match expected Vue/TS/ESLint path patterns (22.648077ms)
+✔ minimatch adversarial preprocessing stays bounded with unchanged basic negative (59.87244ms)
+✔ glob discovery and already-aborted traversal preserve filesystem and avoid reads (112.466133ms)
+✔ Fastify static real loopback supports enumerated routes, ignores, 404 and swagger assets (376.852506ms)
+✔ follow-redirects strips cross-realm sensitive header and retains harmless header (28.710506ms)
+✔ Joi email multiple handles large whitespace and preserves valid/custom separator cases (102.684352ms)
+✔ patch replaces only removed traversal API and is idempotent (13.789181ms)
+✔ unknown source refuses mutation even if target text is present (5.630333ms)
+✔ new upstream version requires review rather than silently applying stale patch (3.822153ms)
+✔ runtime without optional documentation tool needs no patch (1.22954ms)
+✔ real TypeDoc discovers nested package globs and excludes files with the patched public API (1317.151526ms)
+ℹ tests 11
+ℹ suites 0
+ℹ pass 11
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1463.326139

@@ -1,5 +1,5 @@
-import { existsSync, readFileSync } from 'node:fs'
-import { resolve, dirname } from 'node:path'
+import { existsSync, readFileSync, realpathSync, statSync } from 'node:fs'
+import { resolve, dirname, isAbsolute, basename } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { spawnSync } from 'node:child_process'
 
@@ -33,19 +33,28 @@ export function preflight({ root = projectRoot, env = process.env, version = pro
   return { host, scannerVersion, sources, coverage: 'coverage/lcov.info' }
 }
 
-export function main(argv = process.argv.slice(2)) {
+export function npmCliPath(env = process.env, executable = process.execPath) {
+  const candidate = env.npm_execpath || resolve(executable, '..', '..', 'lib/node_modules/npm/bin/npm-cli.js')
+  if (!isAbsolute(candidate)) throw new Error('npm CLI must be absolute; run through npm run sonar:analyze')
+  let file
+  try { file = realpathSync(candidate) } catch { throw new Error('npm CLI unavailable; run through npm run sonar:analyze') }
+  if (basename(file) !== 'npm-cli.js' || !statSync(file).isFile()) throw new Error('npm CLI must resolve to a regular npm-cli.js file')
+  return file
+}
+
+export function main(argv = process.argv.slice(2), { root = projectRoot, env = process.env } = {}) {
   try {
     if (argv.some(arg => arg !== '--check')) throw new Error('Only --check is accepted; analysis options are reviewed in project properties')
-    const checked = preflight()
+    const checked = preflight({ root, env })
     if (argv.includes('--check')) {
       console.log(JSON.stringify({ status: 'ready', ...checked }, null, 2))
       return 0
     }
     // Token is inherited through env, never placed in argv or shell history.
     // Run an exact external tool version; do not modify project dependencies.
-    const result = spawnSync('npm', ['exec', '--yes', `--package=@sonar/scan@${scannerVersion}`, '--', 'sonar-scanner-npm', '-Dsonar.qualitygate.wait=true', '-Dsonar.qualitygate.timeout=600'], {
-      cwd: projectRoot,
-      env: { ...process.env, SONAR_HOST_URL: checked.host },
+    const result = spawnSync(process.execPath, [npmCliPath(env), 'exec', '--yes', `--package=@sonar/scan@${scannerVersion}`, '--', 'sonar-scanner-npm', '-Dsonar.qualitygate.wait=true', '-Dsonar.qualitygate.timeout=600'], {
+      cwd: root,
+      env: { ...env, SONAR_HOST_URL: checked.host },
       stdio: 'inherit',
       shell: false,
     })

@@ -1,0 +1,6 @@
+npm notice run nodeaccess@0.1.0 npx
+npm notice run 'typedoc' --entryPoints packages/shared/src/index.ts --tsconfig packages/shared/tsconfig.json --json /tmp/NA0128-typedoc-fixed.json
+[warning] catalog, defined in @nodeaccess/shared/src/data/agent-diagnostics.json, is referenced by AgentDiagnosticCode but not included in the documentation
+[warning] authEventTypes, defined in @nodeaccess/shared/src/schemas/log.schema.ts, is referenced by AuthEventType but not included in the documentation
+[info] json generated at /tmp/NA0128-typedoc-fixed.json
+[warning] Found 0 errors and 2 warnings

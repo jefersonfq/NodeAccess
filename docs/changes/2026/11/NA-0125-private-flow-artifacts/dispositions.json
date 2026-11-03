@@ -1,6 +1,6 @@
 [
   {
-    "key": "e56f6cf5-7540-422b-88a0-6b198cdf4e3e",
+    "issueId": "e56f6cf5-7540-422b-88a0-6b198cdf4e3e",
     "status": "fixed",
     "rationale": "Diretório temporário fixo substituído pelo namespace privado por UID/workspace do helper existente; destinos públicos e symlinks rejeitados antes de escrever.",
     "evidence": [

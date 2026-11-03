@@ -1,6 +1,6 @@
 [
   {
-    "key": "0c5cfe0e-6f7a-4244-a413-22e37508cbc6",
+    "issueId": "0c5cfe0e-6f7a-4244-a413-22e37508cbc6",
     "rule": "typescript:S1313",
     "file": "apps/backend/src/modules/trials/trial-policy.ts",
     "baselineLine": 99,
@@ -12,7 +12,7 @@
     "risk": "baixo"
   },
   {
-    "key": "70c71381-d984-41d0-bd21-3c12d7287a04",
+    "issueId": "70c71381-d984-41d0-bd21-3c12d7287a04",
     "rule": "typescript:S1313",
     "file": "apps/backend/src/modules/trials/trial-policy.ts",
     "baselineLine": 99,
@@ -24,7 +24,7 @@
     "risk": "baixo"
   },
   {
-    "key": "eb6736bf-e1bd-4a8e-93b4-da2ab4502dfa",
+    "issueId": "eb6736bf-e1bd-4a8e-93b4-da2ab4502dfa",
     "rule": "typescript:S1313",
     "file": "apps/backend/src/modules/trials/trial-policy.ts",
     "baselineLine": 99,
@@ -36,7 +36,7 @@
     "risk": "baixo"
   },
   {
-    "key": "14421ceb-0773-4872-b86e-453766845625",
+    "issueId": "14421ceb-0773-4872-b86e-453766845625",
     "rule": "typescript:S1313",
     "file": "apps/backend/src/modules/trials/trial-address-policy.ts",
     "baselineLine": 6,
@@ -48,7 +48,7 @@
     "risk": "baixo"
   },
   {
-    "key": "1d1925e1-6f0f-4805-affb-a4e83beabad9",
+    "issueId": "1d1925e1-6f0f-4805-affb-a4e83beabad9",
     "rule": "typescript:S1313",
     "file": "apps/backend/src/modules/trials/trial-address-policy.ts",
     "baselineLine": 6,
@@ -60,7 +60,7 @@
     "risk": "baixo"
   },
   {
-    "key": "45d9981d-0b91-416f-bdca-13a6240d1a40",
+    "issueId": "45d9981d-0b91-416f-bdca-13a6240d1a40",
     "rule": "typescript:S1313",
     "file": "apps/backend/src/modules/trials/trial-address-policy.ts",
     "baselineLine": 6,
@@ -72,7 +72,7 @@
     "risk": "baixo"
   },
   {
-    "key": "4c43875f-ee98-4882-99f8-d295d081dfa0",
+    "issueId": "4c43875f-ee98-4882-99f8-d295d081dfa0",
     "rule": "typescript:S1313",
     "file": "apps/backend/src/modules/trials/trial-address-policy.ts",
     "baselineLine": 6,
@@ -84,7 +84,7 @@
     "risk": "baixo"
   },
   {
-    "key": "06f14c75-d6a4-4b43-911b-ad454436ff56",
+    "issueId": "06f14c75-d6a4-4b43-911b-ad454436ff56",
     "rule": "typescript:S1313",
     "file": "apps/backend/src/modules/trials/trial-address-policy.ts",
     "baselineLine": 7,
@@ -96,7 +96,7 @@
     "risk": "baixo"
   },
   {
-    "key": "20741df4-375b-40e9-a539-97b8dc562a88",
+    "issueId": "20741df4-375b-40e9-a539-97b8dc562a88",
     "rule": "typescript:S1313",
     "file": "apps/backend/src/modules/trials/trial-address-policy.ts",
     "baselineLine": 7,
@@ -108,7 +108,7 @@
     "risk": "baixo"
   },
   {
-    "key": "bced2a1b-fce1-4e38-a3b6-23fa0272eb7b",
+    "issueId": "bced2a1b-fce1-4e38-a3b6-23fa0272eb7b",
     "rule": "typescript:S1313",
     "file": "apps/backend/src/modules/trials/trial-address-policy.ts",
     "baselineLine": 7,
@@ -120,7 +120,7 @@
     "risk": "baixo"
   },
   {
-    "key": "ec102774-f282-4408-8ccf-2dfc37fc7a76",
+    "issueId": "ec102774-f282-4408-8ccf-2dfc37fc7a76",
     "rule": "typescript:S1313",
     "file": "apps/backend/src/modules/trials/trial-address-policy.ts",
     "baselineLine": 7,
@@ -132,7 +132,7 @@
     "risk": "baixo"
   },
   {
-    "key": "ffa5a33d-c24f-47aa-ae44-7ef1bc1a58e9",
+    "issueId": "ffa5a33d-c24f-47aa-ae44-7ef1bc1a58e9",
     "rule": "typescript:S1313",
     "file": "apps/backend/src/modules/trials/trial-address-policy.ts",
     "baselineLine": 7,
@@ -144,7 +144,7 @@
     "risk": "baixo"
   },
   {
-    "key": "25702922-b8ea-47a6-a8bd-e814faa9d7cc",
+    "issueId": "25702922-b8ea-47a6-a8bd-e814faa9d7cc",
     "rule": "typescript:S8786",
     "file": "apps/backend/src/modules/trials/trial-machines.ts",
     "baselineLine": 103,
@@ -158,7 +158,7 @@
     "risk": "baixo"
   },
   {
-    "key": "b1bded3c-7381-47c6-a49c-e11cf1fc1c57",
+    "issueId": "b1bded3c-7381-47c6-a49c-e11cf1fc1c57",
     "rule": "typescript:S8786",
     "file": "apps/backend/src/modules/trials/trial-machines.ts",
     "baselineLine": 119,
@@ -172,7 +172,7 @@
     "risk": "baixo"
   },
   {
-    "key": "3377b223-d97d-4932-a99a-5bf0d10eb9c9",
+    "issueId": "3377b223-d97d-4932-a99a-5bf0d10eb9c9",
     "rule": "typescript:S8786",
     "file": "apps/backend/src/modules/trials/trial.service.ts",
     "baselineLine": 346,
@@ -186,7 +186,7 @@
     "risk": "baixo"
   },
   {
-    "key": "12d93f64-f9d7-4eb4-8440-c085092416bd",
+    "issueId": "12d93f64-f9d7-4eb4-8440-c085092416bd",
     "rule": "typescript:S7059",
     "file": "apps/backend/src/modules/agents/agent.service.ts",
     "baselineLine": 207,
@@ -198,7 +198,7 @@
     "risk": "baixo"
   },
   {
-    "key": "1d322c3b-1a8a-4689-b46c-aa7e4570f1de",
+    "issueId": "1d322c3b-1a8a-4689-b46c-aa7e4570f1de",
     "rule": "typescript:S6324",
     "file": "apps/backend/src/modules/session-audit/session-audit-history.ts",
     "baselineLine": 4,
@@ -211,7 +211,7 @@
     "risk": "baixo"
   },
   {
-    "key": "7113a98b-5138-47ee-9a6f-8e943882cebf",
+    "issueId": "7113a98b-5138-47ee-9a6f-8e943882cebf",
     "rule": "typescript:S6324",
     "file": "apps/backend/src/modules/session-audit/session-audit-input.ts",
     "baselineLine": 79,
@@ -224,7 +224,7 @@
     "risk": "baixo"
   },
   {
-    "key": "9e7ea99f-3934-44f2-ade9-efaa84fda725",
+    "issueId": "9e7ea99f-3934-44f2-ade9-efaa84fda725",
     "rule": "typescript:S6324",
     "file": "apps/backend/src/modules/session-audit/session-audit-input.ts",
     "baselineLine": 83,
@@ -237,7 +237,7 @@
     "risk": "baixo"
   },
   {
-    "key": "329e3968-3674-4e1c-9373-551eaaf8d1a6",
+    "issueId": "329e3968-3674-4e1c-9373-551eaaf8d1a6",
     "rule": "typescript:S6324",
     "file": "apps/backend/src/modules/session-audit/session-audit-input.ts",
     "baselineLine": 104,
@@ -250,7 +250,7 @@
     "risk": "baixo"
   },
   {
-    "key": "bb264bc3-d2ec-4d09-b1d2-6022075d37e8",
+    "issueId": "bb264bc3-d2ec-4d09-b1d2-6022075d37e8",
     "rule": "typescript:S8786",
     "file": "apps/backend/src/modules/session-audit/session-audit-normalizer.ts",
     "baselineLine": 342,
@@ -263,7 +263,7 @@
     "risk": "baixo"
   },
   {
-    "key": "5330fd0a-3eda-4807-9381-666d10f49446",
+    "issueId": "5330fd0a-3eda-4807-9381-666d10f49446",
     "rule": "typescript:S6324",
     "file": "apps/backend/src/modules/session-audit/session-audit-normalizer.ts",
     "baselineLine": 426,
@@ -276,7 +276,7 @@
     "risk": "baixo"
   },
   {
-    "key": "bcaf109e-9efa-4bda-b884-305da244f5a9",
+    "issueId": "bcaf109e-9efa-4bda-b884-305da244f5a9",
     "rule": "typescript:S6324",
     "file": "apps/backend/src/modules/session-audit/session-audit-normalizer.ts",
     "baselineLine": 426,
@@ -289,7 +289,7 @@
     "risk": "baixo"
   },
   {
-    "key": "ff837000-2a2b-4a89-ae2e-162ce428b264",
+    "issueId": "ff837000-2a2b-4a89-ae2e-162ce428b264",
     "rule": "typescript:S8786",
     "file": "apps/backend/src/modules/sftp/sftp.controller.ts",
     "baselineLine": 816,
@@ -302,7 +302,7 @@
     "risk": "baixo"
   },
   {
-    "key": "3f86540b-6f80-4ea5-a65c-bdd9d3d710fd",
+    "issueId": "3f86540b-6f80-4ea5-a65c-bdd9d3d710fd",
     "rule": "typescript:S8786",
     "file": "apps/backend/src/modules/terminal-highlights/terminal-highlight.service.ts",
     "baselineLine": 24,
@@ -315,7 +315,7 @@
     "risk": "baixo"
   },
   {
-    "key": "31a66372-8f8f-4821-b1d4-e97e8fb5f55f",
+    "issueId": "31a66372-8f8f-4821-b1d4-e97e8fb5f55f",
     "rule": "typescript:S1313",
     "file": "apps/backend/src/shared/ssrf-guard.ts",
     "baselineLine": 11,
@@ -327,7 +327,7 @@
     "risk": "baixo"
   },
   {
-    "key": "6eac06ec-58b7-4960-bbd3-e0da9722449a",
+    "issueId": "6eac06ec-58b7-4960-bbd3-e0da9722449a",
     "rule": "typescript:S1313",
     "file": "apps/backend/src/shared/ssrf-guard.ts",
     "baselineLine": 11,
@@ -339,7 +339,7 @@
     "risk": "baixo"
   },
   {
-    "key": "5483fed1-911a-4b50-8abd-b3c18775b584",
+    "issueId": "5483fed1-911a-4b50-8abd-b3c18775b584",
     "rule": "typescript:S1313",
     "file": "apps/backend/src/shared/ssrf-guard.ts",
     "baselineLine": 12,
@@ -351,7 +351,7 @@
     "risk": "baixo"
   },
   {
-    "key": "6dc68b07-0d2b-4410-a18d-2eab9726dab6",
+    "issueId": "6dc68b07-0d2b-4410-a18d-2eab9726dab6",
     "rule": "typescript:S1313",
     "file": "apps/backend/src/shared/ssrf-guard.ts",
     "baselineLine": 12,
@@ -363,7 +363,7 @@
     "risk": "baixo"
   },
   {
-    "key": "b7fbbc64-d861-4644-9edc-86622ea1b04f",
+    "issueId": "b7fbbc64-d861-4644-9edc-86622ea1b04f",
     "rule": "typescript:S1313",
     "file": "apps/backend/src/shared/ssrf-guard.ts",
     "baselineLine": 12,
@@ -375,7 +375,7 @@
     "risk": "baixo"
   },
   {
-    "key": "33d02c02-d09c-450a-bb63-f63b61b29922",
+    "issueId": "33d02c02-d09c-450a-bb63-f63b61b29922",
     "rule": "typescript:S1313",
     "file": "apps/backend/src/shared/ssrf-guard.ts",
     "baselineLine": 13,
@@ -387,7 +387,7 @@
     "risk": "baixo"
   },
   {
-    "key": "b387e874-3b8d-4db9-85c9-c39f098b9167",
+    "issueId": "b387e874-3b8d-4db9-85c9-c39f098b9167",
     "rule": "typescript:S1313",
     "file": "apps/backend/src/shared/ssrf-guard.ts",
     "baselineLine": 13,
@@ -399,7 +399,7 @@
     "risk": "baixo"
   },
   {
-    "key": "d544c375-1c1f-4b49-977e-2c5c88d17bd8",
+    "issueId": "d544c375-1c1f-4b49-977e-2c5c88d17bd8",
     "rule": "typescript:S1313",
     "file": "apps/backend/src/shared/ssrf-guard.ts",
     "baselineLine": 14,
@@ -411,7 +411,7 @@
     "risk": "baixo"
   },
   {
-    "key": "5fa1ef6e-cef6-43cd-9f2c-920d8fadbe5e",
+    "issueId": "5fa1ef6e-cef6-43cd-9f2c-920d8fadbe5e",
     "rule": "typescript:S1313",
     "file": "apps/backend/src/shared/ssrf-guard.ts",
     "baselineLine": 18,
@@ -423,7 +423,7 @@
     "risk": "baixo"
   },
   {
-    "key": "30451ab3-b8ae-4901-8c3b-bf8c62680c10",
+    "issueId": "30451ab3-b8ae-4901-8c3b-bf8c62680c10",
     "rule": "typescript:S1313",
     "file": "apps/backend/src/shared/ssrf-guard.ts",
     "baselineLine": 20,
@@ -435,7 +435,7 @@
     "risk": "baixo"
   },
   {
-    "key": "46abbbed-2951-4129-a4fa-bf491804b000",
+    "issueId": "46abbbed-2951-4129-a4fa-bf491804b000",
     "rule": "typescript:S1313",
     "file": "apps/backend/src/shared/ssrf-guard.ts",
     "baselineLine": 21,
@@ -447,7 +447,7 @@
     "risk": "baixo"
   },
   {
-    "key": "87d9ad28-6eac-45a6-85ce-0aee1861ad0f",
+    "issueId": "87d9ad28-6eac-45a6-85ce-0aee1861ad0f",
     "rule": "typescript:S1313",
     "file": "apps/backend/src/shared/ssrf-guard.ts",
     "baselineLine": 21,
@@ -459,7 +459,7 @@
     "risk": "baixo"
   },
   {
-    "key": "9aca2f59-4760-4aab-b1c4-638896efe306",
+    "issueId": "9aca2f59-4760-4aab-b1c4-638896efe306",
     "rule": "typescript:S1313",
     "file": "apps/backend/src/shared/ssrf-guard.ts",
     "baselineLine": 21,
@@ -471,7 +471,7 @@
     "risk": "baixo"
   },
   {
-    "key": "2894d177-b76a-40d9-9152-9752b53d15ca",
+    "issueId": "2894d177-b76a-40d9-9152-9752b53d15ca",
     "rule": "typescript:S2245",
     "file": "apps/backend/src/modules/integrations/jira-interaction.repository.ts",
     "baselineLine": 80,
@@ -483,7 +483,7 @@
     "risk": "baixo"
   },
   {
-    "key": "6f08bb36-06ce-43b6-ac45-3544ce696b80",
+    "issueId": "6f08bb36-06ce-43b6-ac45-3544ce696b80",
     "rule": "javascript:S7737",
     "file": "apps/agent/src/local-listeners.js",
     "baselineLine": 8,
@@ -496,7 +496,7 @@
     "risk": "baixo"
   },
   {
-    "key": "c1484cd2-7b4a-40a7-bb38-8ece5b7f93c1",
+    "issueId": "c1484cd2-7b4a-40a7-bb38-8ece5b7f93c1",
     "rule": "typescript:S8786",
     "file": "apps/backend/src/modules/native-ssh-gateway/native-ssh-gateway.host-key.ts",
     "baselineLine": 39,
@@ -508,7 +508,7 @@
     "risk": "baixo"
   },
   {
-    "key": "52b546bb-6169-4d21-8a4c-95b3a290df12",
+    "issueId": "52b546bb-6169-4d21-8a4c-95b3a290df12",
     "rule": "typescript:S4790",
     "file": "apps/backend/src/modules/network-access/tacacs-protocol.ts",
     "baselineLine": 17,
@@ -521,7 +521,7 @@
     "risk": "médio: ofuscação legada do protocolo, exige rede protegida"
   },
   {
-    "key": "6bc86845-9e6f-473f-a781-6445af489247",
+    "issueId": "6bc86845-9e6f-473f-a781-6445af489247",
     "rule": "typescript:S7737",
     "file": "apps/backend/src/modules/network-access/tacacs-server.ts",
     "baselineLine": 7,
@@ -533,7 +533,7 @@
     "risk": "baixo"
   },
   {
-    "key": "40822519-fa60-4e2e-abc6-503d70faa38c",
+    "issueId": "40822519-fa60-4e2e-abc6-503d70faa38c",
     "rule": "typescript:S6959",
     "file": "apps/backend/src/modules/hosts/host.repository.ts",
     "baselineLine": 266,
@@ -545,7 +545,7 @@
     "risk": "baixo"
   },
   {
-    "key": "374102b8-505f-42e0-bb1f-e531cc2e03aa",
+    "issueId": "374102b8-505f-42e0-bb1f-e531cc2e03aa",
     "rule": "typescript:S5443",
     "file": "apps/backend/src/modules/ai-ssh-actions/ai-script-artifact.repository.ts",
     "baselineLine": 20,
@@ -561,7 +561,7 @@
     "risk": "baixo"
   },
   {
-    "key": "9507ac72-b5b8-4115-86a9-a859b95dfa4d",
+    "issueId": "9507ac72-b5b8-4115-86a9-a859b95dfa4d",
     "rule": "typescript:S6324",
     "file": "apps/backend/src/modules/local-ai/local-ai-terminal-context.ts",
     "baselineLine": 4,
@@ -573,7 +573,7 @@
     "risk": "baixo"
   },
   {
-    "key": "36e41420-519a-41e3-9923-ae271cdf1db2",
+    "issueId": "36e41420-519a-41e3-9923-ae271cdf1db2",
     "rule": "typescript:S8786",
     "file": "apps/backend/src/modules/local-ai/local-ai.service.ts",
     "baselineLine": 991,
@@ -586,7 +586,7 @@
     "risk": "baixo"
   },
   {
-    "key": "73219f2a-15eb-4303-a17d-8a052034db82",
+    "issueId": "73219f2a-15eb-4303-a17d-8a052034db82",
     "rule": "typescript:S8786",
     "file": "apps/backend/src/modules/auth/scim.service.ts",
     "baselineLine": 61,
@@ -599,7 +599,7 @@
     "risk": "baixo"
   },
   {
-    "key": "5b554799-eaae-4e87-b123-bdad5c8e5486",
+    "issueId": "5b554799-eaae-4e87-b123-bdad5c8e5486",
     "rule": "typescript:S8786",
     "file": "apps/backend/src/modules/auth/scim.service.ts",
     "baselineLine": 244,
@@ -612,7 +612,7 @@
     "risk": "baixo"
   },
   {
-    "key": "c2ee4394-aa20-4ba7-b15b-74616258fe5d",
+    "issueId": "c2ee4394-aa20-4ba7-b15b-74616258fe5d",
     "rule": "typescript:S5443",
     "file": "apps/backend/src/config/env.ts",
     "baselineLine": 172,
@@ -627,7 +627,7 @@
     "risk": "médio: API e gateway devem usar o mesmo UID; raiz compartilhada/symlink precisa correção operacional"
   },
   {
-    "key": "788b0121-b72c-4a93-9c48-a4d6bd618e15",
+    "issueId": "788b0121-b72c-4a93-9c48-a4d6bd618e15",
     "rule": "typescript:S6324",
     "file": "apps/backend/src/modules/auth/ldap-identity.provider.ts",
     "baselineLine": 137,
@@ -639,7 +639,7 @@
     "risk": "baixo"
   },
   {
-    "key": "3ee9e363-2ddc-4073-9296-55afbefa849c",
+    "issueId": "3ee9e363-2ddc-4073-9296-55afbefa849c",
     "rule": "typescript:S9383",
     "file": "apps/backend/src/modules/ha/ha.service.ts",
     "baselineLine": 1432,
@@ -651,7 +651,7 @@
     "risk": "baixo"
   },
   {
-    "key": "862c0ff8-74b8-42a6-8a55-561777ef9ca3",
+    "issueId": "862c0ff8-74b8-42a6-8a55-561777ef9ca3",
     "rule": "typescript:S8786",
     "file": "apps/backend/src/modules/session-audit/session-audit-normalizer.ts",
     "baselineLine": 218,
@@ -664,7 +664,7 @@
     "risk": "baixo"
   },
   {
-    "key": "ae2713d5-a83d-47bd-8efc-fdba5bfc4141",
+    "issueId": "ae2713d5-a83d-47bd-8efc-fdba5bfc4141",
     "rule": "typescript:S7773",
     "file": "apps/backend/src/modules/sftp/sftp.controller.ts",
     "baselineLine": 499,
@@ -676,7 +676,7 @@
     "risk": "baixo"
   },
   {
-    "key": "21f7dd57-cac9-4c40-91ee-62550cc60d17",
+    "issueId": "21f7dd57-cac9-4c40-91ee-62550cc60d17",
     "rule": "typescript:S7773",
     "file": "apps/backend/src/modules/sftp/sftp.controller.ts",
     "baselineLine": 628,
@@ -688,7 +688,7 @@
     "risk": "baixo"
   },
   {
-    "key": "15c67584-81e6-447e-acb2-ab53a161828e",
+    "issueId": "15c67584-81e6-447e-acb2-ab53a161828e",
     "rule": "typescript:S7773",
     "file": "apps/backend/src/modules/sftp/sftp.service.ts",
     "baselineLine": 454,
@@ -700,7 +700,7 @@
     "risk": "baixo"
   },
   {
-    "key": "8b6b0df7-6bd0-49bc-baec-01e9e84313b2",
+    "issueId": "8b6b0df7-6bd0-49bc-baec-01e9e84313b2",
     "rule": "typescript:S3923",
     "file": "apps/backend/src/modules/native-ssh-gateway/native-ssh-gateway.routes.ts",
     "baselineLine": 248,
@@ -712,7 +712,7 @@
     "risk": "baixo"
   },
   {
-    "key": "ec011108-1e25-45d4-9a43-eb2b5aca2676",
+    "issueId": "ec011108-1e25-45d4-9a43-eb2b5aca2676",
     "rule": "typescript:S2068",
     "file": "apps/backend/src/modules/auth/auth.routes.ts",
     "baselineLine": 19,
@@ -724,7 +724,7 @@
     "risk": "baixo"
   },
   {
-    "key": "2f9bc285-572a-444d-b770-50d2f6ba4d8f",
+    "issueId": "2f9bc285-572a-444d-b770-50d2f6ba4d8f",
     "rule": "typescript:S1313",
     "file": "apps/backend/src/modules/hosts/host.routes.ts",
     "baselineLine": 15,
@@ -736,7 +736,7 @@
     "risk": "baixo"
   },
   {
-    "key": "e5c6eb8d-afdf-41b5-96d6-695d954777e2",
+    "issueId": "e5c6eb8d-afdf-41b5-96d6-695d954777e2",
     "rule": "typescript:S1313",
     "file": "apps/backend/src/modules/hosts/host.routes.ts",
     "baselineLine": 33,
@@ -748,7 +748,7 @@
     "risk": "baixo"
   },
   {
-    "key": "a7b29bad-5cea-494d-a4b5-f613c8c94561",
+    "issueId": "a7b29bad-5cea-494d-a4b5-f613c8c94561",
     "rule": "typescript:S1313",
     "file": "apps/backend/src/modules/hosts/host.routes.ts",
     "baselineLine": 41,
@@ -760,7 +760,7 @@
     "risk": "baixo"
   },
   {
-    "key": "d4809b65-03d2-4b2d-b954-aab3a203cf8b",
+    "issueId": "d4809b65-03d2-4b2d-b954-aab3a203cf8b",
     "rule": "typescript:S2068",
     "file": "apps/backend/src/modules/hosts/host.routes.ts",
     "baselineLine": 46,
@@ -772,7 +772,7 @@
     "risk": "baixo"
   },
   {
-    "key": "fe3621db-2fe1-465a-9cc0-50358532e3ff",
+    "issueId": "fe3621db-2fe1-465a-9cc0-50358532e3ff",
     "rule": "typescript:S6324",
     "file": "apps/backend/src/modules/session-audit/session-audit-normalizer.ts",
     "baselineLine": 16,
@@ -785,7 +785,7 @@
     "risk": "baixo"
   },
   {
-    "key": "1e5e63e5-6cac-4288-8559-4fe8a4bd4d64",
+    "issueId": "1e5e63e5-6cac-4288-8559-4fe8a4bd4d64",
     "rule": "typescript:S6324",
     "file": "apps/backend/src/modules/session-audit/session-audit-normalizer.ts",
     "baselineLine": 35,
@@ -798,7 +798,7 @@
     "risk": "baixo"
   },
   {
-    "key": "7fa5b04f-9b1f-4045-8848-d3d4129d2a36",
+    "issueId": "7fa5b04f-9b1f-4045-8848-d3d4129d2a36",
     "rule": "typescript:S6324",
     "file": "apps/backend/src/modules/session-audit/session-audit-normalizer.ts",
     "baselineLine": 35,
@@ -811,7 +811,7 @@
     "risk": "baixo"
   },
   {
-    "key": "c4144b19-7e57-4d6e-89fc-8d1df30ef8ec",
+    "issueId": "c4144b19-7e57-4d6e-89fc-8d1df30ef8ec",
     "rule": "typescript:S6324",
     "file": "apps/backend/src/modules/session-audit/session-audit-normalizer.ts",
     "baselineLine": 39,
@@ -824,7 +824,7 @@
     "risk": "baixo"
   },
   {
-    "key": "e2282065-360b-44ad-bf41-615d93948604",
+    "issueId": "e2282065-360b-44ad-bf41-615d93948604",
     "rule": "typescript:S6324",
     "file": "apps/backend/src/modules/session-audit/session-audit-normalizer.ts",
     "baselineLine": 39,
@@ -837,7 +837,7 @@
     "risk": "baixo"
   },
   {
-    "key": "b422e598-2d23-4433-ac35-5a0f17fe2186",
+    "issueId": "b422e598-2d23-4433-ac35-5a0f17fe2186",
     "rule": "typescript:S8786",
     "file": "apps/backend/src/modules/agents/agent.routes.ts",
     "baselineLine": 57,
@@ -850,7 +850,7 @@
     "risk": "baixo"
   },
   {
-    "key": "34b2ed32-f711-42a5-bfa1-348537c5d5f4",
+    "issueId": "34b2ed32-f711-42a5-bfa1-348537c5d5f4",
     "rule": "typescript:S8786",
     "file": "apps/backend/src/modules/diagnostic-playbooks/diagnostic-run-ai.service.ts",
     "baselineLine": 488,
@@ -863,7 +863,7 @@
     "risk": "baixo"
   },
   {
-    "key": "aeae7543-2978-4208-81e2-eb4099b55129",
+    "issueId": "aeae7543-2978-4208-81e2-eb4099b55129",
     "rule": "typescript:S8786",
     "file": "apps/backend/src/modules/diagnostic-playbooks/diagnostic-run.controller.ts",
     "baselineLine": 82,
@@ -875,7 +875,7 @@
     "risk": "baixo"
   },
   {
-    "key": "d584bf39-1f68-4dfd-84bb-41c8aa246d4f",
+    "issueId": "d584bf39-1f68-4dfd-84bb-41c8aa246d4f",
     "rule": "typescript:S8786",
     "file": "apps/backend/src/modules/hosts/host.service-NOTE-JEFF.ts",
     "baselineLine": 83,
@@ -888,7 +888,7 @@
     "risk": "baixo"
   },
   {
-    "key": "ded177a6-14ad-4dbf-8910-012fbe7cd37e",
+    "issueId": "ded177a6-14ad-4dbf-8910-012fbe7cd37e",
     "rule": "typescript:S8786",
     "file": "apps/backend/src/modules/hosts/host.service.ts",
     "baselineLine": 209,
@@ -901,7 +901,7 @@
     "risk": "baixo"
   },
   {
-    "key": "a9b964c6-1e96-4292-bc99-33ef3bed8129",
+    "issueId": "a9b964c6-1e96-4292-bc99-33ef3bed8129",
     "rule": "typescript:S8786",
     "file": "apps/backend/src/modules/integrations/local-ai.service.ts",
     "baselineLine": 58,
@@ -914,7 +914,7 @@
     "risk": "baixo"
   },
   {
-    "key": "212b036f-ceb2-407e-ac45-d71e0ac5d904",
+    "issueId": "212b036f-ceb2-407e-ac45-d71e0ac5d904",
     "rule": "typescript:S8786",
     "file": "apps/backend/src/modules/integrations/local-ai.service.ts",
     "baselineLine": 610,
@@ -927,7 +927,7 @@
     "risk": "baixo"
   },
   {
-    "key": "5c450adf-ed23-48d4-90d4-94c19be488f7",
+    "issueId": "5c450adf-ed23-48d4-90d4-94c19be488f7",
     "rule": "typescript:S6324",
     "file": "apps/backend/src/modules/session-audit/session-audit-ai.worker.ts",
     "baselineLine": 295,
@@ -940,7 +940,7 @@
     "risk": "baixo"
   },
   {
-    "key": "6fb3b772-5c8b-485c-b390-8e617394a273",
+    "issueId": "6fb3b772-5c8b-485c-b390-8e617394a273",
     "rule": "typescript:S6324",
     "file": "apps/backend/src/modules/session-audit/session-audit-ai.worker.ts",
     "baselineLine": 297,
@@ -953,7 +953,7 @@
     "risk": "baixo"
   },
   {
-    "key": "c047f3d5-0661-42cf-9a5e-2b79d955cdc9",
+    "issueId": "c047f3d5-0661-42cf-9a5e-2b79d955cdc9",
     "rule": "typescript:S6324",
     "file": "apps/backend/src/modules/session-audit/session-audit-ai.worker.ts",
     "baselineLine": 305,
@@ -966,7 +966,7 @@
     "risk": "baixo"
   },
   {
-    "key": "7a85f7dc-f9ae-43cb-a52f-3f102323bd20",
+    "issueId": "7a85f7dc-f9ae-43cb-a52f-3f102323bd20",
     "rule": "typescript:S6324",
     "file": "apps/backend/src/modules/session-audit/session-audit-normalizer.ts",
     "baselineLine": 14,
@@ -979,7 +979,7 @@
     "risk": "baixo"
   },
   {
-    "key": "927516dd-ba45-4ab0-acb0-4a7aa0f7710f",
+    "issueId": "927516dd-ba45-4ab0-acb0-4a7aa0f7710f",
     "rule": "typescript:S6324",
     "file": "apps/backend/src/modules/session-audit/session-audit-normalizer.ts",
     "baselineLine": 14,
@@ -992,7 +992,7 @@
     "risk": "baixo"
   },
   {
-    "key": "a12d62f1-0eb4-4cb9-8747-0ee10edcafbe",
+    "issueId": "a12d62f1-0eb4-4cb9-8747-0ee10edcafbe",
     "rule": "typescript:S6324",
     "file": "apps/backend/src/modules/session-audit/session-audit-normalizer.ts",
     "baselineLine": 14,
@@ -1005,7 +1005,7 @@
     "risk": "baixo"
   },
   {
-    "key": "e7f23b6a-59f3-4165-b5b4-b81f13cefc91",
+    "issueId": "e7f23b6a-59f3-4165-b5b4-b81f13cefc91",
     "rule": "typescript:S6324",
     "file": "apps/backend/src/modules/session-audit/session-audit-normalizer.ts",
     "baselineLine": 14,
@@ -1018,7 +1018,7 @@
     "risk": "baixo"
   },
   {
-    "key": "2b24edc7-0f08-40c7-bea0-ff87d150e6d6",
+    "issueId": "2b24edc7-0f08-40c7-bea0-ff87d150e6d6",
     "rule": "typescript:S6324",
     "file": "apps/backend/src/modules/session-audit/session-audit-normalizer.ts",
     "baselineLine": 17,
@@ -1031,7 +1031,7 @@
     "risk": "baixo"
   },
   {
-    "key": "96334ff4-494b-4eb1-a94f-4289001d3445",
+    "issueId": "96334ff4-494b-4eb1-a94f-4289001d3445",
     "rule": "typescript:S6324",
     "file": "apps/backend/src/modules/session-audit/session-audit-normalizer.ts",
     "baselineLine": 18,
@@ -1044,7 +1044,7 @@
     "risk": "baixo"
   },
   {
-    "key": "d15a994c-d963-4e30-96cd-26acdf21d66f",
+    "issueId": "d15a994c-d963-4e30-96cd-26acdf21d66f",
     "rule": "typescript:S8786",
     "file": "apps/backend/src/modules/session-audit/session-audit-normalizer.ts",
     "baselineLine": 70,
@@ -1056,7 +1056,7 @@
     "risk": "baixo"
   },
   {
-    "key": "cfae42f8-2b0e-4346-a266-7d9639d2aa0e",
+    "issueId": "cfae42f8-2b0e-4346-a266-7d9639d2aa0e",
     "rule": "typescript:S8786",
     "file": "apps/backend/src/modules/session-audit/session-audit-normalizer.ts",
     "baselineLine": 90,
@@ -1069,7 +1069,7 @@
     "risk": "baixo"
   },
   {
-    "key": "516c475a-b608-40f0-a09a-b1f6b6d4db22",
+    "issueId": "516c475a-b608-40f0-a09a-b1f6b6d4db22",
     "rule": "typescript:S8786",
     "file": "apps/backend/src/modules/session-audit/session-audit-normalizer.ts",
     "baselineLine": 137,
@@ -1081,7 +1081,7 @@
     "risk": "baixo"
   },
   {
-    "key": "2082229e-822b-4bf7-800b-db37b6f22414",
+    "issueId": "2082229e-822b-4bf7-800b-db37b6f22414",
     "rule": "typescript:S6324",
     "file": "apps/backend/src/modules/session-audit/session-audit-normalizer.ts",
     "baselineLine": 150,
@@ -1094,7 +1094,7 @@
     "risk": "baixo"
   },
   {
-    "key": "2dffd5d8-4e91-4273-86a8-4cc1541053b4",
+    "issueId": "2dffd5d8-4e91-4273-86a8-4cc1541053b4",
     "rule": "typescript:S6324",
     "file": "apps/backend/src/modules/session-audit/session-audit-normalizer.ts",
     "baselineLine": 215,
@@ -1107,7 +1107,7 @@
     "risk": "baixo"
   },
   {
-    "key": "67c269bc-a669-452d-b279-b491b3dd5147",
+    "issueId": "67c269bc-a669-452d-b279-b491b3dd5147",
     "rule": "typescript:S6324",
     "file": "apps/backend/src/modules/session-audit/session-audit-normalizer.ts",
     "baselineLine": 215,
@@ -1120,7 +1120,7 @@
     "risk": "baixo"
   },
   {
-    "key": "b2426cd7-bc4a-4826-aa50-573e69de3412",
+    "issueId": "b2426cd7-bc4a-4826-aa50-573e69de3412",
     "rule": "typescript:S6324",
     "file": "apps/backend/src/modules/session-audit/session-audit-normalizer.ts",
     "baselineLine": 215,
@@ -1133,7 +1133,7 @@
     "risk": "baixo"
   },
   {
-    "key": "121e2c65-2b07-48e0-a7be-e10b6d855baa",
+    "issueId": "121e2c65-2b07-48e0-a7be-e10b6d855baa",
     "rule": "typescript:S8786",
     "file": "apps/backend/src/modules/session-audit/session-audit-normalizer.ts",
     "baselineLine": 301,
@@ -1146,7 +1146,7 @@
     "risk": "baixo"
   },
   {
-    "key": "0c4c9794-c6bd-477d-b35d-2ae56af5bf21",
+    "issueId": "0c4c9794-c6bd-477d-b35d-2ae56af5bf21",
     "rule": "typescript:S1848",
     "file": "apps/backend/src/modules/settings/settings.service.ts",
     "baselineLine": 253,
@@ -1158,7 +1158,7 @@
     "risk": "baixo"
   },
   {
-    "key": "5b4c1d7e-64ae-41b6-8087-84586f08e433",
+    "issueId": "5b4c1d7e-64ae-41b6-8087-84586f08e433",
     "rule": "typescript:S8786",
     "file": "packages/shared/src/types/host-associated-link.ts",
     "baselineLine": 53,
@@ -1171,7 +1171,7 @@
     "risk": "baixo"
   },
   {
-    "key": "fd531dd3-db54-4b67-95e7-00758d2d00a0",
+    "issueId": "fd531dd3-db54-4b67-95e7-00758d2d00a0",
     "rule": "typescript:S5443",
     "file": "apps/backend/src/config/env.ts",
     "baselineLine": 171,
@@ -1186,7 +1186,7 @@
     "risk": "médio: API e gateway devem usar o mesmo UID; raiz compartilhada/symlink precisa correção operacional"
   },
   {
-    "key": "6be3fd5a-d239-47da-b59b-a4e528308d19",
+    "issueId": "6be3fd5a-d239-47da-b59b-a4e528308d19",
     "rule": "typescript:S8786",
     "file": "apps/backend/src/modules/integrations/jira.service.ts",
     "baselineLine": 67,
@@ -1199,7 +1199,7 @@
     "risk": "baixo"
   },
   {
-    "key": "a16c58d7-9770-4544-99cf-dfb134805e36",
+    "issueId": "a16c58d7-9770-4544-99cf-dfb134805e36",
     "rule": "typescript:S8786",
     "file": "apps/backend/src/modules/integrations/openai.service.ts",
     "baselineLine": 60,
@@ -1212,7 +1212,7 @@
     "risk": "baixo"
   },
   {
-    "key": "4096f68d-357d-45b4-b7cf-618ec44bce71",
+    "issueId": "4096f68d-357d-45b4-b7cf-618ec44bce71",
     "rule": "typescript:S7773",
     "file": "apps/backend/src/modules/shared-sessions/shared-session.ws-routes.ts",
     "baselineLine": 15,
@@ -1224,7 +1224,7 @@
     "risk": "baixo"
   },
   {
-    "key": "9790fed3-5719-4ec5-8edf-74bf6d96ad59",
+    "issueId": "9790fed3-5719-4ec5-8edf-74bf6d96ad59",
     "rule": "typescript:S7773",
     "file": "apps/backend/src/modules/ssh/ssh.routes.ts",
     "baselineLine": 37,

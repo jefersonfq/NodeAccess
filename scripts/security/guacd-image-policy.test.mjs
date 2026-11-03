@@ -66,3 +66,11 @@ test('real ALSA finding is not a reviewed component mismatch', () => {
   Object.assign(match.vulnerability, { id: 'CVE-2026-56109', dataSource: 'https://nvd.nist.gov/vuln/detail/CVE-2026-56109', fix: { versions: [], state: 'unknown' } })
   assert.equal(reviewedGuacdImageFinding(policy.image, policy.distro, match, policy, now), null)
 })
+
+test('guacd pins matching FreeRDP build and runtime revisions across Docker cache layers', () => {
+  const dockerfile = readFileSync(new URL('../../docker/guacd.Dockerfile', import.meta.url), 'utf8')
+  const build = dockerfile.match(/freerdp-dev=([\d.]+-r\d+)/)?.[1]
+  const runtime = dockerfile.match(/freerdp-libs=([\d.]+-r\d+)/)?.[1]
+  assert.ok(build, 'development package must be version pinned')
+  assert.equal(runtime, build, 'runtime must invalidate cache with the same package revision')
+})

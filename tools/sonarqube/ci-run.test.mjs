@@ -1,10 +1,11 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync, readFileSync } from 'node:fs'
+import { mkdtempSync, mkdirSync, writeFileSync, rmSync, readFileSync, chmodSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { execFileSync } from 'node:child_process'
 import { run } from './ci-run.mjs'
+import { signature } from './ledger.mjs'
 import { readConfiguration } from './ci-config.mjs'
 
 function fixture(t, baseConfiguration = 'same') {
@@ -41,7 +42,9 @@ function runtime(f, options = {}) {
       cleanup: async () => { events.push('cleanup'); if (options.cleanupFailure) throw new Error('failure') } } },
     configure: async () => ({ scan: 'scan-fixture', review: 'review-fixture' }),
     analyze: async ({ stage, settings, onConfiguration }) => { events.push(stage); if (options.scanFailure) throw new Error('CI_SCANNER_FAILED'); const config = readConfiguration(settings); onConfiguration({ sha256: config.sha256, effectiveProperties: config.properties, contextVerified: true }); return `analysis-${stage}` },
-    readClient: () => async () => ({ analyses: [{ key: options.replaced ? 'different-analysis' : 'analysis-head' }] }),
+    readClient: () => async endpoint => endpoint === '/api/issues/search'
+      ? { paging: { pageIndex: 1, pageSize: 100, total: 0 }, issues: [] }
+      : { analyses: [{ key: options.replaced ? 'different-analysis' : 'analysis-head' }] },
     exportFindings: async ({ outputRoot }) => {
       const output = join(outputRoot, 'export'); mkdirSync(output)
       writeFileSync(join(output, 'issues.json'), JSON.stringify({ issues: options.newIssue ? [{ key: 'new', rule: 'test:rule', component: 'nodeaccess:src/a.js', hash: 'changed', line: 1 }] : [] }))
@@ -113,9 +116,12 @@ test('job summary reports baseline digest and changes without publishing secrets
 test('a concurrent analysis during export invalidates the collected findings', async t => {
   const f = fixture(t), rt = runtime(f)
   let calls = 0
-  rt.readClient = () => async () => ({ analyses: [{ key: ++calls === 1 ? 'analysis-head' : 'foreign' }] })
+  rt.readClient = () => async endpoint => endpoint === '/api/issues/search'
+    ? { paging: { pageIndex: 1, pageSize: 100, total: 0 }, issues: [] }
+    : { analyses: [{ key: ++calls === 1 ? 'analysis-head' : 'foreign' }] }
   const result = await run({ ...f, runtime: rt })
   assert.ok(result.failures.includes('CI_HEAD_ANALYSIS_REPLACED'))
+  assert.equal(result.newCode, undefined)
   assert.equal(rt.events.at(-1), 'cleanup')
 })
 for (const change of ['working-source', 'head-commit', 'fingerprint']) test(`rejects ${change} mutation during scanner`, async t => {
@@ -170,4 +176,49 @@ for (const mode of ['missing', 'wrong', 'mutated']) test(`orchestration refuses 
   assert.equal(result.passed, false)
   assert.ok(result.failures.includes(mode === 'mutated' ? 'CI_SETTINGS_CHANGED' : 'CI_EFFECTIVE_SETTINGS_NOT_VERIFIED'), JSON.stringify(result))
   assert.equal(rt.events.at(-1), 'cleanup')
+})
+
+test('tracked executable-mode mutation is rejected before coverage or Docker work', async t => {
+  const f = fixture(t), rt = runtime(f)
+  execFileSync('/usr/bin/git', ['config', 'core.filemode', 'true'], { cwd: f.root })
+  const file = join(f.root, 'candidate.txt'), before = readFileSync(file)
+  chmodSync(file, 0o755)
+  assert.deepEqual(readFileSync(file), before)
+  assert.match(execFileSync('/usr/bin/git', ['diff', '--summary'], { cwd: f.root, encoding: 'utf8' }), /mode change 100644 => 100755/)
+  await assert.rejects(run({ ...f, runtime: rt }), /CI_CLEAN_TRACKED_CHECKOUT_REQUIRED/)
+  assert.deepEqual(rt.events, [])
+})
+
+test('new-code diagnostic failure retains failing gate and still cleans ephemeral resources', async t => {
+  const f = fixture(t), rt = runtime(f, { gate: { status: 'ERROR', ignoredConditions: false, conditions: [{ metricKey: 'new_violations', actualValue: '1', status: 'ERROR' }] } })
+  rt.readClient = () => async endpoint => {
+    if (endpoint === '/api/issues/search') throw new Error('PRIVATE-API-RESPONSE')
+    return { analyses: [{ key: 'analysis-head' }] }
+  }
+  const result = await run({ ...f, runtime: rt })
+  assert.equal(result.passed, false)
+  assert.equal(result.gate.conditions[0].actualValue, '1')
+  assert.ok(result.failures.includes('CI_NEW_CODE_DIAGNOSTICS_REQUEST_FAILED'))
+  assert.equal(rt.events.at(-1), 'cleanup')
+  assert.ok(!JSON.stringify(result).includes('PRIVATE-'))
+})
+
+test('reviewed baseline signature remains diagnostic only when new-code gate fails', async t => {
+  const f = fixture(t)
+  const issue = { key: 'new', rule: 'test:rule', component: 'nodeaccess:src/a.js', hash: 'changed', line: 1 }
+  writeFileSync(join(f.root, 'docs/sonarqube/accepted-findings.json'), JSON.stringify({ schemaVersion: 1, findings: [{
+    signature: signature(issue), count: 1, status: 'context_reviewed', reason: 'Synthetic baseline context', evidence: ['fixture-review'],
+  }] }))
+  const git = args => execFileSync('/usr/bin/git', args, { cwd: f.root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).trim()
+  git(['add', '.']); git(['commit', '-m', 'review fixture baseline']); f.head = git(['rev-parse', 'HEAD'])
+  const rt = runtime(f, { newIssue: true, gate: { status: 'ERROR', ignoredConditions: false, conditions: [{ metricKey: 'new_violations', actualValue: '1', status: 'ERROR' }] } })
+  rt.readClient = () => async endpoint => endpoint === '/api/issues/search'
+    ? { paging: { pageIndex: 1, pageSize: 100, total: 1 }, issues: [{ ...issue, message: 'PRIVATE-SOURCE-MESSAGE' }] }
+    : { analyses: [{ key: 'analysis-head' }] }
+  const result = await run({ ...f, runtime: rt })
+  assert.equal(result.comparison.passed, true)
+  assert.equal(result.newCode.issues[0].signaturePresentInReviewedBaseline, true)
+  assert.equal(result.passed, false); assert.ok(result.failures.includes('QUALITY_GATE_NOT_OK'))
+  assert.ok(!JSON.stringify(result).includes('PRIVATE-SOURCE-MESSAGE'))
+  assert.equal(result.cleanup, 'complete')
 })

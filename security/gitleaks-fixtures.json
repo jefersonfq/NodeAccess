@@ -1,21 +1,7 @@
 {
-  "reviewedAt": "2026-10-28",
+  "reviewedAt": "2026-11-03",
   "policy": "Exceções exatas por regra, linha e hash integral. Mudança no arquivo exige nova revisão. Nenhum segredo armazenado aqui.",
   "findings": [
-    {
-      "path": ".github/workflows/manual-pilot.yml",
-      "rule": "generic-api-key",
-      "line": 23,
-      "fileSha256": "27cfb48a690c45afb39aa9e3f68a124dc9ab923dfedc9457b8d6607bbfa465f1",
-      "reason": "Constante sintética pública de teste/CI (sequência hexadecimal repetida), revalidada na NA-0054; nunca usar em produção; revalidado na NA-0069 após integração."
-    },
-    {
-      "path": ".github/workflows/quality-gate.yml",
-      "rule": "generic-api-key",
-      "line": 13,
-      "fileSha256": "11b175b4da603c4edca3518e09b5f1564bf7520d67718705ff904d9ef8cbea96",
-      "reason": "Constante pública sintética de CI inalterada; NA-0055 adiciona testes ao workflow. Nunca usar em produção.; revalidado na NA-0069 após integração."
-    },
     {
       "path": ".env.example.prod",
       "rule": "generic-api-key",
@@ -213,13 +199,6 @@
       "reason": "Material público e descartável de teste/CI; não usar em produção; revalidado na NA-0069 após integração."
     },
     {
-      "path": "apps/frontend/src/services/pem-key-encryption.ts",
-      "rule": "private-key",
-      "line": 3,
-      "fileSha256": "a83412e9c7fc35fa2f652a196916466013db10f395bb9c2f2d8b8578b3e5bef0",
-      "reason": "Marcador PEM em regex ou exemplo de interface, não uma credencial; revalidado na NA-0069 após integração."
-    },
-    {
       "path": "apps/frontend/src/locales/en.json",
       "rule": "private-key",
       "line": 1050,
@@ -309,6 +288,55 @@
       "line": 18,
       "fileSha256": "96f44ca530bfb84b407556dadc125e708e3cd47723b5e0f2ae3f88c776280ed4",
       "reason": "Material público e descartável de teste/CI; não usar em produção; revalidado na NA-0069 após integração."
+    },
+    {
+      "path": ".github/workflows/manual-pilot.yml",
+      "rule": "generic-api-key",
+      "line": 23,
+      "fileSha256": "02b31296f54f5a7909b6245f54433f6b324fafe645f3f53a3d211cc6a80ada68",
+      "reason": "Constante sintética de 64 dígitos hexadecimais usada somente pelo job de captura manual em ambiente CI; não é obtida de secret nem credencial de ambiente implantado. Revalidado na integração NA-0093: somente bootstrap npm12.2.1 acrescentado; constante e linha preservadas."
+    },
+    {
+      "path": ".github/workflows/quality-gate.yml",
+      "rule": "generic-api-key",
+      "line": 13,
+      "fileSha256": "2608ae5653fa437144615b07649bf2458c25956843f1165029da4705c2327789",
+      "reason": "Constante sintética de criptografia para testes/build do quality gate; valor de exemplo público, sem vínculo com chaves PEM ou dados de produção. Revalidado na integração NA-0093: somente bootstrap npm12.2.1 acrescentado; constante e linha preservadas."
+    },
+    {
+      "path": ".github/workflows/sonarqube.yml",
+      "rule": "generic-api-key",
+      "line": 30,
+      "fileSha256": "47b72a951cf1e3b54d7013c7d94487ea9616444b59bf83c624b54ef0a7e2988d",
+      "reason": "Constante sintética PEM de teste no job Sonar efêmero; sem acesso a dados de produção; tokens reais do scanner são gerados separadamente em runtime. Revalidado na integração NA-0093: somente bootstrap npm12.2.1 acrescentado; constante e linha preservadas."
+    },
+    {
+      "path": "apps/backend/src/modules/network-access/network-access.service.test.ts",
+      "rule": "generic-api-key",
+      "line": 163,
+      "fileSha256": "74e3a3a248a1ef7372e0d6a1bb9d728dcdbc715363c59152f11c420fcf1ffa88",
+      "reason": "Argumentos literais sintéticos cmd=password/cmd-arg=synthetic exercitam a redação de comandos; a asserção exige texto omitido no evento, não autentica equipamento."
+    },
+    {
+      "path": "apps/frontend/src/services/pem-key-encryption.ts",
+      "rule": "private-key",
+      "line": 3,
+      "fileSha256": "83436c8c95db0d528230c554979bfbc1f52f40af13aee9019a3e743d38a8d96e",
+      "reason": "Expressão regular reconhece somente marcador BEGIN ENCRYPTED PRIVATE KEY; não contém corpo base64, material criptográfico ou chave privada."
+    },
+    {
+      "path": "docs/README_SONARQUBE_NODEACCESS_AGENT.md",
+      "rule": "curl-auth-user",
+      "line": 180,
+      "fileSha256": "31acef9742060c5da14b911e179d16b9647996614c1feeeb5906a37b7a344d8d",
+      "reason": "Exemplo curl referencia variável de sessão SONAR_TOKEN; não há token literal. Procedimento solicita leitura silenciosa e unset após uso."
+    },
+    {
+      "path": "tools/network-access/live.mjs",
+      "rule": "generic-api-key",
+      "line": 19,
+      "fileSha256": "906666bc8d5c7c9b1e98b3b4224d8a59410526f399401d6183534ebe3a97270f",
+      "reason": "Segredo TACACS explicitamente descartável em harness opt-in RUN_NETWORK_ACCESS_LIVE; tenant e dispositivos temporários, listener loopback e limpeza finally. Não é credencial de rede real."
     }
   ]
 }

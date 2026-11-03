@@ -8,6 +8,7 @@ RUN sed -i 's/dl-cdn.alpinelinux.org/dl-4.alpinelinux.org/g' /etc/apk/repositori
   && apk --timeout 30 upgrade --no-cache && apk --timeout 30 add --no-cache openssl python3 make g++
 COPY --from=docker-cli /usr/local/bin/docker /usr/bin/docker
 COPY package*.json ./
+COPY scripts/dependency-patches/typedoc-minimatch.mjs ./scripts/dependency-patches/typedoc-minimatch.mjs
 COPY apps/backend/package*.json ./apps/backend/
 COPY packages/shared/package*.json ./packages/shared/
 RUN npm_config_build_from_source=true npm_config_nodedir=/usr/local \

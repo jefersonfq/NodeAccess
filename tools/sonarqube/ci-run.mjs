@@ -7,6 +7,7 @@ import { startServer, configureProject, pause } from './ci-server.mjs'
 import { baselineSummary, commitSha, scannerEnvironment, ciOutcome, validateCoverageMetadata } from './ci-policy.mjs'
 import { client, exportReport } from './export.mjs'
 import { compareFindings } from './ledger.mjs'
+import { newCodeDiagnostics } from './ci-new-code.mjs'
 import { assertConfiguration, materializeBaseConfiguration, verifyScannerContext } from './ci-config.mjs'
 
 function git(root, args, optional = false) {
@@ -122,15 +123,17 @@ export async function run({ root = resolve(fileURLToPath(new URL('../..', import
     const latest = async () => (await request('/api/project_analyses/search', { project: 'nodeaccess', ps: 1 })).analyses?.[0]?.key
     if (await latest() !== summary.headAnalysisId || summary.headAnalysisId === summary.baseAnalysisId) throw new Error('CI_HEAD_ANALYSIS_NOT_CURRENT')
     const exported = await exportFindings({ server: instance.server, token: tokens.review, outputRoot: output })
+    const issues = JSON.parse(readFileSync(join(exported.output, 'issues.json'), 'utf8')).issues
+    summary.gate = JSON.parse(readFileSync(join(exported.output, 'quality-gate.json'), 'utf8')).projectStatus
+    const newCode = await newCodeDiagnostics(request, issues, JSON.parse(baselineText), summary.headAnalysisId)
     if (await latest() !== summary.headAnalysisId) throw new Error('CI_HEAD_ANALYSIS_REPLACED')
     if (git(root, ['rev-parse', 'HEAD']) !== head || await fingerprint(root) !== coverage.sourceFingerprint
       || git(root, ['status', '--porcelain', '--untracked-files=no'])) throw new Error('CI_SOURCE_CHANGED_DURING_EXPORT')
-    const issues = JSON.parse(readFileSync(join(exported.output, 'issues.json'), 'utf8')).issues
+    summary.newCode = newCode
     const hotspots = JSON.parse(readFileSync(join(exported.output, 'hotspots.json'), 'utf8')).hotspots
     const comparison = compareFindings(issues, JSON.parse(baselineText))
     summary.comparison = { ...comparison, unexpected: comparison.unexpected.map(({ rule, file, line }) => ({ rule, file, line })) }
     summary.hotspotsToReview = hotspots.filter(h => h.status !== 'REVIEWED' || !['SAFE', 'FIXED'].includes(h.resolution)).length
-    summary.gate = JSON.parse(readFileSync(join(exported.output, 'quality-gate.json'), 'utf8')).projectStatus
     Object.assign(summary, ciOutcome({ coverageExit: summary.coverageExit, diffCoveragePassed, comparison,
       gate: summary.gate, analysisVerified: true, hotspotsToReview: summary.hotspotsToReview }))
   } catch (error) {

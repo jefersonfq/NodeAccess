@@ -23,6 +23,8 @@ jobs:
         with:
           node-version: 24.21.0
           cache: npm
+      - name: Use npm with workspace override support
+        run: npm install --global npm@12.2.1
       - run: npm ci
       - run: npm run db:generate -w apps/backend
       - run: npm run build -w packages/shared
@@ -41,6 +43,8 @@ jobs:
         with:
           node-version: 24.21.0
           cache: npm
+      - name: Use npm with workspace override support
+        run: npm install --global npm@12.2.1
       - run: npm ci
       - run: npm run db:generate -w apps/backend
       - run: npm run build -w packages/shared
@@ -53,6 +57,8 @@ jobs:
         with:
           node-version: 24.21.0
           cache: npm
+      - name: Use npm with workspace override support
+        run: npm install --global npm@12.2.1
       - run: npm ci
       - name: Validate simulated Entra and Okta contracts
         run: npm run test:oidc:compatibility
@@ -68,6 +74,8 @@ jobs:
         with:
           node-version: 24.21.0
           cache: npm
+      - name: Use npm with workspace override support
+        run: npm install --global npm@12.2.1
       - run: npm ci
       - run: npm run db:generate -w apps/backend
       - run: npm run build -w packages/shared

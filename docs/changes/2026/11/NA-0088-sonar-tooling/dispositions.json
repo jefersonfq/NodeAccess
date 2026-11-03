@@ -1,16 +1,19 @@
 [
   {
-    "key": "4c089a7b-f35e-4b44-8dcb-b4585c80275a",
+    "issueId": "4c089a7b-f35e-4b44-8dcb-b4585c80275a",
     "rule": "javascript:S4036",
     "file": "tools/sonarqube/analyze.mjs",
     "baselineLine": 46,
-    "status": "context_reviewed",
-    "rationale": "CLI/harness invocado pelo desenvolvedor/CI, não endpoint do produto: executável fixo com argv separado e sem shell. PATH pertence ao ambiente já confiado que executa o checkout; preservar git/docker/openssl/Node instalados pelo operador evita quebra de ferramentas/version managers. Não executar checkout não confiado com privilégios.",
-    "evidence": "tools/sonarqube/analyze.mjs (contexto da linha base 46)",
-    "risk": "Baixo; revisão contextual, sem alteração do comportamento e sem homologação de ambiente remoto."
+    "status": "fixed",
+    "rationale": "NA-0132: scanner executado por process.execPath com npm-cli.js absoluto validado por realpath e arquivo regular; npm_execpath explícito ou layout padrão junto ao Node, sem resolução do executável via PATH. Pin, argumentos e token somente no ambiente preservados.",
+    "evidence": [
+      "tools/sonarqube/analyze-executable.test.mjs: execução real com CLI sintético e PATH envenenado, argumentos/ambiente/códigos de saída e negativos",
+      "docs/changes/2026/11/NA-0132-sonar-npm-executable/implementation.md"
+    ],
+    "risk": "Baixo; npm_execpath continua configuração confiável do operador/CI. Fallback exige layout npm padrão junto ao Node; instalação separada deve usar npm run. Confirmação no scanner integrado ainda pendente."
   },
   {
-    "key": "a30f75b3-5d86-4bb9-884f-fcb993efa553",
+    "issueId": "a30f75b3-5d86-4bb9-884f-fcb993efa553",
     "rule": "javascript:S5443",
     "file": "tools/frontend/host-access-dashboard-playwright.cjs",
     "baselineLine": 7,
@@ -20,7 +23,7 @@
     "risk": "Baixo; muda apenas o destino padrão dos artefatos. Overrides explícitos permanecem sob responsabilidade do operador."
   },
   {
-    "key": "0e287b93-f050-4368-b23d-f05e331cc0c6",
+    "issueId": "0e287b93-f050-4368-b23d-f05e331cc0c6",
     "rule": "javascript:S1313",
     "file": "tools/frontend/trial-onboarding-playwright.cjs",
     "baselineLine": 38,
@@ -30,7 +33,7 @@
     "risk": "Baixo; revisão contextual, sem alteração do comportamento e sem homologação de ambiente remoto."
   },
   {
-    "key": "15ad6e7d-1ca1-4acb-af17-b8b2a981e972",
+    "issueId": "15ad6e7d-1ca1-4acb-af17-b8b2a981e972",
     "rule": "javascript:S5443",
     "file": "tools/frontend/trial-resources-playwright.cjs",
     "baselineLine": 7,
@@ -40,7 +43,7 @@
     "risk": "Baixo; muda apenas o destino padrão dos artefatos. Overrides explícitos permanecem sob responsabilidade do operador."
   },
   {
-    "key": "0f935fb5-4658-4cd0-81cd-0fe4dcb5dafb",
+    "issueId": "0f935fb5-4658-4cd0-81cd-0fe4dcb5dafb",
     "rule": "javascript:S2259",
     "file": "tools/frontend/trial-onboarding-playwright.cjs",
     "baselineLine": 134,
@@ -50,7 +53,7 @@
     "risk": "Baixo; apenas diagnóstico da simulação."
   },
   {
-    "key": "5018c007-244b-4651-bb12-575b91502797",
+    "issueId": "5018c007-244b-4651-bb12-575b91502797",
     "rule": "javascript:S4036",
     "file": "tools/deploy/release-source-real.mjs",
     "baselineLine": 11,
@@ -60,7 +63,7 @@
     "risk": "Baixo; revisão contextual, sem alteração do comportamento e sem homologação de ambiente remoto."
   },
   {
-    "key": "1643db5f-8442-4b0e-a6b3-816b5fe1bc82",
+    "issueId": "1643db5f-8442-4b0e-a6b3-816b5fe1bc82",
     "rule": "javascript:S8786",
     "file": "scripts/deploy/configure-trial.mjs",
     "baselineLine": 24,
@@ -70,7 +73,7 @@
     "risk": "Baixo; parsers preservam formatos válidos e rejeitam email com pontos vazios."
   },
   {
-    "key": "34546bad-6aa2-4d0d-bfb4-066af82fe4d9",
+    "issueId": "34546bad-6aa2-4d0d-bfb4-066af82fe4d9",
     "rule": "javascript:S8786",
     "file": "scripts/deploy/configure-trial.mjs",
     "baselineLine": 39,
@@ -80,7 +83,7 @@
     "risk": "Baixo; parsers preservam formatos válidos e rejeitam email com pontos vazios."
   },
   {
-    "key": "d014a56f-8e4d-4dae-b74e-8bea60b49d1d",
+    "issueId": "d014a56f-8e4d-4dae-b74e-8bea60b49d1d",
     "rule": "javascript:S8786",
     "file": "scripts/deploy/configure-trial.mjs",
     "baselineLine": 52,
@@ -90,7 +93,7 @@
     "risk": "Baixo; parsers preservam formatos válidos e rejeitam email com pontos vazios."
   },
   {
-    "key": "1803f60d-4bea-4ede-a1bc-06bcb2d1e73d",
+    "issueId": "1803f60d-4bea-4ede-a1bc-06bcb2d1e73d",
     "rule": "javascript:S7059",
     "file": "scripts/trial-lab/provider.mjs",
     "baselineLine": 44,
@@ -100,7 +103,7 @@
     "risk": "Baixo; revisão contextual, sem alteração do comportamento e sem homologação de ambiente remoto."
   },
   {
-    "key": "5d54a36e-7ca0-4d30-95dd-d4256057c154",
+    "issueId": "5d54a36e-7ca0-4d30-95dd-d4256057c154",
     "rule": "javascript:S2871",
     "file": "scripts/trial-lab/provider.mjs",
     "baselineLine": 101,
@@ -110,7 +113,7 @@
     "risk": "Baixo; revisão contextual, sem alteração do comportamento e sem homologação de ambiente remoto."
   },
   {
-    "key": "a76b3a56-32a5-451c-a916-819b69dc6376",
+    "issueId": "a76b3a56-32a5-451c-a916-819b69dc6376",
     "rule": "javascript:S2871",
     "file": "scripts/trial-lab/provider.mjs",
     "baselineLine": 156,
@@ -120,7 +123,7 @@
     "risk": "Baixo; revisão contextual, sem alteração do comportamento e sem homologação de ambiente remoto."
   },
   {
-    "key": "1d6b5ef9-9e53-4e40-8828-352c37686c42",
+    "issueId": "1d6b5ef9-9e53-4e40-8828-352c37686c42",
     "rule": "javascript:S2871",
     "file": "scripts/trial-lab/provider.mjs",
     "baselineLine": 161,
@@ -130,7 +133,7 @@
     "risk": "Baixo; revisão contextual, sem alteração do comportamento e sem homologação de ambiente remoto."
   },
   {
-    "key": "37b55baf-7ebb-4cbc-b1b1-599223ae1875",
+    "issueId": "37b55baf-7ebb-4cbc-b1b1-599223ae1875",
     "rule": "javascript:S5443",
     "file": "tools/frontend/auth-access-origin-playwright.cjs",
     "baselineLine": 5,
@@ -140,7 +143,7 @@
     "risk": "Baixo; muda apenas o destino padrão dos artefatos. Overrides explícitos permanecem sob responsabilidade do operador."
   },
   {
-    "key": "d05ad2eb-c4e4-48fd-85e7-f77d9b6e82a4",
+    "issueId": "d05ad2eb-c4e4-48fd-85e7-f77d9b6e82a4",
     "rule": "javascript:S5443",
     "file": "tools/frontend/host-duplicate-playwright.cjs",
     "baselineLine": 10,
@@ -150,7 +153,7 @@
     "risk": "Baixo; muda apenas o destino padrão dos artefatos. Overrides explícitos permanecem sob responsabilidade do operador."
   },
   {
-    "key": "7bf890ec-ffbb-4f17-bbd0-63cd54de7ee9",
+    "issueId": "7bf890ec-ffbb-4f17-bbd0-63cd54de7ee9",
     "rule": "javascript:S4036",
     "file": "tools/frontend/host-duplicate-playwright.cjs",
     "baselineLine": 23,
@@ -160,7 +163,7 @@
     "risk": "Baixo; revisão contextual, sem alteração do comportamento e sem homologação de ambiente remoto."
   },
   {
-    "key": "3e4d5302-3e32-47f5-b618-022860f4617d",
+    "issueId": "3e4d5302-3e32-47f5-b618-022860f4617d",
     "rule": "javascript:S3403",
     "file": "tools/frontend/host-duplicate-playwright.cjs",
     "baselineLine": 65,
@@ -170,7 +173,7 @@
     "risk": "Baixo; revisão contextual, sem alteração do comportamento e sem homologação de ambiente remoto."
   },
   {
-    "key": "17aa76d3-8cf3-4c84-b5b6-91ff62486ffd",
+    "issueId": "17aa76d3-8cf3-4c84-b5b6-91ff62486ffd",
     "rule": "javascript:S5443",
     "file": "tools/frontend/host-import-duplicates-playwright.cjs",
     "baselineLine": 154,
@@ -180,7 +183,7 @@
     "risk": "Baixo; muda apenas o destino padrão dos artefatos. Overrides explícitos permanecem sob responsabilidade do operador."
   },
   {
-    "key": "7f4d02c2-04d4-4631-abb5-5d9c464d945e",
+    "issueId": "7f4d02c2-04d4-4631-abb5-5d9c464d945e",
     "rule": "javascript:S5443",
     "file": "tools/frontend/host-import-duplicates-playwright.cjs",
     "baselineLine": 195,
@@ -190,7 +193,7 @@
     "risk": "Baixo; muda apenas o destino padrão dos artefatos. Overrides explícitos permanecem sob responsabilidade do operador."
   },
   {
-    "key": "d53f1729-b7b8-484a-8ed8-b83bd37e5041",
+    "issueId": "d53f1729-b7b8-484a-8ed8-b83bd37e5041",
     "rule": "javascript:S5443",
     "file": "tools/frontend/host-import-duplicates-playwright.cjs",
     "baselineLine": 265,
@@ -200,7 +203,7 @@
     "risk": "Baixo; muda apenas o destino padrão dos artefatos. Overrides explícitos permanecem sob responsabilidade do operador."
   },
   {
-    "key": "f1fac622-273f-43be-9efe-d7109d895fb0",
+    "issueId": "f1fac622-273f-43be-9efe-d7109d895fb0",
     "rule": "javascript:S5443",
     "file": "tools/frontend/mcp-agent-onboarding-playwright.cjs",
     "baselineLine": 299,
@@ -210,7 +213,7 @@
     "risk": "Baixo; muda apenas o destino padrão dos artefatos. Overrides explícitos permanecem sob responsabilidade do operador."
   },
   {
-    "key": "59419d86-04c5-4ab1-8769-0dacef211d2e",
+    "issueId": "59419d86-04c5-4ab1-8769-0dacef211d2e",
     "rule": "javascript:S5443",
     "file": "tools/frontend/mcp-agent-onboarding-playwright.cjs",
     "baselineLine": 308,
@@ -220,7 +223,7 @@
     "risk": "Baixo; muda apenas o destino padrão dos artefatos. Overrides explícitos permanecem sob responsabilidade do operador."
   },
   {
-    "key": "1f412cc2-5a00-4194-b2d1-818f52a8b50f",
+    "issueId": "1f412cc2-5a00-4194-b2d1-818f52a8b50f",
     "rule": "javascript:S5443",
     "file": "tools/frontend/mcp-agent-onboarding-playwright.cjs",
     "baselineLine": 345,
@@ -230,7 +233,7 @@
     "risk": "Baixo; muda apenas o destino padrão dos artefatos. Overrides explícitos permanecem sob responsabilidade do operador."
   },
   {
-    "key": "71b49306-2ce3-4b18-b0c1-aee0cb2e0029",
+    "issueId": "71b49306-2ce3-4b18-b0c1-aee0cb2e0029",
     "rule": "javascript:S8786",
     "file": "tools/frontend/recent-host-access-playwright.cjs",
     "baselineLine": 97,
@@ -240,7 +243,7 @@
     "risk": "Baixo; revisão contextual, sem alteração do comportamento e sem homologação de ambiente remoto."
   },
   {
-    "key": "4f7329ff-2223-4444-9503-d527c9c8b2b2",
+    "issueId": "4f7329ff-2223-4444-9503-d527c9c8b2b2",
     "rule": "javascript:S5443",
     "file": "tools/frontend/snippets-macro-execution-playwright.cjs",
     "baselineLine": 10,
@@ -250,7 +253,7 @@
     "risk": "Baixo; muda apenas o destino padrão dos artefatos. Overrides explícitos permanecem sob responsabilidade do operador."
   },
   {
-    "key": "dc5d7eb5-38b3-422f-be1b-5bcff5a6721e",
+    "issueId": "dc5d7eb5-38b3-422f-be1b-5bcff5a6721e",
     "rule": "javascript:S5443",
     "file": "tools/frontend/snippets-macro-execution-playwright.cjs",
     "baselineLine": 240,
@@ -260,7 +263,7 @@
     "risk": "Baixo; muda apenas o destino padrão dos artefatos. Overrides explícitos permanecem sob responsabilidade do operador."
   },
   {
-    "key": "4186d437-bd88-4d22-b3a4-84da2bac9795",
+    "issueId": "4186d437-bd88-4d22-b3a4-84da2bac9795",
     "rule": "javascript:S5443",
     "file": "tools/frontend/snippets-macros-playwright.cjs",
     "baselineLine": 7,
@@ -270,7 +273,7 @@
     "risk": "Baixo; muda apenas o destino padrão dos artefatos. Overrides explícitos permanecem sob responsabilidade do operador."
   },
   {
-    "key": "35ddbf4d-a835-4918-86cf-ba27fd777da7",
+    "issueId": "35ddbf4d-a835-4918-86cf-ba27fd777da7",
     "rule": "javascript:S5443",
     "file": "tools/frontend/snippets-macros-playwright.cjs",
     "baselineLine": 117,
@@ -280,7 +283,7 @@
     "risk": "Baixo; muda apenas o destino padrão dos artefatos. Overrides explícitos permanecem sob responsabilidade do operador."
   },
   {
-    "key": "1bdb9403-17c0-40e5-83f7-5f239e015d6f",
+    "issueId": "1bdb9403-17c0-40e5-83f7-5f239e015d6f",
     "rule": "javascript:S5443",
     "file": "tools/frontend/terminal-ai-command-playwright.cjs",
     "baselineLine": 4,
@@ -290,7 +293,7 @@
     "risk": "Baixo; muda apenas o destino padrão dos artefatos. Overrides explícitos permanecem sob responsabilidade do operador."
   },
   {
-    "key": "84d3d1c3-5c52-4b16-8fd4-bff58ffd7d13",
+    "issueId": "84d3d1c3-5c52-4b16-8fd4-bff58ffd7d13",
     "rule": "javascript:S5443",
     "file": "tools/frontend/terminal-onboarding-playwright.cjs",
     "baselineLine": 9,
@@ -300,7 +303,7 @@
     "risk": "Baixo; muda apenas o destino padrão dos artefatos. Overrides explícitos permanecem sob responsabilidade do operador."
   },
   {
-    "key": "e433d0c9-c753-4c6b-9ef0-7ad92ed22337",
+    "issueId": "e433d0c9-c753-4c6b-9ef0-7ad92ed22337",
     "rule": "javascript:S5443",
     "file": "tools/frontend/terminal-onboarding-playwright.cjs",
     "baselineLine": 15,
@@ -310,7 +313,7 @@
     "risk": "Baixo; muda apenas o destino padrão dos artefatos. Overrides explícitos permanecem sob responsabilidade do operador."
   },
   {
-    "key": "7f790b45-ad73-40b5-9b9f-cb13fde93cf4",
+    "issueId": "7f790b45-ad73-40b5-9b9f-cb13fde93cf4",
     "rule": "typescript:S1313",
     "file": "tools/frontend/trial-live-playwright.mts",
     "baselineLine": 20,
@@ -320,7 +323,7 @@
     "risk": "Baixo; revisão contextual, sem alteração do comportamento e sem homologação de ambiente remoto."
   },
   {
-    "key": "d21632b1-1173-4d41-8d55-826cf74eaeb1",
+    "issueId": "d21632b1-1173-4d41-8d55-826cf74eaeb1",
     "rule": "typescript:S5443",
     "file": "tools/frontend/trial-live-playwright.mts",
     "baselineLine": 25,
@@ -330,7 +333,7 @@
     "risk": "Baixo; muda apenas o destino padrão dos artefatos. Overrides explícitos permanecem sob responsabilidade do operador."
   },
   {
-    "key": "6053ef1d-a1bf-442f-a362-24a01e522e08",
+    "issueId": "6053ef1d-a1bf-442f-a362-24a01e522e08",
     "rule": "typescript:S2068",
     "file": "tools/frontend/trial-live-playwright.mts",
     "baselineLine": 38,
@@ -340,7 +343,7 @@
     "risk": "Baixo; revisão contextual, sem alteração do comportamento e sem homologação de ambiente remoto."
   },
   {
-    "key": "51491d54-5a04-409a-bfa5-9379a9dc6e08",
+    "issueId": "51491d54-5a04-409a-bfa5-9379a9dc6e08",
     "rule": "typescript:S8786",
     "file": "tools/frontend/trial-live-playwright.mts",
     "baselineLine": 44,
@@ -350,7 +353,7 @@
     "risk": "Baixo; revisão contextual, sem alteração do comportamento e sem homologação de ambiente remoto."
   },
   {
-    "key": "087751d9-875c-4501-aa5e-556ab0984c34",
+    "issueId": "087751d9-875c-4501-aa5e-556ab0984c34",
     "rule": "typescript:S1313",
     "file": "tools/frontend/trial-live-playwright.mts",
     "baselineLine": 47,
@@ -360,7 +363,7 @@
     "risk": "Baixo; revisão contextual, sem alteração do comportamento e sem homologação de ambiente remoto."
   },
   {
-    "key": "726e9475-bee2-4470-a178-1fa17acb2fff",
+    "issueId": "726e9475-bee2-4470-a178-1fa17acb2fff",
     "rule": "typescript:S1313",
     "file": "tools/frontend/trial-live-playwright.mts",
     "baselineLine": 66,
@@ -370,7 +373,7 @@
     "risk": "Baixo; revisão contextual, sem alteração do comportamento e sem homologação de ambiente remoto."
   },
   {
-    "key": "12934fac-ef9a-44e2-a1ca-8f1c80a98c0b",
+    "issueId": "12934fac-ef9a-44e2-a1ca-8f1c80a98c0b",
     "rule": "typescript:S2068",
     "file": "tools/frontend/trial-live-playwright.mts",
     "baselineLine": 148,
@@ -380,7 +383,7 @@
     "risk": "Baixo; revisão contextual, sem alteração do comportamento e sem homologação de ambiente remoto."
   },
   {
-    "key": "53fa91e5-6dc2-4eb7-9575-54104ecc631e",
+    "issueId": "53fa91e5-6dc2-4eb7-9575-54104ecc631e",
     "rule": "typescript:S1313",
     "file": "tools/frontend/trial-live-playwright.mts",
     "baselineLine": 148,
@@ -390,7 +393,7 @@
     "risk": "Baixo; revisão contextual, sem alteração do comportamento e sem homologação de ambiente remoto."
   },
   {
-    "key": "fa474b5c-e559-419d-8c3e-fb37993fffa2",
+    "issueId": "fa474b5c-e559-419d-8c3e-fb37993fffa2",
     "rule": "typescript:S1313",
     "file": "tools/frontend/trial-live-playwright.mts",
     "baselineLine": 159,
@@ -400,7 +403,7 @@
     "risk": "Baixo; revisão contextual, sem alteração do comportamento e sem homologação de ambiente remoto."
   },
   {
-    "key": "46a440e3-36c5-4cad-bb2f-e9482aac37cb",
+    "issueId": "46a440e3-36c5-4cad-bb2f-e9482aac37cb",
     "rule": "typescript:S1313",
     "file": "tools/frontend/trial-live-playwright.mts",
     "baselineLine": 164,
@@ -410,7 +413,7 @@
     "risk": "Baixo; revisão contextual, sem alteração do comportamento e sem homologação de ambiente remoto."
   },
   {
-    "key": "94cf29bf-819f-4d43-b12b-ad60a3e080e5",
+    "issueId": "94cf29bf-819f-4d43-b12b-ad60a3e080e5",
     "rule": "javascript:S5443",
     "file": "tools/frontend/trial-onboarding-playwright.cjs",
     "baselineLine": 8,
@@ -420,7 +423,7 @@
     "risk": "Baixo; muda apenas o destino padrão dos artefatos. Overrides explícitos permanecem sob responsabilidade do operador."
   },
   {
-    "key": "0fb8ef31-e096-489b-a236-072d10a4df88",
+    "issueId": "0fb8ef31-e096-489b-a236-072d10a4df88",
     "rule": "javascript:S4036",
     "file": "tools/frontend/trial-onboarding-playwright.cjs",
     "baselineLine": 243,
@@ -430,7 +433,7 @@
     "risk": "Baixo; revisão contextual, sem alteração do comportamento e sem homologação de ambiente remoto."
   },
   {
-    "key": "df2c960f-16d4-4b79-b226-571e028ed441",
+    "issueId": "df2c960f-16d4-4b79-b226-571e028ed441",
     "rule": "javascript:S4036",
     "file": "tools/frontend/trial-onboarding-playwright.cjs",
     "baselineLine": 243,
@@ -440,7 +443,7 @@
     "risk": "Baixo; revisão contextual, sem alteração do comportamento e sem homologação de ambiente remoto."
   },
   {
-    "key": "e46e4bb7-fc00-49e8-8a0d-738469d724de",
+    "issueId": "e46e4bb7-fc00-49e8-8a0d-738469d724de",
     "rule": "javascript:S1313",
     "file": "tools/frontend/trial-resources-playwright.cjs",
     "baselineLine": 71,
@@ -450,7 +453,7 @@
     "risk": "Baixo; revisão contextual, sem alteração do comportamento e sem homologação de ambiente remoto."
   },
   {
-    "key": "600b14dd-bef9-4541-9f92-c8e7c1dc0e57",
+    "issueId": "600b14dd-bef9-4541-9f92-c8e7c1dc0e57",
     "rule": "typescript:S4036",
     "file": "tools/snippets/macro-progress-mysql.mts",
     "baselineLine": 7,
@@ -460,7 +463,7 @@
     "risk": "Baixo; revisão contextual, sem alteração do comportamento e sem homologação de ambiente remoto."
   },
   {
-    "key": "8b9377a7-d9c2-42d4-8680-c7fc5e5fb288",
+    "issueId": "8b9377a7-d9c2-42d4-8680-c7fc5e5fb288",
     "rule": "typescript:S4036",
     "file": "tools/snippets/macro-progress-mysql.mts",
     "baselineLine": 9,
@@ -470,7 +473,7 @@
     "risk": "Baixo; revisão contextual, sem alteração do comportamento e sem homologação de ambiente remoto."
   },
   {
-    "key": "d324ab42-3636-4ce1-a429-5ebdb7fa260e",
+    "issueId": "d324ab42-3636-4ce1-a429-5ebdb7fa260e",
     "rule": "javascript:S5443",
     "file": "tools/frontend/host-form-tabs-playwright.cjs",
     "baselineLine": 10,
@@ -480,7 +483,7 @@
     "risk": "Baixo; muda apenas o destino padrão dos artefatos. Overrides explícitos permanecem sob responsabilidade do operador."
   },
   {
-    "key": "e15abec7-b36e-43ef-aba9-c9b6e0d859e8",
+    "issueId": "e15abec7-b36e-43ef-aba9-c9b6e0d859e8",
     "rule": "javascript:S4036",
     "file": "tools/frontend/host-form-tabs-playwright.cjs",
     "baselineLine": 23,
@@ -490,7 +493,7 @@
     "risk": "Baixo; revisão contextual, sem alteração do comportamento e sem homologação de ambiente remoto."
   },
   {
-    "key": "be6062d4-f1d2-4979-b9b9-6e36fd70b81a",
+    "issueId": "be6062d4-f1d2-4979-b9b9-6e36fd70b81a",
     "rule": "javascript:S2871",
     "file": "scripts/deploy/runtime-permissions.mjs",
     "baselineLine": 32,
@@ -500,7 +503,7 @@
     "risk": "Baixo; revisão contextual, sem alteração do comportamento e sem homologação de ambiente remoto."
   },
   {
-    "key": "29573af8-9d28-4e73-aef5-6f6924091400",
+    "issueId": "29573af8-9d28-4e73-aef5-6f6924091400",
     "rule": "javascript:S5443",
     "file": "tools/deploy/runtime-nonroot-real.mjs",
     "baselineLine": 14,
@@ -510,7 +513,7 @@
     "risk": "Baixo; muda apenas o destino padrão dos artefatos. Overrides explícitos permanecem sob responsabilidade do operador."
   },
   {
-    "key": "a4dec299-69b4-4548-a6ef-acf6b1aabbba",
+    "issueId": "a4dec299-69b4-4548-a6ef-acf6b1aabbba",
     "rule": "javascript:S4036",
     "file": "tools/deploy/runtime-nonroot-real.mjs",
     "baselineLine": 16,
@@ -520,7 +523,7 @@
     "risk": "Baixo; revisão contextual, sem alteração do comportamento e sem homologação de ambiente remoto."
   },
   {
-    "key": "4804c324-0241-40e9-8396-ac8701993134",
+    "issueId": "4804c324-0241-40e9-8396-ac8701993134",
     "rule": "javascript:S5443",
     "file": "tools/frontend/csp-security-playwright.cjs",
     "baselineLine": 79,
@@ -530,7 +533,7 @@
     "risk": "Baixo; muda apenas o destino padrão dos artefatos. Overrides explícitos permanecem sob responsabilidade do operador."
   },
   {
-    "key": "1ee93983-533f-452b-af10-c0cd9c92747e",
+    "issueId": "1ee93983-533f-452b-af10-c0cd9c92747e",
     "rule": "javascript:S4036",
     "file": "scripts/recovery.mjs",
     "baselineLine": 8,
@@ -540,7 +543,7 @@
     "risk": "Baixo; revisão contextual, sem alteração do comportamento e sem homologação de ambiente remoto."
   },
   {
-    "key": "517bffb9-78de-4cf5-8c50-77cc96e43890",
+    "issueId": "517bffb9-78de-4cf5-8c50-77cc96e43890",
     "rule": "javascript:S4036",
     "file": "scripts/release/release-provenance.mjs",
     "baselineLine": 9,
@@ -550,7 +553,7 @@
     "risk": "Baixo; revisão contextual, sem alteração do comportamento e sem homologação de ambiente remoto."
   },
   {
-    "key": "e1fbc810-1f77-4dbc-9b12-2ebbe1e3bafa",
+    "issueId": "e1fbc810-1f77-4dbc-9b12-2ebbe1e3bafa",
     "rule": "javascript:S2871",
     "file": "scripts/release/release-provenance.mjs",
     "baselineLine": 23,
@@ -560,7 +563,7 @@
     "risk": "Baixo; revisão contextual, sem alteração do comportamento e sem homologação de ambiente remoto."
   },
   {
-    "key": "33f39287-656d-4183-b324-9c6585ec4e64",
+    "issueId": "33f39287-656d-4183-b324-9c6585ec4e64",
     "rule": "javascript:S3403",
     "file": "scripts/release/release-provenance.mjs",
     "baselineLine": 54,
@@ -570,7 +573,7 @@
     "risk": "Baixo; revisão contextual, sem alteração do comportamento e sem homologação de ambiente remoto."
   },
   {
-    "key": "17b7851d-4055-4574-9ba8-6af5cf3a147e",
+    "issueId": "17b7851d-4055-4574-9ba8-6af5cf3a147e",
     "rule": "javascript:S2871",
     "file": "scripts/release/release-provenance.mjs",
     "baselineLine": 59,
@@ -580,7 +583,7 @@
     "risk": "Baixo; revisão contextual, sem alteração do comportamento e sem homologação de ambiente remoto."
   },
   {
-    "key": "959a983a-635e-41b3-b931-5e8396d28bb5",
+    "issueId": "959a983a-635e-41b3-b931-5e8396d28bb5",
     "rule": "javascript:S4036",
     "file": "tools/tls/integration.cjs",
     "baselineLine": 107,
@@ -590,7 +593,7 @@
     "risk": "Baixo; revisão contextual, sem alteração do comportamento e sem homologação de ambiente remoto."
   },
   {
-    "key": "7f70ec9f-0bab-4f32-aeb3-1f028d955b4f",
+    "issueId": "7f70ec9f-0bab-4f32-aeb3-1f028d955b4f",
     "rule": "javascript:S5443",
     "file": "tools/frontend/terminal-experience-playwright.cjs",
     "baselineLine": 14,
@@ -600,7 +603,7 @@
     "risk": "Baixo; muda apenas o destino padrão dos artefatos. Overrides explícitos permanecem sob responsabilidade do operador."
   },
   {
-    "key": "a6553238-5d64-41d0-b835-35675cc544a4",
+    "issueId": "a6553238-5d64-41d0-b835-35675cc544a4",
     "rule": "javascript:S1313",
     "file": "tools/frontend/terminal-experience-playwright.cjs",
     "baselineLine": 18,
@@ -610,7 +613,7 @@
     "risk": "Baixo; revisão contextual, sem alteração do comportamento e sem homologação de ambiente remoto."
   },
   {
-    "key": "15df4f61-e981-4640-9a4e-ea7642cc8704",
+    "issueId": "15df4f61-e981-4640-9a4e-ea7642cc8704",
     "rule": "javascript:S5443",
     "file": "tools/frontend/terminal-experience-playwright.cjs",
     "baselineLine": 333,
@@ -620,7 +623,7 @@
     "risk": "Baixo; muda apenas o destino padrão dos artefatos. Overrides explícitos permanecem sob responsabilidade do operador."
   },
   {
-    "key": "459aebc3-e9bc-4afe-8f1b-5f8ee9c2771c",
+    "issueId": "459aebc3-e9bc-4afe-8f1b-5f8ee9c2771c",
     "rule": "javascript:S5443",
     "file": "tools/frontend/terminal-experience-playwright.cjs",
     "baselineLine": 334,
@@ -630,7 +633,7 @@
     "risk": "Baixo; muda apenas o destino padrão dos artefatos. Overrides explícitos permanecem sob responsabilidade do operador."
   },
   {
-    "key": "7ad50b47-5152-4b20-84e0-22d73851079d",
+    "issueId": "7ad50b47-5152-4b20-84e0-22d73851079d",
     "rule": "javascript:S5443",
     "file": "tools/frontend/terminal-experience-playwright.cjs",
     "baselineLine": 431,
@@ -640,7 +643,7 @@
     "risk": "Baixo; muda apenas o destino padrão dos artefatos. Overrides explícitos permanecem sob responsabilidade do operador."
   },
   {
-    "key": "cedff12b-10c1-42cc-b0de-2641890c28d8",
+    "issueId": "cedff12b-10c1-42cc-b0de-2641890c28d8",
     "rule": "javascript:S4036",
     "file": "tools/tls/integration.cjs",
     "baselineLine": 6,
@@ -650,7 +653,7 @@
     "risk": "Baixo; revisão contextual, sem alteração do comportamento e sem homologação de ambiente remoto."
   },
   {
-    "key": "8793b0a9-e2a6-4952-9cfe-13acaa0ed6aa",
+    "issueId": "8793b0a9-e2a6-4952-9cfe-13acaa0ed6aa",
     "rule": "javascript:S4036",
     "file": "tools/tls/integration.cjs",
     "baselineLine": 7,
@@ -660,7 +663,7 @@
     "risk": "Baixo; revisão contextual, sem alteração do comportamento e sem homologação de ambiente remoto."
   },
   {
-    "key": "00bf2ac9-df75-4f0d-8860-7cf1cdd3200d",
+    "issueId": "00bf2ac9-df75-4f0d-8860-7cf1cdd3200d",
     "rule": "javascript:S4036",
     "file": "tools/tls/integration.cjs",
     "baselineLine": 36,
@@ -670,7 +673,7 @@
     "risk": "Baixo; revisão contextual, sem alteração do comportamento e sem homologação de ambiente remoto."
   },
   {
-    "key": "ff4c8100-c58d-453d-97b9-e8308768a0cf",
+    "issueId": "ff4c8100-c58d-453d-97b9-e8308768a0cf",
     "rule": "javascript:S4036",
     "file": "tools/tls/integration.cjs",
     "baselineLine": 47,
@@ -680,7 +683,7 @@
     "risk": "Baixo; revisão contextual, sem alteração do comportamento e sem homologação de ambiente remoto."
   },
   {
-    "key": "d1e1c5e7-c397-41d3-ba1b-01441ec397b4",
+    "issueId": "d1e1c5e7-c397-41d3-ba1b-01441ec397b4",
     "rule": "javascript:S5443",
     "file": "tools/tls/integration.cjs",
     "baselineLine": 105,
@@ -690,7 +693,7 @@
     "risk": "Baixo; muda apenas o destino padrão dos artefatos. Overrides explícitos permanecem sob responsabilidade do operador."
   },
   {
-    "key": "13c25a84-37d4-4fb7-a31b-0e1d3eed8417",
+    "issueId": "13c25a84-37d4-4fb7-a31b-0e1d3eed8417",
     "rule": "javascript:S5443",
     "file": "tools/performance/frontend-entry.cjs",
     "baselineLine": 5,
@@ -700,7 +703,7 @@
     "risk": "Baixo; muda apenas o destino padrão dos artefatos. Overrides explícitos permanecem sob responsabilidade do operador."
   },
   {
-    "key": "5a01276f-19d8-49dd-8715-0eaa79098c10",
+    "issueId": "5a01276f-19d8-49dd-8715-0eaa79098c10",
     "rule": "javascript:S4036",
     "file": "scripts/security/scan-images.mjs",
     "baselineLine": 21,
@@ -710,7 +713,7 @@
     "risk": "Baixo; revisão contextual, sem alteração do comportamento e sem homologação de ambiente remoto."
   },
   {
-    "key": "2835feec-bb79-4328-aa62-3e8993508921",
+    "issueId": "2835feec-bb79-4328-aa62-3e8993508921",
     "rule": "javascript:S5443",
     "file": "tools/deploy/container-stack-real.mjs",
     "baselineLine": 16,
@@ -720,7 +723,7 @@
     "risk": "Baixo; muda apenas o destino padrão dos artefatos. Overrides explícitos permanecem sob responsabilidade do operador."
   },
   {
-    "key": "ca3c7e88-3dd1-4223-a139-ad509f031e53",
+    "issueId": "ca3c7e88-3dd1-4223-a139-ad509f031e53",
     "rule": "javascript:S8786",
     "file": "tools/deploy/container-stack-real.mjs",
     "baselineLine": 205,
@@ -730,7 +733,7 @@
     "risk": "Baixo; revisão contextual, sem alteração do comportamento e sem homologação de ambiente remoto."
   },
   {
-    "key": "73c395e4-0617-4616-a206-e488cfc6cb94",
+    "issueId": "73c395e4-0617-4616-a206-e488cfc6cb94",
     "rule": "secrets:S6697",
     "file": "tools/deploy/stack-upgrade-real.mjs",
     "baselineLine": 17,
@@ -740,7 +743,7 @@
     "risk": "Baixo; revisão contextual, sem alteração do comportamento e sem homologação de ambiente remoto."
   },
   {
-    "key": "809c16ad-c5ea-43d2-88c7-471304f92b5a",
+    "issueId": "809c16ad-c5ea-43d2-88c7-471304f92b5a",
     "rule": "javascript:S5443",
     "file": "tools/deploy/stack-upgrade-real.mjs",
     "baselineLine": 22,
@@ -750,7 +753,7 @@
     "risk": "Baixo; muda apenas o destino padrão dos artefatos. Overrides explícitos permanecem sob responsabilidade do operador."
   },
   {
-    "key": "bd4d58f9-5c63-4d0f-9787-b17127f4c0cc",
+    "issueId": "bd4d58f9-5c63-4d0f-9787-b17127f4c0cc",
     "rule": "typescript:S5443",
     "file": "tools/backend/security-quota-real.mts",
     "baselineLine": 38,
@@ -760,7 +763,7 @@
     "risk": "Baixo; muda apenas o destino padrão dos artefatos. Overrides explícitos permanecem sob responsabilidade do operador."
   },
   {
-    "key": "d82949e8-e589-4a3b-bcea-72d65c864a8b",
+    "issueId": "d82949e8-e589-4a3b-bcea-72d65c864a8b",
     "rule": "python:S5443",
     "file": "tools/deploy/engineering-security-headers-harness.py",
     "baselineLine": 52,
@@ -770,7 +773,7 @@
     "risk": "Baixo; muda apenas o destino padrão dos artefatos. Overrides explícitos permanecem sob responsabilidade do operador."
   },
   {
-    "key": "f8d387c6-ca18-4b8d-b6eb-4e3b8d388255",
+    "issueId": "f8d387c6-ca18-4b8d-b6eb-4e3b8d388255",
     "rule": "typescript:S5443",
     "file": "tools/backend/engineering-shutdown-real.mts",
     "baselineLine": 22,
@@ -780,7 +783,7 @@
     "risk": "Baixo; muda apenas o destino padrão dos artefatos. Overrides explícitos permanecem sob responsabilidade do operador."
   },
   {
-    "key": "7fbf0fc1-dacd-4726-96ae-2b3c1832c7c4",
+    "issueId": "7fbf0fc1-dacd-4726-96ae-2b3c1832c7c4",
     "rule": "python:S5443",
     "file": "tools/deploy/engineering-security-headers-harness.py",
     "baselineLine": 7,
@@ -790,7 +793,7 @@
     "risk": "Baixo; revisão contextual, sem alteração do comportamento e sem homologação de ambiente remoto."
   },
   {
-    "key": "8b625732-b48d-469f-ac74-689d602cc69e",
+    "issueId": "8b625732-b48d-469f-ac74-689d602cc69e",
     "rule": "python:S4830",
     "file": "tools/deploy/engineering-security-headers-harness.py",
     "baselineLine": 24,
@@ -800,7 +803,7 @@
     "risk": "Baixo; certificado fixture agora precisa corresponder ao host acessado."
   },
   {
-    "key": "eff75395-9c6f-4529-afbc-03203e468e5d",
+    "issueId": "eff75395-9c6f-4529-afbc-03203e468e5d",
     "rule": "python:S5527",
     "file": "tools/deploy/engineering-security-headers-harness.py",
     "baselineLine": 24,
@@ -810,7 +813,7 @@
     "risk": "Baixo; certificado fixture agora precisa corresponder ao host acessado."
   },
   {
-    "key": "a988d70c-9319-4e14-889e-388e0c7c3024",
+    "issueId": "a988d70c-9319-4e14-889e-388e0c7c3024",
     "rule": "javascript:S5443",
     "file": "tools/docs/build-datasheets.cjs",
     "baselineLine": 98,
@@ -820,7 +823,7 @@
     "risk": "Baixo; muda apenas o destino padrão dos artefatos. Overrides explícitos permanecem sob responsabilidade do operador."
   },
   {
-    "key": "81465358-ca65-4537-b49d-8e1f79effef1",
+    "issueId": "81465358-ca65-4537-b49d-8e1f79effef1",
     "rule": "javascript:S5443",
     "file": "tools/docs/build-datasheets.cjs",
     "baselineLine": 100,
@@ -830,7 +833,7 @@
     "risk": "Baixo; muda apenas o destino padrão dos artefatos. Overrides explícitos permanecem sob responsabilidade do operador."
   },
   {
-    "key": "8a6cd9e5-50ca-40c6-92c9-678caa8eb354",
+    "issueId": "8a6cd9e5-50ca-40c6-92c9-678caa8eb354",
     "rule": "javascript:S5443",
     "file": "tools/frontend/audit-export-review-playwright.cjs",
     "baselineLine": 68,
@@ -840,7 +843,7 @@
     "risk": "Baixo; muda apenas o destino padrão dos artefatos. Overrides explícitos permanecem sob responsabilidade do operador."
   },
   {
-    "key": "99db08e1-f082-4164-bccf-363bb0a483b3",
+    "issueId": "99db08e1-f082-4164-bccf-363bb0a483b3",
     "rule": "javascript:S5443",
     "file": "tools/frontend/audit-operational-playwright.cjs",
     "baselineLine": 5,
@@ -850,7 +853,7 @@
     "risk": "Baixo; muda apenas o destino padrão dos artefatos. Overrides explícitos permanecem sob responsabilidade do operador."
   },
   {
-    "key": "a52c6b80-cee7-42cb-98ae-21c200a3709c",
+    "issueId": "a52c6b80-cee7-42cb-98ae-21c200a3709c",
     "rule": "javascript:S5443",
     "file": "tools/frontend/audit-operational-playwright.cjs",
     "baselineLine": 7,
@@ -860,7 +863,7 @@
     "risk": "Baixo; muda apenas o destino padrão dos artefatos. Overrides explícitos permanecem sob responsabilidade do operador."
   },
   {
-    "key": "ce61c7c8-0e4c-4245-be2d-89295cdca1ec",
+    "issueId": "ce61c7c8-0e4c-4245-be2d-89295cdca1ec",
     "rule": "javascript:S5443",
     "file": "tools/frontend/audit-reconstruction-playwright.cjs",
     "baselineLine": 5,
@@ -870,7 +873,7 @@
     "risk": "Baixo; muda apenas o destino padrão dos artefatos. Overrides explícitos permanecem sob responsabilidade do operador."
   },
   {
-    "key": "d6429368-0f38-423a-99bd-e5cc0e1503a7",
+    "issueId": "d6429368-0f38-423a-99bd-e5cc0e1503a7",
     "rule": "javascript:S5443",
     "file": "tools/frontend/file-utilities-playwright.cjs",
     "baselineLine": 2,
@@ -880,7 +883,7 @@
     "risk": "Baixo; muda apenas o destino padrão dos artefatos. Overrides explícitos permanecem sob responsabilidade do operador."
   },
   {
-    "key": "fbe9ffdc-3f7e-49f4-862c-0dd708c3facb",
+    "issueId": "fbe9ffdc-3f7e-49f4-862c-0dd708c3facb",
     "rule": "typescript:S5443",
     "file": "tools/frontend/file-utilities-real-lab.mts",
     "baselineLine": 49,
@@ -890,7 +893,7 @@
     "risk": "Baixo; muda apenas o destino padrão dos artefatos. Overrides explícitos permanecem sob responsabilidade do operador."
   },
   {
-    "key": "1c5d38c9-291d-4946-92a2-321929577ce2",
+    "issueId": "1c5d38c9-291d-4946-92a2-321929577ce2",
     "rule": "javascript:S5443",
     "file": "tools/frontend/hosts-feedback-ux-playwright.cjs",
     "baselineLine": 126,
@@ -900,7 +903,7 @@
     "risk": "Baixo; muda apenas o destino padrão dos artefatos. Overrides explícitos permanecem sob responsabilidade do operador."
   },
   {
-    "key": "26b55200-9573-4407-b6a9-e93aae8a519a",
+    "issueId": "26b55200-9573-4407-b6a9-e93aae8a519a",
     "rule": "javascript:S5443",
     "file": "tools/frontend/hosts-feedback-ux-playwright.cjs",
     "baselineLine": 145,
@@ -910,7 +913,7 @@
     "risk": "Baixo; muda apenas o destino padrão dos artefatos. Overrides explícitos permanecem sob responsabilidade do operador."
   },
   {
-    "key": "41302ee6-fd4c-4313-b99a-ada7a7c7faf2",
+    "issueId": "41302ee6-fd4c-4313-b99a-ada7a7c7faf2",
     "rule": "javascript:S5443",
     "file": "tools/frontend/hosts-feedback-ux-playwright.cjs",
     "baselineLine": 168,
@@ -920,7 +923,7 @@
     "risk": "Baixo; muda apenas o destino padrão dos artefatos. Overrides explícitos permanecem sob responsabilidade do operador."
   },
   {
-    "key": "2399648b-4d4e-46cc-9984-8df4fb956056",
+    "issueId": "2399648b-4d4e-46cc-9984-8df4fb956056",
     "rule": "javascript:S5443",
     "file": "tools/frontend/manual-review-playwright.cjs",
     "baselineLine": 5,
@@ -930,7 +933,7 @@
     "risk": "Baixo; muda apenas o destino padrão dos artefatos. Overrides explícitos permanecem sob responsabilidade do operador."
   },
   {
-    "key": "1cd97ee3-703b-4ddd-b89c-fbc707b36b91",
+    "issueId": "1cd97ee3-703b-4ddd-b89c-fbc707b36b91",
     "rule": "javascript:S3403",
     "file": "tools/frontend/observability-cdp-harness.cjs",
     "baselineLine": 626,
@@ -940,7 +943,7 @@
     "risk": "Baixo; revisão contextual, sem alteração do comportamento e sem homologação de ambiente remoto."
   },
   {
-    "key": "2ac2e43b-9fb7-4553-b99c-023ea62354d8",
+    "issueId": "2ac2e43b-9fb7-4553-b99c-023ea62354d8",
     "rule": "javascript:S5443",
     "file": "tools/frontend/observability-resilience-playwright.cjs",
     "baselineLine": 6,
@@ -950,7 +953,7 @@
     "risk": "Baixo; muda apenas o destino padrão dos artefatos. Overrides explícitos permanecem sob responsabilidade do operador."
   },
   {
-    "key": "30a33c4b-1e10-4f3e-8e7e-e88572bf3c8e",
+    "issueId": "30a33c4b-1e10-4f3e-8e7e-e88572bf3c8e",
     "rule": "javascript:S3403",
     "file": "tools/frontend/observability-resilience-playwright.cjs",
     "baselineLine": 24,
@@ -960,7 +963,7 @@
     "risk": "Baixo; revisão contextual, sem alteração do comportamento e sem homologação de ambiente remoto."
   },
   {
-    "key": "0e0da902-ebaf-46c3-ae65-845d463dc8a6",
+    "issueId": "0e0da902-ebaf-46c3-ae65-845d463dc8a6",
     "rule": "javascript:S2189",
     "file": "tools/frontend/observability-resilience-playwright.cjs",
     "baselineLine": 62,
@@ -970,7 +973,7 @@
     "risk": "Baixo; falhas agora terminam com timeout em vez de travar indefinidamente."
   },
   {
-    "key": "d2fc768d-4962-4628-9f06-2fad541a2d58",
+    "issueId": "d2fc768d-4962-4628-9f06-2fad541a2d58",
     "rule": "javascript:S5443",
     "file": "tools/frontend/recent-host-access-playwright.cjs",
     "baselineLine": 9,
@@ -980,7 +983,7 @@
     "risk": "Baixo; muda apenas o destino padrão dos artefatos. Overrides explícitos permanecem sob responsabilidade do operador."
   },
   {
-    "key": "61b58233-50b1-4da6-9492-85d5ba8b43f7",
+    "issueId": "61b58233-50b1-4da6-9492-85d5ba8b43f7",
     "rule": "javascript:S1313",
     "file": "tools/frontend/recent-host-access-playwright.cjs",
     "baselineLine": 12,
@@ -990,7 +993,7 @@
     "risk": "Baixo; revisão contextual, sem alteração do comportamento e sem homologação de ambiente remoto."
   },
   {
-    "key": "e03ddebb-7fff-4a4f-9d7d-83285910c051",
+    "issueId": "e03ddebb-7fff-4a4f-9d7d-83285910c051",
     "rule": "javascript:S1313",
     "file": "tools/frontend/recent-host-access-playwright.cjs",
     "baselineLine": 13,
@@ -1000,7 +1003,7 @@
     "risk": "Baixo; revisão contextual, sem alteração do comportamento e sem homologação de ambiente remoto."
   },
   {
-    "key": "902e8ae3-53f9-4b45-ad2e-d0c78fbbb39d",
+    "issueId": "902e8ae3-53f9-4b45-ad2e-d0c78fbbb39d",
     "rule": "javascript:S3403",
     "file": "tools/frontend/session-playback-playwright.cjs",
     "baselineLine": 496,
@@ -1010,7 +1013,7 @@
     "risk": "Baixo; revisão contextual, sem alteração do comportamento e sem homologação de ambiente remoto."
   },
   {
-    "key": "35979c47-f137-46d6-a4e1-4ed1f6931446",
+    "issueId": "35979c47-f137-46d6-a4e1-4ed1f6931446",
     "rule": "javascript:S5443",
     "file": "tools/frontend/sftp-review-playwright.cjs",
     "baselineLine": 7,
@@ -1020,7 +1023,7 @@
     "risk": "Baixo; muda apenas o destino padrão dos artefatos. Overrides explícitos permanecem sob responsabilidade do operador."
   },
   {
-    "key": "4aed28e6-71bd-43c6-b66c-714f98051064",
+    "issueId": "4aed28e6-71bd-43c6-b66c-714f98051064",
     "rule": "javascript:S5443",
     "file": "tools/frontend/shared-viewer-geometry-playwright.cjs",
     "baselineLine": 6,
@@ -1030,7 +1033,7 @@
     "risk": "Baixo; muda apenas o destino padrão dos artefatos. Overrides explícitos permanecem sob responsabilidade do operador."
   },
   {
-    "key": "f72133b5-785a-485f-acbc-10b130223a4e",
+    "issueId": "f72133b5-785a-485f-acbc-10b130223a4e",
     "rule": "javascript:S5443",
     "file": "tools/frontend/tenant-return-review-playwright.cjs",
     "baselineLine": 30,
@@ -1040,7 +1043,7 @@
     "risk": "Baixo; muda apenas o destino padrão dos artefatos. Overrides explícitos permanecem sob responsabilidade do operador."
   },
   {
-    "key": "8e7cdbd6-ae16-45a0-ae87-3293ff1c4cf1",
+    "issueId": "8e7cdbd6-ae16-45a0-ae87-3293ff1c4cf1",
     "rule": "javascript:S5443",
     "file": "tools/frontend/tenant-return-review-playwright.cjs",
     "baselineLine": 48,
@@ -1050,7 +1053,7 @@
     "risk": "Baixo; muda apenas o destino padrão dos artefatos. Overrides explícitos permanecem sob responsabilidade do operador."
   },
   {
-    "key": "6954b501-61bd-4904-844b-8ba399fb22d8",
+    "issueId": "6954b501-61bd-4904-844b-8ba399fb22d8",
     "rule": "javascript:S5443",
     "file": "tools/frontend/terminal-highlights-playwright.cjs",
     "baselineLine": 70,
@@ -1060,7 +1063,7 @@
     "risk": "Baixo; muda apenas o destino padrão dos artefatos. Overrides explícitos permanecem sob responsabilidade do operador."
   },
   {
-    "key": "412d4af8-59b7-4477-9420-51ec073343a2",
+    "issueId": "412d4af8-59b7-4477-9420-51ec073343a2",
     "rule": "javascript:S5443",
     "file": "tools/frontend/terminal-highlights-playwright.cjs",
     "baselineLine": 314,
@@ -1070,7 +1073,7 @@
     "risk": "Baixo; muda apenas o destino padrão dos artefatos. Overrides explícitos permanecem sob responsabilidade do operador."
   },
   {
-    "key": "f6afb252-f92f-4ab5-9657-2b6b4445bda7",
+    "issueId": "f6afb252-f92f-4ab5-9657-2b6b4445bda7",
     "rule": "javascript:S2189",
     "file": "tools/frontend/terminal-lifecycle-review-playwright.cjs",
     "baselineLine": 92,
@@ -1080,7 +1083,7 @@
     "risk": "Baixo; falhas agora terminam com timeout em vez de travar indefinidamente."
   },
   {
-    "key": "539c55a8-e633-4461-a3c5-431ef909a6d8",
+    "issueId": "539c55a8-e633-4461-a3c5-431ef909a6d8",
     "rule": "javascript:S5443",
     "file": "tools/frontend/tls-review-playwright.cjs",
     "baselineLine": 70,
@@ -1090,7 +1093,7 @@
     "risk": "Baixo; muda apenas o destino padrão dos artefatos. Overrides explícitos permanecem sob responsabilidade do operador."
   },
   {
-    "key": "e49e93e3-fb18-45ea-af19-607dd5ab5169",
+    "issueId": "e49e93e3-fb18-45ea-af19-607dd5ab5169",
     "rule": "javascript:S3403",
     "file": "tools/manual/build.cjs",
     "baselineLine": 48,
@@ -1100,7 +1103,7 @@
     "risk": "Baixo; revisão contextual, sem alteração do comportamento e sem homologação de ambiente remoto."
   },
   {
-    "key": "a9e10e25-c82c-471c-ae18-b28ec76568f3",
+    "issueId": "a9e10e25-c82c-471c-ae18-b28ec76568f3",
     "rule": "javascript:S5443",
     "file": "tools/manual/capture.cjs",
     "baselineLine": 6,
@@ -1110,7 +1113,7 @@
     "risk": "Baixo; muda apenas o destino padrão dos artefatos. Overrides explícitos permanecem sob responsabilidade do operador."
   },
   {
-    "key": "b0ef7236-120e-4f91-9cbb-812bbeab0790",
+    "issueId": "b0ef7236-120e-4f91-9cbb-812bbeab0790",
     "rule": "javascript:S5443",
     "file": "tools/manual/capture.cjs",
     "baselineLine": 9,
@@ -1120,7 +1123,7 @@
     "risk": "Baixo; muda apenas o destino padrão dos artefatos. Overrides explícitos permanecem sob responsabilidade do operador."
   },
   {
-    "key": "83eb2efd-cad3-420e-b447-06ee18ca7f6d",
+    "issueId": "83eb2efd-cad3-420e-b447-06ee18ca7f6d",
     "rule": "javascript:S5443",
     "file": "tools/manual/capture.cjs",
     "baselineLine": 11,
@@ -1130,7 +1133,7 @@
     "risk": "Baixo; muda apenas o destino padrão dos artefatos. Overrides explícitos permanecem sob responsabilidade do operador."
   },
   {
-    "key": "1a91ae21-4af7-4e5d-ac82-076a31a66af0",
+    "issueId": "1a91ae21-4af7-4e5d-ac82-076a31a66af0",
     "rule": "javascript:S5443",
     "file": "tools/manual/capture.cjs",
     "baselineLine": 17,
@@ -1140,7 +1143,7 @@
     "risk": "Baixo; muda apenas o destino padrão dos artefatos. Overrides explícitos permanecem sob responsabilidade do operador."
   },
   {
-    "key": "606dc4fe-a8a4-4384-873b-edf2f7647944",
+    "issueId": "606dc4fe-a8a4-4384-873b-edf2f7647944",
     "rule": "typescript:S5443",
     "file": "tools/session-audit/mysql-playback-fixture.ts",
     "baselineLine": 17,
@@ -1150,7 +1153,7 @@
     "risk": "Baixo; muda apenas o destino padrão dos artefatos. Overrides explícitos permanecem sob responsabilidade do operador."
   },
   {
-    "key": "3c1e7a52-61a3-43d8-9a51-639025bffb43",
+    "issueId": "3c1e7a52-61a3-43d8-9a51-639025bffb43",
     "rule": "typescript:S5443",
     "file": "tools/session-audit/operational-api.mts",
     "baselineLine": 27,
@@ -1160,7 +1163,7 @@
     "risk": "Baixo; muda apenas o destino padrão dos artefatos. Overrides explícitos permanecem sob responsabilidade do operador."
   },
   {
-    "key": "6c5e1a8e-2d3b-40cb-90e5-2c01866a9c0d",
+    "issueId": "6c5e1a8e-2d3b-40cb-90e5-2c01866a9c0d",
     "rule": "typescript:S5443",
     "file": "tools/session-audit/readable-export-review.mts",
     "baselineLine": 9,
@@ -1170,7 +1173,7 @@
     "risk": "Baixo; muda apenas o destino padrão dos artefatos. Overrides explícitos permanecem sob responsabilidade do operador."
   },
   {
-    "key": "f92e8b8d-b666-41d3-a225-bb820d9eff9b",
+    "issueId": "f92e8b8d-b666-41d3-a225-bb820d9eff9b",
     "rule": "typescript:S5443",
     "file": "tools/session-audit/reconstruction-local-review.mts",
     "baselineLine": 38,
@@ -1180,7 +1183,7 @@
     "risk": "Baixo; muda apenas o destino padrão dos artefatos. Overrides explícitos permanecem sob responsabilidade do operador."
   },
   {
-    "key": "ffc99d63-fc2d-43e1-bac3-70e7e02e57d3",
+    "issueId": "ffc99d63-fc2d-43e1-bac3-70e7e02e57d3",
     "rule": "typescript:S5443",
     "file": "tools/session-audit/reconstruction-mysql-integration.mts",
     "baselineLine": 46,
@@ -1190,7 +1193,7 @@
     "risk": "Baixo; muda apenas o destino padrão dos artefatos. Overrides explícitos permanecem sob responsabilidade do operador."
   },
   {
-    "key": "059dd274-fa85-4c4e-81f6-4cb610c27f23",
+    "issueId": "059dd274-fa85-4c4e-81f6-4cb610c27f23",
     "rule": "typescript:S2871",
     "file": "tools/session-audit/reconstruction-sql-review.mts",
     "baselineLine": 136,
@@ -1200,7 +1203,7 @@
     "risk": "Baixo; revisão contextual, sem alteração do comportamento e sem homologação de ambiente remoto."
   },
   {
-    "key": "9ec773ec-f981-47f2-a4cd-7590ef8de2cb",
+    "issueId": "9ec773ec-f981-47f2-a4cd-7590ef8de2cb",
     "rule": "typescript:S5443",
     "file": "tools/session-audit/reconstruction-sql-review.mts",
     "baselineLine": 149,
@@ -1210,7 +1213,7 @@
     "risk": "Baixo; muda apenas o destino padrão dos artefatos. Overrides explícitos permanecem sob responsabilidade do operador."
   },
   {
-    "key": "1a043c01-0897-4b16-b16c-c5290d39b0a5",
+    "issueId": "1a043c01-0897-4b16-b16c-c5290d39b0a5",
     "rule": "typescript:S5443",
     "file": "tools/session-audit/reconstruction-sql-review.mts",
     "baselineLine": 174,
@@ -1220,7 +1223,7 @@
     "risk": "Baixo; muda apenas o destino padrão dos artefatos. Overrides explícitos permanecem sob responsabilidade do operador."
   },
   {
-    "key": "8284a5c7-098f-41a1-b777-a9d29d1dbc8a",
+    "issueId": "8284a5c7-098f-41a1-b777-a9d29d1dbc8a",
     "rule": "typescript:S5443",
     "file": "tools/session-audit/review-recorded-sessions.ts",
     "baselineLine": 10,
@@ -1230,7 +1233,7 @@
     "risk": "Baixo; muda apenas o destino padrão dos artefatos. Overrides explícitos permanecem sob responsabilidade do operador."
   },
   {
-    "key": "0baf7aa1-5b49-405b-a35b-afa03dab2831",
+    "issueId": "0baf7aa1-5b49-405b-a35b-afa03dab2831",
     "rule": "typescript:S6324",
     "file": "tools/session-audit/review-recorded-sessions.ts",
     "baselineLine": 31,
@@ -1240,7 +1243,7 @@
     "risk": "Baixo; revisão contextual, sem alteração do comportamento e sem homologação de ambiente remoto."
   },
   {
-    "key": "4bf58bc9-3791-417f-b1ab-1f0bf0ffd966",
+    "issueId": "4bf58bc9-3791-417f-b1ab-1f0bf0ffd966",
     "rule": "typescript:S6324",
     "file": "tools/session-audit/review-recorded-sessions.ts",
     "baselineLine": 31,
@@ -1250,7 +1253,7 @@
     "risk": "Baixo; revisão contextual, sem alteração do comportamento e sem homologação de ambiente remoto."
   },
   {
-    "key": "6fb54138-86d4-4007-be04-ba3ec9e64679",
+    "issueId": "6fb54138-86d4-4007-be04-ba3ec9e64679",
     "rule": "typescript:S6324",
     "file": "tools/session-audit/review-recorded-sessions.ts",
     "baselineLine": 31,
@@ -1260,7 +1263,7 @@
     "risk": "Baixo; revisão contextual, sem alteração do comportamento e sem homologação de ambiente remoto."
   },
   {
-    "key": "86bdfc47-f5ae-4e76-aa51-04b145fc48b4",
+    "issueId": "86bdfc47-f5ae-4e76-aa51-04b145fc48b4",
     "rule": "typescript:S6324",
     "file": "tools/session-audit/review-recorded-sessions.ts",
     "baselineLine": 31,
@@ -1270,7 +1273,7 @@
     "risk": "Baixo; revisão contextual, sem alteração do comportamento e sem homologação de ambiente remoto."
   },
   {
-    "key": "abe65275-52bd-4966-8ac5-241a2819a160",
+    "issueId": "abe65275-52bd-4966-8ac5-241a2819a160",
     "rule": "typescript:S6324",
     "file": "tools/session-audit/review-recorded-sessions.ts",
     "baselineLine": 31,
@@ -1280,7 +1283,7 @@
     "risk": "Baixo; revisão contextual, sem alteração do comportamento e sem homologação de ambiente remoto."
   },
   {
-    "key": "2ab3ec46-2ba6-4822-942e-e604bf3e8b17",
+    "issueId": "2ab3ec46-2ba6-4822-942e-e604bf3e8b17",
     "rule": "javascript:S2612",
     "file": "tools/tls/adapter.mjs",
     "baselineLine": 28,
@@ -1290,7 +1293,7 @@
     "risk": "Baixo; revisão contextual, sem alteração do comportamento e sem homologação de ambiente remoto."
   },
   {
-    "key": "fa21b890-0c38-4c89-a0b6-d097194371a9",
+    "issueId": "fa21b890-0c38-4c89-a0b6-d097194371a9",
     "rule": "javascript:S2612",
     "file": "tools/tls/adapter.mjs",
     "baselineLine": 28,
@@ -1300,7 +1303,7 @@
     "risk": "Baixo; revisão contextual, sem alteração do comportamento e sem homologação de ambiente remoto."
   },
   {
-    "key": "d2a021e9-eb95-46a5-a95b-e745b94f87a6",
+    "issueId": "d2a021e9-eb95-46a5-a95b-e745b94f87a6",
     "rule": "javascript:S2612",
     "file": "tools/tls/adapter.mjs",
     "baselineLine": 29,
@@ -1310,7 +1313,7 @@
     "risk": "Baixo; revisão contextual, sem alteração do comportamento e sem homologação de ambiente remoto."
   },
   {
-    "key": "bfaec988-7e99-46b9-89f7-c90ef484cd0b",
+    "issueId": "bfaec988-7e99-46b9-89f7-c90ef484cd0b",
     "rule": "javascript:S4036",
     "file": "tools/tls/adapter.mjs",
     "baselineLine": 43,
@@ -1320,7 +1323,7 @@
     "risk": "Baixo; revisão contextual, sem alteração do comportamento e sem homologação de ambiente remoto."
   },
   {
-    "key": "7080df1e-8fcf-4c0c-be0f-e9eaf6d78477",
+    "issueId": "7080df1e-8fcf-4c0c-be0f-e9eaf6d78477",
     "rule": "typescript:S4036",
     "file": "tools/tls/audit-integration.ts",
     "baselineLine": 9,
@@ -1330,7 +1333,7 @@
     "risk": "Baixo; revisão contextual, sem alteração do comportamento e sem homologação de ambiente remoto."
   },
   {
-    "key": "f1c47a9c-e3e5-4795-990d-55bf36061ec4",
+    "issueId": "f1c47a9c-e3e5-4795-990d-55bf36061ec4",
     "rule": "typescript:S5443",
     "file": "tools/tls/audit-integration.ts",
     "baselineLine": 40,
@@ -1340,7 +1343,7 @@
     "risk": "Baixo; muda apenas o destino padrão dos artefatos. Overrides explícitos permanecem sob responsabilidade do operador."
   },
   {
-    "key": "a202c21e-60d3-46d8-aca1-5f8605556ff5",
+    "issueId": "a202c21e-60d3-46d8-aca1-5f8605556ff5",
     "rule": "javascript:S2871",
     "file": "tools/tls/manager.mjs",
     "baselineLine": 15,
@@ -1350,7 +1353,7 @@
     "risk": "Baixo; revisão contextual, sem alteração do comportamento e sem homologação de ambiente remoto."
   },
   {
-    "key": "c0150fe9-5e9f-4ea6-8a93-495dd79da0c2",
+    "issueId": "c0150fe9-5e9f-4ea6-8a93-495dd79da0c2",
     "rule": "javascript:S7059",
     "file": "tools/tls/manager.mjs",
     "baselineLine": 28,
@@ -1360,7 +1363,7 @@
     "risk": "Baixo; revisão contextual, sem alteração do comportamento e sem homologação de ambiente remoto."
   },
   {
-    "key": "9b656f1a-9fd8-4f27-a29f-3e66091a934d",
+    "issueId": "9b656f1a-9fd8-4f27-a29f-3e66091a934d",
     "rule": "javascript:S8786",
     "file": "tools/tls/manager.mjs",
     "baselineLine": 121,
@@ -1370,7 +1373,7 @@
     "risk": "Baixo; parsers preservam formatos válidos e rejeitam email com pontos vazios."
   },
   {
-    "key": "7817bd82-93c1-490a-85e0-3a84f44cbaab",
+    "issueId": "7817bd82-93c1-490a-85e0-3a84f44cbaab",
     "rule": "javascript:S1143",
     "file": "tools/tls/manager.mjs",
     "baselineLine": 218,
@@ -1380,7 +1383,7 @@
     "risk": "Baixo; revisão contextual, sem alteração do comportamento e sem homologação de ambiente remoto."
   },
   {
-    "key": "ea96801a-5f0b-4b26-a19f-2a2bd3f45016",
+    "issueId": "ea96801a-5f0b-4b26-a19f-2a2bd3f45016",
     "rule": "javascript:S4036",
     "file": "scripts/release/prepare-agent-windows.mjs",
     "baselineLine": 18,
@@ -1390,7 +1393,7 @@
     "risk": "Baixo; revisão contextual, sem alteração do comportamento e sem homologação de ambiente remoto."
   },
   {
-    "key": "a9fdf1a9-5c8b-4b12-b5ca-049a3d86ab78",
+    "issueId": "a9fdf1a9-5c8b-4b12-b5ca-049a3d86ab78",
     "rule": "javascript:S4036",
     "file": "tools/agents/security-live.mjs",
     "baselineLine": 59,
@@ -1400,7 +1403,7 @@
     "risk": "Baixo; revisão contextual, sem alteração do comportamento e sem homologação de ambiente remoto."
   },
   {
-    "key": "b5abd9cf-d0f8-4da4-8f8a-d0f3d6b33b0a",
+    "issueId": "b5abd9cf-d0f8-4da4-8f8a-d0f3d6b33b0a",
     "rule": "javascript:S1313",
     "file": "tools/frontend/forwardings-resilience-playwright.cjs",
     "baselineLine": 13,
@@ -1410,7 +1413,7 @@
     "risk": "Baixo; revisão contextual, sem alteração do comportamento e sem homologação de ambiente remoto."
   },
   {
-    "key": "fb113cdc-66f4-40c5-b33d-39afdfc86bad",
+    "issueId": "fb113cdc-66f4-40c5-b33d-39afdfc86bad",
     "rule": "javascript:S1313",
     "file": "tools/frontend/forwardings-resilience-playwright.cjs",
     "baselineLine": 33,
@@ -1420,7 +1423,7 @@
     "risk": "Baixo; revisão contextual, sem alteração do comportamento e sem homologação de ambiente remoto."
   },
   {
-    "key": "7d2d984c-45a6-4a14-b5ec-5de6c036b88a",
+    "issueId": "7d2d984c-45a6-4a14-b5ec-5de6c036b88a",
     "rule": "javascript:S5443",
     "file": "tools/frontend/forwardings-resilience-playwright.cjs",
     "baselineLine": 152,
@@ -1430,7 +1433,7 @@
     "risk": "Baixo; muda apenas o destino padrão dos artefatos. Overrides explícitos permanecem sob responsabilidade do operador."
   },
   {
-    "key": "32eac38e-dadc-4ba1-ab06-baae2c0b6ab7",
+    "issueId": "32eac38e-dadc-4ba1-ab06-baae2c0b6ab7",
     "rule": "javascript:S5443",
     "file": "tools/frontend/host-import-live.cjs",
     "baselineLine": 62,
@@ -1440,7 +1443,7 @@
     "risk": "Baixo; muda apenas o destino padrão dos artefatos. Overrides explícitos permanecem sob responsabilidade do operador."
   },
   {
-    "key": "33b15421-5ab0-4537-b47f-c5ef3e344b16",
+    "issueId": "33b15421-5ab0-4537-b47f-c5ef3e344b16",
     "rule": "javascript:S5443",
     "file": "tools/frontend/host-import-live.cjs",
     "baselineLine": 75,
@@ -1450,7 +1453,7 @@
     "risk": "Baixo; muda apenas o destino padrão dos artefatos. Overrides explícitos permanecem sob responsabilidade do operador."
   },
   {
-    "key": "406bc44c-0654-4811-8f37-2e984bbb1f23",
+    "issueId": "406bc44c-0654-4811-8f37-2e984bbb1f23",
     "rule": "javascript:S5443",
     "file": "tools/frontend/host-import-live.cjs",
     "baselineLine": 78,
@@ -1460,7 +1463,7 @@
     "risk": "Baixo; muda apenas o destino padrão dos artefatos. Overrides explícitos permanecem sob responsabilidade do operador."
   },
   {
-    "key": "9025d17b-b87d-4e31-a583-87aa048c6186",
+    "issueId": "9025d17b-b87d-4e31-a583-87aa048c6186",
     "rule": "javascript:S1313",
     "file": "tools/frontend/host-secret-credentials-playwright.cjs",
     "baselineLine": 6,
@@ -1470,7 +1473,7 @@
     "risk": "Baixo; revisão contextual, sem alteração do comportamento e sem homologação de ambiente remoto."
   },
   {
-    "key": "60d30f9d-b75a-4693-9359-0b7ff041ad60",
+    "issueId": "60d30f9d-b75a-4693-9359-0b7ff041ad60",
     "rule": "javascript:S1313",
     "file": "tools/frontend/host-shortcut-navigation-playwright.cjs",
     "baselineLine": 4,
@@ -1480,7 +1483,7 @@
     "risk": "Baixo; revisão contextual, sem alteração do comportamento e sem homologação de ambiente remoto."
   },
   {
-    "key": "036cba68-c9a9-440e-a1cb-a269870dfe11",
+    "issueId": "036cba68-c9a9-440e-a1cb-a269870dfe11",
     "rule": "javascript:S1313",
     "file": "tools/frontend/hosts-acl-resilience-playwright.cjs",
     "baselineLine": 15,
@@ -1490,7 +1493,7 @@
     "risk": "Baixo; revisão contextual, sem alteração do comportamento e sem homologação de ambiente remoto."
   },
   {
-    "key": "8dd768a6-c4e4-4c94-bec2-96d6a88a60a4",
+    "issueId": "8dd768a6-c4e4-4c94-bec2-96d6a88a60a4",
     "rule": "javascript:S2189",
     "file": "tools/frontend/hosts-acl-resilience-playwright.cjs",
     "baselineLine": 167,
@@ -1500,7 +1503,7 @@
     "risk": "Baixo; revisão contextual, sem alteração do comportamento e sem homologação de ambiente remoto."
   },
   {
-    "key": "af78b9f8-314d-499b-ad11-708e2b371d43",
+    "issueId": "af78b9f8-314d-499b-ad11-708e2b371d43",
     "rule": "javascript:S2189",
     "file": "tools/frontend/hosts-acl-resilience-playwright.cjs",
     "baselineLine": 203,
@@ -1510,7 +1513,7 @@
     "risk": "Baixo; revisão contextual, sem alteração do comportamento e sem homologação de ambiente remoto."
   },
   {
-    "key": "7c22b1be-1abf-4c0f-a454-9f0c1e1434c1",
+    "issueId": "7c22b1be-1abf-4c0f-a454-9f0c1e1434c1",
     "rule": "javascript:S2189",
     "file": "tools/frontend/hosts-acl-resilience-playwright.cjs",
     "baselineLine": 244,
@@ -1520,7 +1523,7 @@
     "risk": "Baixo; revisão contextual, sem alteração do comportamento e sem homologação de ambiente remoto."
   },
   {
-    "key": "5e7ab49f-1ebd-42ee-9799-ff310ab9154f",
+    "issueId": "5e7ab49f-1ebd-42ee-9799-ff310ab9154f",
     "rule": "javascript:S5443",
     "file": "tools/frontend/hosts-acl-resilience-playwright.cjs",
     "baselineLine": 260,
@@ -1530,7 +1533,7 @@
     "risk": "Baixo; muda apenas o destino padrão dos artefatos. Overrides explícitos permanecem sob responsabilidade do operador."
   },
   {
-    "key": "940ba870-d37b-4db7-868c-9592e7244794",
+    "issueId": "940ba870-d37b-4db7-868c-9592e7244794",
     "rule": "javascript:S1313",
     "file": "tools/frontend/hosts-corporate-folders-playwright.cjs",
     "baselineLine": 13,
@@ -1540,7 +1543,7 @@
     "risk": "Baixo; revisão contextual, sem alteração do comportamento e sem homologação de ambiente remoto."
   },
   {
-    "key": "f4fdded7-0d76-47fc-af00-957569f7cdc8",
+    "issueId": "f4fdded7-0d76-47fc-af00-957569f7cdc8",
     "rule": "javascript:S3403",
     "file": "tools/frontend/hosts-feedback-ux-playwright.cjs",
     "baselineLine": 33,
@@ -1550,7 +1553,7 @@
     "risk": "Baixo; revisão contextual, sem alteração do comportamento e sem homologação de ambiente remoto."
   },
   {
-    "key": "770ce812-5692-4bb8-bec4-1dc03c6e4e39",
+    "issueId": "770ce812-5692-4bb8-bec4-1dc03c6e4e39",
     "rule": "javascript:S5443",
     "file": "tools/frontend/hosts-feedback-ux-playwright.cjs",
     "baselineLine": 171,
@@ -1560,7 +1563,7 @@
     "risk": "Baixo; muda apenas o destino padrão dos artefatos. Overrides explícitos permanecem sob responsabilidade do operador."
   },
   {
-    "key": "b700f81d-8c59-491f-b31f-f4b8f505acc5",
+    "issueId": "b700f81d-8c59-491f-b31f-f4b8f505acc5",
     "rule": "javascript:S1313",
     "file": "tools/frontend/hosts-presence-resilience-playwright.cjs",
     "baselineLine": 14,
@@ -1570,7 +1573,7 @@
     "risk": "Baixo; revisão contextual, sem alteração do comportamento e sem homologação de ambiente remoto."
   },
   {
-    "key": "cf1cb9f2-3716-41b1-9bb7-33be74f7d5ac",
+    "issueId": "cf1cb9f2-3716-41b1-9bb7-33be74f7d5ac",
     "rule": "javascript:S5443",
     "file": "tools/frontend/hosts-presence-resilience-playwright.cjs",
     "baselineLine": 165,
@@ -1580,7 +1583,7 @@
     "risk": "Baixo; muda apenas o destino padrão dos artefatos. Overrides explícitos permanecem sob responsabilidade do operador."
   },
   {
-    "key": "3bd10369-54f4-4090-ab16-a8a5e32f51e7",
+    "issueId": "3bd10369-54f4-4090-ab16-a8a5e32f51e7",
     "rule": "javascript:S5443",
     "file": "tools/frontend/lucien-feedback-ux-playwright.cjs",
     "baselineLine": 9,
@@ -1590,7 +1593,7 @@
     "risk": "Baixo; muda apenas o destino padrão dos artefatos. Overrides explícitos permanecem sob responsabilidade do operador."
   },
   {
-    "key": "b3788cef-4925-49dd-8c2b-7f64092bad01",
+    "issueId": "b3788cef-4925-49dd-8c2b-7f64092bad01",
     "rule": "javascript:S1313",
     "file": "tools/frontend/mobaxterm-import-playwright.cjs",
     "baselineLine": 53,
@@ -1600,7 +1603,7 @@
     "risk": "Baixo; revisão contextual, sem alteração do comportamento e sem homologação de ambiente remoto."
   },
   {
-    "key": "cfa907b1-0b6f-480c-bc7e-5bd3166b8ee4",
+    "issueId": "cfa907b1-0b6f-480c-bc7e-5bd3166b8ee4",
     "rule": "javascript:S5443",
     "file": "tools/frontend/session-close-live.cjs",
     "baselineLine": 42,
@@ -1610,7 +1613,7 @@
     "risk": "Baixo; muda apenas o destino padrão dos artefatos. Overrides explícitos permanecem sob responsabilidade do operador."
   },
   {
-    "key": "576cc52f-62b5-44a0-94f0-ccb6cd4a89e5",
+    "issueId": "576cc52f-62b5-44a0-94f0-ccb6cd4a89e5",
     "rule": "javascript:S5443",
     "file": "tools/frontend/session-close-live.cjs",
     "baselineLine": 45,
@@ -1620,7 +1623,7 @@
     "risk": "Baixo; muda apenas o destino padrão dos artefatos. Overrides explícitos permanecem sob responsabilidade do operador."
   },
   {
-    "key": "7c52091f-2c84-4241-a955-8f96157b317e",
+    "issueId": "7c52091f-2c84-4241-a955-8f96157b317e",
     "rule": "javascript:S9383",
     "file": "tools/frontend/sharing-flows-playwright.cjs",
     "baselineLine": 137,
@@ -1630,7 +1633,7 @@
     "risk": "Baixo; fechamento do socket agora participa do fluxo do harness."
   },
   {
-    "key": "1c319cf3-8338-4c66-a4e4-018d2c934fce",
+    "issueId": "1c319cf3-8338-4c66-a4e4-018d2c934fce",
     "rule": "javascript:S2189",
     "file": "tools/frontend/sharing-flows-playwright.cjs",
     "baselineLine": 164,
@@ -1640,7 +1643,7 @@
     "risk": "Baixo; revisão contextual, sem alteração do comportamento e sem homologação de ambiente remoto."
   },
   {
-    "key": "369f75e2-77b5-421b-808e-21349efcfcd3",
+    "issueId": "369f75e2-77b5-421b-808e-21349efcfcd3",
     "rule": "typescript:S4036",
     "file": "tools/frontend/terminal-autocomplete-pty.ts",
     "baselineLine": 11,
@@ -1650,7 +1653,7 @@
     "risk": "Baixo; revisão contextual, sem alteração do comportamento e sem homologação de ambiente remoto."
   },
   {
-    "key": "1e4b0d76-950c-4086-bfdb-8a200014562d",
+    "issueId": "1e4b0d76-950c-4086-bfdb-8a200014562d",
     "rule": "javascript:S1313",
     "file": "tools/frontend/user-dashboard-playwright.cjs",
     "baselineLine": 35,
@@ -1660,7 +1663,7 @@
     "risk": "Baixo; revisão contextual, sem alteração do comportamento e sem homologação de ambiente remoto."
   },
   {
-    "key": "4bf929d8-3321-42d8-a12a-70a0f91710bb",
+    "issueId": "4bf929d8-3321-42d8-a12a-70a0f91710bb",
     "rule": "javascript:S1313",
     "file": "tools/frontend/user-dashboard-playwright.cjs",
     "baselineLine": 36,
@@ -1670,7 +1673,7 @@
     "risk": "Baixo; revisão contextual, sem alteração do comportamento e sem homologação de ambiente remoto."
   },
   {
-    "key": "6ea64dae-0567-4c3d-b999-9499551f0f50",
+    "issueId": "6ea64dae-0567-4c3d-b999-9499551f0f50",
     "rule": "javascript:S1313",
     "file": "tools/frontend/user-dashboard-playwright.cjs",
     "baselineLine": 40,
@@ -1680,7 +1683,7 @@
     "risk": "Baixo; revisão contextual, sem alteração do comportamento e sem homologação de ambiente remoto."
   },
   {
-    "key": "71d115ca-e6c3-4c36-af61-a703bb1cd0cc",
+    "issueId": "71d115ca-e6c3-4c36-af61-a703bb1cd0cc",
     "rule": "javascript:S1313",
     "file": "tools/frontend/user-dashboard-playwright.cjs",
     "baselineLine": 41,
@@ -1690,7 +1693,7 @@
     "risk": "Baixo; revisão contextual, sem alteração do comportamento e sem homologação de ambiente remoto."
   },
   {
-    "key": "c13d372d-5403-4dfe-a0fe-67d10d1f9047",
+    "issueId": "c13d372d-5403-4dfe-a0fe-67d10d1f9047",
     "rule": "javascript:S5443",
     "file": "tools/frontend/webhooks-resilience-playwright.cjs",
     "baselineLine": 83,
@@ -1700,7 +1703,7 @@
     "risk": "Baixo; muda apenas o destino padrão dos artefatos. Overrides explícitos permanecem sob responsabilidade do operador."
   },
   {
-    "key": "15e1d366-e72b-4f3a-b744-f63ad44f46d5",
+    "issueId": "15e1d366-e72b-4f3a-b744-f63ad44f46d5",
     "rule": "javascript:S5443",
     "file": "tools/frontend/webhooks-resilience-playwright.cjs",
     "baselineLine": 135,
@@ -1710,7 +1713,7 @@
     "risk": "Baixo; muda apenas o destino padrão dos artefatos. Overrides explícitos permanecem sob responsabilidade do operador."
   },
   {
-    "key": "c3512376-4b25-49cf-8823-7f1d8f5d7fec",
+    "issueId": "c3512376-4b25-49cf-8823-7f1d8f5d7fec",
     "rule": "javascript:S5443",
     "file": "tools/network-access/health-live.mjs",
     "baselineLine": 22,
@@ -1720,7 +1723,7 @@
     "risk": "Baixo; muda apenas o destino padrão dos artefatos. Overrides explícitos permanecem sob responsabilidade do operador."
   },
   {
-    "key": "e199331c-1107-4cbf-aef8-35438948a7bf",
+    "issueId": "e199331c-1107-4cbf-aef8-35438948a7bf",
     "rule": "javascript:S5443",
     "file": "tools/network-access/live.mjs",
     "baselineLine": 161,
@@ -1730,7 +1733,7 @@
     "risk": "Baixo; muda apenas o destino padrão dos artefatos. Overrides explícitos permanecem sob responsabilidade do operador."
   },
   {
-    "key": "a4779cae-d313-47bc-9470-42cdcd234553",
+    "issueId": "a4779cae-d313-47bc-9470-42cdcd234553",
     "rule": "javascript:S5443",
     "file": "tools/network-access/ssh-live.cjs",
     "baselineLine": 33,
@@ -1740,7 +1743,7 @@
     "risk": "Baixo; muda apenas o destino padrão dos artefatos. Overrides explícitos permanecem sob responsabilidade do operador."
   },
   {
-    "key": "91eed5f7-0995-46b8-a865-f02be0a1ebe8",
+    "issueId": "91eed5f7-0995-46b8-a865-f02be0a1ebe8",
     "rule": "javascript:S5443",
     "file": "tools/network-access/ssh-live.cjs",
     "baselineLine": 41,
@@ -1750,7 +1753,7 @@
     "risk": "Baixo; muda apenas o destino padrão dos artefatos. Overrides explícitos permanecem sob responsabilidade do operador."
   },
   {
-    "key": "21cf2bef-aa24-4bec-b219-2c153164b155",
+    "issueId": "21cf2bef-aa24-4bec-b219-2c153164b155",
     "rule": "javascript:S1313",
     "file": "tools/network-access/ux.cjs",
     "baselineLine": 64,
@@ -1760,7 +1763,7 @@
     "risk": "Baixo; revisão contextual, sem alteração do comportamento e sem homologação de ambiente remoto."
   },
   {
-    "key": "d34ac48e-08b2-44b3-a974-d3ed5d3b9444",
+    "issueId": "d34ac48e-08b2-44b3-a974-d3ed5d3b9444",
     "rule": "javascript:S5443",
     "file": "tools/network-access/ux.cjs",
     "baselineLine": 89,
@@ -1770,7 +1773,7 @@
     "risk": "Baixo; muda apenas o destino padrão dos artefatos. Overrides explícitos permanecem sob responsabilidade do operador."
   },
   {
-    "key": "463bd202-cb12-43ed-868b-af6f4c60d534",
+    "issueId": "463bd202-cb12-43ed-868b-af6f4c60d534",
     "rule": "javascript:S5443",
     "file": "tools/network-access/ux.cjs",
     "baselineLine": 95,
@@ -1780,7 +1783,7 @@
     "risk": "Baixo; muda apenas o destino padrão dos artefatos. Overrides explícitos permanecem sob responsabilidade do operador."
   },
   {
-    "key": "452f0f3e-4794-4f6f-9c6a-11c359276399",
+    "issueId": "452f0f3e-4794-4f6f-9c6a-11c359276399",
     "rule": "javascript:S5443",
     "file": "tools/network-access/ux.cjs",
     "baselineLine": 111,
@@ -1790,7 +1793,7 @@
     "risk": "Baixo; muda apenas o destino padrão dos artefatos. Overrides explícitos permanecem sob responsabilidade do operador."
   },
   {
-    "key": "02fb5198-2907-4135-b6e0-653f349e03bb",
+    "issueId": "02fb5198-2907-4135-b6e0-653f349e03bb",
     "rule": "javascript:S5443",
     "file": "tools/network-access/watchdog-live.mjs",
     "baselineLine": 54,
@@ -1800,7 +1803,7 @@
     "risk": "Baixo; muda apenas o destino padrão dos artefatos. Overrides explícitos permanecem sob responsabilidade do operador."
   },
   {
-    "key": "131b663c-07de-4a04-8987-7a9c68723160",
+    "issueId": "131b663c-07de-4a04-8987-7a9c68723160",
     "rule": "javascript:S1313",
     "file": "tools/frontend/agents-experience-playwright.cjs",
     "baselineLine": 16,
@@ -1810,7 +1813,7 @@
     "risk": "Baixo; revisão contextual, sem alteração do comportamento e sem homologação de ambiente remoto."
   },
   {
-    "key": "e3e9eafc-6bab-4b45-a31d-9e241cce08af",
+    "issueId": "e3e9eafc-6bab-4b45-a31d-9e241cce08af",
     "rule": "javascript:S1313",
     "file": "tools/frontend/agents-experience-playwright.cjs",
     "baselineLine": 16,
@@ -1820,7 +1823,7 @@
     "risk": "Baixo; revisão contextual, sem alteração do comportamento e sem homologação de ambiente remoto."
   },
   {
-    "key": "2ecd3d20-ea72-42a3-9583-d0e276773f80",
+    "issueId": "2ecd3d20-ea72-42a3-9583-d0e276773f80",
     "rule": "javascript:S1313",
     "file": "tools/frontend/agents-experience-playwright.cjs",
     "baselineLine": 20,
@@ -1830,7 +1833,7 @@
     "risk": "Baixo; revisão contextual, sem alteração do comportamento e sem homologação de ambiente remoto."
   },
   {
-    "key": "7d69e3a7-624b-41b6-affe-b4bd0bca181e",
+    "issueId": "7d69e3a7-624b-41b6-affe-b4bd0bca181e",
     "rule": "javascript:S1313",
     "file": "tools/frontend/agents-experience-playwright.cjs",
     "baselineLine": 62,
@@ -1840,7 +1843,7 @@
     "risk": "Baixo; revisão contextual, sem alteração do comportamento e sem homologação de ambiente remoto."
   },
   {
-    "key": "f877faf4-3fd2-4cfd-8c94-a48929785d65",
+    "issueId": "f877faf4-3fd2-4cfd-8c94-a48929785d65",
     "rule": "javascript:S5443",
     "file": "tools/frontend/hosts-personal-folders-playwright.cjs",
     "baselineLine": 7,
@@ -1850,7 +1853,7 @@
     "risk": "Baixo; muda apenas o destino padrão dos artefatos. Overrides explícitos permanecem sob responsabilidade do operador."
   },
   {
-    "key": "4acf4719-f4e6-4ffa-9206-2a61e54a1614",
+    "issueId": "4acf4719-f4e6-4ffa-9206-2a61e54a1614",
     "rule": "javascript:S1313",
     "file": "tools/frontend/hosts-personal-folders-playwright.cjs",
     "baselineLine": 25,
@@ -1860,7 +1863,7 @@
     "risk": "Baixo; revisão contextual, sem alteração do comportamento e sem homologação de ambiente remoto."
   },
   {
-    "key": "a3936596-819d-4800-9139-f9e44e924038",
+    "issueId": "a3936596-819d-4800-9139-f9e44e924038",
     "rule": "javascript:S3923",
     "file": "tools/frontend/hosts-personal-folders-playwright.cjs",
     "baselineLine": 271,
@@ -1870,7 +1873,7 @@
     "risk": "Baixo; expressão equivalente."
   },
   {
-    "key": "605ae85f-d5dd-49ca-b4d3-0300e83e49a6",
+    "issueId": "605ae85f-d5dd-49ca-b4d3-0300e83e49a6",
     "rule": "javascript:S1313",
     "file": "tools/frontend/mobaxterm-import-playwright.cjs",
     "baselineLine": 70,
@@ -1880,7 +1883,7 @@
     "risk": "Baixo; revisão contextual, sem alteração do comportamento e sem homologação de ambiente remoto."
   },
   {
-    "key": "a447ef46-efa2-4a5c-a2ce-929a729a1626",
+    "issueId": "a447ef46-efa2-4a5c-a2ce-929a729a1626",
     "rule": "javascript:S2259",
     "file": "tools/frontend/platform-settings-playwright.cjs",
     "baselineLine": 159,
@@ -1890,7 +1893,7 @@
     "risk": "Baixo; apenas diagnóstico da simulação."
   },
   {
-    "key": "793c38a1-c6c6-4351-bc87-025c497af311",
+    "issueId": "793c38a1-c6c6-4351-bc87-025c497af311",
     "rule": "javascript:S5443",
     "file": "tools/frontend/sessions-filters-playwright.cjs",
     "baselineLine": 6,
@@ -1900,7 +1903,7 @@
     "risk": "Baixo; muda apenas o destino padrão dos artefatos. Overrides explícitos permanecem sob responsabilidade do operador."
   },
   {
-    "key": "99fc29ae-6982-45be-b574-71ccb32d748b",
+    "issueId": "99fc29ae-6982-45be-b574-71ccb32d748b",
     "rule": "javascript:S5443",
     "file": "tools/frontend/snippets-page-playwright.cjs",
     "baselineLine": 7,
@@ -1910,7 +1913,7 @@
     "risk": "Baixo; muda apenas o destino padrão dos artefatos. Overrides explícitos permanecem sob responsabilidade do operador."
   },
   {
-    "key": "cfef0f80-070a-45e7-bdcb-30633a929ebd",
+    "issueId": "cfef0f80-070a-45e7-bdcb-30633a929ebd",
     "rule": "javascript:S1313",
     "file": "tools/frontend/terminal-experience-playwright.cjs",
     "baselineLine": 35,
@@ -1920,7 +1923,7 @@
     "risk": "Baixo; revisão contextual, sem alteração do comportamento e sem homologação de ambiente remoto."
   },
   {
-    "key": "a77610db-7f7c-4fad-8d59-812cffb3f060",
+    "issueId": "a77610db-7f7c-4fad-8d59-812cffb3f060",
     "rule": "javascript:S1313",
     "file": "tools/frontend/terminal-experience-playwright.cjs",
     "baselineLine": 36,
@@ -1930,7 +1933,7 @@
     "risk": "Baixo; revisão contextual, sem alteração do comportamento e sem homologação de ambiente remoto."
   },
   {
-    "key": "8f4d1cae-321a-401b-99c5-e6c06d1ca816",
+    "issueId": "8f4d1cae-321a-401b-99c5-e6c06d1ca816",
     "rule": "javascript:S5443",
     "file": "tools/frontend/terminal-split-layout-playwright.cjs",
     "baselineLine": 7,
@@ -1940,7 +1943,7 @@
     "risk": "Baixo; muda apenas o destino padrão dos artefatos. Overrides explícitos permanecem sob responsabilidade do operador."
   },
   {
-    "key": "4abb2a68-195b-4a2e-a5e4-2185ea88969a",
+    "issueId": "4abb2a68-195b-4a2e-a5e4-2185ea88969a",
     "rule": "secrets:S6697",
     "file": "tools/deploy/helm-ollama-kind-certification.sh",
     "baselineLine": 22,
@@ -1950,7 +1953,7 @@
     "risk": "Baixo; revisão contextual, sem alteração do comportamento e sem homologação de ambiente remoto."
   },
   {
-    "key": "3af3c35d-f247-481c-b38b-da1fef3fd8b3",
+    "issueId": "3af3c35d-f247-481c-b38b-da1fef3fd8b3",
     "rule": "javascript:S1313",
     "file": "tools/frontend/action-run-audit-playwright.cjs",
     "baselineLine": 13,
@@ -1960,7 +1963,7 @@
     "risk": "Baixo; revisão contextual, sem alteração do comportamento e sem homologação de ambiente remoto."
   },
   {
-    "key": "15f5eb04-a72b-4dea-b009-6c1b72366713",
+    "issueId": "15f5eb04-a72b-4dea-b009-6c1b72366713",
     "rule": "javascript:S1313",
     "file": "tools/frontend/ai-investigations-playwright.cjs",
     "baselineLine": 7,
@@ -1970,7 +1973,7 @@
     "risk": "Baixo; revisão contextual, sem alteração do comportamento e sem homologação de ambiente remoto."
   },
   {
-    "key": "1de9eb7c-5d03-4dc1-badd-ab68673ab30c",
+    "issueId": "1de9eb7c-5d03-4dc1-badd-ab68673ab30c",
     "rule": "javascript:S1313",
     "file": "tools/frontend/jira-breakglass-live-playwright.cjs",
     "baselineLine": 13,
@@ -1980,7 +1983,7 @@
     "risk": "Baixo; invocações antigas sem destino explícito agora falham antes de conectar."
   },
   {
-    "key": "f6f05851-95ac-4c25-ad27-a364edc0ccfb",
+    "issueId": "f6f05851-95ac-4c25-ad27-a364edc0ccfb",
     "rule": "javascript:S1313",
     "file": "tools/frontend/jira-integration-playwright.cjs",
     "baselineLine": 83,
@@ -1990,7 +1993,7 @@
     "risk": "Baixo; revisão contextual, sem alteração do comportamento e sem homologação de ambiente remoto."
   },
   {
-    "key": "724edb5d-4d06-4b91-ae3b-e5c36e7a741f",
+    "issueId": "724edb5d-4d06-4b91-ae3b-e5c36e7a741f",
     "rule": "javascript:S1313",
     "file": "tools/frontend/local-ai-playwright.cjs",
     "baselineLine": 87,
@@ -2000,7 +2003,7 @@
     "risk": "Baixo; revisão contextual, sem alteração do comportamento e sem homologação de ambiente remoto."
   },
   {
-    "key": "9c872ea7-4c22-4411-b9dd-e7410f5331db",
+    "issueId": "9c872ea7-4c22-4411-b9dd-e7410f5331db",
     "rule": "javascript:S1313",
     "file": "tools/frontend/local-ai-playwright.cjs",
     "baselineLine": 94,
@@ -2010,7 +2013,7 @@
     "risk": "Baixo; revisão contextual, sem alteração do comportamento e sem homologação de ambiente remoto."
   },
   {
-    "key": "3879cebc-7cfc-464b-802f-d750cc35ccb4",
+    "issueId": "3879cebc-7cfc-464b-802f-d750cc35ccb4",
     "rule": "javascript:S5443",
     "file": "tools/frontend/terminal-experience-playwright.cjs",
     "baselineLine": 8,
@@ -2020,7 +2023,7 @@
     "risk": "Baixo; muda apenas o destino padrão dos artefatos. Overrides explícitos permanecem sob responsabilidade do operador."
   },
   {
-    "key": "5427c6fb-f697-455b-a2a0-f5ee6ffce867",
+    "issueId": "5427c6fb-f697-455b-a2a0-f5ee6ffce867",
     "rule": "javascript:S5443",
     "file": "tools/frontend/terminal-experience-playwright.cjs",
     "baselineLine": 9,
@@ -2030,7 +2033,7 @@
     "risk": "Baixo; muda apenas o destino padrão dos artefatos. Overrides explícitos permanecem sob responsabilidade do operador."
   },
   {
-    "key": "3b53cdef-0356-4c70-8bc4-61d32753c04f",
+    "issueId": "3b53cdef-0356-4c70-8bc4-61d32753c04f",
     "rule": "javascript:S1313",
     "file": "tools/frontend/host-backed-bastions-playwright.cjs",
     "baselineLine": 14,
@@ -2040,7 +2043,7 @@
     "risk": "Baixo; revisão contextual, sem alteração do comportamento e sem homologação de ambiente remoto."
   },
   {
-    "key": "ae699274-627f-4b55-a6b3-ea098376df23",
+    "issueId": "ae699274-627f-4b55-a6b3-ea098376df23",
     "rule": "javascript:S1313",
     "file": "tools/frontend/jira-integration-playwright.cjs",
     "baselineLine": 23,
@@ -2050,7 +2053,7 @@
     "risk": "Baixo; revisão contextual, sem alteração do comportamento e sem homologação de ambiente remoto."
   },
   {
-    "key": "d6e113f9-cd0a-41ff-ae89-875fa7732e07",
+    "issueId": "d6e113f9-cd0a-41ff-ae89-875fa7732e07",
     "rule": "javascript:S5443",
     "file": "tools/frontend/session-playback-playwright.cjs",
     "baselineLine": 9,
@@ -2060,7 +2063,7 @@
     "risk": "Baixo; muda apenas o destino padrão dos artefatos. Overrides explícitos permanecem sob responsabilidade do operador."
   },
   {
-    "key": "44fad3a8-33d7-4bbc-a8ba-b0a33a5359ff",
+    "issueId": "44fad3a8-33d7-4bbc-a8ba-b0a33a5359ff",
     "rule": "javascript:S5443",
     "file": "tools/frontend/session-playback-playwright.cjs",
     "baselineLine": 8,
@@ -2070,7 +2073,7 @@
     "risk": "Baixo; muda apenas o destino padrão dos artefatos. Overrides explícitos permanecem sob responsabilidade do operador."
   },
   {
-    "key": "1936579c-7b50-4e05-941c-1db18b833672",
+    "issueId": "1936579c-7b50-4e05-941c-1db18b833672",
     "rule": "javascript:S1313",
     "file": "tools/frontend/session-playback-playwright.cjs",
     "baselineLine": 22,
@@ -2080,7 +2083,7 @@
     "risk": "Baixo; revisão contextual, sem alteração do comportamento e sem homologação de ambiente remoto."
   },
   {
-    "key": "eb6fea74-53ec-4125-8fb6-712aeb35eeb4",
+    "issueId": "eb6fea74-53ec-4125-8fb6-712aeb35eeb4",
     "rule": "secrets:S6697",
     "file": "tools/deploy/helm-migration-recovery-harness.sh",
     "baselineLine": 13,
@@ -2090,7 +2093,7 @@
     "risk": "Baixo; revisão contextual, sem alteração do comportamento e sem homologação de ambiente remoto."
   },
   {
-    "key": "9f3f163a-424a-4186-a664-99add28cfd13",
+    "issueId": "9f3f163a-424a-4186-a664-99add28cfd13",
     "rule": "javascript:S4036",
     "file": "tools/deploy/helm-chart-harness.cjs",
     "baselineLine": 10,
@@ -2100,7 +2103,7 @@
     "risk": "Baixo; revisão contextual, sem alteração do comportamento e sem homologação de ambiente remoto."
   },
   {
-    "key": "60af9dd1-79f4-4337-9a0a-46ea0a1bb41b",
+    "issueId": "60af9dd1-79f4-4337-9a0a-46ea0a1bb41b",
     "rule": "javascript:S5443",
     "file": "tools/frontend/oidc-login-playwright.cjs",
     "baselineLine": 6,
@@ -2110,7 +2113,7 @@
     "risk": "Baixo; muda apenas o destino padrão dos artefatos. Overrides explícitos permanecem sob responsabilidade do operador."
   },
   {
-    "key": "699ab2ec-4ec5-4f96-892d-69f9f26c6943",
+    "issueId": "699ab2ec-4ec5-4f96-892d-69f9f26c6943",
     "rule": "javascript:S5443",
     "file": "tools/frontend/pem-key-passphrase-playwright.cjs",
     "baselineLine": 6,
@@ -2120,7 +2123,7 @@
     "risk": "Baixo; muda apenas o destino padrão dos artefatos. Overrides explícitos permanecem sob responsabilidade do operador."
   },
   {
-    "key": "ae58d5c5-b7db-4fa9-af77-b6bddac1e746",
+    "issueId": "ae58d5c5-b7db-4fa9-af77-b6bddac1e746",
     "rule": "javascript:S5443",
     "file": "tools/frontend/terminal-cdp-real-flow.cjs",
     "baselineLine": 355,
@@ -2130,7 +2133,7 @@
     "risk": "Baixo; muda apenas o destino padrão dos artefatos. Overrides explícitos permanecem sob responsabilidade do operador."
   },
   {
-    "key": "4e7b1d3a-8856-4da0-a1dc-fac26812a292",
+    "issueId": "4e7b1d3a-8856-4da0-a1dc-fac26812a292",
     "rule": "javascript:S5443",
     "file": "tools/frontend/terminal-experience-playwright.cjs",
     "baselineLine": 6,
@@ -2140,7 +2143,7 @@
     "risk": "Baixo; muda apenas o destino padrão dos artefatos. Overrides explícitos permanecem sob responsabilidade do operador."
   },
   {
-    "key": "e29ae85f-f7b9-48c1-b460-0f2f0d4a0b3e",
+    "issueId": "e29ae85f-f7b9-48c1-b460-0f2f0d4a0b3e",
     "rule": "javascript:S5443",
     "file": "tools/frontend/terminal-experience-playwright.cjs",
     "baselineLine": 7,
@@ -2150,7 +2153,7 @@
     "risk": "Baixo; muda apenas o destino padrão dos artefatos. Overrides explícitos permanecem sob responsabilidade do operador."
   },
   {
-    "key": "9b79b198-1338-40fb-a70f-47a4e88946e0",
+    "issueId": "9b79b198-1338-40fb-a70f-47a4e88946e0",
     "rule": "javascript:S5443",
     "file": "tools/frontend/session-command-policies-playwright.cjs",
     "baselineLine": 8,
@@ -2160,7 +2163,7 @@
     "risk": "Baixo; muda apenas o destino padrão dos artefatos. Overrides explícitos permanecem sob responsabilidade do operador."
   },
   {
-    "key": "3f9b7bcd-dd5a-4166-a321-c2b7893872fd",
+    "issueId": "3f9b7bcd-dd5a-4166-a321-c2b7893872fd",
     "rule": "javascript:S5443",
     "file": "tools/frontend/session-command-policies-playwright.cjs",
     "baselineLine": 9,
@@ -2170,7 +2173,7 @@
     "risk": "Baixo; muda apenas o destino padrão dos artefatos. Overrides explícitos permanecem sob responsabilidade do operador."
   },
   {
-    "key": "1c51e782-d898-419f-ab0a-b32911bfcba5",
+    "issueId": "1c51e782-d898-419f-ab0a-b32911bfcba5",
     "rule": "javascript:S1313",
     "file": "tools/frontend/session-command-policies-playwright.cjs",
     "baselineLine": 28,
@@ -2180,7 +2183,7 @@
     "risk": "Baixo; revisão contextual, sem alteração do comportamento e sem homologação de ambiente remoto."
   },
   {
-    "key": "7ff8efea-8102-4462-846a-a518199f9f70",
+    "issueId": "7ff8efea-8102-4462-846a-a518199f9f70",
     "rule": "javascript:S7737",
     "file": "tools/frontend/session-command-policies-playwright.cjs",
     "baselineLine": 68,
@@ -2190,7 +2193,7 @@
     "risk": "Baixo; revisão contextual, sem alteração do comportamento e sem homologação de ambiente remoto."
   },
   {
-    "key": "e6db4527-d205-4b65-82a4-20473c7a0af2",
+    "issueId": "e6db4527-d205-4b65-82a4-20473c7a0af2",
     "rule": "javascript:S4036",
     "file": "scripts/change-status.mjs",
     "baselineLine": 105,
@@ -2200,7 +2203,7 @@
     "risk": "Baixo; revisão contextual, sem alteração do comportamento e sem homologação de ambiente remoto."
   },
   {
-    "key": "cbf76345-d77a-46cf-a00c-27978215d7e0",
+    "issueId": "cbf76345-d77a-46cf-a00c-27978215d7e0",
     "rule": "javascript:S4036",
     "file": "scripts/change-status.mjs",
     "baselineLine": 136,
@@ -2210,7 +2213,7 @@
     "risk": "Baixo; revisão contextual, sem alteração do comportamento e sem homologação de ambiente remoto."
   },
   {
-    "key": "7a9dd819-63b3-4925-8bf1-a23a64a017d8",
+    "issueId": "7a9dd819-63b3-4925-8bf1-a23a64a017d8",
     "rule": "javascript:S4036",
     "file": "scripts/change-status.mjs",
     "baselineLine": 145,
@@ -2220,7 +2223,7 @@
     "risk": "Baixo; revisão contextual, sem alteração do comportamento e sem homologação de ambiente remoto."
   },
   {
-    "key": "cf08cfec-0aab-4d31-9bc8-9727ff272f51",
+    "issueId": "cf08cfec-0aab-4d31-9bc8-9727ff272f51",
     "rule": "javascript:S2871",
     "file": "scripts/lint-changed.mjs",
     "baselineLine": 21,
@@ -2230,7 +2233,7 @@
     "risk": "Baixo; revisão contextual, sem alteração do comportamento e sem homologação de ambiente remoto."
   },
   {
-    "key": "8a0e3005-99ec-4f1b-935c-955e696763b4",
+    "issueId": "8a0e3005-99ec-4f1b-935c-955e696763b4",
     "rule": "javascript:S4036",
     "file": "scripts/lint-changed.mjs",
     "baselineLine": 42,
@@ -2240,7 +2243,7 @@
     "risk": "Baixo; revisão contextual, sem alteração do comportamento e sem homologação de ambiente remoto."
   },
   {
-    "key": "4db9ccb8-e455-4469-b821-eaa4be9ce902",
+    "issueId": "4db9ccb8-e455-4469-b821-eaa4be9ce902",
     "rule": "javascript:S8786",
     "file": "scripts/change-governance-lib.mjs",
     "baselineLine": 32,
@@ -2250,7 +2253,7 @@
     "risk": "Baixo; parsers preservam formatos válidos e rejeitam email com pontos vazios."
   },
   {
-    "key": "885c7415-28e0-4e87-bd9a-45166a651ed6",
+    "issueId": "885c7415-28e0-4e87-bd9a-45166a651ed6",
     "rule": "javascript:S2871",
     "file": "scripts/change-governance-lib.mjs",
     "baselineLine": 63,
@@ -2260,7 +2263,7 @@
     "risk": "Baixo; revisão contextual, sem alteração do comportamento e sem homologação de ambiente remoto."
   },
   {
-    "key": "ac526353-cd0c-4305-a9d4-4da8e480f471",
+    "issueId": "ac526353-cd0c-4305-a9d4-4da8e480f471",
     "rule": "javascript:S8786",
     "file": "scripts/change-governance-lib.mjs",
     "baselineLine": 102,
@@ -2270,7 +2273,7 @@
     "risk": "Baixo; parsers preservam formatos válidos e rejeitam email com pontos vazios."
   },
   {
-    "key": "f4b38745-7be4-49d8-9e0f-c01d1680718a",
+    "issueId": "f4b38745-7be4-49d8-9e0f-c01d1680718a",
     "rule": "javascript:S4036",
     "file": "scripts/change-governance-lib.mjs",
     "baselineLine": 140,
@@ -2280,7 +2283,7 @@
     "risk": "Baixo; revisão contextual, sem alteração do comportamento e sem homologação de ambiente remoto."
   },
   {
-    "key": "0786f01d-e9b3-4bcc-8165-fbd61ecee004",
+    "issueId": "0786f01d-e9b3-4bcc-8165-fbd61ecee004",
     "rule": "secrets:S6697",
     "file": "tools/deploy/backup-user-avatars-harness.sh",
     "baselineLine": 19,
@@ -2290,7 +2293,7 @@
     "risk": "Baixo; revisão contextual, sem alteração do comportamento e sem homologação de ambiente remoto."
   },
   {
-    "key": "08a38452-6346-47dc-ad4c-c37b39ef72dd",
+    "issueId": "08a38452-6346-47dc-ad4c-c37b39ef72dd",
     "rule": "secrets:S6697",
     "file": "tools/deploy/doctor-nodeaccess-harness.cjs",
     "baselineLine": 26,
@@ -2300,7 +2303,7 @@
     "risk": "Baixo; revisão contextual, sem alteração do comportamento e sem homologação de ambiente remoto."
   },
   {
-    "key": "47ffe909-38d1-4c9b-acfb-07a6151f88e0",
+    "issueId": "47ffe909-38d1-4c9b-acfb-07a6151f88e0",
     "rule": "javascript:S2612",
     "file": "tools/deploy/doctor-nodeaccess-harness.cjs",
     "baselineLine": 104,
@@ -2310,7 +2313,7 @@
     "risk": "Baixo; revisão contextual, sem alteração do comportamento e sem homologação de ambiente remoto."
   },
   {
-    "key": "5a7afb65-b563-49e4-8ab4-8f25f0682c6f",
+    "issueId": "5a7afb65-b563-49e4-8ab4-8f25f0682c6f",
     "rule": "javascript:S4036",
     "file": "tools/deploy/doctor-nodeaccess-harness.cjs",
     "baselineLine": 107,
@@ -2320,7 +2323,7 @@
     "risk": "Baixo; revisão contextual, sem alteração do comportamento e sem homologação de ambiente remoto."
   },
   {
-    "key": "5fd8556e-09be-4952-a3a0-f17e1d555459",
+    "issueId": "5fd8556e-09be-4952-a3a0-f17e1d555459",
     "rule": "secrets:S6697",
     "file": "tools/deploy/ha-state-readiness-harness.sh",
     "baselineLine": 20,
@@ -2330,7 +2333,7 @@
     "risk": "Baixo; revisão contextual, sem alteração do comportamento e sem homologação de ambiente remoto."
   },
   {
-    "key": "c580abfd-2d2c-494d-bc3a-859a9d7a32cc",
+    "issueId": "c580abfd-2d2c-494d-bc3a-859a9d7a32cc",
     "rule": "secrets:S6697",
     "file": "tools/deploy/restore-mysql-isolated-harness.sh",
     "baselineLine": 66,
@@ -2340,7 +2343,7 @@
     "risk": "Baixo; revisão contextual, sem alteração do comportamento e sem homologação de ambiente remoto."
   },
   {
-    "key": "5d9ecf0d-1bd4-423a-9aeb-5b71e2b39cb4",
+    "issueId": "5d9ecf0d-1bd4-423a-9aeb-5b71e2b39cb4",
     "rule": "secrets:S6697",
     "file": "tools/deploy/restore-session-audit-isolated-harness.sh",
     "baselineLine": 50,
@@ -2350,7 +2353,7 @@
     "risk": "Baixo; revisão contextual, sem alteração do comportamento e sem homologação de ambiente remoto."
   },
   {
-    "key": "1e2f07c3-e2b6-459d-b6bb-24ef65453212",
+    "issueId": "1e2f07c3-e2b6-459d-b6bb-24ef65453212",
     "rule": "javascript:S5332",
     "file": "tools/frontend/ha-live-enrollment-harness.cjs",
     "baselineLine": 6,
@@ -2360,7 +2363,7 @@
     "risk": "Baixo; endpoint remoto inseguro é recusado antes da autenticação."
   },
   {
-    "key": "be6f437f-0ccc-4b5e-8697-b0bbb45902c2",
+    "issueId": "be6f437f-0ccc-4b5e-8697-b0bbb45902c2",
     "rule": "javascript:S1313",
     "file": "tools/frontend/ha-live-enrollment-harness.cjs",
     "baselineLine": 9,
@@ -2370,7 +2373,7 @@
     "risk": "Baixo; invocações antigas sem destino explícito agora falham antes de conectar."
   },
   {
-    "key": "3b5d6db4-2c69-49a0-af27-7bb767c2cb58",
+    "issueId": "3b5d6db4-2c69-49a0-af27-7bb767c2cb58",
     "rule": "javascript:S1313",
     "file": "tools/frontend/ha-live-enrollment-harness.cjs",
     "baselineLine": 10,
@@ -2380,7 +2383,7 @@
     "risk": "Baixo; invocações antigas sem destino explícito agora falham antes de conectar."
   },
   {
-    "key": "be75dc7b-68ee-45c3-a93d-bbebe345b8a7",
+    "issueId": "be75dc7b-68ee-45c3-a93d-bbebe345b8a7",
     "rule": "javascript:S5443",
     "file": "tools/frontend/ha-live-enrollment-harness.cjs",
     "baselineLine": 11,
@@ -2390,7 +2393,7 @@
     "risk": "Baixo; muda apenas o destino padrão dos artefatos. Overrides explícitos permanecem sob responsabilidade do operador."
   },
   {
-    "key": "c84efa40-9500-47b9-91d5-19a00bc46103",
+    "issueId": "c84efa40-9500-47b9-91d5-19a00bc46103",
     "rule": "javascript:S5443",
     "file": "tools/frontend/ha-playwright-live-readonly.cjs",
     "baselineLine": 21,
@@ -2400,7 +2403,7 @@
     "risk": "Baixo; muda apenas o destino padrão dos artefatos. Overrides explícitos permanecem sob responsabilidade do operador."
   },
   {
-    "key": "335a4826-6ec1-4001-baa4-093d50a7ea7a",
+    "issueId": "335a4826-6ec1-4001-baa4-093d50a7ea7a",
     "rule": "javascript:S5443",
     "file": "tools/frontend/ha-playwright-live-readonly.cjs",
     "baselineLine": 22,
@@ -2410,7 +2413,7 @@
     "risk": "Baixo; muda apenas o destino padrão dos artefatos. Overrides explícitos permanecem sob responsabilidade do operador."
   },
   {
-    "key": "8f7e253e-a003-479c-ae3b-78e174fcb11d",
+    "issueId": "8f7e253e-a003-479c-ae3b-78e174fcb11d",
     "rule": "javascript:S5443",
     "file": "tools/frontend/ha-playwright-smoke.cjs",
     "baselineLine": 19,
@@ -2420,7 +2423,7 @@
     "risk": "Baixo; muda apenas o destino padrão dos artefatos. Overrides explícitos permanecem sob responsabilidade do operador."
   },
   {
-    "key": "125814df-fba5-4f6e-893c-a1c30323d9d6",
+    "issueId": "125814df-fba5-4f6e-893c-a1c30323d9d6",
     "rule": "javascript:S5443",
     "file": "tools/frontend/ha-playwright-smoke.cjs",
     "baselineLine": 20,
@@ -2430,7 +2433,7 @@
     "risk": "Baixo; muda apenas o destino padrão dos artefatos. Overrides explícitos permanecem sob responsabilidade do operador."
   },
   {
-    "key": "f4923f5c-aa4d-43c1-8ae6-68d5249d1873",
+    "issueId": "f4923f5c-aa4d-43c1-8ae6-68d5249d1873",
     "rule": "javascript:S1313",
     "file": "tools/frontend/ha-playwright-smoke.cjs",
     "baselineLine": 53,
@@ -2440,7 +2443,7 @@
     "risk": "Baixo; revisão contextual, sem alteração do comportamento e sem homologação de ambiente remoto."
   },
   {
-    "key": "91a4e737-4e9d-4366-aa82-d768c2dc6c4b",
+    "issueId": "91a4e737-4e9d-4366-aa82-d768c2dc6c4b",
     "rule": "javascript:S1313",
     "file": "tools/frontend/ha-playwright-smoke.cjs",
     "baselineLine": 57,
@@ -2450,7 +2453,7 @@
     "risk": "Baixo; revisão contextual, sem alteração do comportamento e sem homologação de ambiente remoto."
   },
   {
-    "key": "4ef58e07-6dfc-4244-ba84-baed4cee4b64",
+    "issueId": "4ef58e07-6dfc-4244-ba84-baed4cee4b64",
     "rule": "javascript:S1313",
     "file": "tools/frontend/ha-playwright-smoke.cjs",
     "baselineLine": 92,
@@ -2460,7 +2463,7 @@
     "risk": "Baixo; revisão contextual, sem alteração do comportamento e sem homologação de ambiente remoto."
   },
   {
-    "key": "606380be-50cd-482b-8b48-a398f4317ccd",
+    "issueId": "606380be-50cd-482b-8b48-a398f4317ccd",
     "rule": "javascript:S1313",
     "file": "tools/frontend/ha-playwright-smoke.cjs",
     "baselineLine": 96,
@@ -2470,7 +2473,7 @@
     "risk": "Baixo; revisão contextual, sem alteração do comportamento e sem homologação de ambiente remoto."
   },
   {
-    "key": "50499088-c195-407a-b8fb-5543bc0de12a",
+    "issueId": "50499088-c195-407a-b8fb-5543bc0de12a",
     "rule": "javascript:S5443",
     "file": "tools/frontend/ldap-integrations-harness.cjs",
     "baselineLine": 25,
@@ -2480,7 +2483,7 @@
     "risk": "Baixo; muda apenas o destino padrão dos artefatos. Overrides explícitos permanecem sob responsabilidade do operador."
   },
   {
-    "key": "2c12b07f-6db3-4b46-8c21-a42144758bdf",
+    "issueId": "2c12b07f-6db3-4b46-8c21-a42144758bdf",
     "rule": "javascript:S5443",
     "file": "tools/frontend/observability-cdp-harness.cjs",
     "baselineLine": 22,
@@ -2490,7 +2493,7 @@
     "risk": "Baixo; muda apenas o destino padrão dos artefatos. Overrides explícitos permanecem sob responsabilidade do operador."
   },
   {
-    "key": "dba3ce80-3d7e-43c3-9ea0-cbccbb97c6ce",
+    "issueId": "dba3ce80-3d7e-43c3-9ea0-cbccbb97c6ce",
     "rule": "javascript:S5443",
     "file": "tools/frontend/session-playback-cdp-flow.cjs",
     "baselineLine": 35,
@@ -2500,7 +2503,7 @@
     "risk": "Baixo; muda apenas o destino padrão dos artefatos. Overrides explícitos permanecem sob responsabilidade do operador."
   },
   {
-    "key": "9caa6957-8ac4-4e09-b92c-251c153f7101",
+    "issueId": "9caa6957-8ac4-4e09-b92c-251c153f7101",
     "rule": "javascript:S5443",
     "file": "tools/frontend/sftp-file-manager-harness.cjs",
     "baselineLine": 27,
@@ -2510,7 +2513,7 @@
     "risk": "Baixo; muda apenas o destino padrão dos artefatos. Overrides explícitos permanecem sob responsabilidade do operador."
   },
   {
-    "key": "8de85b59-8539-4c4f-b9bc-0fa06a36ba82",
+    "issueId": "8de85b59-8539-4c4f-b9bc-0fa06a36ba82",
     "rule": "javascript:S8786",
     "file": "tools/frontend/sidebar-cdp-ux.cjs",
     "baselineLine": 204,
@@ -2520,7 +2523,7 @@
     "risk": "Baixo; parsers preservam formatos válidos e rejeitam email com pontos vazios."
   },
   {
-    "key": "d45111e1-d6c9-45f1-bd67-7548c3f1086b",
+    "issueId": "d45111e1-d6c9-45f1-bd67-7548c3f1086b",
     "rule": "javascript:S5443",
     "file": "tools/frontend/terminal-cdp-load.cjs",
     "baselineLine": 30,
@@ -2530,7 +2533,7 @@
     "risk": "Baixo; muda apenas o destino padrão dos artefatos. Overrides explícitos permanecem sob responsabilidade do operador."
   },
   {
-    "key": "23c425a3-9828-45c6-b699-2696506b35ad",
+    "issueId": "23c425a3-9828-45c6-b699-2696506b35ad",
     "rule": "javascript:S4036",
     "file": "tools/frontend/terminal-cdp-load.cjs",
     "baselineLine": 149,
@@ -2540,7 +2543,7 @@
     "risk": "Baixo; revisão contextual, sem alteração do comportamento e sem homologação de ambiente remoto."
   },
   {
-    "key": "c4d9ad2a-e160-4554-8e38-545220d1d093",
+    "issueId": "c4d9ad2a-e160-4554-8e38-545220d1d093",
     "rule": "javascript:S5443",
     "file": "tools/frontend/terminal-cdp-real-flow.cjs",
     "baselineLine": 37,
@@ -2550,7 +2553,7 @@
     "risk": "Baixo; muda apenas o destino padrão dos artefatos. Overrides explícitos permanecem sob responsabilidade do operador."
   },
   {
-    "key": "302e860b-e02d-49da-aaf3-8ea5ccbda3b3",
+    "issueId": "302e860b-e02d-49da-aaf3-8ea5ccbda3b3",
     "rule": "javascript:S5443",
     "file": "tools/frontend/terminal-cdp-simulated-flow.cjs",
     "baselineLine": 23,
@@ -2560,7 +2563,7 @@
     "risk": "Baixo; muda apenas o destino padrão dos artefatos. Overrides explícitos permanecem sob responsabilidade do operador."
   },
   {
-    "key": "977d1229-8ca0-4967-89e0-5157d29fc3f3",
+    "issueId": "977d1229-8ca0-4967-89e0-5157d29fc3f3",
     "rule": "javascript:S1313",
     "file": "tools/frontend/terminal-cdp-simulated-flow.cjs",
     "baselineLine": 28,
@@ -2570,7 +2573,7 @@
     "risk": "Baixo; revisão contextual, sem alteração do comportamento e sem homologação de ambiente remoto."
   },
   {
-    "key": "61e723aa-56c1-4fd6-9816-22c149f2d264",
+    "issueId": "61e723aa-56c1-4fd6-9816-22c149f2d264",
     "rule": "javascript:S5443",
     "file": "tools/frontend/terminal-playwright-load.cjs",
     "baselineLine": 34,
@@ -2580,7 +2583,7 @@
     "risk": "Baixo; muda apenas o destino padrão dos artefatos. Overrides explícitos permanecem sob responsabilidade do operador."
   },
   {
-    "key": "a18f755d-2f51-458f-943e-025c0c2159cf",
+    "issueId": "a18f755d-2f51-458f-943e-025c0c2159cf",
     "rule": "javascript:S5443",
     "file": "tools/frontend/terminal-playwright-load.cjs",
     "baselineLine": 35,
@@ -2590,7 +2593,7 @@
     "risk": "Baixo; muda apenas o destino padrão dos artefatos. Overrides explícitos permanecem sob responsabilidade do operador."
   },
   {
-    "key": "537d0961-fdf8-4197-a0da-882109f3207b",
+    "issueId": "537d0961-fdf8-4197-a0da-882109f3207b",
     "rule": "javascript:S4036",
     "file": "tools/frontend/terminal-playwright-load.cjs",
     "baselineLine": 164,
@@ -2600,7 +2603,7 @@
     "risk": "Baixo; revisão contextual, sem alteração do comportamento e sem homologação de ambiente remoto."
   },
   {
-    "key": "b3b3cd3d-4ffc-45be-bdc2-fa9b9fd6beb5",
+    "issueId": "b3b3cd3d-4ffc-45be-bdc2-fa9b9fd6beb5",
     "rule": "javascript:S4036",
     "file": "tools/load-tests/scripts/run-gateway-with-metrics.js",
     "baselineLine": 132,
@@ -2610,7 +2613,7 @@
     "risk": "Baixo; revisão contextual, sem alteração do comportamento e sem homologação de ambiente remoto."
   },
   {
-    "key": "dbaf22ef-6d8c-4e87-bd3b-cfb5853eb5c9",
+    "issueId": "dbaf22ef-6d8c-4e87-bd3b-cfb5853eb5c9",
     "rule": "javascript:S2245",
     "file": "tools/load-tests/ws/baseline-gateway.js",
     "baselineLine": 93,
@@ -2620,7 +2623,7 @@
     "risk": "Baixo; revisão contextual, sem alteração do comportamento e sem homologação de ambiente remoto."
   },
   {
-    "key": "35c4625a-d919-4c87-91ad-3678abfad4fd",
+    "issueId": "35c4625a-d919-4c87-91ad-3678abfad4fd",
     "rule": "typescript:S5443",
     "file": "tools/session-audit/reconstruction-fidelity.ts",
     "baselineLine": 38,
@@ -2630,7 +2633,7 @@
     "risk": "Baixo; muda apenas o destino padrão dos artefatos. Overrides explícitos permanecem sob responsabilidade do operador."
   },
   {
-    "key": "db8f5a61-6c0f-4a7d-bc54-c47240949a51",
+    "issueId": "db8f5a61-6c0f-4a7d-bc54-c47240949a51",
     "rule": "typescript:S5443",
     "file": "tools/session-audit/reconstruction-fidelity.ts",
     "baselineLine": 264,
@@ -2640,7 +2643,7 @@
     "risk": "Baixo; revisão contextual, sem alteração do comportamento e sem homologação de ambiente remoto."
   },
   {
-    "key": "73b727d6-2b13-43c1-8b46-914999543374",
+    "issueId": "73b727d6-2b13-43c1-8b46-914999543374",
     "rule": "typescript:S1313",
     "file": "tools/session-audit/reconstruction-fidelity.ts",
     "baselineLine": 291,
@@ -2650,7 +2653,7 @@
     "risk": "Baixo; revisão contextual, sem alteração do comportamento e sem homologação de ambiente remoto."
   },
   {
-    "key": "e5560c7f-1c97-4de2-8146-5cc423119655",
+    "issueId": "e5560c7f-1c97-4de2-8146-5cc423119655",
     "rule": "typescript:S5443",
     "file": "tools/session-audit/reconstruction-fidelity.ts",
     "baselineLine": 301,
@@ -2660,7 +2663,7 @@
     "risk": "Baixo; revisão contextual, sem alteração do comportamento e sem homologação de ambiente remoto."
   },
   {
-    "key": "31ea97a5-38d9-4b1d-af92-981f86b3610a",
+    "issueId": "31ea97a5-38d9-4b1d-af92-981f86b3610a",
     "rule": "typescript:S1313",
     "file": "tools/session-audit/reconstruction-fidelity.ts",
     "baselineLine": 412,
@@ -2670,7 +2673,7 @@
     "risk": "Baixo; revisão contextual, sem alteração do comportamento e sem homologação de ambiente remoto."
   },
   {
-    "key": "9e5f4b65-6bc0-46ee-b9da-1cde134bb908",
+    "issueId": "9e5f4b65-6bc0-46ee-b9da-1cde134bb908",
     "rule": "javascript:S2245",
     "file": "tools/load-tests/k6/baseline-api.js",
     "baselineLine": 131,
@@ -2680,7 +2683,7 @@
     "risk": "Baixo; revisão contextual, sem alteração do comportamento e sem homologação de ambiente remoto."
   },
   {
-    "key": "bc6bff92-4617-4e65-a26c-b343e134a847",
+    "issueId": "bc6bff92-4617-4e65-a26c-b343e134a847",
     "rule": "javascript:S4036",
     "file": "tools/load-tests/scripts/mock-ssh-server.js",
     "baselineLine": 25,
@@ -2690,7 +2693,7 @@
     "risk": "Baixo; revisão contextual, sem alteração do comportamento e sem homologação de ambiente remoto."
   },
   {
-    "key": "163921e7-f68d-456b-94b3-159a57c98aaf",
+    "issueId": "163921e7-f68d-456b-94b3-159a57c98aaf",
     "rule": "javascript:S8786",
     "file": "tools/load-tests/scripts/run-gateway-with-metrics.js",
     "baselineLine": 288,
@@ -2700,7 +2703,7 @@
     "risk": "Baixo; parsers preservam formatos válidos e rejeitam email com pontos vazios."
   },
   {
-    "key": "adf1c0bc-9fe5-47cf-a97f-9fa70cc9adaf",
+    "issueId": "adf1c0bc-9fe5-47cf-a97f-9fa70cc9adaf",
     "rule": "javascript:S905",
     "file": "tools/frontend/recent-host-access-playwright.cjs",
     "baselineLine": 3,
@@ -2710,7 +2713,7 @@
     "risk": "Baixo; restaura o strict mode original do harness."
   },
   {
-    "key": "f58ec78b-9d4a-4689-aef4-4e9c898b71a6",
+    "issueId": "f58ec78b-9d4a-4689-aef4-4e9c898b71a6",
     "rule": "javascript:S905",
     "file": "tools/frontend/lucien-feedback-ux-playwright.cjs",
     "baselineLine": 3,

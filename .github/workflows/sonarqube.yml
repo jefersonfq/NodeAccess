@@ -37,6 +37,8 @@ jobs:
         with:
           node-version: 24.21.0
           cache: npm
+      - name: Use npm with workspace override support
+        run: npm install --global npm@12.2.1
       - run: npm ci
       - name: Install locked Chromium and system dependencies
         run: node node_modules/playwright/cli.js install --with-deps chromium

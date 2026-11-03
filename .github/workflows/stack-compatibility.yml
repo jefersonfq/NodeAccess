@@ -38,6 +38,8 @@ jobs:
         with:
           node-version: 24.21.0
           cache: npm
+      - name: Use npm with workspace override support
+        run: npm install --global npm@12.2.1
       - run: npm ci
       - run: npm run db:generate -w apps/backend && npm run build -w packages/shared
       - run: npm run test:stack:guards && npm run test:stack:prisma

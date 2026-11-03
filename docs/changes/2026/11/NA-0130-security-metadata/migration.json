@@ -1,0 +1,88 @@
+{
+  "records": [
+    {
+      "file": "docs/sonarqube/findings.json",
+      "identityAndOrderPreserved": true,
+      "issueCount": 551,
+      "normalizedContentSha256": "a150cdd4e5f1bccad985050021b83fed047426cc89f8003b8afc37e326e21119"
+    },
+    {
+      "file": "docs/sonarqube/discovered-findings.json",
+      "identityAndOrderPreserved": true,
+      "issueCount": 18,
+      "normalizedContentSha256": "81626d0e15e37a073ef60354f47a12847b713001a4e4ef2577fbd478f53ab572"
+    },
+    {
+      "file": "docs/changes/2026/11/NA-0087-sonar-frontend/dispositions.json",
+      "identityAndOrderPreserved": true,
+      "issueCount": 165,
+      "normalizedContentSha256": "fcad42494fea00d8fd84b6c1be419bc122655b7c710d15f939993080675e5e27"
+    },
+    {
+      "file": "docs/changes/2026/11/NA-0125-private-flow-artifacts/dispositions.json",
+      "identityAndOrderPreserved": true,
+      "issueCount": 1,
+      "normalizedContentSha256": "0447001de7088d226d9880d29e44974aafc3a6473c71dfb82ee7e163226a38b6"
+    },
+    {
+      "file": "docs/changes/2026/11/NA-0086-sonar-backend/dispositions.json",
+      "identityAndOrderPreserved": true,
+      "issueCount": 98,
+      "normalizedContentSha256": "3c5b721c85bf3be4c3ecf596c636d18547916d5cbb33f1e5db471f8991a4b960"
+    },
+    {
+      "file": "docs/changes/2026/11/NA-0088-sonar-tooling/dispositions.json",
+      "identityAndOrderPreserved": true,
+      "issueCount": 272,
+      "normalizedContentSha256": "ba39e2ec88d0e3a7dea3c4967781957be5a352a96b3445bc52cc7396b7716b41"
+    },
+    {
+      "file": "docs/changes/2026/11/NA-0089-sonar-integration/dispositions.json",
+      "identityAndOrderPreserved": true,
+      "issueCount": 4,
+      "normalizedContentSha256": "bd968ad1574816f396fa9666187bba8c30571cf16764e1c46e48c78a6c983b67"
+    },
+    {
+      "file": "docs/changes/2026/11/NA-0115-sonar-tooling-followup/dispositions.json",
+      "identityAndOrderPreserved": true,
+      "issueCount": 11,
+      "normalizedContentSha256": "64e37b2677b6a1bc843bc9db5ea6c17efd7419b3c2f0da64e7e0fc9e82a0964f"
+    },
+    {
+      "file": "docs/changes/2026/11/NA-0087-sonar-frontend/followup-dispositions.json",
+      "identityAndOrderPreserved": true,
+      "issueCount": 8,
+      "normalizedContentSha256": "213736d3565b45ee70232094309e334fb4ed87d5ef5fa0c2831a1be10941315a"
+    },
+    {
+      "file": "docs/changes/2026/11/NA-0087-sonar-frontend/dom-label-evidence.json",
+      "identityAndOrderPreserved": true,
+      "issueCount": 54,
+      "normalizedContentSha256": "acc5e4f917445f0028509ceb38d809d535f0fd9175eff445b6640f683617285f"
+    },
+    {
+      "file": "docs/changes/2026/11/NA-0119-diagnostic-accessibility/evidence/labels-dom.json",
+      "identityAndOrderPreserved": true,
+      "issueCount": 54,
+      "normalizedContentSha256": "acc5e4f917445f0028509ceb38d809d535f0fd9175eff445b6640f683617285f"
+    },
+    {
+      "file": "docs/changes/2026/11/NA-0119-diagnostic-accessibility/evidence/source-controls.json",
+      "identityAndOrderPreserved": true,
+      "issueCount": 44,
+      "normalizedContentSha256": "c766203ff4590e0cf0a43c628b45472d02e300ba1b0b250e9338db3f88adf661"
+    },
+    {
+      "file": "docs/changes/2026/11/NA-0091-sonar-recovery/evidence/source-fingerprint.json",
+      "allFileHashPairsPreserved": true,
+      "normalizedContentSha256": "04ac6060a5ef011fc23ad4579adea5591678442a6fcbc1d6ac7e08bd1884419b"
+    },
+    {
+      "file": "docs/changes/2026/11/NA-0115-sonar-tooling-followup/maintenance-refresh.json",
+      "allFileHashPairsPreserved": true,
+      "normalizedContentSha256": "23167ecc23f34b6a21b8cc316acf57a913384aabcb9f8b2ec008b2fbfe60a0a0"
+    }
+  ],
+  "baseline": "8dae9b49a8dab89b9c0a7c4fcb4a29a1d401662d",
+  "verifiedAt": "2026-11-03T22:17:43.862299+00:00"
+}

@@ -1,0 +1,27 @@
+SonarQube preflight failed: Only --check is accepted; analysis options are reviewed in project properties
+SonarQube preflight failed: SONAR_TOKEN must be supplied through the environment
+{
+  "status": "ready",
+  "host": "http://127.0.0.1:9000",
+  "scannerVersion": "5.0.2",
+  "sources": [
+    "src"
+  ],
+  "coverage": "coverage/lcov.info"
+}
+✔ real Node executes explicit npm CLI despite a poisoned PATH and preserves pinned argv/environment (61.836567ms)
+✔ standard runtime-relative fallback resolves without searching PATH (3.250805ms)
+✔ relative, missing, directory and unexpected CLI paths fail closed (4.131ms)
+✔ explicit symlink resolves to the real regular npm CLI (1.725216ms)
+✔ scanner exit status and process failure remain failures (90.575384ms)
+✔ argument and preflight guards prevent any CLI execution; check remains read-only (9.764522ms)
+✔ local-only destination rejects external hosts, userinfo, paths and query secrets (1.968987ms)
+✔ preflight requires supported runtime, env token, real LCOV and existing sources (10.129722ms)
+ℹ tests 8
+ℹ suites 0
+ℹ pass 8
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 287.911385

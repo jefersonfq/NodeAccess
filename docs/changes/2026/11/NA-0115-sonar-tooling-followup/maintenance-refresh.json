@@ -4,20 +4,50 @@
   "oldRelease": "/usr/local/lib/nodeaccess-sonarqube-maintenance/release-ec1a31dd-4ee9-4230-bbaa-c2fdc7aa1e57",
   "newRelease": "/usr/local/lib/nodeaccess-sonarqube-maintenance/release-9bc1ca78-4cf0-4e8c-82f4-52784e4707e5",
   "rollbackCron": "/usr/local/lib/nodeaccess-sonarqube-maintenance/cron-before-NA-0115-61da38e1-4a9e-426e-9f29-11aa128ba7b1",
-  "oldHashes": {
-    "maintenance-common.mjs": "9f5b16b19ff1365cac9a4a983c552b247017e4055a3c4403b95428568520ac60",
-    "recovery.mjs": "68d1f4113342ab3d0573f0e02b241101224876dfd26c182b2423f74c192ed17a",
-    "token-maintenance.mjs": "28dbe33816922d7dcf93cbc063b4835ddde7646f5a5a772096b09829542318c7",
-    "maintenance.mjs": "1b00d0094bb265d7654cef422652bc27f3eedcbe91f58980a9a869a1d692509b",
-    "node": "7fde7b8afa198da66257f42ee2001d874c7355631e6d1579a5fb5ef1f246df4c"
-  },
-  "newHashes": {
-    "maintenance-common.mjs": "1b908ca03a7326859c0fb393d61e1cfab0c0851f27dfb2f7a7439b8522439d01",
-    "recovery.mjs": "68d1f4113342ab3d0573f0e02b241101224876dfd26c182b2423f74c192ed17a",
-    "token-maintenance.mjs": "28dbe33816922d7dcf93cbc063b4835ddde7646f5a5a772096b09829542318c7",
-    "maintenance.mjs": "1b00d0094bb265d7654cef422652bc27f3eedcbe91f58980a9a869a1d692509b",
-    "node": "7fde7b8afa198da66257f42ee2001d874c7355631e6d1579a5fb5ef1f246df4c"
-  },
+  "oldHashes": [
+    {
+      "file": "maintenance-common.mjs",
+      "sha256": "9f5b16b19ff1365cac9a4a983c552b247017e4055a3c4403b95428568520ac60"
+    },
+    {
+      "file": "recovery.mjs",
+      "sha256": "68d1f4113342ab3d0573f0e02b241101224876dfd26c182b2423f74c192ed17a"
+    },
+    {
+      "file": "token-maintenance.mjs",
+      "sha256": "28dbe33816922d7dcf93cbc063b4835ddde7646f5a5a772096b09829542318c7"
+    },
+    {
+      "file": "maintenance.mjs",
+      "sha256": "1b00d0094bb265d7654cef422652bc27f3eedcbe91f58980a9a869a1d692509b"
+    },
+    {
+      "file": "node",
+      "sha256": "7fde7b8afa198da66257f42ee2001d874c7355631e6d1579a5fb5ef1f246df4c"
+    }
+  ],
+  "newHashes": [
+    {
+      "file": "maintenance-common.mjs",
+      "sha256": "1b908ca03a7326859c0fb393d61e1cfab0c0851f27dfb2f7a7439b8522439d01"
+    },
+    {
+      "file": "recovery.mjs",
+      "sha256": "68d1f4113342ab3d0573f0e02b241101224876dfd26c182b2423f74c192ed17a"
+    },
+    {
+      "file": "token-maintenance.mjs",
+      "sha256": "28dbe33816922d7dcf93cbc063b4835ddde7646f5a5a772096b09829542318c7"
+    },
+    {
+      "file": "maintenance.mjs",
+      "sha256": "1b00d0094bb265d7654cef422652bc27f3eedcbe91f58980a9a869a1d692509b"
+    },
+    {
+      "file": "node",
+      "sha256": "7fde7b8afa198da66257f42ee2001d874c7355631e6d1579a5fb5ef1f246df4c"
+    }
+  ],
   "oldReleasePreserved": true,
   "installedSourceHashesVerified": true,
   "installedFiles": [

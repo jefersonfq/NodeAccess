@@ -1,0 +1,13 @@
+npm notice run nodeaccess@0.1.0 npx
+npm notice run 'vitest' run apps/frontend/src/components/platform/TenantLicenseEditor.test.ts apps/frontend/src/views/DiagnosticRunDetailView.test.ts apps/frontend/src/views/admin/SettingsView.test.ts apps/backend/src/modules/web-access/web-access.service.test.ts
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - ESM syntax in a file loaded as CommonJS (vitest.config.ts:1:1). Use a `.mjs` extension or set `"type": "module"` in the closest package.json
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+ RUN  v4.1.12 /tmp/nodeaccess-NA-0128
+
+
+ Test Files  4 passed (4)
+      Tests  108 passed | 1 skipped (109)
+   Start at  19:17:15
+   Duration  6.90s (transform 8.94s, setup 0ms, import 16.02s, tests 5.26s, environment 6ms)

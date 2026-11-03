@@ -173,7 +173,9 @@
     "validate:sonar": "node tools/sonarqube/validate.mjs",
     "sonar:ci": "node tools/sonarqube/ci-run.mjs",
     "sonar:catalog": "node tools/sonarqube/ledger.mjs",
-    "test:coverage": "node tools/coverage/run.mjs"
+    "test:coverage": "node tools/coverage/run.mjs",
+    "postinstall": "node scripts/dependency-patches/typedoc-minimatch.mjs",
+    "test:dependency-compatibility": "node --test scripts/dependency-patches/dependency-compatibility.test.cjs scripts/dependency-patches/typedoc-minimatch.test.mjs"
   },
   "devDependencies": {
     "@bcoe/v8-coverage": "1.0.2",
@@ -203,6 +205,10 @@
   "overrides": {
     "@prisma/config": {
       "deepmerge-ts": "8.0.2"
+    },
+    "minimatch": "11.0.1",
+    "@fastify/static": {
+      "glob": "14.0.2"
     }
   },
   "allowScripts": {
@@ -214,5 +220,6 @@
     "vue-demi@0.14.10": true,
     "@prisma/client@6.19.3": true,
     "@prisma/engines@6.19.3": true
-  }
+  },
+  "packageManager": "npm@12.2.1"
 }

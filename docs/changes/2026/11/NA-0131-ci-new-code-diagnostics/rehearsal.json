@@ -1,0 +1,90 @@
+{
+  "kind": "Diagnostic reproduction of prior 8dae snapshot, not validation of final candidate",
+  "base": "f4a44b4b7ae87a8f688b1246d9e52a31f9a104bc",
+  "head": "8dae9b49a8dab89b9c0a7c4fcb4a29a1d401662d",
+  "startedAt": "2026-11-03T22:23:46.539Z",
+  "finishedAt": "2026-11-03T22:33:43.140Z",
+  "configuration": {
+    "sha256": "b2e1af207b27cd9289c396a998b7fb2aa3417f109dc8bb613296f17bdf7fb562",
+    "base": {
+      "sha256": "b2e1af207b27cd9289c396a998b7fb2aa3417f109dc8bb613296f17bdf7fb562",
+      "effectiveProperties": {
+        "sonar.projectKey": "nodeaccess",
+        "sonar.projectName": "NodeAccess",
+        "sonar.sourceEncoding": "UTF-8",
+        "sonar.sources": "apps/backend/src,apps/backend/prisma,apps/frontend/src,apps/frontend/index.html,apps/agent/src,packages/shared/src,scripts,tools",
+        "sonar.tests": "apps/backend/src,apps/frontend/src,apps/agent/src,packages/shared/src,tools,scripts",
+        "sonar.test.inclusions": "**/*.test.ts,**/*.test.js,**/*.test.mjs,**/*.test.cjs,**/*.spec.ts,**/*.spec.js",
+        "sonar.exclusions": "**/node_modules/**,**/dist/**,coverage/**,**/.scannerwork/**,**/.sonar-reports/**,tools/load-tests/data/**,tools/load-tests/reports/**,tools/deploy/reports/**",
+        "sonar.javascript.lcov.reportPaths": "coverage/lcov.info"
+      },
+      "contextVerified": true
+    },
+    "head": {
+      "sha256": "b2e1af207b27cd9289c396a998b7fb2aa3417f109dc8bb613296f17bdf7fb562",
+      "effectiveProperties": {
+        "sonar.projectKey": "nodeaccess",
+        "sonar.projectName": "NodeAccess",
+        "sonar.sourceEncoding": "UTF-8",
+        "sonar.sources": "apps/backend/src,apps/backend/prisma,apps/frontend/src,apps/frontend/index.html,apps/agent/src,packages/shared/src,scripts,tools",
+        "sonar.tests": "apps/backend/src,apps/frontend/src,apps/agent/src,packages/shared/src,tools,scripts",
+        "sonar.test.inclusions": "**/*.test.ts,**/*.test.js,**/*.test.mjs,**/*.test.cjs,**/*.spec.ts,**/*.spec.js",
+        "sonar.exclusions": "**/node_modules/**,**/dist/**,coverage/**,**/.scannerwork/**,**/.sonar-reports/**,tools/load-tests/data/**,tools/load-tests/reports/**,tools/deploy/reports/**",
+        "sonar.javascript.lcov.reportPaths": "coverage/lcov.info"
+      },
+      "contextVerified": true
+    }
+  },
+  "newCode": {
+    "analysisId": "367c32ac-224c-4d36-8a76-5285fb9a0fc6",
+    "count": 1,
+    "issues": [
+      {
+        "issueId": "546feac4-afbf-4a3d-8034-62707910cdc4",
+        "rule": "javascript:S4036",
+        "file": "tools/sonarqube/analyze.mjs",
+        "line": 46,
+        "signature": "e559e8a25fa5298c1480667afef97586f7cc19bd39c4b1df1939370905d12418",
+        "signaturePresentInReviewedBaseline": true
+      }
+    ]
+  },
+  "gate": {
+    "status": "ERROR",
+    "conditions": [
+      {
+        "status": "OK",
+        "metricKey": "new_coverage",
+        "comparator": "LT",
+        "errorThreshold": "80",
+        "actualValue": "80.1"
+      },
+      {
+        "status": "OK",
+        "metricKey": "new_duplicated_lines_density",
+        "comparator": "GT",
+        "errorThreshold": "3",
+        "actualValue": "0.06546"
+      },
+      {
+        "status": "ERROR",
+        "metricKey": "new_violations",
+        "comparator": "GT",
+        "errorThreshold": "0",
+        "actualValue": "1"
+      }
+    ],
+    "ignoredConditions": false,
+    "period": {
+      "mode": "SPECIFIC_ANALYSIS",
+      "date": "2026-11-03T22:25:50+0000",
+      "parameter": "ebea01c2-f4de-42c4-b56a-a29d38453179"
+    },
+    "caycStatus": "compliant"
+  },
+  "cleanup": "complete",
+  "diagnosticCaptured": true,
+  "helperSnapshotSha256": "0a6eef1d3cae3ba1ff60074c9829e17992a6df4330c5020a3d7c4da0096c149b",
+  "finalHelperSha256": "4eb12c215903964da6fd59a30951c9bb347f90bd023d617608f06f49aefcfe85",
+  "limitation": "Real diagnostic used helper before responsibility-only refactor. Final helper and guarded summary assignment passed 40 contracts; full integrated candidate checks remain required."
+}

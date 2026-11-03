@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "issues": [
     {
-      "key": "f58ec78b-9d4a-4689-aef4-4e9c898b71a6",
+      "issueId": "f58ec78b-9d4a-4689-aef4-4e9c898b71a6",
       "rule": "javascript:S905",
       "component": "nodeaccess:tools/frontend/lucien-feedback-ux-playwright.cjs",
       "line": 3,
@@ -11,7 +11,7 @@
       "type": "BUG"
     },
     {
-      "key": "adf1c0bc-9fe5-47cf-a97f-9fa70cc9adaf",
+      "issueId": "adf1c0bc-9fe5-47cf-a97f-9fa70cc9adaf",
       "rule": "javascript:S905",
       "component": "nodeaccess:tools/frontend/recent-host-access-playwright.cjs",
       "line": 3,
@@ -20,7 +20,7 @@
       "type": "BUG"
     },
     {
-      "key": "43a6dcde-006b-4c2d-ada3-e946f1a48c09",
+      "issueId": "43a6dcde-006b-4c2d-ada3-e946f1a48c09",
       "rule": "javascript:S1523",
       "component": "nodeaccess:tools/frontend/sonar-frontend-review.cjs",
       "line": 21,
@@ -29,7 +29,7 @@
       "type": "VULNERABILITY"
     },
     {
-      "key": "c074a7a1-304a-4a7d-a05c-e7ec95b7392a",
+      "issueId": "c074a7a1-304a-4a7d-a05c-e7ec95b7392a",
       "rule": "javascript:S4036",
       "component": "nodeaccess:tools/frontend/sonar-frontend-review.cjs",
       "line": 42,
@@ -38,7 +38,7 @@
       "type": "VULNERABILITY"
     },
     {
-      "key": "9b8d5d63-255f-466f-9560-0f18ffd9b7c5",
+      "issueId": "9b8d5d63-255f-466f-9560-0f18ffd9b7c5",
       "rule": "javascript:S4036",
       "component": "nodeaccess:tools/frontend/sonar-frontend-review.cjs",
       "line": 65,
@@ -47,7 +47,7 @@
       "type": "VULNERABILITY"
     },
     {
-      "key": "da6d6f1c-c9f3-4df7-8fed-8f25c395c022",
+      "issueId": "da6d6f1c-c9f3-4df7-8fed-8f25c395c022",
       "rule": "javascript:S2871",
       "component": "nodeaccess:tools/sonarqube/ledger.mjs",
       "line": 61,
@@ -56,7 +56,7 @@
       "type": "BUG"
     },
     {
-      "key": "5bf1ab7b-83d9-4640-8584-0b27bb878ead",
+      "issueId": "5bf1ab7b-83d9-4640-8584-0b27bb878ead",
       "rule": "javascript:S2871",
       "component": "nodeaccess:tools/coverage/inventory.mjs",
       "line": 12,
@@ -65,7 +65,7 @@
       "type": "BUG"
     },
     {
-      "key": "85039aab-a2a1-41d5-bf0a-a1deca353457",
+      "issueId": "85039aab-a2a1-41d5-bf0a-a1deca353457",
       "rule": "javascript:S4036",
       "component": "nodeaccess:tools/coverage/inventory.mjs",
       "line": 12,
@@ -74,7 +74,7 @@
       "type": "VULNERABILITY"
     },
     {
-      "key": "3397e69e-3158-4e61-99a6-08ddc48bdd01",
+      "issueId": "3397e69e-3158-4e61-99a6-08ddc48bdd01",
       "rule": "javascript:S3403",
       "component": "nodeaccess:tools/coverage/lcov.mjs",
       "line": 29,
@@ -83,7 +83,7 @@
       "type": "BUG"
     },
     {
-      "key": "6228f74e-1de9-471c-a397-da052d2b39b7",
+      "issueId": "6228f74e-1de9-471c-a397-da052d2b39b7",
       "rule": "javascript:S4036",
       "component": "nodeaccess:tools/coverage/lcov.mjs",
       "line": 67,
@@ -92,7 +92,7 @@
       "type": "VULNERABILITY"
     },
     {
-      "key": "007fda17-762e-4618-8711-9afb09cf3cbd",
+      "issueId": "007fda17-762e-4618-8711-9afb09cf3cbd",
       "rule": "javascript:S2871",
       "component": "nodeaccess:tools/coverage/lcov.mjs",
       "line": 73,
@@ -101,7 +101,7 @@
       "type": "BUG"
     },
     {
-      "key": "ead3ecb3-0d03-4869-8216-ab72d796fd92",
+      "issueId": "ead3ecb3-0d03-4869-8216-ab72d796fd92",
       "rule": "javascript:S2871",
       "component": "nodeaccess:tools/coverage/node-map.mjs",
       "line": 13,
@@ -110,7 +110,7 @@
       "type": "BUG"
     },
     {
-      "key": "18e1be64-c90a-4edc-9634-ae1e37e1b2e5",
+      "issueId": "18e1be64-c90a-4edc-9634-ae1e37e1b2e5",
       "rule": "javascript:S4036",
       "component": "nodeaccess:tools/coverage/run.mjs",
       "line": 29,
@@ -119,7 +119,7 @@
       "type": "VULNERABILITY"
     },
     {
-      "key": "a976b0bb-adcf-432c-ab18-ad265fd94ce3",
+      "issueId": "a976b0bb-adcf-432c-ab18-ad265fd94ce3",
       "rule": "javascript:S4036",
       "component": "nodeaccess:tools/coverage/run.mjs",
       "line": 40,
@@ -128,7 +128,7 @@
       "type": "VULNERABILITY"
     },
     {
-      "key": "a1acdc7b-85e1-4797-abcf-c773f83259d7",
+      "issueId": "a1acdc7b-85e1-4797-abcf-c773f83259d7",
       "rule": "javascript:S2871",
       "component": "nodeaccess:tools/coverage/summary.mjs",
       "line": 48,
@@ -137,7 +137,7 @@
       "type": "BUG"
     },
     {
-      "key": "f3319d29-c81b-4599-9d81-b8c7e8cd860f",
+      "issueId": "f3319d29-c81b-4599-9d81-b8c7e8cd860f",
       "rule": "javascript:S7737",
       "component": "nodeaccess:tools/sonarqube/maintenance-common.mjs",
       "line": 51,
@@ -146,7 +146,7 @@
       "type": "CODE_SMELL"
     },
     {
-      "key": "4cb49b09-f9b0-4c34-a61a-3f6584c2cc14",
+      "issueId": "4cb49b09-f9b0-4c34-a61a-3f6584c2cc14",
       "rule": "javascript:S4036",
       "component": "nodeaccess:tools/sonarqube/validate.mjs",
       "line": 49,
@@ -155,7 +155,7 @@
       "type": "VULNERABILITY"
     },
     {
-      "key": "e56f6cf5-7540-422b-88a0-6b198cdf4e3e",
+      "issueId": "e56f6cf5-7540-422b-88a0-6b198cdf4e3e",
       "rule": "javascript:S5443",
       "component": "nodeaccess:tools/frontend/sonar-flow-coverage.cjs",
       "line": 9,

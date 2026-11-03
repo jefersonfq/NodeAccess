@@ -2,7 +2,7 @@
 change_id: NA-0093
 title: Entrega integrada das quatro pendencias SonarQube
 type: chore
-status: in-development
+status: ready-for-tests
 created_at: 2026-11-03T15:52:18-03:00
 base_branch: master
 base_sha: f4a44b4b7ae87a8f688b1246d9e52a31f9a104bc
@@ -58,3 +58,16 @@ Preservar branches de origem e worktree NA-0093. O PR pode permanecer draft enqu
 ## Aprovação
 
 Decisão: GO_WITH_RISKS. O pedido explícito cobre execução fim a fim das quatro frentes, incluindo PR. Homologação humana e checks não podem ser inferidos. Mudanças de proteção do repositório exigem necessidade e autorização específica.
+
+## Correções necessárias após execução do CI
+
+Classificação NECESSARY_CORRECTION, dentro da autorização de concluir a entrega e corrigir lint legado em branches separadas:
+
+- NA-0127: preservar bit executável do bin do workspace, impedindo alteração rastreada durante npm ci; manter guarda de checkout limpo.
+- NA-0128: atualizar dependências vulneráveis com contratos de consumidores reais; alinhar npm no CI quando necessário para inventário SBOM correto. Mudanças de versões principais exigem testes de compatibilidade, incluindo TypeDoc, sem ignorar falhas ou baixar a política de dependências.
+- NA-0129: substituir pin Alpine indisponível e fixar biblioteca correspondente no runtime, validando imagem real e scanner.
+- NA-0130: distinguir identificadores públicos Sonar de chaves secretas, manter leitura legada e revisar falsos positivos individualmente por regra/linha/hash; sem exceções genéricas.
+- NA-0131: preservar diagnóstico sanitizado das violações em código novo no CI descartável, para explicar diferenças entre períodos de análise e corrigir a causa mantendo o gate.
+- NA-0132: executar o npm usado pelo scanner por CLI absoluto validado via Node, eliminando a busca pelo PATH identificada pelo diagnóstico real (S4036), sem suprimir o achado ou alterar baseline.
+
+Riscos adicionais: npm e majors transitivos podem afetar ferramentas de documentação, matching de caminhos e publicação estática. Build/typecheck isolados não bastam; usar CLI e servidores reais, negativos e revisão independente. Nenhuma alteração em produção ou deploy está autorizada por esta ampliação técnica.

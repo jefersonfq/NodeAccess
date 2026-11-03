@@ -18,6 +18,8 @@ jobs:
         with:
           node-version: 24.21.0
           cache: npm
+      - name: Use npm with workspace override support
+        run: npm install --global npm@12.2.1
       - run: npm ci
       - run: npx playwright install --with-deps chromium
       - name: Certify Authorization Code, PKCE, claims, MFA and outage
@@ -32,6 +34,8 @@ jobs:
         with:
           node-version: 24.21.0
           cache: npm
+      - name: Use npm with workspace override support
+        run: npm install --global npm@12.2.1
       - run: npm ci
       - name: Validate public Entra discovery and JWKS
         run: npm run test:oidc:entra:metadata
@@ -46,6 +50,8 @@ jobs:
         with:
           node-version: 24.21.0
           cache: npm
+      - name: Use npm with workspace override support
+        run: npm install --global npm@12.2.1
       - run: npm ci
       - name: Validate controlled Okta discovery and JWKS
         env:

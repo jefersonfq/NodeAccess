@@ -1,6 +1,6 @@
 [
   {
-    "key": "da6d6f1c-c9f3-4df7-8fed-8f25c395c022",
+    "issueId": "da6d6f1c-c9f3-4df7-8fed-8f25c395c022",
     "status": "fixed",
     "rationale": "Ordenação de estados da tabela passou a usar comparação explícita com locale fixo; preserva valores e filtros.",
     "evidence": [
@@ -11,7 +11,7 @@
     "branch": "chore/NA-0089-20261103-sonar-integration"
   },
   {
-    "key": "43a6dcde-006b-4c2d-ada3-e946f1a48c09",
+    "issueId": "43a6dcde-006b-4c2d-ada3-e946f1a48c09",
     "rule": "javascript:S1523",
     "file": "tools/frontend/sonar-frontend-review.cjs",
     "baselineLine": 21,
@@ -26,7 +26,7 @@
     "branch": "fix/NA-0087-20261103-sonar-frontend"
   },
   {
-    "key": "c074a7a1-304a-4a7d-a05c-e7ec95b7392a",
+    "issueId": "c074a7a1-304a-4a7d-a05c-e7ec95b7392a",
     "rule": "javascript:S4036",
     "file": "tools/frontend/sonar-frontend-review.cjs",
     "baselineLine": 42,
@@ -41,7 +41,7 @@
     "branch": "fix/NA-0087-20261103-sonar-frontend"
   },
   {
-    "key": "9b8d5d63-255f-466f-9560-0f18ffd9b7c5",
+    "issueId": "9b8d5d63-255f-466f-9560-0f18ffd9b7c5",
     "rule": "javascript:S4036",
     "file": "tools/frontend/sonar-frontend-review.cjs",
     "baselineLine": 65,

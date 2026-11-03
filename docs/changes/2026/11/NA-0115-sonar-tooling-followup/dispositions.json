@@ -1,7 +1,7 @@
 [
   {
     "id": "NA-0115-001",
-    "key": "5bf1ab7b-83d9-4640-8584-0b27bb878ead",
+    "issueId": "5bf1ab7b-83d9-4640-8584-0b27bb878ead",
     "rule": "javascript:S2871",
     "file": "tools/coverage/inventory.mjs",
     "baselineLine": 12,
@@ -18,7 +18,7 @@
   },
   {
     "id": "NA-0115-002",
-    "key": "85039aab-a2a1-41d5-bf0a-a1deca353457",
+    "issueId": "85039aab-a2a1-41d5-bf0a-a1deca353457",
     "rule": "javascript:S4036",
     "file": "tools/coverage/inventory.mjs",
     "baselineLine": 12,
@@ -34,7 +34,7 @@
   },
   {
     "id": "NA-0115-003",
-    "key": "3397e69e-3158-4e61-99a6-08ddc48bdd01",
+    "issueId": "3397e69e-3158-4e61-99a6-08ddc48bdd01",
     "rule": "javascript:S3403",
     "file": "tools/coverage/lcov.mjs",
     "baselineLine": 29,
@@ -48,7 +48,7 @@
   },
   {
     "id": "NA-0115-004",
-    "key": "6228f74e-1de9-471c-a397-da052d2b39b7",
+    "issueId": "6228f74e-1de9-471c-a397-da052d2b39b7",
     "rule": "javascript:S4036",
     "file": "tools/coverage/lcov.mjs",
     "baselineLine": 67,
@@ -64,7 +64,7 @@
   },
   {
     "id": "NA-0115-005",
-    "key": "007fda17-762e-4618-8711-9afb09cf3cbd",
+    "issueId": "007fda17-762e-4618-8711-9afb09cf3cbd",
     "rule": "javascript:S2871",
     "file": "tools/coverage/lcov.mjs",
     "baselineLine": 73,
@@ -81,7 +81,7 @@
   },
   {
     "id": "NA-0115-006",
-    "key": "ead3ecb3-0d03-4869-8216-ab72d796fd92",
+    "issueId": "ead3ecb3-0d03-4869-8216-ab72d796fd92",
     "rule": "javascript:S2871",
     "file": "tools/coverage/node-map.mjs",
     "baselineLine": 13,
@@ -98,7 +98,7 @@
   },
   {
     "id": "NA-0115-007",
-    "key": "18e1be64-c90a-4edc-9634-ae1e37e1b2e5",
+    "issueId": "18e1be64-c90a-4edc-9634-ae1e37e1b2e5",
     "rule": "javascript:S4036",
     "file": "tools/coverage/run.mjs",
     "baselineLine": 29,
@@ -114,7 +114,7 @@
   },
   {
     "id": "NA-0115-008",
-    "key": "a976b0bb-adcf-432c-ab18-ad265fd94ce3",
+    "issueId": "a976b0bb-adcf-432c-ab18-ad265fd94ce3",
     "rule": "javascript:S4036",
     "file": "tools/coverage/run.mjs",
     "baselineLine": 40,
@@ -130,7 +130,7 @@
   },
   {
     "id": "NA-0115-009",
-    "key": "a1acdc7b-85e1-4797-abcf-c773f83259d7",
+    "issueId": "a1acdc7b-85e1-4797-abcf-c773f83259d7",
     "rule": "javascript:S2871",
     "file": "tools/coverage/summary.mjs",
     "baselineLine": 48,
@@ -147,7 +147,7 @@
   },
   {
     "id": "NA-0115-010",
-    "key": "f3319d29-c81b-4599-9d81-b8c7e8cd860f",
+    "issueId": "f3319d29-c81b-4599-9d81-b8c7e8cd860f",
     "rule": "javascript:S7737",
     "file": "tools/sonarqube/maintenance-common.mjs",
     "baselineLine": 51,
@@ -162,7 +162,7 @@
   },
   {
     "id": "NA-0115-011",
-    "key": "4cb49b09-f9b0-4c34-a61a-3f6584c2cc14",
+    "issueId": "4cb49b09-f9b0-4c34-a61a-3f6584c2cc14",
     "rule": "javascript:S4036",
     "file": "tools/sonarqube/validate.mjs",
     "baselineLine": 49,

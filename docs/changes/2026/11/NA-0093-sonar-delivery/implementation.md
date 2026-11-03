@@ -104,3 +104,41 @@ Integrados NA-0125 b79c64aeb (helper privado, seis contratos Node e seis cenári
 ### 2026-11-03T21:44:46+00:00 — Candidato final preparado
 
 Ran: build completo e typecheck oficial PASS após integração; permanece aviso de chunk UI de 982,91 kB, sem alteração de limite. META-050 canônica atualizada para 551 ocorrências e última medição válida; ZIP/XML e demais entradas preservadas. Checkpoint consolidado preparado para reexecução local e CI real em checkout separado. Estado: COMMITTED; PUSHED/PR_OPEN/MERGED/MASTER_SYNCED ainda pendentes. A homologação humana não foi inferida das revisões ou testes. Próximo passo: confirmar gates e publicar PR com evidências no SHA final.
+
+### 2026-11-03T21:55:10+00:00 — Branch publicada e PR aberta
+
+SHA candidato: 8dae9b49a8dab89b9c0a7c4fcb4a29a1d401662d. Branch publicada e PR #59 aberta em rascunho: https://github.com/jefersonfq/NodeAccess/pull/59. Ran no candidato: 3.456 Vitest PASS/125 opt-in ignorados, 403 Node PASS/2 ignorados, cinco harnesses Chromium PASS, cobertura do diff 80,3549% PASS (4.528/5.635), lint de 89 arquivos sem erros/avisos e governança PASS. Scanner local e reprodução do CI em andamento; checks GitHub disparados. Estados: COMMITTED, PUSHED, PR_OPEN; MERGED e MASTER_SYNCED pendentes. Registro canônico atualizado enquanto o checkout analisado permanece congelado; resultados finais serão vinculados ao SHA nos checks/PR. Nenhuma homologação humana presumida.
+
+### 2026-11-03T19:18:15-03:00 — Bloqueios reais de CI e correções isoladas
+
+Mantida autorização para corrigir lint legado em branches separadas e concluir a entrega, com gates intactos. PR #59 aberta como draft; candidato publicado 8dae9b49a8dab89b9c0a7c4fcb4a29a1d401662d. Ran: Sonar persistente PASS (novo código80,1%, zero novas violações); ensaio CI real descartável FAIL exclusivamente por uma violação nova em relação à análise específica da base, apesar de cobertura80,1% PASS e zero achados inesperados contra catálogo contextual. Limpeza concluída. Diferença sob investigação, não é aprovação.
+
+GitHub: testes, build, qualidade estática, manual, ACL, CSP, playback, compatibilidade OIDC/Helm e agentes Windows/Linux PASS. macOS cancelado por indisponibilidade de runner hospedado (não executado). Quatro bloqueios identificados: chmod de bin pelo npm (NA-0127), dependências vulneráveis e representação SBOM em npm11 (NA-0128), pin Alpine removido e runtime cacheado antigo (NA-0129), falsos positivos de metadados públicos/fixtures individualmente revisadas no Gitleaks (NA-0130). Branches recuperáveis; nenhum gate, limiar ou baseline relaxado. Diagnóstico sanitizado Sonar em NA-0131. Próximo passo: concluir revisões, integrar, repetir checks no novo SHA e solicitar homologação humana após evidências prontas. LOCAL_WIP sim; COMMITTED/PUSHED/PR_OPEN no candidato anterior; MERGED/MASTER_SYNCED pendentes. Nenhum deploy na VPS.
+
+### 2026-11-03T19:23:58-03:00 — Integração dos bloqueios e testes de compatibilidade
+
+Integrados localmente deltas NA-0127 (1a42fb07e, bit executável) e NA-0130 (e8a378d14, identificadores públicos Sonar e sete fixtures individualmente revisadas). Ran raiz:22 contratos CI e24 contratos do catálogo PASS; diff sem erros de whitespace. Catálogo regenerado com export privado do Sonar persistente no8dae:551 decisões,256 correções ausentes e295 revisadas em contexto. Sincronizados27documentos canônicos sem sobrescrever conteúdo divergente; META-050 atualizada com PRdraft, resultados e bloqueios reais, demais entradas XLSX preservadas.
+
+Testes ampliados descobriram incompatibilidade real de TypeDoc com minimatch11; patch localizado em avaliação, sem integrar como aprovado. Scanner da imagem gráfica encontrou Critical glib, investigado em NA-0129; build/protocolos aprovados não representam aprovação do scanner. NA-0131 adiciona diagnóstico sanitizado para identificar a violação nova no período específico do CI. Checks permanecem pendentes; nenhum merge ou deploy realizado. Próximo passo: concluir correções e reexecutar gates integrados.
+
+### 2026-11-03T19:28:24-03:00 — Imagem gráfica corrigida e revisão dos consumidores
+
+Integrado NA-0129 6479d01a9: FreeRDP3.32.2-r0 em build/runtime e GLib2.90.0-r0 por APK oficial com assinatura/checksum, sem habilitar repositório edge. Na origem: build, negociação RDP/VNC, ldd, quatro vetores XML inválidos upstream e um válido PASS; não houve reprodução do exploit na biblioteca antiga. Scanner final PASS com zero Critical, três High cobertos por triagens exatas preexistentes,19Medium/3Low. Mistura pontual de releases documentada como risco de manutenção. Tag local anterior restaurada. Ran raiz: cinco contratos de política guacd PASS. Upgrade/restore completo no GitHub continua Planned no próximo candidato.
+
+NA-0128: comparação do lint global antes/depois identificou exatamente os mesmos diagnósticos nos481paths, sem justificar limpeza fora do escopo. Compatibilidade TypeDoc e hook de instalação ainda sob validação final; builds isolados das camadas npm dos dois Dockerfiles passaram na origem. Próximo passo: integrar após revisão independente e executar cobertura/CI no novo SHA.
+
+### 2026-11-03T19:37:29-03:00 — Dependências integradas e diagnóstico Sonar confirmado
+
+Integrados NA-0128 673874f2d/9bff6e9ee (compatibilidade TypeDoc, dependências, npm12 no CI e11contratos automáticos) e NA-0131 b37b7fb48 (diagnóstico sanitizado). Conflito de append nos testes CI resolvido preservando testes0127 e0131;41contratos PASS. Três fixtures de workflows revalidadas com comparação exata: apenas bootstrap npm acrescentado, constantes/linhas preservadas; revisão independente confirmou hashes atuais. Instalação própria da integração substituiu somente o symlink local node_modules, preservando o ambiente principal.
+
+Ran nesta integração: npmci12 normal PASS (hook TypeDoc aplicado), Prisma/shared PASS, auditoria runtime/all zero eSBOM PASS,11contratos PASS, build/typecheck/lint89 PASS. O aviso de chunk UI permanece:1001,32kB. Comparação anterior982,91kB não é equivalente: worktree compartilhada executava Vite8.3.4; instalação correta usa Vite7.3.7 fixado no lock do frontend (inalterado). Não houve aumento do limite nem tentativa de ocultar aviso. Gates completos no próximo SHA continuam Planned.
+
+Ensaio diagnóstico real no8dae isolou S4036 em tools/sonarqube/analyze.mjs:46: execução npm pelo PATH. A ocorrência tem assinatura previamente revisada, mas isso não foi usado como waiver do gate novo; NA-0132 corrige execução explícita validada. Laboratório limpo; evidência identifica helper WIP e não se atribui ao candidato final. Próximo passo: integrar correção, congelar SHA, repetir scanner/cobertura e CI hospedado.
+
+### 2026-11-03T19:40:11-03:00 — Candidato de correção dos checks preparado
+
+Integrado NA-0132 3cec780ef: execução do scanner usa Node atual e CLI npm absoluto validado; disposição original atualizada preservando issueId e baseline aceita inalterada. Ran união:163testes Sonar PASS. Catálogo551decisões agora257correções/294revisões em contexto; a observação da última correção ainda usa export8dae e aguarda reanálise, explicitamente distinguida da decisão. Evidência de build hospedado8dae confirma Vite7.3.7/vendor-ui1001,32kB/gzip284,24kB, iguais ao candidato atual; nenhuma regressão de tamanho constatada nessa comparação equivalente. Aviso950kB mantido.
+
+Revisão integrada independente verificou igualdade dos patches aprovados,17jobs/npm12,2COPY de hooks Docker,3fixtures exatas e551IDs únicos. Homologação humana não inferida. Próximo passo: concluir análise estática/segredos, registrar checkpointNA-0093 e executar cobertura e scanner no SHA congelado; atualizar PR somente com resultados e limitações reais.
+
+Ran antes do checkpoint: Gitleaks47/47fixtures exatas e zero pendentes; Semgrep863alvos/zeroachados/zeroerros, governança e diffcheck PASS. Cobertura/scanner/CI do próximo SHA permanecem Planned.

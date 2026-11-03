@@ -1,0 +1,62 @@
+[
+  {
+    "path": "",
+    "before": "0.1.0",
+    "after": "0.1.0",
+    "rootInstallMetadata": true
+  },
+  {
+    "path": "node_modules/@isaacs/nonrecursive-glob-match",
+    "before": null,
+    "after": "1.0.3",
+    "rootInstallMetadata": false
+  },
+  {
+    "path": "node_modules/@vue/language-core/node_modules/balanced-match",
+    "before": "1.0.2",
+    "after": null,
+    "rootInstallMetadata": false
+  },
+  {
+    "path": "node_modules/@vue/language-core/node_modules/brace-expansion",
+    "before": "2.1.7",
+    "after": null,
+    "rootInstallMetadata": false
+  },
+  {
+    "path": "node_modules/@vue/language-core/node_modules/minimatch",
+    "before": "9.0.9",
+    "after": null,
+    "rootInstallMetadata": false
+  },
+  {
+    "path": "node_modules/follow-redirects",
+    "before": "1.16.1",
+    "after": "1.16.2",
+    "rootInstallMetadata": false
+  },
+  {
+    "path": "node_modules/glob",
+    "before": "13.0.6",
+    "after": "14.0.2",
+    "rootInstallMetadata": false
+  },
+  {
+    "path": "node_modules/joi",
+    "before": "18.2.9",
+    "after": "18.3.1",
+    "rootInstallMetadata": false
+  },
+  {
+    "path": "node_modules/minimatch",
+    "before": "10.2.6",
+    "after": "11.0.1",
+    "rootInstallMetadata": false
+  },
+  {
+    "path": "node_modules/path-scurry",
+    "before": "2.0.2",
+    "after": "3.0.0",
+    "rootInstallMetadata": false
+  }
+]

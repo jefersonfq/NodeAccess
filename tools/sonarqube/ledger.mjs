@@ -1,3 +1,4 @@
+import { readIssue, publicIssue } from '../shared/sonar-issue-id.cjs'
 import { createHash } from 'node:crypto'
 import { readFileSync, writeFileSync, mkdirSync, existsSync, readdirSync } from 'node:fs'
 import { resolve, join } from 'node:path'
@@ -27,6 +28,7 @@ export function compareFindings(issues, accepted) {
     absentReviewedOccurrences: [...allowances.values()].reduce((a, b) => a + b, 0) }
 }
 export function discoverFindings(original, current = [], previous = []) {
+  previous = previous.map(readIssue)
   const known = new Set(original.map(i => i.key))
   const rows = []
   const fresh = [...current].sort((a, b) => a.component.localeCompare(b.component) || (a.line ?? 0) - (b.line ?? 0) || a.key.localeCompare(b.key))
@@ -40,7 +42,8 @@ export function discoverFindings(original, current = [], previous = []) {
 }
 export function catalog(issues, decisions = [], current = null, discovered = []) {
   const byKey = new Map()
-  for (const item of decisions) {
+  for (const entry of decisions) {
+    const item = readIssue(entry)
     if (byKey.has(item.key)) throw new Error('Duplicate disposition for issue')
     byKey.set(item.key, item)
   }
@@ -102,8 +105,8 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
   const discovered = discoverFindings(issues, current ?? [], previous)
   const rows = catalog(issues, decisions, current, discovered)
   mkdirSync(output, { recursive: true })
-  writeFileSync(discoveredPath, JSON.stringify({ schemaVersion: 1, issues: discovered }, null, 2)+'\n')
-  writeFileSync(join(output, 'findings.json'), JSON.stringify({ schemaVersion: 1, baselineCount: issues.length, findings: rows }, null, 2)+'\n')
+  writeFileSync(discoveredPath, JSON.stringify({ schemaVersion: 1, issues: discovered.map(publicIssue) }, null, 2)+'\n')
+  writeFileSync(join(output, 'findings.json'), JSON.stringify({ schemaVersion: 1, baselineCount: issues.length, findings: rows.map(publicIssue) }, null, 2)+'\n')
   writeFileSync(join(output, 'findings.csv'), csv(rows)); writeFileSync(join(output, 'findings.html'), html(rows))
   console.log(JSON.stringify({ rows: rows.length, reviewed: rows.filter(r => r.status !== 'pending').length }))
 }

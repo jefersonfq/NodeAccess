@@ -1,0 +1,378 @@
+{
+  "buildImage": "sha256:28608bed3b7657ffa0632fbd0ba2ee48d84dcc89606c1281dcf3793fcec54c72",
+  "scan": {
+    "passed": true,
+    "counts": {
+      "High": 3,
+      "Medium": 19,
+      "Low": 3
+    },
+    "databaseBuilt": "2026-11-03T06:20:47Z",
+    "findings": [
+      {
+        "package": "libssh2",
+        "version": "1.11.1-r4",
+        "id": "CVE-2026-59851",
+        "severity": "High",
+        "fix": {
+          "versions": [],
+          "state": ""
+        },
+        "source": "https://nvd.nist.gov/vuln/detail/CVE-2026-59851",
+        "triage": {
+          "reason": "Incorrect component CPE: installed libssh2 is independent of libssh, the affected project.",
+          "expiresAt": "2026-11-08",
+          "evidence": "docs/changes/2026/10/NA-0069-release-integration/guacd-image-triage.md"
+        }
+      },
+      {
+        "package": "pixman",
+        "version": "0.46.4-r0",
+        "id": "CVE-2023-37769",
+        "severity": "Medium",
+        "fix": {
+          "versions": [],
+          "state": ""
+        },
+        "source": "https://nvd.nist.gov/vuln/detail/CVE-2023-37769"
+      },
+      {
+        "package": "libssh2",
+        "version": "1.11.1-r4",
+        "id": "CVE-2026-59843",
+        "severity": "Medium",
+        "fix": {
+          "versions": [],
+          "state": ""
+        },
+        "source": "https://nvd.nist.gov/vuln/detail/CVE-2026-59843"
+      },
+      {
+        "package": "libssh2",
+        "version": "1.11.1-r4",
+        "id": "CVE-2026-59844",
+        "severity": "Medium",
+        "fix": {
+          "versions": [],
+          "state": ""
+        },
+        "source": "https://nvd.nist.gov/vuln/detail/CVE-2026-59844"
+      },
+      {
+        "package": "cups-libs",
+        "version": "2.4.19-r1",
+        "id": "CVE-2018-6553",
+        "severity": "High",
+        "fix": {
+          "versions": [],
+          "state": ""
+        },
+        "source": "https://nvd.nist.gov/vuln/detail/CVE-2018-6553",
+        "triage": {
+          "reason": "Ubuntu CUPS AppArmor/dnssd confinement flaw; Alpine cups-libs contains only shared libraries. The affected profile, backend and cupsd are absent from the reviewed image.",
+          "expiresAt": "2026-11-08",
+          "evidence": "docs/changes/2026/10/NA-0069-release-integration/guacd-image-triage.md"
+        }
+      },
+      {
+        "package": "libssh2",
+        "version": "1.11.1-r4",
+        "id": "CVE-2026-59850",
+        "severity": "High",
+        "fix": {
+          "versions": [],
+          "state": ""
+        },
+        "source": "https://nvd.nist.gov/vuln/detail/CVE-2026-59850",
+        "triage": {
+          "reason": "Incorrect component CPE: installed libssh2 is independent of libssh, the affected project.",
+          "expiresAt": "2026-11-08",
+          "evidence": "docs/changes/2026/10/NA-0069-release-integration/guacd-image-triage.md"
+        }
+      },
+      {
+        "package": "cups-libs",
+        "version": "2.4.19-r1",
+        "id": "CVE-2026-61702",
+        "severity": "Medium",
+        "fix": {
+          "versions": [],
+          "state": "unknown"
+        },
+        "source": "https://nvd.nist.gov/vuln/detail/CVE-2026-61702"
+      },
+      {
+        "package": "busybox",
+        "version": "1.37.0-r31",
+        "id": "CVE-2025-60876",
+        "severity": "Medium",
+        "fix": {
+          "versions": [],
+          "state": ""
+        },
+        "source": "https://nvd.nist.gov/vuln/detail/CVE-2025-60876"
+      },
+      {
+        "package": "busybox-binsh",
+        "version": "1.37.0-r31",
+        "id": "CVE-2025-60876",
+        "severity": "Medium",
+        "fix": {
+          "versions": [],
+          "state": ""
+        },
+        "source": "https://nvd.nist.gov/vuln/detail/CVE-2025-60876"
+      },
+      {
+        "package": "ssl_client",
+        "version": "1.37.0-r31",
+        "id": "CVE-2025-60876",
+        "severity": "Medium",
+        "fix": {
+          "versions": [],
+          "state": ""
+        },
+        "source": "https://nvd.nist.gov/vuln/detail/CVE-2025-60876"
+      },
+      {
+        "package": "libssh2",
+        "version": "1.11.1-r4",
+        "id": "CVE-2026-59848",
+        "severity": "Medium",
+        "fix": {
+          "versions": [],
+          "state": ""
+        },
+        "source": "https://nvd.nist.gov/vuln/detail/CVE-2026-59848"
+      },
+      {
+        "package": "ghostscript",
+        "version": "10.08.0-r0",
+        "id": "CVE-2023-38560",
+        "severity": "Medium",
+        "fix": {
+          "versions": [],
+          "state": ""
+        },
+        "source": "https://nvd.nist.gov/vuln/detail/CVE-2023-38560"
+      },
+      {
+        "package": "cups-libs",
+        "version": "2.4.19-r1",
+        "id": "CVE-2026-107886",
+        "severity": "Medium",
+        "fix": {
+          "versions": [],
+          "state": "unknown"
+        },
+        "source": "https://nvd.nist.gov/vuln/detail/CVE-2026-107886"
+      },
+      {
+        "package": "cups-libs",
+        "version": "2.4.19-r1",
+        "id": "CVE-2026-55480",
+        "severity": "Medium",
+        "fix": {
+          "versions": [],
+          "state": "unknown"
+        },
+        "source": "https://nvd.nist.gov/vuln/detail/CVE-2026-55480"
+      },
+      {
+        "package": "sqlite-libs",
+        "version": "3.53.4-r0",
+        "id": "CVE-2026-119376",
+        "severity": "Medium",
+        "fix": {
+          "versions": [],
+          "state": "unknown"
+        },
+        "source": "https://nvd.nist.gov/vuln/detail/CVE-2026-119376"
+      },
+      {
+        "package": "alsa-lib",
+        "version": "1.2.16.1-r0",
+        "id": "CVE-2026-90781",
+        "severity": "Medium",
+        "fix": {
+          "versions": [],
+          "state": ""
+        },
+        "source": "https://nvd.nist.gov/vuln/detail/CVE-2026-90781"
+      },
+      {
+        "package": "cups-libs",
+        "version": "2.4.19-r1",
+        "id": "CVE-2026-107890",
+        "severity": "Medium",
+        "fix": {
+          "versions": [],
+          "state": "unknown"
+        },
+        "source": "https://nvd.nist.gov/vuln/detail/CVE-2026-107890"
+      },
+      {
+        "package": "cups-libs",
+        "version": "2.4.19-r1",
+        "id": "CVE-2026-107885",
+        "severity": "Medium",
+        "fix": {
+          "versions": [],
+          "state": "unknown"
+        },
+        "source": "https://nvd.nist.gov/vuln/detail/CVE-2026-107885"
+      },
+      {
+        "package": "cups-libs",
+        "version": "2.4.19-r1",
+        "id": "CVE-2026-107888",
+        "severity": "Medium",
+        "fix": {
+          "versions": [],
+          "state": "unknown"
+        },
+        "source": "https://nvd.nist.gov/vuln/detail/CVE-2026-107888"
+      },
+      {
+        "package": "cups-libs",
+        "version": "2.4.19-r1",
+        "id": "CVE-2026-55453",
+        "severity": "Low",
+        "fix": {
+          "versions": [],
+          "state": "unknown"
+        },
+        "source": "https://nvd.nist.gov/vuln/detail/CVE-2026-55453"
+      },
+      {
+        "package": "alsa-lib",
+        "version": "1.2.16.1-r0",
+        "id": "CVE-2026-96674",
+        "severity": "Medium",
+        "fix": {
+          "versions": [],
+          "state": ""
+        },
+        "source": "https://nvd.nist.gov/vuln/detail/CVE-2026-96674"
+      },
+      {
+        "package": "libssh2",
+        "version": "1.11.1-r4",
+        "id": "CVE-2026-59845",
+        "severity": "Medium",
+        "fix": {
+          "versions": [],
+          "state": ""
+        },
+        "source": "https://nvd.nist.gov/vuln/detail/CVE-2026-59845"
+      },
+      {
+        "package": "alsa-lib",
+        "version": "1.2.16.1-r0",
+        "id": "CVE-2026-96675",
+        "severity": "Medium",
+        "fix": {
+          "versions": [],
+          "state": ""
+        },
+        "source": "https://nvd.nist.gov/vuln/detail/CVE-2026-96675"
+      },
+      {
+        "package": "cups-libs",
+        "version": "2.4.19-r1",
+        "id": "CVE-2026-55467",
+        "severity": "Low",
+        "fix": {
+          "versions": [],
+          "state": "unknown"
+        },
+        "source": "https://nvd.nist.gov/vuln/detail/CVE-2026-55467"
+      },
+      {
+        "package": "libssh2",
+        "version": "1.11.1-r4",
+        "id": "CVE-2026-59846",
+        "severity": "Low",
+        "fix": {
+          "versions": [],
+          "state": ""
+        },
+        "source": "https://nvd.nist.gov/vuln/detail/CVE-2026-59846"
+      }
+    ]
+  },
+  "runtime": {
+    "image": "sha256:28608bed3b7657ffa0632fbd0ba2ee48d84dcc89606c1281dcf3793fcec54c72",
+    "checks": [
+      {
+        "protocol": "rdp",
+        "argsNegotiated": true
+      },
+      {
+        "protocol": "vnc",
+        "argsNegotiated": true
+      }
+    ],
+    "uid": "1000",
+    "version": "Guacamole proxy daemon (guacd) version 1.6.0",
+    "freerdp": "freerdp-libs-3.32.2-r0",
+    "dependencies": [
+      "brotli-libs",
+      "cairo",
+      "dbus-libs",
+      "fontconfig",
+      "freerdp-libs",
+      "freetype",
+      "fribidi",
+      "glib",
+      "graphite2",
+      "harfbuzz",
+      "lame-libs",
+      "libasyncns",
+      "libblkid",
+      "libbsd",
+      "libbz2",
+      "libcrypto3",
+      "libeconf",
+      "libexpat",
+      "libffi",
+      "libflac",
+      "libgcrypt",
+      "libgpg-error",
+      "libintl",
+      "libjpeg-turbo",
+      "libmd",
+      "libmount",
+      "libogg",
+      "libpng",
+      "libpulse",
+      "libsharpyuv",
+      "libsndfile",
+      "libssh2",
+      "libssl3",
+      "libuuid",
+      "libvncserver",
+      "libvorbis",
+      "libwebp",
+      "libwebsockets",
+      "libx11",
+      "libxau",
+      "libxcb",
+      "libxdmcp",
+      "libxext",
+      "libxrender",
+      "lzo",
+      "mpg123-libs",
+      "musl",
+      "opus",
+      "pango",
+      "pcre2",
+      "pixman",
+      "zlib"
+    ],
+    "passed": true
+  },
+  "glib": "2.90.0-r0",
+  "nativeRegression": "4 malformed upstream vectors rejected; valid nested node accepted",
+  "originalTagRestored": "sha256:cc59cc0df40bdf862f441744ca9afc010f9a968e47edd66c90f7aa97f9c5fe3a"
+}

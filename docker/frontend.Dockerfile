@@ -2,6 +2,7 @@ FROM node:24.21.0-alpine@sha256:ebfe2f90462722a7a4de65e91990e97fe0d401c70e0e762c
 FROM node-runtime AS base
 WORKDIR /app
 COPY package*.json ./
+COPY scripts/dependency-patches/typedoc-minimatch.mjs ./scripts/dependency-patches/typedoc-minimatch.mjs
 COPY apps/frontend/package*.json ./apps/frontend/
 COPY packages/shared/package*.json ./packages/shared/
 RUN npm ci --no-audit --no-fund --workspace=apps/frontend --workspace=packages/shared

@@ -24,6 +24,8 @@ jobs:
       - uses: azure/setup-helm@v4
         with:
           version: v3.17.3
+      - name: Use npm with workspace override support
+        run: npm install --global npm@12.2.1
       - run: npm ci
       - run: npm run db:generate -w apps/backend
       - name: Run install, migration, upgrade/rollback, secret rotation, drain and Ingress certification

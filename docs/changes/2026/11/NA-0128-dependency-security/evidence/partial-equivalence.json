@@ -1,0 +1,1 @@
+{"partialMatchesCompared":143,"pruningDifferences":[{"pattern":"src/**/nested/*","path":"src/.hidden","old":true,"current":false,"finalDescendantMatches":false}],"passed":true,"scope":"ordinary child paths; root-only and **/../ optimization intentionally not claimed equivalent"}

@@ -1,0 +1,26 @@
+{
+  "base": "8dae9b49a",
+  "node": "24.21.0",
+  "localNpm": "11.12.1",
+  "githubNpmObserved": "11.19.0",
+  "fileModeChecking": true,
+  "file": "apps/agent/src/index.js",
+  "trackedModeBefore": "100644",
+  "filesystemModeAfterNpmCi": "755",
+  "trackedModeCorrected": "100755",
+  "sha256Before": "189faaf866508ef09ff65eec9d5251ee6351c37db0959328736fa66704d3c6fd",
+  "sha256After": "189faaf866508ef09ff65eec9d5251ee6351c37db0959328736fa66704d3c6fd",
+  "changedTrackedFilesBeforeFix": [
+    "apps/agent/src/index.js"
+  ],
+  "guardRejectedBeforeDocker": true,
+  "preparationAfterFix": {
+    "npmCi": 0,
+    "prismaGenerate": "passed",
+    "sharedBuild": "passed",
+    "existingSonarTests": 135,
+    "trackedStatus": ""
+  },
+  "worktreeSonarTestsWithNewRegression": 136,
+  "scope": "Local Linux reproduction; published GitHub rerun pending"
+}

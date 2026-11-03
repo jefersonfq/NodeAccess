@@ -77,7 +77,7 @@ test('real CLI builds sanitized files and loads array/object dispositions with b
     writeFileSync(join(path, 'one/plan.md'), 'branch: test/fixture-reviewed\n')
     writeFileSync(join(path, 'one/dispositions.json'), JSON.stringify([{ key: issue.key, status: 'fixed', rationale: 'Fixture correction', evidence: ['unit'] }]))
     writeFileSync(join(path, 'two/plan.md'), 'no branch field\n')
-    writeFileSync(join(path, 'two/dispositions.json'), JSON.stringify({ dispositions: [{ key: 'fixture-new', status: 'context_reviewed', branch: 'explicit-branch', rationale: 'Fixture context', evidence: ['review'] }] }))
+    writeFileSync(join(path, 'two/dispositions.json'), JSON.stringify({ dispositions: [{ issueId: 'fixture-new', status: 'context_reviewed', branch: 'explicit-branch', rationale: 'Fixture context', evidence: ['review'] }] }))
     const current = f.json('current.json', { issues: [issue, { ...issue, key: 'fixture-new', hash: 'new-content' }] })
     const result = f.run(f.baseline, 'out', current)
     assert.equal(result.status, 0, result.stderr)
@@ -89,7 +89,7 @@ test('real CLI builds sanitized files and loads array/object dispositions with b
     const empty = f.json('empty.json', { issues: [] })
     assert.equal(f.run(f.baseline, 'out', empty).status, 0)
     const later = JSON.parse(readFileSync(join(f.root, 'out/findings.json'), 'utf8')).findings
-    assert.deepEqual(later.map(row => [row.id, row.key, row.observed]), [['SQ-0001', issue.key, 'absent'], ['SQ-0002', 'fixture-new', 'absent']])
+    assert.deepEqual(later.map(row => [row.id, row.issueId, row.observed]), [['SQ-0001', issue.key, 'absent'], ['SQ-0002', 'fixture-new', 'absent']])
   } finally { f.close() }
 })
 

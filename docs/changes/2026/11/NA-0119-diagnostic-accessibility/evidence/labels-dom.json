@@ -3,7 +3,7 @@
   "count": 44,
   "results": [
     {
-      "key": "225f29e0-1b12-4ded-9032-d66b9e7fbcec",
+      "issueId": "225f29e0-1b12-4ded-9032-d66b9e7fbcec",
       "file": "apps/frontend/src/components/ImportHostsModal.vue",
       "baselineLine": 1999,
       "role": "textbox",
@@ -15,7 +15,7 @@
       "snapshot": "- article:\n  - heading \"1. ImportHostsModal.vue:1999\" [level=2]\n  - text: import.royalts.protocol\n  - textbox \"import.royalts.protocol\":\n    - /placeholder: \"\"\n  - text: Please Select\n  - img \"loading\":\n    - img"
     },
     {
-      "key": "6b3dbbd2-f165-49b8-8c08-6f2233a0f5b1",
+      "issueId": "6b3dbbd2-f165-49b8-8c08-6f2233a0f5b1",
       "file": "apps/frontend/src/components/snippets/MacroStepEditor.vue",
       "baselineLine": 161,
       "role": "textbox",
@@ -25,7 +25,7 @@
       "snapshot": "- article:\n  - heading \"2. MacroStepEditor.vue:161\" [level=2]\n  - text: snippets.macro.timeoutMs\n  - textbox \"snippets.macro.timeoutMs\":\n    - /placeholder: Please Input\n  - text: Please Input\n  - button:\n    - img\n  - button:\n    - img"
     },
     {
-      "key": "ce693eb8-2ada-454c-a936-a1f0b0680fbd",
+      "issueId": "ce693eb8-2ada-454c-a936-a1f0b0680fbd",
       "file": "apps/frontend/src/components/snippets/MacroStepEditor.vue",
       "baselineLine": 173,
       "role": "textbox",
@@ -35,7 +35,7 @@
       "snapshot": "- article:\n  - heading \"3. MacroStepEditor.vue:173\" [level=2]\n  - text: snippets.macro.durationMs\n  - textbox \"snippets.macro.durationMs\":\n    - /placeholder: Please Input\n  - text: Please Input\n  - button:\n    - img\n  - button:\n    - img"
     },
     {
-      "key": "eaa3c373-f07d-4d30-b489-0aee1d8b58b8",
+      "issueId": "eaa3c373-f07d-4d30-b489-0aee1d8b58b8",
       "file": "apps/frontend/src/components/snippets/SnippetCommandEditor.vue",
       "baselineLine": 74,
       "role": "textbox",
@@ -45,7 +45,7 @@
       "snapshot": "- article:\n  - heading \"4. SnippetCommandEditor.vue:74\" [level=2]\n  - text: Campo de demonstração\n  - textbox \"Campo de demonstração Please Input\"\n  - text: Please Input"
     },
     {
-      "key": "086a25bc-0da6-4ed6-9b63-b2a22c761f75",
+      "issueId": "086a25bc-0da6-4ed6-9b63-b2a22c761f75",
       "file": "apps/frontend/src/views/admin/McpTokensView.vue",
       "baselineLine": 1137,
       "role": "checkbox",
@@ -55,7 +55,7 @@
       "snapshot": "- article:\n  - heading \"5. McpTokensView.vue:1137\" [level=2]\n  - checkbox \"Modo de ação\":\n    - img\n    - text: Modo de ação"
     },
     {
-      "key": "5c5d92f8-297d-41b4-a6b5-bc6e89c8b3fe",
+      "issueId": "5c5d92f8-297d-41b4-a6b5-bc6e89c8b3fe",
       "file": "apps/frontend/src/views/admin/McpTokensView.vue",
       "baselineLine": 1372,
       "role": "checkbox",
@@ -65,7 +65,7 @@
       "snapshot": "- article:\n  - heading \"6. McpTokensView.vue:1372\" [level=2]\n  - checkbox \"Modo de ação\":\n    - img\n    - text: Modo de ação"
     },
     {
-      "key": "65c152b7-ebf6-41d3-af3c-37ead57b621c",
+      "issueId": "65c152b7-ebf6-41d3-af3c-37ead57b621c",
       "file": "apps/frontend/src/views/ForwardingsView.vue",
       "baselineLine": 650,
       "role": "textbox",
@@ -77,7 +77,7 @@
       "snapshot": "- article:\n  - heading \"7. ForwardingsView.vue:650\" [level=2]\n  - text: Agente pessoal\n  - textbox \"Agente pessoal\":\n    - /placeholder: \"\"\n  - text: Please Select\n  - img \"loading\":\n    - img"
     },
     {
-      "key": "b12dc2de-fdf2-4b1e-a9c2-00b36c9e9e5f",
+      "issueId": "b12dc2de-fdf2-4b1e-a9c2-00b36c9e9e5f",
       "file": "apps/frontend/src/components/SessionSupervisionPermission.vue",
       "baselineLine": 38,
       "role": "switch",
@@ -87,7 +87,7 @@
       "snapshot": "- article:\n  - heading \"8. SessionSupervisionPermission.vue:38\" [level=2]\n  - switch \"Pode supervisionar sessões SSH\""
     },
     {
-      "key": "ae05e55c-7fdf-480b-8b31-7abf36b98ee2",
+      "issueId": "ae05e55c-7fdf-480b-8b31-7abf36b98ee2",
       "file": "apps/frontend/src/components/platform/TenantLicenseEditor.vue",
       "baselineLine": 140,
       "role": "textbox",
@@ -97,7 +97,7 @@
       "snapshot": "- article:\n  - heading \"9. TenantLicenseEditor.vue:140\" [level=2]\n  - text: Quantidade máxima de usuários\n  - textbox \"Quantidade máxima de usuários Please Input Não pode ser menor que os Campo de demonstração usuários atualmente ativos.\":\n    - /placeholder: Please Input\n  - text: Please Input\n  - button:\n    - img\n  - button:\n    - img\n  - text: Não pode ser menor que os Campo de demonstração usuários atualmente ativos."
     },
     {
-      "key": "b80bb8b0-ad62-48ea-838b-22dd9b9870a7",
+      "issueId": "b80bb8b0-ad62-48ea-838b-22dd9b9870a7",
       "file": "apps/frontend/src/components/platform/TenantLicenseEditor.vue",
       "baselineLine": 168,
       "role": "textbox",
@@ -109,7 +109,7 @@
       "snapshot": "- article:\n  - heading \"10. TenantLicenseEditor.vue:168\" [level=2]\n  - region \"Provider para análise de sessões\":\n    - text: Provider para análise de sessões\n    - paragraph: “Automático” usa a configuração efetiva da plataforma.\n    - textbox \"Provider para análise de sessões\":\n      - /placeholder: \"\"\n    - text: Please Select\n    - img \"loading\":\n      - img"
     },
     {
-      "key": "0e61b664-5437-43e1-aee8-6be145958b5d",
+      "issueId": "0e61b664-5437-43e1-aee8-6be145958b5d",
       "file": "apps/frontend/src/views/admin/SettingsView.vue",
       "baselineLine": 2036,
       "role": "checkbox",
@@ -119,7 +119,7 @@
       "snapshot": "- article:\n  - heading \"11. SettingsView.vue:2036\" [level=2]\n  - checkbox \"Copiloto IA no terminal\":\n    - img\n    - text: Copiloto IA no terminal"
     },
     {
-      "key": "75c0c94b-b595-4fa0-86ea-a0b4b2cdfe54",
+      "issueId": "75c0c94b-b595-4fa0-86ea-a0b4b2cdfe54",
       "file": "apps/frontend/src/views/admin/SettingsView.vue",
       "baselineLine": 2043,
       "role": "checkbox",
@@ -129,7 +129,7 @@
       "snapshot": "- article:\n  - heading \"12. SettingsView.vue:2043\" [level=2]\n  - checkbox \"admin.settings.license.mcp\":\n    - img\n    - text: admin.settings.license.mcp"
     },
     {
-      "key": "60ee9916-00df-4703-b8b5-30c0f4f09440",
+      "issueId": "60ee9916-00df-4703-b8b5-30c0f4f09440",
       "file": "apps/frontend/src/views/admin/IntegrationsView.vue",
       "baselineLine": 1591,
       "role": "textbox",
@@ -141,7 +141,7 @@
       "snapshot": "- article:\n  - heading \"13. IntegrationsView.vue:1591\" [level=2]\n  - text: Usuários\n  - textbox \"Usuários\"\n  - img \"loading\":\n    - img\n  - text: Please Select"
     },
     {
-      "key": "19b57190-698e-419e-8d0f-c957826a53ed",
+      "issueId": "19b57190-698e-419e-8d0f-c957826a53ed",
       "file": "apps/frontend/src/views/admin/IntegrationsView.vue",
       "baselineLine": 1601,
       "role": "textbox",
@@ -153,7 +153,7 @@
       "snapshot": "- article:\n  - heading \"14. IntegrationsView.vue:1601\" [level=2]\n  - text: Grupos\n  - textbox \"Grupos\"\n  - img \"loading\":\n    - img\n  - text: Please Select"
     },
     {
-      "key": "c7528158-7189-462e-a109-27eff3fa5572",
+      "issueId": "c7528158-7189-462e-a109-27eff3fa5572",
       "file": "apps/frontend/src/views/admin/IntegrationsView.vue",
       "baselineLine": 1612,
       "role": "textbox",
@@ -165,7 +165,7 @@
       "snapshot": "- article:\n  - heading \"15. IntegrationsView.vue:1612\" [level=2]\n  - text: Pastas corporativas\n  - textbox \"Pastas corporativas\"\n  - img \"loading\":\n    - img\n  - text: Please Select"
     },
     {
-      "key": "fca0436e-3ddb-42b4-b4e1-e6bf1f42f4ec",
+      "issueId": "fca0436e-3ddb-42b4-b4e1-e6bf1f42f4ec",
       "file": "apps/frontend/src/views/admin/SettingsView.vue",
       "baselineLine": 2126,
       "role": "checkbox",
@@ -175,7 +175,7 @@
       "snapshot": "- article:\n  - heading \"16. SettingsView.vue:2126\" [level=2]\n  - checkbox \"SCIM 2.0\":\n    - img\n    - text: SCIM 2.0"
     },
     {
-      "key": "4a184400-718c-484a-b2b2-0fc4d7f6d43d",
+      "issueId": "4a184400-718c-484a-b2b2-0fc4d7f6d43d",
       "file": "apps/frontend/src/views/admin/SettingsView.vue",
       "baselineLine": 2115,
       "role": "checkbox",
@@ -185,7 +185,7 @@
       "snapshot": "- article:\n  - heading \"17. SettingsView.vue:2115\" [level=2]\n  - checkbox \"OIDC / SSO\":\n    - img\n    - text: OIDC / SSO"
     },
     {
-      "key": "837cb40c-e519-4569-a645-2fe22f255c74",
+      "issueId": "837cb40c-e519-4569-a645-2fe22f255c74",
       "file": "apps/frontend/src/components/integrations/TenantAuthPolicyCard.vue",
       "baselineLine": 310,
       "role": "textbox",
@@ -195,7 +195,7 @@
       "snapshot": "- article:\n  - heading \"18. TenantAuthPolicyCard.vue:310\" [level=2]\n  - text: admin.integrations.authPolicy.lockoutAttempts\n  - textbox \"admin.integrations.authPolicy.lockoutAttempts Please Input\":\n    - /placeholder: Please Input\n  - text: Please Input\n  - button:\n    - img\n  - button:\n    - img"
     },
     {
-      "key": "b11287e3-9121-4ef2-b1de-3f4e068123ed",
+      "issueId": "b11287e3-9121-4ef2-b1de-3f4e068123ed",
       "file": "apps/frontend/src/components/integrations/TenantAuthPolicyCard.vue",
       "baselineLine": 315,
       "role": "textbox",
@@ -205,7 +205,7 @@
       "snapshot": "- article:\n  - heading \"19. TenantAuthPolicyCard.vue:315\" [level=2]\n  - text: admin.integrations.authPolicy.lockoutMinutes\n  - textbox \"admin.integrations.authPolicy.lockoutMinutes Please Input\":\n    - /placeholder: Please Input\n  - text: Please Input\n  - button:\n    - img\n  - button:\n    - img"
     },
     {
-      "key": "87095c85-f631-4cbe-bc4c-a65ba78e4709",
+      "issueId": "87095c85-f631-4cbe-bc4c-a65ba78e4709",
       "file": "apps/frontend/src/components/integrations/TenantAuthPolicyCard.vue",
       "baselineLine": 320,
       "role": "textbox",
@@ -215,7 +215,7 @@
       "snapshot": "- article:\n  - heading \"20. TenantAuthPolicyCard.vue:320\" [level=2]\n  - text: admin.integrations.authPolicy.accessMinutes\n  - textbox \"admin.integrations.authPolicy.accessMinutes Please Input\":\n    - /placeholder: Please Input\n  - text: Please Input\n  - button:\n    - img\n  - button:\n    - img"
     },
     {
-      "key": "d5ec8fbb-fe40-4f34-926d-aeb1d94bf79f",
+      "issueId": "d5ec8fbb-fe40-4f34-926d-aeb1d94bf79f",
       "file": "apps/frontend/src/components/integrations/TenantAuthPolicyCard.vue",
       "baselineLine": 325,
       "role": "textbox",
@@ -225,7 +225,7 @@
       "snapshot": "- article:\n  - heading \"21. TenantAuthPolicyCard.vue:325\" [level=2]\n  - text: admin.integrations.authPolicy.refreshDays\n  - textbox \"admin.integrations.authPolicy.refreshDays Please Input\":\n    - /placeholder: Please Input\n  - text: Please Input\n  - button:\n    - img\n  - button:\n    - img"
     },
     {
-      "key": "fdb7b3af-bd93-4070-acfc-0697892cc40a",
+      "issueId": "fdb7b3af-bd93-4070-acfc-0697892cc40a",
       "file": "apps/frontend/src/views/admin/SettingsView.vue",
       "baselineLine": 2104,
       "role": "checkbox",
@@ -235,7 +235,7 @@
       "snapshot": "- article:\n  - heading \"22. SettingsView.vue:2104\" [level=2]\n  - checkbox \"1Password\":\n    - img\n    - text: 1Password"
     },
     {
-      "key": "af7180f2-a438-4bd1-b586-4e6e8df1af16",
+      "issueId": "af7180f2-a438-4bd1-b586-4e6e8df1af16",
       "file": "apps/frontend/src/views/admin/NativeSshGatewayView.vue",
       "baselineLine": 365,
       "role": "textbox",
@@ -245,7 +245,7 @@
       "snapshot": "- article:\n  - heading \"23. NativeSshGatewayView.vue:365\" [level=2]\n  - text: Host destino para exemplo\n  - textbox \"Host destino para exemplo Please Input\":\n    - /placeholder: Please Input\n  - text: Please Input"
     },
     {
-      "key": "965f1baa-23a6-4e19-a71f-0c9fecbc6e1a",
+      "issueId": "965f1baa-23a6-4e19-a71f-0c9fecbc6e1a",
       "file": "apps/frontend/src/views/admin/NativeSshGatewayView.vue",
       "baselineLine": 369,
       "role": "textbox",
@@ -255,7 +255,7 @@
       "snapshot": "- article:\n  - heading \"24. NativeSshGatewayView.vue:369\" [level=2]\n  - text: Usuário SSH opcional do destino\n  - textbox \"Usuário SSH opcional do destino Please Input\":\n    - /placeholder: Please Input\n  - text: Please Input"
     },
     {
-      "key": "dcc6941b-6650-4a90-9de9-e014ad973474",
+      "issueId": "dcc6941b-6650-4a90-9de9-e014ad973474",
       "file": "apps/frontend/src/views/SnippetsView.vue",
       "baselineLine": 741,
       "role": "textbox",
@@ -267,7 +267,7 @@
       "snapshot": "- article:\n  - heading \"25. SnippetsView.vue:741\" [level=2]\n  - text: snippets.kind.label\n  - textbox \"snippets.kind.label\":\n    - /placeholder: \"\"\n  - text: Please Select\n  - img \"loading\":\n    - img"
     },
     {
-      "key": "9897e613-5ea8-4488-bbe6-13e518c2755a",
+      "issueId": "9897e613-5ea8-4488-bbe6-13e518c2755a",
       "file": "apps/frontend/src/views/SnippetsView.vue",
       "baselineLine": 749,
       "role": "textbox",
@@ -279,7 +279,7 @@
       "snapshot": "- article:\n  - heading \"26. SnippetsView.vue:749\" [level=2]\n  - text: snippets.groups.label\n  - textbox \"snippets.groups.label\":\n    - /placeholder: \"\"\n  - text: Please Select\n  - img \"loading\":\n    - img"
     },
     {
-      "key": "1172d30b-f5f0-4721-9afb-a72759711101",
+      "issueId": "1172d30b-f5f0-4721-9afb-a72759711101",
       "file": "apps/frontend/src/views/SnippetsView.vue",
       "baselineLine": 757,
       "role": "textbox",
@@ -291,7 +291,7 @@
       "snapshot": "- article:\n  - heading \"27. SnippetsView.vue:757\" [level=2]\n  - text: snippetsPage.filters.secrets\n  - textbox \"snippetsPage.filters.secrets\":\n    - /placeholder: \"\"\n  - text: Please Select\n  - img \"loading\":\n    - img"
     },
     {
-      "key": "847b64ac-d962-4792-9f98-5780097b51a0",
+      "issueId": "847b64ac-d962-4792-9f98-5780097b51a0",
       "file": "apps/frontend/src/views/admin/SettingsView.vue",
       "baselineLine": 1912,
       "role": "checkbox",
@@ -301,7 +301,7 @@
       "snapshot": "- article:\n  - heading \"28. SettingsView.vue:1912\" [level=2]\n  - checkbox \"admin.settings.license.multiConnect\":\n    - img\n    - text: admin.settings.license.multiConnect"
     },
     {
-      "key": "3055120b-d7ad-4c17-ac84-8624b3c0c299",
+      "issueId": "3055120b-d7ad-4c17-ac84-8624b3c0c299",
       "file": "apps/frontend/src/views/admin/SettingsView.vue",
       "baselineLine": 1938,
       "role": "checkbox",
@@ -311,7 +311,7 @@
       "snapshot": "- article:\n  - heading \"29. SettingsView.vue:1938\" [level=2]\n  - checkbox \"admin.settings.license.sessionAuditAi\":\n    - img\n    - text: admin.settings.license.sessionAuditAi"
     },
     {
-      "key": "20ab972e-b889-41eb-b648-0b1b7a240cd4",
+      "issueId": "20ab972e-b889-41eb-b648-0b1b7a240cd4",
       "file": "apps/frontend/src/views/admin/SettingsView.vue",
       "baselineLine": 1962,
       "role": "checkbox",
@@ -321,7 +321,7 @@
       "snapshot": "- article:\n  - heading \"30. SettingsView.vue:1962\" [level=2]\n  - checkbox \"admin.settings.license.sessionAuditAiAutoSummary\":\n    - img\n    - text: admin.settings.license.sessionAuditAiAutoSummary"
     },
     {
-      "key": "3a3e153c-30e9-46e6-9c0c-fe0b1e0d565a",
+      "issueId": "3a3e153c-30e9-46e6-9c0c-fe0b1e0d565a",
       "file": "apps/frontend/src/views/admin/SettingsView.vue",
       "baselineLine": 1976,
       "role": "checkbox",
@@ -331,7 +331,7 @@
       "snapshot": "- article:\n  - heading \"31. SettingsView.vue:1976\" [level=2]\n  - checkbox \"admin.settings.license.agents\":\n    - img\n    - text: admin.settings.license.agents"
     },
     {
-      "key": "230de2de-165a-4214-8e31-98feb9895477",
+      "issueId": "230de2de-165a-4214-8e31-98feb9895477",
       "file": "apps/frontend/src/views/admin/SettingsView.vue",
       "baselineLine": 2024,
       "role": "checkbox",
@@ -341,7 +341,7 @@
       "snapshot": "- article:\n  - heading \"32. SettingsView.vue:2024\" [level=2]\n  - checkbox \"admin.settings.license.localAi\":\n    - img\n    - text: admin.settings.license.localAi"
     },
     {
-      "key": "4cc20835-5e8a-4c0f-8c51-ae596047d1cc",
+      "issueId": "4cc20835-5e8a-4c0f-8c51-ae596047d1cc",
       "file": "apps/frontend/src/views/admin/SettingsView.vue",
       "baselineLine": 2032,
       "role": "checkbox",
@@ -351,7 +351,7 @@
       "snapshot": "- article:\n  - heading \"33. SettingsView.vue:2032\" [level=2]\n  - checkbox \"Autocomplete do terminal\":\n    - img\n    - text: Autocomplete do terminal"
     },
     {
-      "key": "e6cc98b9-be98-4c18-8195-cd457358c3fb",
+      "issueId": "e6cc98b9-be98-4c18-8195-cd457358c3fb",
       "file": "apps/frontend/src/views/admin/SettingsView.vue",
       "baselineLine": 2051,
       "role": "checkbox",
@@ -361,7 +361,7 @@
       "snapshot": "- article:\n  - heading \"34. SettingsView.vue:2051\" [level=2]\n  - checkbox \"admin.settings.license.aiSshActions\":\n    - img\n    - text: admin.settings.license.aiSshActions"
     },
     {
-      "key": "ab179744-77cd-409e-ae21-88ad3f57423c",
+      "issueId": "ab179744-77cd-409e-ae21-88ad3f57423c",
       "file": "apps/frontend/src/views/admin/SettingsView.vue",
       "baselineLine": 1890,
       "role": "checkbox",
@@ -371,7 +371,7 @@
       "snapshot": "- article:\n  - heading \"35. SettingsView.vue:1890\" [level=2]\n  - checkbox \"admin.settings.license.editor.limitHostsEnabled\":\n    - img\n    - text: admin.settings.license.editor.limitHostsEnabled"
     },
     {
-      "key": "3be5ca28-ce11-460b-83b1-d380f8e22393",
+      "issueId": "3be5ca28-ce11-460b-83b1-d380f8e22393",
       "file": "apps/frontend/src/views/admin/SettingsView.vue",
       "baselineLine": 1930,
       "role": "checkbox",
@@ -381,7 +381,7 @@
       "snapshot": "- article:\n  - heading \"36. SettingsView.vue:1930\" [level=2]\n  - checkbox \"admin.settings.license.sessionAudit\":\n    - img\n    - text: admin.settings.license.sessionAudit"
     },
     {
-      "key": "b998c9a3-ffd3-4187-97ad-3a7f83d5213a",
+      "issueId": "b998c9a3-ffd3-4187-97ad-3a7f83d5213a",
       "file": "apps/frontend/src/views/admin/SettingsView.vue",
       "baselineLine": 1984,
       "role": "checkbox",
@@ -391,7 +391,7 @@
       "snapshot": "- article:\n  - heading \"37. SettingsView.vue:1984\" [level=2]\n  - checkbox \"admin.settings.license.secrets\":\n    - img\n    - text: admin.settings.license.secrets"
     },
     {
-      "key": "441bc334-d3cd-4bdb-a3e4-d01f890e2b7b",
+      "issueId": "441bc334-d3cd-4bdb-a3e4-d01f890e2b7b",
       "file": "apps/frontend/src/views/admin/SettingsView.vue",
       "baselineLine": 1992,
       "role": "checkbox",
@@ -401,7 +401,7 @@
       "snapshot": "- article:\n  - heading \"38. SettingsView.vue:1992\" [level=2]\n  - checkbox \"admin.settings.license.snippets\":\n    - img\n    - text: admin.settings.license.snippets"
     },
     {
-      "key": "92e1fa62-f411-4e87-917a-646fb52c6b4d",
+      "issueId": "92e1fa62-f411-4e87-917a-646fb52c6b4d",
       "file": "apps/frontend/src/views/admin/SettingsView.vue",
       "baselineLine": 2000,
       "role": "checkbox",
@@ -411,7 +411,7 @@
       "snapshot": "- article:\n  - heading \"39. SettingsView.vue:2000\" [level=2]\n  - checkbox \"admin.settings.license.sshTunnels\":\n    - img\n    - text: admin.settings.license.sshTunnels"
     },
     {
-      "key": "c6fa7a1e-153e-483f-a2ae-209f69d691ab",
+      "issueId": "c6fa7a1e-153e-483f-a2ae-209f69d691ab",
       "file": "apps/frontend/src/views/admin/SettingsView.vue",
       "baselineLine": 2008,
       "role": "checkbox",
@@ -421,7 +421,7 @@
       "snapshot": "- article:\n  - heading \"40. SettingsView.vue:2008\" [level=2]\n  - checkbox \"admin.settings.license.integrations\":\n    - img\n    - text: admin.settings.license.integrations"
     },
     {
-      "key": "d860d4cd-0edb-475f-81af-87afb0402cf4",
+      "issueId": "d860d4cd-0edb-475f-81af-87afb0402cf4",
       "file": "apps/frontend/src/views/admin/SettingsView.vue",
       "baselineLine": 2016,
       "role": "checkbox",
@@ -431,7 +431,7 @@
       "snapshot": "- article:\n  - heading \"41. SettingsView.vue:2016\" [level=2]\n  - checkbox \"admin.settings.license.feedback\":\n    - img\n    - text: admin.settings.license.feedback"
     },
     {
-      "key": "e19b23d8-6b59-4a55-b90b-0221fc102961",
+      "issueId": "e19b23d8-6b59-4a55-b90b-0221fc102961",
       "file": "apps/frontend/src/views/admin/SettingsView.vue",
       "baselineLine": 2071,
       "role": "checkbox",
@@ -441,7 +441,7 @@
       "snapshot": "- article:\n  - heading \"42. SettingsView.vue:2071\" [level=2]\n  - checkbox \"JIRA\":\n    - img\n    - text: JIRA"
     },
     {
-      "key": "33598464-9f28-4592-a5d5-f6cddffc8b90",
+      "issueId": "33598464-9f28-4592-a5d5-f6cddffc8b90",
       "file": "apps/frontend/src/views/admin/SettingsView.vue",
       "baselineLine": 2082,
       "role": "checkbox",
@@ -451,7 +451,7 @@
       "snapshot": "- article:\n  - heading \"43. SettingsView.vue:2082\" [level=2]\n  - checkbox \"Google\":\n    - img\n    - text: Google"
     },
     {
-      "key": "7d670c6f-4c11-46e0-a1f6-073b27b07218",
+      "issueId": "7d670c6f-4c11-46e0-a1f6-073b27b07218",
       "file": "apps/frontend/src/views/admin/SettingsView.vue",
       "baselineLine": 2093,
       "role": "checkbox",
@@ -463,7 +463,7 @@
   ],
   "nativeResults": [
     {
-      "key": "7c301dde-bcdb-475f-bf28-9ad5c9e3c1f0",
+      "issueId": "7c301dde-bcdb-475f-bf28-9ad5c9e3c1f0",
       "file": "apps/frontend/src/views/admin/McpTokensView.vue",
       "baselineLine": 1117,
       "named": true,
@@ -471,7 +471,7 @@
       "focusable": true
     },
     {
-      "key": "c138f94a-1891-409a-920e-fbbb40b62c81",
+      "issueId": "c138f94a-1891-409a-920e-fbbb40b62c81",
       "file": "apps/frontend/src/views/admin/McpTokensView.vue",
       "baselineLine": 1352,
       "named": true,
@@ -479,7 +479,7 @@
       "focusable": true
     },
     {
-      "key": "ed06d216-e71a-4ebe-b469-cf2a7755808a",
+      "issueId": "ed06d216-e71a-4ebe-b469-cf2a7755808a",
       "file": "apps/frontend/src/components/ImportHostsModal.vue",
       "baselineLine": 2734,
       "named": true,
@@ -487,7 +487,7 @@
       "focusable": true
     },
     {
-      "key": "57c47251-8ecf-4bac-bbda-bc8b6c49948e",
+      "issueId": "57c47251-8ecf-4bac-bbda-bc8b6c49948e",
       "file": "apps/frontend/src/views/ForwardingsView.vue",
       "baselineLine": 1221,
       "named": true,
@@ -495,7 +495,7 @@
       "focusable": true
     },
     {
-      "key": "6ba9eaff-ceec-4532-ae9d-7194d3f813fa",
+      "issueId": "6ba9eaff-ceec-4532-ae9d-7194d3f813fa",
       "file": "apps/frontend/src/views/ForwardingsView.vue",
       "baselineLine": 1258,
       "named": true,
@@ -503,7 +503,7 @@
       "focusable": true
     },
     {
-      "key": "802c7f72-2fea-47f2-99f4-66d395a3d3be",
+      "issueId": "802c7f72-2fea-47f2-99f4-66d395a3d3be",
       "file": "apps/frontend/src/views/TerminalView.vue",
       "baselineLine": 5877,
       "named": false,
@@ -511,7 +511,7 @@
       "focusable": true
     },
     {
-      "key": "9582297f-f6e7-428b-aef1-c4e969758c73",
+      "issueId": "9582297f-f6e7-428b-aef1-c4e969758c73",
       "file": "apps/frontend/src/views/GraphicalSessionView.vue",
       "baselineLine": 1720,
       "named": false,
@@ -519,7 +519,7 @@
       "focusable": true
     },
     {
-      "key": "fa7a0d89-e19c-46e6-9ab8-8774a0fec3e0",
+      "issueId": "fa7a0d89-e19c-46e6-9ab8-8774a0fec3e0",
       "file": "apps/frontend/src/components/CommandPalette.vue",
       "baselineLine": 219,
       "named": true,
@@ -527,7 +527,7 @@
       "focusable": true
     },
     {
-      "key": "3df234cb-c29c-4117-a0d7-e235411deb56",
+      "issueId": "3df234cb-c29c-4117-a0d7-e235411deb56",
       "file": "apps/frontend/src/components/TunnelManager.vue",
       "baselineLine": 448,
       "named": true,
@@ -535,7 +535,7 @@
       "focusable": true
     },
     {
-      "key": "720ecf3d-b7ab-4b91-a01d-0bc7e9b065a3",
+      "issueId": "720ecf3d-b7ab-4b91-a01d-0bc7e9b065a3",
       "file": "apps/frontend/src/components/TunnelManager.vue",
       "baselineLine": 469,
       "named": true,

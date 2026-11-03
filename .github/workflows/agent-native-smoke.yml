@@ -18,6 +18,8 @@ jobs:
         with:
           node-version: 24.21.0
           cache: npm
+      - name: Use npm with workspace override support
+        run: npm install --global npm@12.2.1
       - run: npm ci
       - run: node --test apps/agent/src/agent-runtime.test.js
       - run: node --test apps/agent/src/agent-integration.test.js
@@ -149,6 +151,8 @@ jobs:
         with:
           node-version: 24.21.0
           cache: npm
+      - name: Use npm with workspace override support
+        run: npm install --global npm@12.2.1
       - run: npm ci
       - run: npm run build -w packages/shared
       - run: npx playwright install --with-deps chromium
