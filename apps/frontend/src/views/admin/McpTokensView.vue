@@ -1146,7 +1146,6 @@ watch(() => auth.user?.tenantId, () => {
                   @update:checked="(checked) => toggleActionMode(option.value, checked)"
                 />
                 <div class="mode-copy">
-
                   <NTooltip
                     trigger="hover"
                     placement="top"
@@ -1162,7 +1161,9 @@ watch(() => auth.user?.tenantId, () => {
                         i
                       </button>
                     </template>
-                    <div class="tooltip-copy">{{ actionModeTooltip(option.value) }}</div>
+                    <div class="tooltip-copy">
+                      {{ actionModeTooltip(option.value) }}
+                    </div>
                   </NTooltip>
                 </div>
               </div>
@@ -1383,7 +1384,6 @@ watch(() => auth.user?.tenantId, () => {
                   @update:checked="(checked) => toggleActionMode(option.value, checked)"
                 />
                 <div class="mode-copy">
-
                   <NTooltip
                     trigger="hover"
                     placement="top"
@@ -1399,7 +1399,9 @@ watch(() => auth.user?.tenantId, () => {
                         i
                       </button>
                     </template>
-                    <div class="tooltip-copy">{{ actionModeTooltip(option.value) }}</div>
+                    <div class="tooltip-copy">
+                      {{ actionModeTooltip(option.value) }}
+                    </div>
                   </NTooltip>
                 </div>
               </div>

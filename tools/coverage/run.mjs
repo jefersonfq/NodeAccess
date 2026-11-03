@@ -26,7 +26,7 @@ function command(root, args, env, logfile) {
 export async function runCoverage({ root = projectRoot, base, execute = command, env = process.env } = {}) {
   const startedAt = new Date().toISOString()
   const files = sourceInventory(root), fingerprint = sourceFingerprint(root, files)
-  const head = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim()
+  const head = execFileSync('/usr/bin/git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim()
   const output = join(root, 'coverage')
   mkdirSync(output, { recursive: true, mode: 0o700 })
   for (const name of ['vitest', 'node-v8', 'browser', 'vitest-tests.json', 'summary.json', 'coverage-final.json', 'lcov.info']) rmSync(join(output, name), { recursive: true, force: true })
@@ -37,7 +37,7 @@ export async function runCoverage({ root = projectRoot, base, execute = command,
   try {
     const version = process.versions.node.split('.').map(Number)
     if (version[0] !== 24 || version[1] < 21) throw new Error('Coverage requires Node 24.21+')
-    if (base) result.resolvedBase = execFileSync('git', ['rev-parse', '--verify', `${base}^{commit}`], { cwd: root, encoding: 'utf8' }).trim()
+    if (base) result.resolvedBase = execFileSync('/usr/bin/git', ['rev-parse', '--verify', `${base}^{commit}`], { cwd: root, encoding: 'utf8' }).trim()
     const vitestExit = execute(root, [join(root, 'node_modules/vitest/vitest.mjs'), 'run', '--coverage', '--reporter=json', '--outputFile=coverage/vitest-tests.json'],
       { ...childEnv, NODEACCESS_COVERAGE_COLLECT: '1' }, join(output, 'vitest.log'))
     result.collectors.vitest = { exitCode: vitestExit }

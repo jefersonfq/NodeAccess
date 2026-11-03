@@ -48,16 +48,17 @@ export async function readFileSafe(path,options={}){
     return Buffer.concat(chunks)
   })
 }
-export async function writePrivate(path, content, owner={uid:process.getuid(),gid:process.getgid()}, {publicDirectory=false}={}) {
-  const directory=await directoryHandle(dirname(path),owner,{publicDirectory})
+export async function writePrivate(path, content, owner, {publicDirectory=false}={}) {
+  const fileOwner=owner===undefined?{uid:process.getuid(),gid:process.getgid()}:owner
+  const directory=await directoryHandle(dirname(path),fileOwner,{publicDirectory})
   const base=`/proc/self/fd/${directory.fd}`,target=join(base,basename(path)),temporary=join(base,`.write-${randomUUID()}`)
   let file
   try {
     const previous=await lstat(target).catch(e=>{if(e.code!=='ENOENT')throw e})
-    if(previous&&(!previous.isFile()||previous.isSymbolicLink()||previous.uid!==owner.uid))throw failure('UNSAFE_FILE')
+    if(previous&&(!previous.isFile()||previous.isSymbolicLink()||previous.uid!==fileOwner.uid))throw failure('UNSAFE_FILE')
     file=await open(temporary,constants.O_WRONLY|constants.O_CREAT|constants.O_EXCL|constants.O_NOFOLLOW,0o600)
     await file.writeFile(typeof content==='object'&&!Buffer.isBuffer(content)?JSON.stringify(content,null,2)+'\n':content)
-    if(process.getuid()===0)await file.chown(owner.uid,owner.gid)
+    if(process.getuid()===0)await file.chown(fileOwner.uid,fileOwner.gid)
     await file.sync();await file.close();file=undefined
     await rename(temporary,target);await directory.sync()
   }finally{await file?.close();await unlink(temporary).catch(e=>{if(e.code!=='ENOENT')throw e});await directory.close()}

@@ -171,6 +171,7 @@
     "sonar:export": "node tools/sonarqube/export.mjs",
     "test:sonar": "node --test tools/sonarqube/*.test.mjs",
     "validate:sonar": "node tools/sonarqube/validate.mjs",
+    "sonar:ci": "node tools/sonarqube/ci-run.mjs",
     "sonar:catalog": "node tools/sonarqube/ledger.mjs",
     "test:coverage": "node tools/coverage/run.mjs"
   },

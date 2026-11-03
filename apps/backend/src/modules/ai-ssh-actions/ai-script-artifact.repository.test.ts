@@ -5,15 +5,15 @@ describe('script destination provenance', () => {
   it('persists a fresh destination on creation before the command is prepared for approval', async () => {
     const destinations: string[] = []
     const tx = {
-      $executeRaw: vi.fn(async (sql: { values: unknown[] }) => {
+      $executeRaw: vi.fn((sql: { values: unknown[] }) => {
         destinations.push(sql.values[5] as string)
-        return 1
+        return Promise.resolve(1)
       }),
-      $queryRaw: vi.fn(async () => [{ id: BigInt(destinations.length) }]),
+      $queryRaw: vi.fn(() => Promise.resolve([{ id: BigInt(destinations.length) }])),
     }
     const db = { $transaction: (operation: (value: typeof tx) => unknown) => operation(tx) }
     const repository = new AiScriptArtifactRepository(db as never)
-    vi.spyOn(repository, 'findById').mockImplementation(async (id) => ({ id, destination: destinations[id - 1] } as never))
+    vi.spyOn(repository, 'findById').mockImplementation((id) => Promise.resolve({ id, destination: destinations[id - 1] } as never))
     const input = { tenantId: 1, hostId: 2, createdById: 3, title: 'test', objective: 'test', content: 'true', checksum: 'checksum', risk: 'safe' as const }
     const first = await repository.create(input), second = await repository.create(input)
     expect(first.destination).toMatch(/^\/tmp\/nodeaccess-ai-script-\d+\.sh$/)

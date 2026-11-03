@@ -46,7 +46,7 @@ export async function validate({ root = projectRoot, env = process.env, execute 
   if (env.SONAR_TOKEN === env.SONAR_REVIEW_TOKEN) throw new Error('Analysis and review tokens must be distinct')
   const baseline = JSON.parse(readFileSync(join(root, 'docs/sonarqube/accepted-findings.json'), 'utf8'))
   compareFindings([], baseline) // Validate reviewed policy before expensive work.
-  const git = args => execFileSync('git', args, { cwd: root, encoding: 'utf8' }).trim()
+  const git = args => execFileSync('/usr/bin/git', args, { cwd: root, encoding: 'utf8' }).trim()
   const head = git(['rev-parse', 'HEAD'])
   const requestedBase = env.SONAR_BASE_SHA ?? git(['merge-base', 'HEAD', 'origin/master'])
   if (!/^[a-f0-9]{40}$/i.test(requestedBase)) throw new Error('Valid coverage base SHA required')

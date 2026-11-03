@@ -33,13 +33,13 @@ onMounted(async () => {
   await nextTick()
   inputRef.value?.focus()
   await loadInitialData()
-  window.addEventListener(FEATURES_UPDATED_EVENT, reloadFeatures)
+  window.addEventListener(FEATURES_UPDATED_EVENT, handleFeaturesUpdated)
   window.addEventListener(INVENTORY_ACL_CHANGED_EVENT, scheduleHostsReload)
   window.addEventListener(USER_ACL_MEMBERSHIP_CHANGED_EVENT, scheduleHostsReload)
 })
 
 onUnmounted(() => {
-  window.removeEventListener(FEATURES_UPDATED_EVENT, reloadFeatures)
+  window.removeEventListener(FEATURES_UPDATED_EVENT, handleFeaturesUpdated)
   window.removeEventListener(INVENTORY_ACL_CHANGED_EVENT, scheduleHostsReload)
   window.removeEventListener(USER_ACL_MEMBERSHIP_CHANGED_EVENT, scheduleHostsReload)
   if (aclReloadTimer !== null) {
@@ -48,7 +48,7 @@ onUnmounted(() => {
   }
 })
 
-async function loadInitialData() {
+async function loadInitialData(): Promise<void> {
   loading.value = true
   try {
     const [{ data }, features] = await Promise.all([
@@ -62,7 +62,7 @@ async function loadInitialData() {
   }
 }
 
-async function reloadHosts() {
+async function reloadHosts(): Promise<void> {
   hostService.clear('acl-realtime:command-palette')
   try {
     const { data } = await hostService.list({ limit: 200 })
@@ -72,7 +72,7 @@ async function reloadHosts() {
   }
 }
 
-function scheduleHostsReload() {
+function scheduleHostsReload(): void {
   if (aclReloadTimer !== null) clearTimeout(aclReloadTimer)
   aclReloadTimer = setTimeout(() => {
     aclReloadTimer = null
@@ -80,7 +80,9 @@ function scheduleHostsReload() {
   }, 150)
 }
 
-async function reloadFeatures() {
+function handleFeaturesUpdated(): void { void reloadFeatures() }
+
+async function reloadFeatures(): Promise<void> {
   featuresService.clear()
   const features = await featuresService.get().catch(() => null)
   mcpLicensed.value = features?.mcpLicensed ?? true
@@ -98,29 +100,29 @@ interface Item {
 
 const navLinks = computed<Item[]>(() => [
   ...(auth.isAdmin ? [
-    { type: 'nav' as const, label: t('nav.dashboard'),     sub: t('nav.admin'),   icon: 'M18 20V10M12 20V4M6 20V14', action: () => go('admin-dashboard') },
-    { type: 'nav' as const, label: t('nav.users'),         sub: t('nav.admin'),   icon: 'M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M12 7a4 4 0 1 0 0-8 4 4 0 0 0 0 8z', action: () => go('admin-users') },
-    { type: 'nav' as const, label: t('nav.groups'),        sub: t('nav.admin'),   icon: 'M3 7v10a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-6l-2-2H5a2 2 0 0 0-2 2z', action: () => go('admin-groups') },
-    { type: 'nav' as const, label: t('nav.diagnosticPlaybooks'), sub: t('nav.admin'), icon: 'M9 3h6M10 8h8M8 13h10M10 18h8M5 3h.01M5 8h.01M5 13h.01M5 18h.01', action: () => go('admin-diagnostic-playbooks') },
+    { type: 'nav' as const, label: t('nav.dashboard'),     sub: t('nav.admin'),   icon: 'M18 20V10M12 20V4M6 20V14', action: (): void => go('admin-dashboard') },
+    { type: 'nav' as const, label: t('nav.users'),         sub: t('nav.admin'),   icon: 'M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M12 7a4 4 0 1 0 0-8 4 4 0 0 0 0 8z', action: (): void => go('admin-users') },
+    { type: 'nav' as const, label: t('nav.groups'),        sub: t('nav.admin'),   icon: 'M3 7v10a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-6l-2-2H5a2 2 0 0 0-2 2z', action: (): void => go('admin-groups') },
+    { type: 'nav' as const, label: t('nav.diagnosticPlaybooks'), sub: t('nav.admin'), icon: 'M9 3h6M10 8h8M8 13h10M10 18h8M5 3h.01M5 8h.01M5 13h.01M5 18h.01', action: (): void => go('admin-diagnostic-playbooks') },
     ...(mcpLicensed.value ? [
-      { type: 'nav' as const, label: t('nav.mcpTokens'), sub: t('nav.admin'), icon: 'M14 10V6a4 4 0 1 0-8 0v4M4 10h16v10H4zM12 14h.01', action: () => go('admin-mcp-tokens') },
+      { type: 'nav' as const, label: t('nav.mcpTokens'), sub: t('nav.admin'), icon: 'M14 10V6a4 4 0 1 0-8 0v4M4 10h16v10H4zM12 14h.01', action: (): void => go('admin-mcp-tokens') },
     ] : []),
-    { type: 'nav' as const, label: t('nav.sessions'),      sub: t('nav.reports'), icon: 'M22 12h-2.48a2 2 0 0 0-1.93 1.46l-2.35 8.36a.25.25 0 0 1-.48 0L9.24 2.18a.25.25 0 0 0-.48 0l-2.35 8.36A2 2 0 0 1 4.49 12H2', action: () => go('admin-reports-sessions') },
-    { type: 'nav' as const, label: t('nav.reportsOverview'), sub: t('nav.reports'), icon: 'M3 3v18h18M7 15v3M12 9v9M17 12v6M7 11l4-4 4 3 4-6', action: () => go('admin-reports') },
-    { type: 'nav' as const, label: t('nav.logs'),          sub: t('nav.reports'), icon: 'M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7zM14 2v4a2 2 0 0 0 2 2h4M10 9H8M16 13H8M16 17H8', action: () => go('admin-logs') },
-    { type: 'nav' as const, label: t('nav.sessionAudit'),  sub: t('nav.reports'), icon: 'M12 8v4l3 3M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18M8 2h8', action: () => go('admin-session-audit') },
-    { type: 'nav' as const, label: t('nav.sftpAudit'),     sub: t('nav.reports'), icon: 'M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7zM14 2v4a2 2 0 0 0 2 2h4M8 13h8M8 17h5', action: () => go('admin-sftp-audit') },
-    { type: 'nav' as const, label: t('nav.nativeSshGateway'), sub: t('nav.admin'), icon: 'm4 17 6-6-6-6M12 19h8M12 4h8v8h-8zM14 8h4', action: () => go('admin-native-ssh-gateway') },
-    { type: 'nav' as const, label: t('nav.sessionCommandPolicies'), sub: t('nav.admin'), icon: 'm4 17 6-6-6-6M12 19h8M17 4l3 3-3 3M14 7h6', action: () => go('admin-session-command-policies') },
-    { type: 'nav' as const, label: t('nav.integrations'),  sub: t('nav.admin'),   icon: 'M12 22v-5M9 8V2M15 8V2M18 8H6a2 2 0 0 0-2 2v2a7 7 0 0 0 14 0v-2a2 2 0 0 0-2-2z', action: () => go('admin-integrations') },
-    { type: 'nav' as const, label: t('nav.settings'),      sub: t('nav.admin'),   icon: 'M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2zM12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z', action: () => go('admin-settings') },
+    { type: 'nav' as const, label: t('nav.sessions'),      sub: t('nav.reports'), icon: 'M22 12h-2.48a2 2 0 0 0-1.93 1.46l-2.35 8.36a.25.25 0 0 1-.48 0L9.24 2.18a.25.25 0 0 0-.48 0l-2.35 8.36A2 2 0 0 1 4.49 12H2', action: (): void => go('admin-reports-sessions') },
+    { type: 'nav' as const, label: t('nav.reportsOverview'), sub: t('nav.reports'), icon: 'M3 3v18h18M7 15v3M12 9v9M17 12v6M7 11l4-4 4 3 4-6', action: (): void => go('admin-reports') },
+    { type: 'nav' as const, label: t('nav.logs'),          sub: t('nav.reports'), icon: 'M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7zM14 2v4a2 2 0 0 0 2 2h4M10 9H8M16 13H8M16 17H8', action: (): void => go('admin-logs') },
+    { type: 'nav' as const, label: t('nav.sessionAudit'),  sub: t('nav.reports'), icon: 'M12 8v4l3 3M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18M8 2h8', action: (): void => go('admin-session-audit') },
+    { type: 'nav' as const, label: t('nav.sftpAudit'),     sub: t('nav.reports'), icon: 'M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7zM14 2v4a2 2 0 0 0 2 2h4M8 13h8M8 17h5', action: (): void => go('admin-sftp-audit') },
+    { type: 'nav' as const, label: t('nav.nativeSshGateway'), sub: t('nav.admin'), icon: 'm4 17 6-6-6-6M12 19h8M12 4h8v8h-8zM14 8h4', action: (): void => go('admin-native-ssh-gateway') },
+    { type: 'nav' as const, label: t('nav.sessionCommandPolicies'), sub: t('nav.admin'), icon: 'm4 17 6-6-6-6M12 19h8M17 4l3 3-3 3M14 7h6', action: (): void => go('admin-session-command-policies') },
+    { type: 'nav' as const, label: t('nav.integrations'),  sub: t('nav.admin'),   icon: 'M12 22v-5M9 8V2M15 8V2M18 8H6a2 2 0 0 0-2 2v2a7 7 0 0 0 14 0v-2a2 2 0 0 0-2-2z', action: (): void => go('admin-integrations') },
+    { type: 'nav' as const, label: t('nav.settings'),      sub: t('nav.admin'),   icon: 'M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2zM12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z', action: (): void => go('admin-settings') },
   ] : []),
   ...(auth.isPlatformAdmin ? [
-    { type: 'nav' as const, label: t('nav.observability'), sub: t('nav.platform'), icon: 'M22 12h-2.48a2 2 0 0 0-1.93 1.46l-2.35 8.36', action: () => go('admin-observability') },
-    { type: 'nav' as const, label: t('nav.platformSettings'), sub: t('nav.platform'), icon: 'M12.22 2h-.44a2 2 0 0 0-2 2v.18', action: () => go('platform-settings') },
+    { type: 'nav' as const, label: t('nav.observability'), sub: t('nav.platform'), icon: 'M22 12h-2.48a2 2 0 0 0-1.93 1.46l-2.35 8.36', action: (): void => go('admin-observability') },
+    { type: 'nav' as const, label: t('nav.platformSettings'), sub: t('nav.platform'), icon: 'M12.22 2h-.44a2 2 0 0 0-2 2v.18', action: (): void => go('platform-settings') },
   ] : []),
-  { type: 'nav' as const, label: t('nav.profile'),   sub: '', icon: 'M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2M12 3a4 4 0 1 0 0 8 4 4 0 0 0 0-8z', action: () => go('profile') },
-  { type: 'nav' as const, label: t('nav.pemKeys'),   sub: '', icon: 'M21 2l-9.6 9.6M7.5 10a5.5 5.5 0 1 0 0 11 5.5 5.5 0 0 0 0-11zM15.5 7.5l3 3L22 7l-3-3', action: () => go('pem-keys') },
+  { type: 'nav' as const, label: t('nav.profile'),   sub: '', icon: 'M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2M12 3a4 4 0 1 0 0 8 4 4 0 0 0 0-8z', action: (): void => go('profile') },
+  { type: 'nav' as const, label: t('nav.pemKeys'),   sub: '', icon: 'M21 2l-9.6 9.6M7.5 10a5.5 5.5 0 1 0 0 11 5.5 5.5 0 0 0 0-11zM15.5 7.5l3 3L22 7l-3-3', action: (): void => go('pem-keys') },
 ])
 
 const q = computed(() => query.value.toLowerCase().trim())
@@ -143,7 +145,7 @@ const hostItems = computed<Item[]>(() =>
     label:  h.name,
     sub:    `${h.ip}:${h.port}`,
     icon:   '<rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/><line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/>',
-    action: () => connectHost(h),
+    action: (): void => connectHost(h),
   })),
 )
 
@@ -156,8 +158,8 @@ watch(query, () => { selectedIndex.value = 0 })
 
 // ── Actions ───────────────────────────────────────────────────────────────────
 
-function go(name: string) {
-  router.push({ name })
+function go(name: string): void {
+  void router.push({ name })
   emit('close')
 }
 
@@ -165,25 +167,25 @@ function canConnectHost(host: HostPublic): boolean {
   return auth.isAdmin || host.accessPermissions?.connect === true
 }
 
-function connectHost(host: HostPublic) {
+function connectHost(host: HostPublic): void {
   if (!canConnectHost(host)) {
     message.warning(t('hosts.inventoryAcl.connectRequired'))
     return
   }
   if (getHostAccessProtocolCapabilities(host.accessProtocol).graphicalGatewayPlanned && termSettings.graphicalOpenMode === 'dedicated') {
-    router.push({ name: 'graphical-session', params: { hostId: host.id } })
+    void router.push({ name: 'graphical-session', params: { hostId: host.id } })
     emit('close')
     return
   }
   termStore.add({ id: host.id, name: host.name, ip: host.ip, port: host.port, authType: host.authType, accessProtocol: host.accessProtocol })
   resetTerminalLayout()
-  router.push({ name: 'terminal' })
+  void router.push({ name: 'terminal' })
   emit('close')
 }
 
 // ── Keyboard ──────────────────────────────────────────────────────────────────
 
-function onKey(e: KeyboardEvent) {
+function onKey(e: KeyboardEvent): void {
   if (e.key === 'ArrowDown') {
     e.preventDefault()
     selectedIndex.value = Math.min(selectedIndex.value + 1, allItems.value.length - 1)
@@ -199,8 +201,8 @@ function onKey(e: KeyboardEvent) {
   }
 }
 
-function scrollActiveIntoView() {
-  nextTick(() => {
+function scrollActiveIntoView(): void {
+  void nextTick(() => {
     document.querySelector('.cmd-item--active')?.scrollIntoView({ block: 'nearest' })
   })
 }
@@ -208,36 +210,82 @@ function scrollActiveIntoView() {
 
 <template>
   <Teleport to="body">
-    <div class="cmd-overlay" @mousedown.self="$emit('close')">
-      <div class="cmd-panel" @keydown="onKey">
-
+    <div
+      class="cmd-overlay"
+      @mousedown.self="$emit('close')"
+    >
+      <div
+        class="cmd-panel"
+        @keydown="onKey"
+      >
         <!-- Search bar -->
         <div class="cmd-search-row">
-          <svg class="cmd-search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+          <svg
+            class="cmd-search-icon"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <circle
+              cx="11"
+              cy="11"
+              r="8"
+            /><path d="m21 21-4.35-4.35" />
           </svg>
           <input
             ref="inputRef"
-            :aria-label="t('commandPalette.placeholder')"
             v-model="query"
+            :aria-label="t('commandPalette.placeholder')"
             class="cmd-input"
             :placeholder="$t('commandPalette.placeholder')"
             autocomplete="off"
             spellcheck="false"
-          />
+          >
           <kbd class="cmd-esc">Esc</kbd>
         </div>
 
         <!-- Results -->
         <div class="cmd-results">
-          <div v-if="loading" class="cmd-empty">{{ $t('commandPalette.loading') }}</div>
+          <div
+            v-if="loading"
+            class="cmd-empty"
+          >
+            {{ $t('commandPalette.loading') }}
+          </div>
 
           <template v-else-if="allItems.length">
-
             <!-- Hosts section -->
-            <div v-if="hostItems.length" class="cmd-section-label">
-              <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline;vertical-align:middle;margin-right:4px">
-                <rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/>
+            <div
+              v-if="hostItems.length"
+              class="cmd-section-label"
+            >
+              <svg
+                viewBox="0 0 24 24"
+                width="12"
+                height="12"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                style="display:inline;vertical-align:middle;margin-right:4px"
+              >
+                <rect
+                  x="2"
+                  y="2"
+                  width="20"
+                  height="8"
+                  rx="2"
+                /><rect
+                  x="2"
+                  y="14"
+                  width="20"
+                  height="8"
+                  rx="2"
+                />
               </svg>
               {{ $t('commandPalette.hostsSection') }}
             </div>
@@ -250,9 +298,39 @@ function scrollActiveIntoView() {
               @mouseenter="selectedIndex = i"
               @click="host.action()"
             >
-              <svg class="cmd-item-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
-                <rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/>
-                <line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/>
+              <svg
+                class="cmd-item-icon"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.75"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <rect
+                  x="2"
+                  y="2"
+                  width="20"
+                  height="8"
+                  rx="2"
+                /><rect
+                  x="2"
+                  y="14"
+                  width="20"
+                  height="8"
+                  rx="2"
+                />
+                <line
+                  x1="6"
+                  y1="6"
+                  x2="6.01"
+                  y2="6"
+                /><line
+                  x1="6"
+                  y1="18"
+                  x2="6.01"
+                  y2="18"
+                />
               </svg>
               <span class="cmd-item-label">{{ host.label }}</span>
               <span class="cmd-item-sub font-mono">{{ host.sub }}</span>
@@ -260,9 +338,23 @@ function scrollActiveIntoView() {
             </button>
 
             <!-- Nav section -->
-            <div v-if="filteredNav.length" class="cmd-section-label" :class="{ 'cmd-section-label--top': hostItems.length }">
-              <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline;vertical-align:middle;margin-right:4px">
-                <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+            <div
+              v-if="filteredNav.length"
+              class="cmd-section-label"
+              :class="{ 'cmd-section-label--top': hostItems.length }"
+            >
+              <svg
+                viewBox="0 0 24 24"
+                width="12"
+                height="12"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                style="display:inline;vertical-align:middle;margin-right:4px"
+              >
+                <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
               </svg>
               {{ $t('commandPalette.navSection') }}
             </div>
@@ -275,16 +367,31 @@ function scrollActiveIntoView() {
               @mouseenter="selectedIndex = hostItems.length + i"
               @click="item.action()"
             >
-              <svg class="cmd-item-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+              <svg
+                class="cmd-item-icon"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.75"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
                 <path :d="item.icon" />
               </svg>
               <span class="cmd-item-label">{{ item.label }}</span>
-              <span v-if="item.sub" class="cmd-item-sub">{{ item.sub }}</span>
+              <span
+                v-if="item.sub"
+                class="cmd-item-sub"
+              >{{ item.sub }}</span>
             </button>
-
           </template>
 
-          <div v-else class="cmd-empty">{{ $t('commandPalette.noResults', { query }) }}</div>
+          <div
+            v-else
+            class="cmd-empty"
+          >
+            {{ $t('commandPalette.noResults', { query }) }}
+          </div>
         </div>
 
         <!-- Footer -->

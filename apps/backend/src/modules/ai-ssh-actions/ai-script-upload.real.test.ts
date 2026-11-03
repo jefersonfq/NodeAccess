@@ -117,7 +117,8 @@ touch /run/lab-ready
     const content = '#!/bin/sh\nprintf synthetic-only\\n\n'
     const artifact = { destination: '/tmp/nodeaccess-ai-script-340282366920938463463374607431768211455.sh', content,
       checksum: createHash('sha256').update(content).digest('hex') }
-    const upload = () => Reflect.get(runner, 'uploadScript').call(runner, connection, artifact) as Promise<void>
+    const uploadScript = Reflect.get(runner, 'uploadScript') as (client: typeof connection, script: typeof artifact) => Promise<void>
+    const upload = () => uploadScript.call(runner, connection, artifact)
     await upload()
     expect(await read(artifact.destination)).toEqual(Buffer.from(content))
     expect(await mode(artifact.destination)).toBe(0o700)

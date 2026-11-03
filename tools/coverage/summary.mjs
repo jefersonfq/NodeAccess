@@ -45,5 +45,5 @@ export function mergeCollectorMaps(vitestMap, nodeMap, root) {
   }
   map.filter(file => !nodeFiles.has(file))
   map.merge(nodeMap)
-  return { map, authority: { nodeFiles: [...nodeFiles].map(file => relative(root, file)).sort(), discardedVitestCredit } }
+  return { map, authority: { nodeFiles: [...nodeFiles].map(file => relative(root, file)).sort((left, right) => left.localeCompare(right, 'en')), discardedVitestCredit } }
 }

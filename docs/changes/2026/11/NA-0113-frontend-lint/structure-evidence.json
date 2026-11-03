@@ -1,0 +1,84 @@
+[
+  {
+    "file": "apps/frontend/src/components/CommandPalette.vue",
+    "templateStructure": true,
+    "stylesUnchanged": true,
+    "emittedScriptIdentical": false
+  },
+  {
+    "file": "apps/frontend/src/components/SessionSupervisionPermission.vue",
+    "templateStructure": true,
+    "stylesUnchanged": true,
+    "emittedScriptIdentical": true
+  },
+  {
+    "file": "apps/frontend/src/components/TunnelManager.vue",
+    "templateStructure": true,
+    "stylesUnchanged": true,
+    "emittedScriptIdentical": true
+  },
+  {
+    "file": "apps/frontend/src/components/diagnostics/DiagnosticRunHistoryPanel.vue",
+    "templateStructure": true,
+    "stylesUnchanged": true,
+    "emittedScriptIdentical": true
+  },
+  {
+    "file": "apps/frontend/src/components/platform/TenantLicenseEditor.vue",
+    "templateStructure": true,
+    "stylesUnchanged": true,
+    "emittedScriptIdentical": true
+  },
+  {
+    "file": "apps/frontend/src/services/avatar-image-processing.ts",
+    "emittedScriptIdentical": true
+  },
+  {
+    "file": "apps/frontend/src/services/host-view-preferences.service.ts",
+    "emittedScriptIdentical": true
+  },
+  {
+    "file": "apps/frontend/src/services/terminal-input-model.service.ts",
+    "emittedScriptIdentical": true
+  },
+  {
+    "file": "apps/frontend/src/services/terminal-session-entity-index.service.ts",
+    "emittedScriptIdentical": true
+  },
+  {
+    "file": "apps/frontend/src/views/DiagnosticRunDetailView.vue",
+    "templateStructure": true,
+    "stylesUnchanged": true,
+    "emittedScriptIdentical": false
+  },
+  {
+    "file": "apps/frontend/src/views/admin/DashboardView.vue",
+    "templateStructure": true,
+    "stylesUnchanged": true,
+    "emittedScriptIdentical": false
+  },
+  {
+    "file": "apps/frontend/src/views/admin/IntegrationsView.vue",
+    "templateStructure": true,
+    "stylesUnchanged": true,
+    "emittedScriptIdentical": true
+  },
+  {
+    "file": "apps/frontend/src/views/admin/McpTokensView.vue",
+    "templateStructure": true,
+    "stylesUnchanged": true,
+    "emittedScriptIdentical": true
+  },
+  {
+    "file": "apps/frontend/src/views/admin/ObservabilityView.vue",
+    "templateStructure": true,
+    "stylesUnchanged": true,
+    "emittedScriptIdentical": true
+  },
+  {
+    "file": "apps/frontend/src/views/admin/SettingsView.vue",
+    "templateStructure": true,
+    "stylesUnchanged": true,
+    "emittedScriptIdentical": true
+  }
+]

@@ -23,7 +23,12 @@ export function executeBrowserHarness(root, script, env, logfile, timeoutMs = 12
       else resolveRun({ exitCode: code ?? 1, timedOut })
     }
     child.once('error', error => finish(error))
-    child.once('close', code => finish(null, code))
+    child.once('close', code => {
+      // The leader may exit on SIGTERM while a descendant survives in its private group.
+      // Escalate now, before finish cancels the fallback timer; never retain a delayed PID target.
+      if (timedOut) stop('SIGKILL')
+      finish(null, code)
+    })
   })
 }
 export async function waitForBrowserModules(base, { timeoutMs = 60_000, fetcher = fetch } = {}) {

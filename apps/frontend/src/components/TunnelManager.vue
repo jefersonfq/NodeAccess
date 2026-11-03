@@ -59,7 +59,7 @@ function getErrorMessage(error: unknown, fallback: string): string {
   return err.response?.data?.message ?? fallback
 }
 
-function errorBadge(code: string) {
+function errorBadge(code: string): { label: string; style: string; } {
   switch (code) {
     case 'TUNNEL_LOCAL_PORT_IN_USE':
       return { label: t('tunnels.errorKinds.portInUse'), style: 'background:rgba(239,68,68,0.16); color:#fca5a5;' }
@@ -77,35 +77,35 @@ function errorBadge(code: string) {
   }
 }
 
-function routeLabel(method: ActiveTunnel['connectionMethod'] | TunnelTargetTestResult['connectionMethod']) {
+function routeLabel(method: ActiveTunnel['connectionMethod']  ): string {
   if (method === 'user_agent') return t('tunnels.routes.userAgent')
   if (method === 'tenant_agent') return t('tunnels.routes.tenantAgent')
   if (method === 'private_access_connector') return t('tunnels.routes.privateAccess')
   return t('tunnels.routes.direct')
 }
 
-function routeBadgeStyle(method: ActiveTunnel['connectionMethod'] | TunnelTargetTestResult['connectionMethod']) {
+function routeBadgeStyle(method: ActiveTunnel['connectionMethod']  ): string {
   if (method === 'private_access_connector') return 'background:rgba(14,165,233,0.16); color:#7dd3fc;'
   if (method === 'user_agent' || method === 'tenant_agent') return 'background:rgba(59,130,246,0.16); color:#93c5fd;'
   return 'background:rgba(107,114,128,0.18); color:#d1d5db;'
 }
 
-function publicEndpointHost(bindAddress?: '127.0.0.1' | '0.0.0.0') {
+function publicEndpointHost(bindAddress?: '127.0.0.1' | '0.0.0.0'): string {
   if (bindAddress === '0.0.0.0' && typeof window !== 'undefined' && window.location.hostname) {
     return window.location.hostname
   }
   return 'localhost'
 }
 
-function tunnelEndpoint(tunnel: ActiveTunnel) {
+function tunnelEndpoint(tunnel: ActiveTunnel): string {
   return `${publicEndpointHost(tunnel.bindAddress)}:${tunnel.assignedLocalPort}`
 }
 
-function errorEndpoint(error: TunnelStartupError) {
+function errorEndpoint(error: TunnelStartupError): string {
   return `${publicEndpointHost(error.bindAddress)}:${error.localPort}`
 }
 
-function activeTunnelStatusLabel(tunnel: ActiveTunnel) {
+function activeTunnelStatusLabel(tunnel: ActiveTunnel): string {
   if (tunnel.usedPortFallback) {
     return t('tunnels.templateActiveWithFallbackEndpoint', {
       endpoint: tunnelEndpoint(tunnel),
@@ -115,7 +115,7 @@ function activeTunnelStatusLabel(tunnel: ActiveTunnel) {
   return t('tunnels.templateActiveEndpoint', { endpoint: tunnelEndpoint(tunnel) })
 }
 
-async function loadTemplates() {
+async function loadTemplates(): Promise<void> {
   if (!props.hostId) return
   const generation = hostGeneration
   loading.value = true
@@ -152,22 +152,22 @@ const untemplatedActiveTunnels = computed(() => {
   return effectiveActiveTunnels.value.tunnels.filter(tunnel => !mappedIds.has(tunnel.id))
 })
 
-function activeTunnelForTemplate(templateId: number) {
+function activeTunnelForTemplate(templateId: number): ActiveTunnel | null {
   return activeTunnelByTemplateId.value.get(templateId) ?? null
 }
 
-function activeTunnelLabel(tunnel: ActiveTunnel) {
+function activeTunnelLabel(tunnel: ActiveTunnel): string | null {
   if (tunnel.description?.trim()) return tunnel.description.trim()
   const template = typeof tunnel.portForwardingId === 'number' ? templateById.value.get(tunnel.portForwardingId) : null
   if (template?.description?.trim()) return template.description.trim()
   return null
 }
 
-function publishActiveTunnels() {
+function publishActiveTunnels(): void {
   emit('activeTunnelsChange', effectiveActiveTunnels.value)
 }
 
-async function refreshActiveTunnels() {
+async function refreshActiveTunnels(): Promise<void> {
   if (!props.hostId) {
     liveActiveTunnels.value = []
     publishActiveTunnels()
@@ -198,7 +198,7 @@ watch(() => props.hostId, async () => {
   await refreshActiveTunnels()
 }, { immediate: true })
 
-async function saveTemplate() {
+async function saveTemplate(): Promise<void> {
   if (saving.value) return
   if (!props.hostId || !form.value.localPort || !form.value.remoteHost || !form.value.remotePort) return
   const generation = hostGeneration
@@ -236,7 +236,7 @@ async function saveTemplate() {
   }
 }
 
-function openEditTemplate(tpl: PortForwarding) {
+function openEditTemplate(tpl: PortForwarding): void {
   editingTemplateId.value = tpl.id
   showAdvancedOptions.value = tpl.bindAddress !== '127.0.0.1'
   form.value = {
@@ -252,7 +252,7 @@ function openEditTemplate(tpl: PortForwarding) {
   showForm.value = true
 }
 
-function closeTemplateForm() {
+function closeTemplateForm(): void {
   showForm.value = false
   showAdvancedOptions.value = false
   editingTemplateId.value = null
@@ -260,7 +260,7 @@ function closeTemplateForm() {
   form.value = Object.assign(emptyForm(), { description: '' })
 }
 
-async function testTarget() {
+async function testTarget(): Promise<void> {
   if (testingTarget.value) return
   const generation = hostGeneration
   if (!props.hostId || !form.value.remoteHost || !form.value.remotePort) return
@@ -284,7 +284,7 @@ async function testTarget() {
 }
 
 const updatingAutoStart = ref<Set<number>>(new Set())
-async function toggleAutoStart(tpl: PortForwarding, next: boolean) {
+async function toggleAutoStart(tpl: PortForwarding, next: boolean): Promise<void> {
   if (!props.hostId || updatingAutoStart.value.has(tpl.id)) return
   updatingAutoStart.value.add(tpl.id)
   try {
@@ -297,7 +297,7 @@ async function toggleAutoStart(tpl: PortForwarding, next: boolean) {
   }
 }
 
-async function removeTemplate(tpl: PortForwarding) {
+async function removeTemplate(tpl: PortForwarding): Promise<void> {
   if (!props.hostId) return
   try {
     await portForwardingService.remove(props.hostId, tpl.id)
@@ -309,7 +309,7 @@ async function removeTemplate(tpl: PortForwarding) {
 }
 
 // ── Active tunnels ────────────────────────────────────────────────────────────
-async function openTunnelFromTemplate(tpl: PortForwarding) {
+async function openTunnelFromTemplate(tpl: PortForwarding): Promise<void> {
   if (!props.hostId || openingTemplateId.value !== null || activeTunnelForTemplate(tpl.id)) return
   const generation = hostGeneration
   presenceRequest++
@@ -344,7 +344,7 @@ async function openTunnelFromTemplate(tpl: PortForwarding) {
   }
 }
 
-async function closeTunnel(id: string) {
+async function closeTunnel(id: string): Promise<void> {
   if (closingTunnelId.value !== null) return
   closingTunnelId.value = id
   const generation = hostGeneration
@@ -361,7 +361,7 @@ async function closeTunnel(id: string) {
   } finally { closingTunnelId.value = null }
 }
 
-async function openWebAccess(templateId: number) {
+async function openWebAccess(templateId: number): Promise<void> {
   try {
     const { data } = await webAccessService.createLink(templateId)
     await refreshActiveTunnels()
@@ -379,7 +379,7 @@ async function openWebAccess(templateId: number) {
   }
 }
 
-async function copyTunnelEndpoint(tunnel: ActiveTunnel) {
+async function copyTunnelEndpoint(tunnel: ActiveTunnel): Promise<void> {
   try {
     await navigator.clipboard.writeText(tunnelEndpoint(tunnel))
     if (tunnel.usedPortFallback) {
@@ -398,61 +398,123 @@ async function copyTunnelEndpoint(tunnel: ActiveTunnel) {
 
 <template>
   <div class="flex flex-col h-full bg-[#18181c] border-l border-gray-800">
-
     <!-- Header -->
-    <div class="flex items-center gap-2 px-3 py-2 border-b border-gray-800 shrink-0" style="height:36px;">
+    <div
+      class="flex items-center gap-2 px-3 py-2 border-b border-gray-800 shrink-0"
+      style="height:36px;"
+    >
       <span class="text-xs font-semibold text-gray-300 flex-1">{{ $t('tunnels.title') }}</span>
-      <NButton size="tiny" type="primary" :disabled="!hostId" @click="showForm ? closeTemplateForm() : (showForm = true)">
+      <NButton
+        size="tiny"
+        type="primary"
+        :disabled="!hostId"
+        @click="showForm ? closeTemplateForm() : (showForm = true)"
+      >
         + {{ $t('tunnels.new') }}
       </NButton>
     </div>
 
-    <NAlert v-if="loadError || tunnelPresence.unavailable.value" type="warning" class="m-2" data-tunnel-load-error="true">
+    <NAlert
+      v-if="loadError || tunnelPresence.unavailable.value"
+      type="warning"
+      class="m-2"
+      data-tunnel-load-error="true"
+    >
       {{ t('tunnels.refreshError') }}
-      <NButton size="tiny" :loading="loading" @click="loadTemplates().then(refreshActiveTunnels)">{{ t('tunnels.retry') }}</NButton>
+      <NButton
+        size="tiny"
+        :loading="loading"
+        @click="loadTemplates().then(refreshActiveTunnels)"
+      >
+        {{ t('tunnels.retry') }}
+      </NButton>
     </NAlert>
     <!-- Add form -->
-    <div v-if="showForm" class="p-3 border-b border-gray-800 shrink-0 bg-[#111113] space-y-2">
+    <div
+      v-if="showForm"
+      class="p-3 border-b border-gray-800 shrink-0 bg-[#111113] space-y-2"
+    >
       <p class="text-xs font-semibold text-gray-200">
         {{ editingTemplateId !== null ? $t('common.edit') : $t('tunnels.formTitle') }}
       </p>
 
       <div class="flex items-center gap-2">
         <span class="text-[11px] text-gray-400 w-20 shrink-0">{{ $t('tunnels.localPort') }}</span>
-        <NInputNumber v-model:value="form.localPort" :min="1024" :max="65535" size="small" class="flex-1" placeholder="8080" />
+        <NInputNumber
+          v-model:value="form.localPort"
+          :min="1024"
+          :max="65535"
+          size="small"
+          class="flex-1"
+          placeholder="8080"
+        />
       </div>
       <p class="text-[10px] text-gray-500 -mt-1 pl-[88px]">
         {{ $t('tunnels.localPortHelp') }}
       </p>
       <div class="flex items-center gap-2">
         <span class="text-[11px] text-gray-400 w-20 shrink-0">{{ $t('tunnels.remoteHost') }}</span>
-        <NInput v-model:value="form.remoteHost" size="small" class="flex-1" :placeholder="$t('tunnels.remoteHostPlaceholder')" />
+        <NInput
+          v-model:value="form.remoteHost"
+          size="small"
+          class="flex-1"
+          :placeholder="$t('tunnels.remoteHostPlaceholder')"
+        />
       </div>
       <p class="text-[10px] text-gray-500">
         {{ $t('tunnels.remoteHostHelp') }}
       </p>
       <div class="flex items-center gap-2">
         <span class="text-[11px] text-gray-400 w-20 shrink-0">{{ $t('tunnels.remotePort') }}</span>
-        <NInputNumber v-model:value="form.remotePort" :min="1" :max="65535" size="small" class="flex-1" placeholder="3306" />
+        <NInputNumber
+          v-model:value="form.remotePort"
+          :min="1"
+          :max="65535"
+          size="small"
+          class="flex-1"
+          placeholder="3306"
+        />
       </div>
       <div class="flex items-center gap-2">
         <span class="text-[11px] text-gray-400 w-20 shrink-0">{{ $t('tunnels.description') }}</span>
-        <NInput v-model:value="form.description" size="small" class="flex-1" :placeholder="$t('tunnels.descriptionHint')" />
+        <NInput
+          v-model:value="form.description"
+          size="small"
+          class="flex-1"
+          :placeholder="$t('tunnels.descriptionHint')"
+        />
       </div>
       <div class="flex items-center gap-2">
         <span class="text-[11px] text-gray-400 w-20 shrink-0">{{ $t('tunnels.webEnabled') }}</span>
-        <NSwitch v-model:value="form.webEnabled" size="small" />
+        <NSwitch
+          v-model:value="form.webEnabled"
+          size="small"
+        />
       </div>
-      <div v-if="form.webEnabled" class="flex items-center gap-2">
+      <div
+        v-if="form.webEnabled"
+        class="flex items-center gap-2"
+      >
         <span class="text-[11px] text-gray-400 w-20 shrink-0">{{ $t('tunnels.webProtocol') }}</span>
-        <select v-model="form.webProtocol" :aria-label="$t('tunnels.webProtocol')" class="flex-1 rounded border border-gray-700 bg-[#18181c] px-2 py-1 text-xs text-gray-200">
-          <option value="http">HTTP</option>
-          <option value="https">HTTPS</option>
+        <select
+          v-model="form.webProtocol"
+          :aria-label="$t('tunnels.webProtocol')"
+          class="flex-1 rounded border border-gray-700 bg-[#18181c] px-2 py-1 text-xs text-gray-200"
+        >
+          <option value="http">
+            HTTP
+          </option>
+          <option value="https">
+            HTTPS
+          </option>
         </select>
       </div>
       <div class="flex items-center gap-2">
         <span class="text-[11px] text-gray-400 w-20 shrink-0">{{ $t('tunnels.autoStart') }}</span>
-        <NSwitch v-model:value="form.autoStart" size="small" />
+        <NSwitch
+          v-model:value="form.autoStart"
+          size="small"
+        />
         <span class="text-[11px] text-gray-500">{{ $t('tunnels.autoStartHint') }}</span>
       </div>
       <div class="border border-gray-800 rounded bg-[#0d0d0f] px-2 py-2">
@@ -464,21 +526,45 @@ async function copyTunnelEndpoint(tunnel: ActiveTunnel) {
           <span class="text-[11px] text-gray-300">{{ $t('tunnels.advancedTitle') }}</span>
           <span class="text-[10px] text-gray-500">{{ showAdvancedOptions ? '▲' : '▼' }}</span>
         </button>
-        <div v-if="showAdvancedOptions" class="mt-2 flex items-center gap-2">
+        <div
+          v-if="showAdvancedOptions"
+          class="mt-2 flex items-center gap-2"
+        >
           <span class="text-[11px] text-gray-400 w-20 shrink-0">{{ $t('tunnels.bindAddress') }}</span>
-          <select v-model="form.bindAddress" :aria-label="$t('tunnels.bindAddress')" class="flex-1 rounded border border-gray-700 bg-[#18181c] px-2 py-1 text-xs text-gray-200">
-            <option v-for="option in bindAddressOptions" :key="option.value" :value="option.value">{{ option.label }}</option>
+          <select
+            v-model="form.bindAddress"
+            :aria-label="$t('tunnels.bindAddress')"
+            class="flex-1 rounded border border-gray-700 bg-[#18181c] px-2 py-1 text-xs text-gray-200"
+          >
+            <option
+              v-for="option in bindAddressOptions"
+              :key="option.value"
+              :value="option.value"
+            >
+              {{ option.label }}
+            </option>
           </select>
         </div>
       </div>
-      <p v-if="form.webEnabled" class="text-[10px] text-gray-500">
+      <p
+        v-if="form.webEnabled"
+        class="text-[10px] text-gray-500"
+      >
         {{ $t('tunnels.webEnabledNote') }}
       </p>
-      <p v-if="form.localPort && form.remoteHost && form.remotePort" class="text-[11px] text-blue-400 font-mono">
+      <p
+        v-if="form.localPort && form.remoteHost && form.remotePort"
+        class="text-[11px] text-blue-400 font-mono"
+      >
         {{ form.bindAddress }}:{{ form.localPort }} → {{ form.remoteHost }}:{{ form.remotePort }}
       </p>
-      <div v-if="form.remoteHost && form.remotePort" class="rounded border border-gray-800 bg-[#0d0d0f] px-2 py-2 space-y-1">
-        <div class="text-[11px] font-semibold text-gray-300">{{ $t('tunnels.accessHowTitle') }}</div>
+      <div
+        v-if="form.remoteHost && form.remotePort"
+        class="rounded border border-gray-800 bg-[#0d0d0f] px-2 py-2 space-y-1"
+      >
+        <div class="text-[11px] font-semibold text-gray-300">
+          {{ $t('tunnels.accessHowTitle') }}
+        </div>
         <div class="text-[11px] text-gray-400">
           {{ $t('tunnels.accessHowDescription', { port: form.localPort || $t('tunnels.activePortPending'), host: form.remoteHost, remotePort: form.remotePort }) }}
         </div>
@@ -487,11 +573,27 @@ async function copyTunnelEndpoint(tunnel: ActiveTunnel) {
         {{ form.bindAddress === '0.0.0.0' ? $t('tunnels.bindAddressWarnPublic') : $t('tunnels.bindAddressWarnLocal') }}
       </p>
       <div class="flex gap-2 justify-end pt-1">
-        <NButton size="small" @click="closeTemplateForm">{{ $t('common.cancel') }}</NButton>
-        <NButton size="small" secondary :loading="testingTarget" :disabled="!form.remoteHost || !form.remotePort" @click="testTarget">
+        <NButton
+          size="small"
+          @click="closeTemplateForm"
+        >
+          {{ $t('common.cancel') }}
+        </NButton>
+        <NButton
+          size="small"
+          secondary
+          :loading="testingTarget"
+          :disabled="!form.remoteHost || !form.remotePort"
+          @click="testTarget"
+        >
           {{ $t('tunnels.testTarget') }}
         </NButton>
-        <NButton size="small" type="primary" :loading="saving" @click="saveTemplate">
+        <NButton
+          size="small"
+          type="primary"
+          :loading="saving"
+          @click="saveTemplate"
+        >
           {{ $t('tunnels.save') }}
         </NButton>
       </div>
@@ -509,10 +611,15 @@ async function copyTunnelEndpoint(tunnel: ActiveTunnel) {
     </div>
 
     <div class="flex-1 overflow-y-auto">
-
       <!-- ── Runtime exceptions: ad-hoc active tunnels and startup errors ─── -->
-      <div v-if="untemplatedActiveTunnels.length || effectiveActiveTunnels.errors.length" class="border-b border-gray-800">
-        <div v-if="untemplatedActiveTunnels.length" class="px-3 py-2 flex items-center gap-2">
+      <div
+        v-if="untemplatedActiveTunnels.length || effectiveActiveTunnels.errors.length"
+        class="border-b border-gray-800"
+      >
+        <div
+          v-if="untemplatedActiveTunnels.length"
+          class="px-3 py-2 flex items-center gap-2"
+        >
           <span class="text-[11px] font-semibold text-cyan-400 uppercase tracking-wider">{{ $t('tunnels.otherActive') }}</span>
         </div>
         <div
@@ -522,7 +629,10 @@ async function copyTunnelEndpoint(tunnel: ActiveTunnel) {
         >
           <span class="w-2 h-2 rounded-full bg-green-400 shrink-0 mt-1" />
           <div class="flex-1 min-w-0">
-            <div v-if="activeTunnelLabel(tun)" class="text-[11px] text-gray-300 truncate mb-0.5">
+            <div
+              v-if="activeTunnelLabel(tun)"
+              class="text-[11px] text-gray-300 truncate mb-0.5"
+            >
               {{ activeTunnelLabel(tun) }}
             </div>
             <div class="mb-1">
@@ -541,14 +651,23 @@ async function copyTunnelEndpoint(tunnel: ActiveTunnel) {
               <span class="text-gray-500 mx-1">→</span>
               {{ tun.remoteHost }}:{{ tun.remotePort }}
             </div>
-            <div v-if="tun.usedPortFallback" class="mt-1 text-[10px] text-amber-300">
+            <div
+              v-if="tun.usedPortFallback"
+              class="mt-1 text-[10px] text-amber-300"
+            >
               {{ $t('tunnels.assignedPortWithFallback', { requested: tun.requestedLocalPort, assigned: tun.assignedLocalPort }) }}
             </div>
-            <div v-else class="mt-1 text-[10px] text-gray-500">
+            <div
+              v-else
+              class="mt-1 text-[10px] text-gray-500"
+            >
               {{ $t('tunnels.assignedPort', { port: tun.assignedLocalPort }) }}
             </div>
           </div>
-          <NTooltip trigger="hover" placement="left">
+          <NTooltip
+            trigger="hover"
+            placement="left"
+          >
             <template #trigger>
               <NButton
                 size="tiny"
@@ -556,7 +675,9 @@ async function copyTunnelEndpoint(tunnel: ActiveTunnel) {
                 class="opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
                 style="color:#60a5fa;"
                 @click="copyTunnelEndpoint(tun)"
-              >⧉</NButton>
+              >
+                ⧉
+              </NButton>
             </template>
             {{ $t('tunnels.copyEndpoint') }}
           </NTooltip>
@@ -571,7 +692,10 @@ async function copyTunnelEndpoint(tunnel: ActiveTunnel) {
           </NButton>
         </div>
 
-        <div v-if="effectiveActiveTunnels.errors.length" class="px-3 py-2 flex items-center gap-2">
+        <div
+          v-if="effectiveActiveTunnels.errors.length"
+          class="px-3 py-2 flex items-center gap-2"
+        >
           <span class="text-[11px] font-semibold text-red-300 uppercase tracking-wider">{{ $t('tunnels.startupErrors') }}</span>
         </div>
         <div
@@ -589,8 +713,12 @@ async function copyTunnelEndpoint(tunnel: ActiveTunnel) {
                 {{ errorBadge(err.code).label }}
               </span>
             </div>
-            <div class="font-mono text-[11px] text-red-300">{{ errorEndpoint(err) }}</div>
-            <div class="text-[10px] text-gray-500 truncate">{{ err.message }}</div>
+            <div class="font-mono text-[11px] text-red-300">
+              {{ errorEndpoint(err) }}
+            </div>
+            <div class="text-[10px] text-gray-500 truncate">
+              {{ err.message }}
+            </div>
           </div>
         </div>
       </div>
@@ -600,7 +728,10 @@ async function copyTunnelEndpoint(tunnel: ActiveTunnel) {
         <span class="text-[11px] font-semibold text-gray-500 uppercase tracking-wider">{{ $t('tunnels.configured') }}</span>
       </div>
 
-      <NSpin v-if="loading" class="flex items-center justify-center py-6" />
+      <NSpin
+        v-if="loading"
+        class="flex items-center justify-center py-6"
+      />
 
       <NEmpty
         v-else-if="templates.length === 0"
@@ -608,11 +739,16 @@ async function copyTunnelEndpoint(tunnel: ActiveTunnel) {
         class="py-6"
       >
         <template #extra>
-          <p class="text-xs text-gray-500 text-center max-w-[220px] mx-auto">{{ $t('tunnels.emptyTemplatesHint') }}</p>
+          <p class="text-xs text-gray-500 text-center max-w-[220px] mx-auto">
+            {{ $t('tunnels.emptyTemplatesHint') }}
+          </p>
         </template>
       </NEmpty>
 
-      <div v-else class="divide-y divide-gray-800/50">
+      <div
+        v-else
+        class="divide-y divide-gray-800/50"
+      >
         <div
           v-for="tpl in templates"
           :key="tpl.id"
@@ -624,7 +760,10 @@ async function copyTunnelEndpoint(tunnel: ActiveTunnel) {
           <div class="flex items-start gap-3">
             <div class="flex-1 min-w-0">
               <div class="flex flex-wrap items-center gap-1.5 mb-1">
-                <span v-if="tpl.description" class="text-[11px] font-medium text-gray-200 truncate max-w-[150px]">{{ tpl.description }}</span>
+                <span
+                  v-if="tpl.description"
+                  class="text-[11px] font-medium text-gray-200 truncate max-w-[150px]"
+                >{{ tpl.description }}</span>
                 <span
                   v-if="activeTunnelForTemplate(tpl.id)"
                   class="inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide"
@@ -661,12 +800,18 @@ async function copyTunnelEndpoint(tunnel: ActiveTunnel) {
                   {{ $t('tunnels.webEnabledBadge', { protocol: tpl.webProtocol.toUpperCase() }) }}
                 </span>
               </div>
-              <div class="font-mono text-[11px]" :class="activeTunnelForTemplate(tpl.id) ? 'text-blue-300' : 'text-gray-400'">
+              <div
+                class="font-mono text-[11px]"
+                :class="activeTunnelForTemplate(tpl.id) ? 'text-blue-300' : 'text-gray-400'"
+              >
                 {{ activeTunnelForTemplate(tpl.id) ? tunnelEndpoint(activeTunnelForTemplate(tpl.id)!) : `${tpl.bindAddress}:${tpl.localPort}` }}
                 <span class="text-gray-600 mx-1">→</span>
                 {{ tpl.remoteHost }}:{{ tpl.remotePort }}
               </div>
-              <div v-if="activeTunnelForTemplate(tpl.id)" class="mt-1 text-[10px] text-gray-500">
+              <div
+                v-if="activeTunnelForTemplate(tpl.id)"
+                class="mt-1 text-[10px] text-gray-500"
+              >
                 {{ activeTunnelStatusLabel(activeTunnelForTemplate(tpl.id)!) }}
               </div>
             </div>
@@ -692,14 +837,20 @@ async function copyTunnelEndpoint(tunnel: ActiveTunnel) {
               >
                 {{ $t('tunnels.stop') }}
               </NButton>
-              <NTooltip v-if="activeTunnelForTemplate(tpl.id)" trigger="hover" placement="top">
+              <NTooltip
+                v-if="activeTunnelForTemplate(tpl.id)"
+                trigger="hover"
+                placement="top"
+              >
                 <template #trigger>
                   <NButton
                     size="tiny"
                     text
                     style="color:#60a5fa;"
                     @click="copyTunnelEndpoint(activeTunnelForTemplate(tpl.id)!)"
-                  >⧉</NButton>
+                  >
+                    ⧉
+                  </NButton>
                 </template>
                 {{ $t('tunnels.copyEndpoint') }}
               </NTooltip>
@@ -719,31 +870,38 @@ async function copyTunnelEndpoint(tunnel: ActiveTunnel) {
                 class="opacity-0 group-hover:opacity-100 transition-opacity"
                 style="color:#9ca3af;"
                 @click="openEditTemplate(tpl)"
-              >{{ $t('common.edit') }}</NButton>
-              <NTooltip trigger="hover" placement="top">
+              >
+                {{ $t('common.edit') }}
+              </NButton>
+              <NTooltip
+                trigger="hover"
+                placement="top"
+              >
                 <template #trigger>
                   <NSwitch
                     :value="tpl.autoStart"
                     size="small"
                     :loading="updatingAutoStart.has(tpl.id)"
-                :disabled="updatingAutoStart.has(tpl.id)"
-                :aria-label="$t('tunnels.autoStart')"
-                @update:value="toggleAutoStart(tpl, $event)"
+                    :disabled="updatingAutoStart.has(tpl.id)"
+                    :aria-label="$t('tunnels.autoStart')"
+                    @update:value="toggleAutoStart(tpl, $event)"
                   />
                 </template>
                 {{ tpl.autoStart ? $t('tunnels.autoStartOn') : $t('tunnels.autoStartOff') }}
               </NTooltip>
               <NButton
-                size="tiny" text
+                size="tiny"
+                text
                 class="opacity-0 group-hover:opacity-100 transition-opacity"
                 style="color:#6b7280;"
                 @click="removeTemplate(tpl)"
-              >✕</NButton>
+              >
+                ✕
+              </NButton>
             </div>
           </div>
         </div>
       </div>
-
     </div>
   </div>
 </template>

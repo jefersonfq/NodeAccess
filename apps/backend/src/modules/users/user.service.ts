@@ -2,7 +2,6 @@ import bcrypt from 'bcrypt'
 import { createHash, randomBytes } from 'node:crypto'
 import { readFile, unlink } from 'node:fs/promises'
 import { relative, join } from 'node:path'
-import type { Prisma } from '@prisma/client'
 import type { User } from '@prisma/client'
 import type { UserPublic, CreateUserDto, UpdateUserDto, UserPreferences, PatchUserPreferencesDto } from '@nodeaccess/shared'
 import type { Paginated } from '@nodeaccess/shared'
@@ -59,7 +58,7 @@ function detectAvatarMime(buffer: Buffer): 'image/png' | 'image/jpeg' | 'image/w
 }
 
 function withAvatarMetadata(user: User, avatarUpdatedAt: Date | null | undefined): User {
-  return { ...user, avatarUpdatedAt: avatarUpdatedAt ?? null } as User
+  return { ...user, avatarUpdatedAt: avatarUpdatedAt ?? null }
 }
 
 export interface UserInventoryAccessPublic {
@@ -245,7 +244,7 @@ export class UserService {
     const groupIds = await this.userRepo.findGroupIdsByUser(id)
     const canViewLiveSessions = await this.userRepo.canViewLiveSessions(id)
     const avatar = await this.userRepo.findAvatarMetadata(id, tenantId)
-    return toPublic(withAvatarMetadata({ ...user, deletedAt: null, active: true, licenseConsumed: true } as User, avatar?.avatarUpdatedAt), groupIds, canViewLiveSessions)
+    return toPublic(withAvatarMetadata({ ...user, deletedAt: null, active: true, licenseConsumed: true }, avatar?.avatarUpdatedAt), groupIds, canViewLiveSessions)
   }
 
   async create(
@@ -366,7 +365,7 @@ export class UserService {
     }).catch(() => {})
     const canViewLiveSessions = await this.userRepo.canViewLiveSessions(id)
     const avatar = await this.userRepo.findAvatarMetadata(id, tenantId)
-    return toPublic(withAvatarMetadata({ ...user, active, licenseConsumed: active } as User, avatar?.avatarUpdatedAt), [], canViewLiveSessions)
+    return toPublic(withAvatarMetadata({ ...user, active, licenseConsumed: active }, avatar?.avatarUpdatedAt), [], canViewLiveSessions)
   }
 
   async resetPassword(id: number, tenantId: number, adminId?: number): Promise<{ temporaryPassword: string }> {
@@ -404,7 +403,7 @@ export class UserService {
     const groupIds = await this.userRepo.findGroupIdsByUser(id)
     const canViewLiveSessions = await this.userRepo.canViewLiveSessions(id)
     const avatar = await this.userRepo.findAvatarMetadata(id, tenantId)
-    return toPublic(withAvatarMetadata({ ...user, mfaEnabled: false, mfaSecret: null, failedLoginAttempts: 0, lockedUntil: null } as User, avatar?.avatarUpdatedAt), groupIds, canViewLiveSessions)
+    return toPublic(withAvatarMetadata({ ...user, mfaEnabled: false, mfaSecret: null, failedLoginAttempts: 0, lockedUntil: null }, avatar?.avatarUpdatedAt), groupIds, canViewLiveSessions)
   }
 
   async changePassword(
@@ -465,7 +464,7 @@ export class UserService {
       },
     })
 
-    await this.userRepo.updatePreferences(id, next as Prisma.InputJsonValue)
+    await this.userRepo.updatePreferences(id, next)
     return next
   }
 
@@ -500,7 +499,7 @@ export class UserService {
     const updated = await this.userRepo.findByIdInTenant(userId, tenantId)
     if (!updated) throw new NotFoundError('Usuário')
     return toPublic(
-      { ...updated, avatarUpdatedAt } as User,
+      { ...updated, avatarUpdatedAt },
       await this.userRepo.findGroupIdsByUser(userId),
       await this.userRepo.canViewLiveSessions(userId),
     )
@@ -528,7 +527,7 @@ export class UserService {
     const updated = await this.userRepo.findByIdInTenant(userId, tenantId)
     if (!updated) throw new NotFoundError('Usuário')
     return toPublic(
-      { ...updated, avatarUpdatedAt: null } as User,
+      { ...updated, avatarUpdatedAt: null },
       await this.userRepo.findGroupIdsByUser(userId),
       await this.userRepo.canViewLiveSessions(userId),
     )

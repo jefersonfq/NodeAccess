@@ -53,7 +53,7 @@ function readStringArray(key: string): string[] {
   const raw = window.localStorage.getItem(key)
   if (!raw) return []
   try {
-    const parsed = JSON.parse(raw)
+    const parsed: unknown = JSON.parse(raw)
     return Array.isArray(parsed)
       ? parsed.filter((item): item is string => typeof item === 'string')
       : []
@@ -80,56 +80,56 @@ export const hostsSidebarWidth = ref(readInt(
   HOSTS_SIDEBAR_MAX_WIDTH,
 ))
 
-export function setHostDisplayMode(mode: HostDisplayMode) {
+export function setHostDisplayMode(mode: HostDisplayMode): void {
   hostDisplayMode.value = mode
   if (typeof window !== 'undefined') {
     window.localStorage.setItem(DISPLAY_MODE_KEY, mode)
   }
 }
 
-export function setQuickAccessCollapsed(value: boolean) {
+export function setQuickAccessCollapsed(value: boolean): void {
   quickAccessCollapsed.value = value
   if (typeof window !== 'undefined') {
     window.localStorage.setItem(QUICK_ACCESS_COLLAPSED_KEY, value ? '1' : '0')
   }
 }
 
-export function setProductivityCollapsed(value: boolean) {
+export function setProductivityCollapsed(value: boolean): void {
   productivityCollapsed.value = value
   if (typeof window !== 'undefined') {
     window.localStorage.setItem(PRODUCTIVITY_COLLAPSED_KEY, value ? '1' : '0')
   }
 }
 
-export function setCorporateFoldersPanelExpandedPreference(value: boolean) {
+export function setCorporateFoldersPanelExpandedPreference(value: boolean): void {
   corporateFoldersPanelExpandedPreference.value = value
   if (typeof window !== 'undefined') {
     window.localStorage.setItem(CORPORATE_FOLDERS_PANEL_EXPANDED_KEY, value ? '1' : '0')
   }
 }
 
-export function setFoldersPanelExpandedPreference(value: boolean) {
+export function setFoldersPanelExpandedPreference(value: boolean): void {
   foldersPanelExpandedPreference.value = value
   if (typeof window !== 'undefined') {
     window.localStorage.setItem(FOLDERS_PANEL_EXPANDED_KEY, value ? '1' : '0')
   }
 }
 
-export function setGroupsPanelExpandedPreference(value: boolean) {
+export function setGroupsPanelExpandedPreference(value: boolean): void {
   groupsPanelExpandedPreference.value = value
   if (typeof window !== 'undefined') {
     window.localStorage.setItem(GROUPS_PANEL_EXPANDED_KEY, value ? '1' : '0')
   }
 }
 
-export function setTagsPanelExpandedPreference(value: boolean) {
+export function setTagsPanelExpandedPreference(value: boolean): void {
   tagsPanelExpandedPreference.value = value
   if (typeof window !== 'undefined') {
     window.localStorage.setItem(TAGS_PANEL_EXPANDED_KEY, value ? '1' : '0')
   }
 }
 
-export function setInventoryTreeExpandedKeysPreference(keys: Array<string | number>) {
+export function setInventoryTreeExpandedKeysPreference(keys: Array<string | number>): void {
   const normalized = [...new Set(keys.map((key) => String(key)).filter(Boolean))]
   inventoryTreeExpandedKeysPreference.value = normalized
   if (typeof window !== 'undefined') {
@@ -137,14 +137,14 @@ export function setInventoryTreeExpandedKeysPreference(keys: Array<string | numb
   }
 }
 
-export function setHostsDefaultView(value: HostsDefaultView) {
+export function setHostsDefaultView(value: HostsDefaultView): void {
   hostsDefaultView.value = value
   if (typeof window !== 'undefined') {
     window.localStorage.setItem(DEFAULT_VIEW_KEY, value)
   }
 }
 
-export function setHomeMaxFavorites(value: number) {
+export function setHomeMaxFavorites(value: number): void {
   const clamped = Math.min(30, Math.max(5, Math.floor(value)))
   homeMaxFavorites.value = clamped
   if (typeof window !== 'undefined') {
@@ -152,7 +152,7 @@ export function setHomeMaxFavorites(value: number) {
   }
 }
 
-export function setHomeMaxRecents(value: number) {
+export function setHomeMaxRecents(value: number): void {
   const clamped = Math.min(30, Math.max(5, Math.floor(value)))
   homeMaxRecents.value = clamped
   if (typeof window !== 'undefined') {
@@ -160,7 +160,7 @@ export function setHomeMaxRecents(value: number) {
   }
 }
 
-export function setHostsSidebarWidth(value: number) {
+export function setHostsSidebarWidth(value: number): void {
   const clamped = Math.min(HOSTS_SIDEBAR_MAX_WIDTH, Math.max(HOSTS_SIDEBAR_MIN_WIDTH, Math.floor(value)))
   hostsSidebarWidth.value = clamped
   if (typeof window !== 'undefined') {
@@ -168,7 +168,7 @@ export function setHostsSidebarWidth(value: number) {
   }
 }
 
-export function applyHostPreferenceSnapshot(snapshot: UserHostPreferences) {
+export function applyHostPreferenceSnapshot(snapshot: UserHostPreferences): void {
   setHostDisplayMode(snapshot.displayMode)
   setQuickAccessCollapsed(snapshot.quickAccessCollapsed)
   setProductivityCollapsed(snapshot.productivityCollapsed)

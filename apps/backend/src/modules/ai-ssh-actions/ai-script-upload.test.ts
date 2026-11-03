@@ -13,10 +13,11 @@ function fixture(existing = false, destination = '/tmp/nodeaccess-ai-script-3.sh
     chmod: vi.fn((_path: string, _mode: number, callback: () => void) => callback()),
   }
   const runner = new SshIsolatedAiActionRunner({} as never)
-  const exec = vi.fn(async () => ({ output: checksum, exitCode: 0 }))
+  const exec = vi.fn(() => Promise.resolve({ output: checksum, exitCode: 0 }))
   Reflect.set(runner, 'execCommand', exec)
   const conn = { sftp: (callback: (error: null, client: typeof transport) => void) => callback(null, transport) }
-  const upload = () => Reflect.get(runner, 'uploadScript').call(runner, conn, { content, checksum, destination })
+  const uploadScript = Reflect.get(runner, 'uploadScript') as (connection: typeof conn, artifact: { content: string; checksum: string; destination: string }) => Promise<void>
+  const upload = () => uploadScript.call(runner, conn, { content, checksum, destination })
   return { upload, transport, exec, stored: () => stored }
 }
 

@@ -108,27 +108,27 @@ const comparisonOptions = computed(() => comparisonCandidates.value
     label: `#${candidate.id} · ${candidate.playbookName} · ${formatDate(candidate.finishedAt ?? candidate.createdAt)}`,
   })))
 
-function runTagType(status: DiagnosticRunDetail['status']) {
+function runTagType(status: DiagnosticRunDetail['status']): "success" | "error" | "warning" | "default" {
   if (status === 'completed') return 'success'
   if (status === 'failed' || status === 'canceled') return 'error'
   if (status === 'running') return 'warning'
   return 'default'
 }
 
-function commandTagType(status: DiagnosticRunCommand['status']) {
+function commandTagType(status: DiagnosticRunCommand['status']): "success" | "error" | "warning" | "default" {
   if (status === 'completed') return 'success'
   if (status === 'failed') return 'error'
   if (status === 'running') return 'warning'
   return 'default'
 }
 
-function riskTagType(riskLevel: 'low' | 'medium' | 'high') {
+function riskTagType(riskLevel: 'low' | 'medium' | 'high'): "success" | "error" | "warning" {
   if (riskLevel === 'high') return 'error'
   if (riskLevel === 'medium') return 'warning'
   return 'success'
 }
 
-function comparisonTagType(value: DiagnosticRunComparison['verdict'] | DiagnosticRunComparison['commands'][number]['change']) {
+function comparisonTagType(value: DiagnosticRunComparison['verdict'] | DiagnosticRunComparison['commands'][number]['change']): "success" | "error" | "warning" | "default" | "info" {
   if (value === 'improved') return 'success'
   if (value === 'regressed') return 'error'
   if (value === 'mixed') return 'warning'
@@ -136,11 +136,11 @@ function comparisonTagType(value: DiagnosticRunComparison['verdict'] | Diagnosti
   return 'default'
 }
 
-const comparisonLabel = (value: string) => ({
+const comparisonLabel = (value: string): string => ({
   improved: 'melhorou', regressed: 'regrediu', unchanged: 'sem alteração', mixed: 'resultado misto', added: 'adicionado', removed: 'removido',
 }[value] ?? value)
 
-function formatDate(value: string | Date | null) {
+function formatDate(value: string | Date | null): string {
   if (!value) return 'Sem registro'
   return new Date(value).toLocaleString('pt-BR', {
     day: '2-digit',
@@ -152,7 +152,7 @@ function formatDate(value: string | Date | null) {
   })
 }
 
-function scheduleRefresh() {
+function scheduleRefresh(): void {
   if (refreshTimer) window.clearTimeout(refreshTimer)
   if (!isActive.value) return
   refreshTimer = window.setTimeout(() => {
@@ -160,7 +160,7 @@ function scheduleRefresh() {
   }, 5000)
 }
 
-async function load() {
+async function load(): Promise<void> {
   if (!Number.isFinite(runId.value)) return
   loading.value = true
   error.value = null
@@ -188,7 +188,7 @@ async function load() {
   }
 }
 
-async function copyChecksum() {
+async function copyChecksum(): Promise<void> {
   if (!report.value) return
   try {
     await navigator.clipboard.writeText(report.value.integrity.checksum)
@@ -197,7 +197,7 @@ async function copyChecksum() {
   }
 }
 
-function openTraceability() {
+function openTraceability(): void {
   traceabilityForm.value = {
     sessionId: report.value?.traceability.sessionId ? String(report.value.traceability.sessionId) : '',
     ticketKey: report.value?.traceability.ticketKey ?? '',
@@ -212,7 +212,7 @@ function parseOptionalPositiveId(value: string): number | null | undefined {
   return Number.isInteger(parsed) && parsed > 0 ? parsed : undefined
 }
 
-async function saveTraceability() {
+async function saveTraceability(): Promise<void> {
   const sessionId = parseOptionalPositiveId(traceabilityForm.value.sessionId)
   const actionRunId = parseOptionalPositiveId(traceabilityForm.value.actionRunId)
   if (sessionId === undefined || actionRunId === undefined) {
@@ -238,7 +238,7 @@ async function saveTraceability() {
   }
 }
 
-async function publishToJira() {
+async function publishToJira(): Promise<void> {
   if (!report.value?.traceability.ticketKey) return
   if (jiraIncludeAttachment.value && !jiraAttachmentConfirmed.value) return
   jiraPublishing.value = true
@@ -259,13 +259,13 @@ async function publishToJira() {
   }
 }
 
-function openJiraPublish() {
+function openJiraPublish(): void {
   jiraIncludeAttachment.value = false
   jiraAttachmentConfirmed.value = false
   showJiraPublish.value = true
 }
 
-async function openComparison() {
+async function openComparison(): Promise<void> {
   if (!run.value) return
   showComparison.value = true
   comparison.value = null
@@ -281,7 +281,7 @@ async function openComparison() {
   }
 }
 
-async function compareRuns() {
+async function compareRuns(): Promise<void> {
   if (!baselineRunId.value) return
   comparisonLoading.value = true
   comparisonError.value = null
@@ -295,7 +295,7 @@ async function compareRuns() {
   }
 }
 
-async function regenerateSummary() {
+async function regenerateSummary(): Promise<void> {
   if (!Number.isFinite(runId.value) || summaryRefreshing.value) return
   summaryRefreshing.value = true
   error.value = null
@@ -310,7 +310,7 @@ async function regenerateSummary() {
   }
 }
 
-async function exportRun() {
+async function exportRun(): Promise<void> {
   if (!Number.isFinite(runId.value) || exporting.value) return
   exporting.value = true
   error.value = null
@@ -327,12 +327,12 @@ async function exportRun() {
   }
 }
 
-function goBack() {
+function goBack(): void {
   if (run.value?.hostId) {
-    router.push({ name: 'host-dashboard', params: { hostId: String(run.value.hostId) } })
+    void router.push({ name: 'host-dashboard', params: { hostId: String(run.value.hostId) } })
     return
   }
-  router.push({ name: 'hosts' })
+  void router.push({ name: 'hosts' })
 }
 
 onMounted(() => {
@@ -346,406 +346,794 @@ onBeforeUnmount(() => {
 
 <template>
   <div>
-  <div class="diagnostic-run-detail-page">
-    <div class="detail-header">
-      <div class="min-w-0">
-        <NButton text size="small" style="color:#9ca3af;margin-bottom:10px" @click="goBack">
-          Voltar
-        </NButton>
-        <h1>{{ run?.playbookName ?? 'Execucao de diagnostico' }}</h1>
-        <NText depth="3" class="text-sm">
-          Comandos aprovados, status e saida coletada neste host.
-        </NText>
-      </div>
-      <div class="detail-actions">
-        <NButton size="small" ghost @click="load()">Atualizar</NButton>
-        <NButton size="small" ghost @click="showHelp = true">Ajuda</NButton>
-        <NButton size="small" ghost :loading="exporting" @click="exportRun">Exportar JSON</NButton>
-        <NButton
-          size="small"
-          secondary
-          :loading="summaryRefreshing"
-          :disabled="run?.aiSummaryStatus === 'PROCESSING'"
-          @click="regenerateSummary"
-        >
-          Regerar resumo
-        </NButton>
-      </div>
-    </div>
-
-    <NAlert v-if="error" type="error" :title="error" class="mb-4" />
-
-    <NSpin :show="loading">
-      <template v-if="run">
-        <section class="detail-summary">
-          <div class="summary-tile">
-            <span>Status</span>
-            <div class="summary-inline">
-              <strong>{{ run.status }}</strong>
-              <NTag size="small" :type="runTagType(run.status)">{{ run.status }}</NTag>
-            </div>
-          </div>
-          <div class="summary-tile">
-            <span>Solicitado em</span>
-            <strong>{{ formatDate(run.createdAt) }}</strong>
-          </div>
-          <div class="summary-tile">
-            <span>Inicio</span>
-            <strong>{{ formatDate(run.startedAt) }}</strong>
-          </div>
-          <div class="summary-tile">
-            <span>Fim</span>
-            <strong>{{ formatDate(run.finishedAt) }}</strong>
-          </div>
-        </section>
-
-        <NAlert
-          v-if="run.errorMessage"
-          type="warning"
-          :title="run.errorMessage"
-          class="mb-4"
-        />
-
-        <NAlert
-          v-if="shouldShowAutoSummaryHint"
-          type="info"
-          title="Resumo automático desabilitado neste tenant"
-          class="mb-4"
-        >
-          Esta execucao nao gera resumo por IA automaticamente. Use <strong>Regerar resumo</strong> quando quiser solicitar a analise manual.
-        </NAlert>
-
-        <section v-if="report" class="report-panel">
-          <div class="ai-summary-header">
-            <div>
-              <h2>Relatório verificável</h2>
-              <NText depth="3" class="text-sm">Rastreabilidade e evidências consolidadas desta execução.</NText>
-            </div>
-            <div class="flex items-center gap-2">
-              <NTag size="small" type="info">v{{ report.version }}</NTag>
-              <NButton size="small" secondary @click="openComparison">Comparar antes/depois</NButton>
-              <NButton size="small" secondary @click="openTraceability">Vincular origem</NButton>
-              <NButton
-                v-if="report.traceability.ticketKey"
-                size="small"
-                type="primary"
-                secondary
-                @click="openJiraPublish"
-              >
-                Publicar no Jira
-              </NButton>
-            </div>
-          </div>
-
-          <div class="report-grid">
-            <div class="summary-tile">
-              <span>Host</span>
-              <strong>{{ report.identity.hostName ?? `Host #${report.identity.hostId}` }}</strong>
-              <NText depth="3" class="text-xs">{{ report.identity.hostIp ?? 'IP histórico indisponível' }}</NText>
-            </div>
-            <div class="summary-tile">
-              <span>Evidências</span>
-              <strong>{{ report.evidence.completed }}/{{ report.evidence.total }} concluídas</strong>
-              <NText depth="3" class="text-xs">{{ report.evidence.failed }} falhas · {{ report.evidence.skipped }} ignoradas</NText>
-            </div>
-            <div class="summary-tile">
-              <span>Redaction</span>
-              <strong>{{ report.evidence.redacted }}</strong>
-              <NText depth="3" class="text-xs">saídas com conteúdo sensível mascarado</NText>
-            </div>
-          </div>
-
-          <NAlert type="info" :show-icon="false" class="mt-3">
-            {{ report.traceability.note }}
-          </NAlert>
-          <div class="mt-3 flex flex-wrap gap-2">
-            <NTag size="small" :type="report.traceability.sessionId ? 'success' : 'default'">
-              Sessão: {{ report.traceability.sessionId ? `#${report.traceability.sessionId}` : 'não vinculada' }}
-            </NTag>
-            <NTag size="small" :type="report.traceability.ticketKey ? 'success' : 'default'">
-              Ticket: {{ report.traceability.ticketKey ?? 'não vinculado' }}
-            </NTag>
-            <NTag size="small" :type="report.traceability.actionRunId ? 'success' : 'default'">
-              ActionRun: {{ report.traceability.actionRunId ? `#${report.traceability.actionRunId}` : 'não vinculado' }}
-            </NTag>
-          </div>
-
-          <div class="checksum-row">
-            <div class="min-w-0">
-              <span>Integridade SHA-256</span>
-              <code>{{ report.integrity.checksum }}</code>
-            </div>
-            <NButton size="small" secondary @click="copyChecksum">Copiar checksum</NButton>
-          </div>
-        </section>
-
-        <section v-if="run.aiSummaryStatus || run.aiSummaryText" class="ai-summary-panel">
-          <div class="ai-summary-header">
-            <div>
-              <h2>Resumo por IA</h2>
-              <NText depth="3" class="text-sm">
-                Analise automatica do resultado coletado neste diagnostico.
-              </NText>
-            </div>
-            <NTag size="small" :type="run.aiSummaryStatus === 'READY' ? 'success' : run.aiSummaryStatus === 'FAILED' ? 'error' : 'warning'">
-              {{ run.aiSummaryStatus ?? 'PENDING' }}
-            </NTag>
-          </div>
-          <pre v-if="run.aiSummaryText" class="ai-summary-body">{{ run.aiSummaryText }}</pre>
-          <NText v-else depth="3" class="text-sm">
-            O resumo ainda esta sendo processado.
+    <div class="diagnostic-run-detail-page">
+      <div class="detail-header">
+        <div class="min-w-0">
+          <NButton
+            text
+            size="small"
+            style="color:#9ca3af;margin-bottom:10px"
+            @click="goBack"
+          >
+            Voltar
+          </NButton>
+          <h1>{{ run?.playbookName ?? 'Execucao de diagnostico' }}</h1>
+          <NText
+            depth="3"
+            class="text-sm"
+          >
+            Comandos aprovados, status e saida coletada neste host.
           </NText>
-          <div v-if="run.aiSummaryStructured" class="ai-summary-grid">
+        </div>
+        <div class="detail-actions">
+          <NButton
+            size="small"
+            ghost
+            @click="load()"
+          >
+            Atualizar
+          </NButton>
+          <NButton
+            size="small"
+            ghost
+            @click="showHelp = true"
+          >
+            Ajuda
+          </NButton>
+          <NButton
+            size="small"
+            ghost
+            :loading="exporting"
+            @click="exportRun"
+          >
+            Exportar JSON
+          </NButton>
+          <NButton
+            size="small"
+            secondary
+            :loading="summaryRefreshing"
+            :disabled="run?.aiSummaryStatus === 'PROCESSING'"
+            @click="regenerateSummary"
+          >
+            Regerar resumo
+          </NButton>
+        </div>
+      </div>
+
+      <NAlert
+        v-if="error"
+        type="error"
+        :title="error"
+        class="mb-4"
+      />
+
+      <NSpin :show="loading">
+        <template v-if="run">
+          <section class="detail-summary">
             <div class="summary-tile">
-              <span>Risco</span>
+              <span>Status</span>
               <div class="summary-inline">
-                <strong>{{ run.aiSummaryStructured.riskLevel }}</strong>
-                <NTag size="small" :type="riskTagType(run.aiSummaryStructured.riskLevel)">
-                  {{ run.aiSummaryStructured.riskLevel }}
+                <strong>{{ run.status }}</strong>
+                <NTag
+                  size="small"
+                  :type="runTagType(run.status)"
+                >
+                  {{ run.status }}
                 </NTag>
               </div>
             </div>
             <div class="summary-tile">
-              <span>Confianca</span>
-              <strong>{{ run.aiSummaryStructured.confidence }}</strong>
+              <span>Solicitado em</span>
+              <strong>{{ formatDate(run.createdAt) }}</strong>
             </div>
-          </div>
-          <div v-if="run.aiSummaryStructured?.keyFindings?.length" class="ai-list-block">
-            <div class="ai-list-title">Achados principais</div>
-            <ul>
-              <li v-for="item in run.aiSummaryStructured.keyFindings" :key="item">{{ item }}</li>
-            </ul>
-          </div>
-          <div v-if="run.aiSummaryStructured?.nextActions?.length" class="ai-list-block">
-            <div class="ai-list-title">Proximos passos</div>
-            <ul>
-              <li v-for="item in run.aiSummaryStructured.nextActions" :key="item">{{ item }}</li>
-            </ul>
-          </div>
-        </section>
-
-        <section class="command-list">
-          <article v-for="command in run.commands" :key="command.id" class="command-card">
-            <div class="command-header">
-              <div class="min-w-0">
-                <div class="command-title-row">
-                  <strong>{{ command.commandId }}</strong>
-                  <NTag size="small" :type="commandTagType(command.status)">{{ command.status }}</NTag>
-                  <NTag v-if="command.redactionApplied" size="small" type="warning">Redaction</NTag>
-                </div>
-                <code class="command-line">{{ command.command }}</code>
-              </div>
-              <div class="command-meta">
-                <span>Exit code: {{ command.exitCode ?? '-' }}</span>
-                <span>{{ formatDate(command.startedAt) }}</span>
-              </div>
+            <div class="summary-tile">
+              <span>Inicio</span>
+              <strong>{{ formatDate(run.startedAt) }}</strong>
             </div>
-
-            <div class="command-output">
-              <div class="command-output-label">Saida</div>
-              <pre v-if="command.outputBody" class="command-output-body">{{ command.outputBody }}</pre>
-              <NEmpty v-else description="Sem saida registrada para este comando." class="py-4" />
-            </div>
-          </article>
-        </section>
-      </template>
-
-      <NEmpty v-else-if="!loading" description="Execucao indisponivel." class="py-10" />
-    </NSpin>
-  </div>
-
-  <NModal v-model:show="showHelp">
-    <NCard
-      style="width: min(920px, calc(100vw - 32px))"
-      title="Ajuda da execucao de diagnostico"
-      :bordered="false"
-      role="dialog"
-      aria-modal="true"
-    >
-      <div class="max-h-[78vh] overflow-y-auto pr-1">
-        <div class="mb-5 rounded border border-white/10 p-4">
-          <NText depth="3" class="block text-sm">
-            Esta tela concentra a leitura operacional de uma execucao: o que foi rodado, o que retornou e como a IA resumiu esse resultado.
-          </NText>
-          <div class="mt-4 grid gap-3 md:grid-cols-3">
-            <div
-              v-for="item in helpQuickItems"
-              :key="item.title"
-              class="rounded bg-white/5 p-3"
-            >
-              <NText strong class="block text-sm">{{ item.title }}</NText>
-              <NText depth="3" class="block text-xs mt-1">{{ item.description }}</NText>
-            </div>
-          </div>
-        </div>
-
-        <div class="grid gap-5 lg:grid-cols-[1.1fr_0.9fr]">
-          <section>
-            <h2 class="text-sm font-semibold text-white mb-3">Como ler a tela</h2>
-            <div class="overflow-hidden rounded border border-white/10">
-              <div
-                v-for="section in helpSections"
-                :key="section.title"
-                class="grid gap-2 border-b border-white/10 p-3 last:border-b-0 md:grid-cols-[160px_1fr]"
-              >
-                <NText strong class="text-sm">{{ section.title }}</NText>
-                <NText depth="3" class="text-sm">{{ section.description }}</NText>
-              </div>
-            </div>
-
-            <h2 class="text-sm font-semibold text-white mt-5 mb-3">Passo a passo recomendado</h2>
-            <div class="rounded border border-white/10 p-3">
-              <ol class="detail-help-steps">
-                <li v-for="step in helpSteps" :key="step">{{ step }}</li>
-              </ol>
+            <div class="summary-tile">
+              <span>Fim</span>
+              <strong>{{ formatDate(run.finishedAt) }}</strong>
             </div>
           </section>
 
-          <section class="space-y-5">
-            <div>
-              <h2 class="text-sm font-semibold text-white mb-3">Cenarios atendidos</h2>
-              <div class="space-y-3">
-                <div
-                  v-for="scenario in helpScenarios"
-                  :key="scenario.title"
-                  class="rounded border border-white/10 p-3"
-                >
-                  <NText strong class="block text-sm">{{ scenario.title }}</NText>
-                  <NText depth="3" class="block text-sm mt-2">{{ scenario.description }}</NText>
-                </div>
-              </div>
-            </div>
+          <NAlert
+            v-if="run.errorMessage"
+            type="warning"
+            :title="run.errorMessage"
+            class="mb-4"
+          />
 
-            <div class="rounded border border-blue-500/30 bg-blue-500/10 p-3">
-              <NText strong class="block text-sm text-white">Leitura recomendada</NText>
-              <NText depth="3" class="block text-sm mt-2">
-                Use o resumo por IA como triagem. Use a saida dos comandos como evidencia final para decidir se o problema esta confirmado, se precisa de nova coleta ou se vale abrir o terminal para aprofundar.
-              </NText>
-            </div>
-          </section>
-        </div>
-      </div>
-    </NCard>
-  </NModal>
-
-  <NModal v-model:show="showTraceability">
-    <NCard
-      style="width: min(620px, calc(100vw - 32px))"
-      title="Vincular origem do diagnóstico"
-      :bordered="false"
-      role="dialog"
-      aria-modal="true"
-    >
-      <div class="space-y-4">
-        <NAlert type="info" :show-icon="false">
-          Cada referência será validada no mesmo tenant e host. Usuários comuns só podem vincular registros do próprio escopo.
-        </NAlert>
-        <div>
-          <label for="diagnostic-origin-session" class="mb-1 block text-sm text-zinc-300">ID da sessão</label>
-          <NInput id="diagnostic-origin-session" v-model:value="traceabilityForm.sessionId" placeholder="Ex.: 1824" />
-        </div>
-        <div>
-          <label for="diagnostic-origin-ticket" class="mb-1 block text-sm text-zinc-300">Ticket Jira</label>
-          <NInput id="diagnostic-origin-ticket" v-model:value="traceabilityForm.ticketKey" placeholder="Ex.: OPS-1234" />
-        </div>
-        <div>
-          <label for="diagnostic-origin-action" class="mb-1 block text-sm text-zinc-300">ID do ActionRun</label>
-          <NInput id="diagnostic-origin-action" v-model:value="traceabilityForm.actionRunId" placeholder="Ex.: 74" />
-        </div>
-        <div class="flex justify-end gap-2">
-          <NButton :disabled="traceabilitySaving" @click="showTraceability = false">Cancelar</NButton>
-          <NButton type="primary" :loading="traceabilitySaving" @click="saveTraceability">Validar e salvar</NButton>
-        </div>
-      </div>
-    </NCard>
-  </NModal>
-
-  <NModal v-model:show="showJiraPublish">
-    <NCard
-      style="width: min(620px, calc(100vw - 32px))"
-      title="Publicar relatório no Jira"
-      :bordered="false"
-      role="dialog"
-      aria-modal="true"
-    >
-      <div class="space-y-4">
-        <NAlert type="info" :show-icon="false">
-          Será publicado um comentário no ticket {{ report?.traceability.ticketKey }} com link, resultado e checksum do relatório. O processamento ocorre pela outbox com retry.
-        </NAlert>
-        <NCheckbox v-model:checked="jiraIncludeAttachment" @update:checked="jiraAttachmentConfirmed = false">
-          Anexar também o relatório JSON verificável
-        </NCheckbox>
-        <NAlert v-if="jiraIncludeAttachment" type="warning" :show-icon="false">
-          O anexo contém comandos e saídas sanitizadas do diagnóstico e será enviado ao Jira externo.
-          <div class="mt-3">
-            <NCheckbox v-model:checked="jiraAttachmentConfirmed">
-              Confirmo o envio das evidências operacionais para o Jira.
-            </NCheckbox>
-          </div>
-        </NAlert>
-        <div class="flex justify-end gap-2">
-          <NButton :disabled="jiraPublishing" @click="showJiraPublish = false">Cancelar</NButton>
-          <NButton
-            type="primary"
-            :loading="jiraPublishing"
-            :disabled="jiraIncludeAttachment && !jiraAttachmentConfirmed"
-            @click="publishToJira"
+          <NAlert
+            v-if="shouldShowAutoSummaryHint"
+            type="info"
+            title="Resumo automático desabilitado neste tenant"
+            class="mb-4"
           >
-            Enfileirar publicação
-          </NButton>
-        </div>
-      </div>
-    </NCard>
-  </NModal>
-
-  <NModal v-model:show="showComparison">
-    <NCard style="width: min(960px, calc(100vw - 32px))" title="Comparar antes/depois" :bordered="false" role="dialog" aria-modal="true">
-      <NSpin :show="comparisonLoading">
-        <div class="space-y-4">
-          <NAlert type="info" :show-icon="false">
-            A execução aberta é o <strong>depois</strong>. A comparação usa diferenças observáveis e não atribui causalidade.
+            Esta execucao nao gera resumo por IA automaticamente. Use <strong>Regerar resumo</strong> quando quiser solicitar a analise manual.
           </NAlert>
-          <div v-if="comparisonOptions.length" class="comparison-selector">
-            <div class="min-w-0 flex-1">
-              <label for="diagnostic-comparison-baseline" class="mb-1 block text-sm text-zinc-300">Execução de referência (antes)</label>
-              <NSelect id="diagnostic-comparison-baseline" v-model:value="baselineRunId" :options="comparisonOptions" filterable @update:value="comparison = null" />
-            </div>
-            <NButton type="primary" :disabled="!baselineRunId" :loading="comparisonLoading" @click="compareRuns">Comparar</NButton>
-          </div>
-          <NAlert v-if="comparisonError" type="error" :title="comparisonError" />
-          <NEmpty v-if="!comparisonLoading && !comparisonOptions.length && !comparisonError" description="Ainda não há outra execução acessível neste host para comparar." />
 
-          <template v-if="comparison">
-            <div class="comparison-heading">
-              <div><NText depth="3" class="block text-xs">Resultado observado</NText><strong>#{{ comparison.baseline.runId }} antes → #{{ comparison.current.runId }} depois</strong></div>
-              <NTag :type="comparisonTagType(comparison.verdict)">{{ comparisonLabel(comparison.verdict) }}</NTag>
-            </div>
-            <NAlert v-for="warning in comparison.warnings" :key="warning" type="warning" :show-icon="false">{{ warning }}</NAlert>
-            <div class="comparison-metrics">
-              <div v-for="metric in comparison.metrics" :key="metric.key" class="summary-tile">
-                <span>{{ metric.label }}</span><strong>{{ metric.baseline }} → {{ metric.current }}</strong>
-                <NTag size="small" :type="comparisonTagType(metric.change)">{{ comparisonLabel(metric.change) }}</NTag>
+          <section
+            v-if="report"
+            class="report-panel"
+          >
+            <div class="ai-summary-header">
+              <div>
+                <h2>Relatório verificável</h2>
+                <NText
+                  depth="3"
+                  class="text-sm"
+                >
+                  Rastreabilidade e evidências consolidadas desta execução.
+                </NText>
+              </div>
+              <div class="flex items-center gap-2">
+                <NTag
+                  size="small"
+                  type="info"
+                >
+                  v{{ report.version }}
+                </NTag>
+                <NButton
+                  size="small"
+                  secondary
+                  @click="openComparison"
+                >
+                  Comparar antes/depois
+                </NButton>
+                <NButton
+                  size="small"
+                  secondary
+                  @click="openTraceability"
+                >
+                  Vincular origem
+                </NButton>
+                <NButton
+                  v-if="report.traceability.ticketKey"
+                  size="small"
+                  type="primary"
+                  secondary
+                  @click="openJiraPublish"
+                >
+                  Publicar no Jira
+                </NButton>
               </div>
             </div>
-            <section>
-              <h3 class="comparison-section-title">Comandos</h3>
-              <div class="comparison-command-list">
-                <div v-for="command in comparison.commands" :key="command.commandId" class="comparison-command">
-                  <div class="min-w-0"><strong>{{ command.commandId }}</strong><code>{{ command.command }}</code></div>
-                  <div class="comparison-command-status"><span>{{ command.baselineStatus ?? 'ausente' }} → {{ command.currentStatus ?? 'ausente' }}</span><NTag size="small" :type="comparisonTagType(command.change)">{{ comparisonLabel(command.change) }}</NTag></div>
+
+            <div class="report-grid">
+              <div class="summary-tile">
+                <span>Host</span>
+                <strong>{{ report.identity.hostName ?? `Host #${report.identity.hostId}` }}</strong>
+                <NText
+                  depth="3"
+                  class="text-xs"
+                >
+                  {{ report.identity.hostIp ?? 'IP histórico indisponível' }}
+                </NText>
+              </div>
+              <div class="summary-tile">
+                <span>Evidências</span>
+                <strong>{{ report.evidence.completed }}/{{ report.evidence.total }} concluídas</strong>
+                <NText
+                  depth="3"
+                  class="text-xs"
+                >
+                  {{ report.evidence.failed }} falhas · {{ report.evidence.skipped }} ignoradas
+                </NText>
+              </div>
+              <div class="summary-tile">
+                <span>Redaction</span>
+                <strong>{{ report.evidence.redacted }}</strong>
+                <NText
+                  depth="3"
+                  class="text-xs"
+                >
+                  saídas com conteúdo sensível mascarado
+                </NText>
+              </div>
+            </div>
+
+            <NAlert
+              type="info"
+              :show-icon="false"
+              class="mt-3"
+            >
+              {{ report.traceability.note }}
+            </NAlert>
+            <div class="mt-3 flex flex-wrap gap-2">
+              <NTag
+                size="small"
+                :type="report.traceability.sessionId ? 'success' : 'default'"
+              >
+                Sessão: {{ report.traceability.sessionId ? `#${report.traceability.sessionId}` : 'não vinculada' }}
+              </NTag>
+              <NTag
+                size="small"
+                :type="report.traceability.ticketKey ? 'success' : 'default'"
+              >
+                Ticket: {{ report.traceability.ticketKey ?? 'não vinculado' }}
+              </NTag>
+              <NTag
+                size="small"
+                :type="report.traceability.actionRunId ? 'success' : 'default'"
+              >
+                ActionRun: {{ report.traceability.actionRunId ? `#${report.traceability.actionRunId}` : 'não vinculado' }}
+              </NTag>
+            </div>
+
+            <div class="checksum-row">
+              <div class="min-w-0">
+                <span>Integridade SHA-256</span>
+                <code>{{ report.integrity.checksum }}</code>
+              </div>
+              <NButton
+                size="small"
+                secondary
+                @click="copyChecksum"
+              >
+                Copiar checksum
+              </NButton>
+            </div>
+          </section>
+
+          <section
+            v-if="run.aiSummaryStatus || run.aiSummaryText"
+            class="ai-summary-panel"
+          >
+            <div class="ai-summary-header">
+              <div>
+                <h2>Resumo por IA</h2>
+                <NText
+                  depth="3"
+                  class="text-sm"
+                >
+                  Analise automatica do resultado coletado neste diagnostico.
+                </NText>
+              </div>
+              <NTag
+                size="small"
+                :type="run.aiSummaryStatus === 'READY' ? 'success' : run.aiSummaryStatus === 'FAILED' ? 'error' : 'warning'"
+              >
+                {{ run.aiSummaryStatus ?? 'PENDING' }}
+              </NTag>
+            </div>
+            <pre
+              v-if="run.aiSummaryText"
+              class="ai-summary-body"
+            >{{ run.aiSummaryText }}</pre>
+            <NText
+              v-else
+              depth="3"
+              class="text-sm"
+            >
+              O resumo ainda esta sendo processado.
+            </NText>
+            <div
+              v-if="run.aiSummaryStructured"
+              class="ai-summary-grid"
+            >
+              <div class="summary-tile">
+                <span>Risco</span>
+                <div class="summary-inline">
+                  <strong>{{ run.aiSummaryStructured.riskLevel }}</strong>
+                  <NTag
+                    size="small"
+                    :type="riskTagType(run.aiSummaryStructured.riskLevel)"
+                  >
+                    {{ run.aiSummaryStructured.riskLevel }}
+                  </NTag>
                 </div>
               </div>
-            </section>
-            <section class="comparison-findings">
-              <div><h3>Resolvidos</h3><ul v-if="comparison.findings.resolved.length"><li v-for="item in comparison.findings.resolved" :key="item">{{ item }}</li></ul><NText v-else depth="3" class="text-xs">Nenhum achado deixou de aparecer.</NText></div>
-              <div><h3>Novos</h3><ul v-if="comparison.findings.new.length"><li v-for="item in comparison.findings.new" :key="item">{{ item }}</li></ul><NText v-else depth="3" class="text-xs">Nenhum achado novo.</NText></div>
-              <div><h3>Persistentes</h3><ul v-if="comparison.findings.persistent.length"><li v-for="item in comparison.findings.persistent" :key="item">{{ item }}</li></ul><NText v-else depth="3" class="text-xs">Nenhum achado textual persistente.</NText></div>
-            </section>
-          </template>
-        </div>
+              <div class="summary-tile">
+                <span>Confianca</span>
+                <strong>{{ run.aiSummaryStructured.confidence }}</strong>
+              </div>
+            </div>
+            <div
+              v-if="run.aiSummaryStructured?.keyFindings?.length"
+              class="ai-list-block"
+            >
+              <div class="ai-list-title">
+                Achados principais
+              </div>
+              <ul>
+                <li
+                  v-for="item in run.aiSummaryStructured.keyFindings"
+                  :key="item"
+                >
+                  {{ item }}
+                </li>
+              </ul>
+            </div>
+            <div
+              v-if="run.aiSummaryStructured?.nextActions?.length"
+              class="ai-list-block"
+            >
+              <div class="ai-list-title">
+                Proximos passos
+              </div>
+              <ul>
+                <li
+                  v-for="item in run.aiSummaryStructured.nextActions"
+                  :key="item"
+                >
+                  {{ item }}
+                </li>
+              </ul>
+            </div>
+          </section>
+
+          <section class="command-list">
+            <article
+              v-for="command in run.commands"
+              :key="command.id"
+              class="command-card"
+            >
+              <div class="command-header">
+                <div class="min-w-0">
+                  <div class="command-title-row">
+                    <strong>{{ command.commandId }}</strong>
+                    <NTag
+                      size="small"
+                      :type="commandTagType(command.status)"
+                    >
+                      {{ command.status }}
+                    </NTag>
+                    <NTag
+                      v-if="command.redactionApplied"
+                      size="small"
+                      type="warning"
+                    >
+                      Redaction
+                    </NTag>
+                  </div>
+                  <code class="command-line">{{ command.command }}</code>
+                </div>
+                <div class="command-meta">
+                  <span>Exit code: {{ command.exitCode ?? '-' }}</span>
+                  <span>{{ formatDate(command.startedAt) }}</span>
+                </div>
+              </div>
+
+              <div class="command-output">
+                <div class="command-output-label">
+                  Saida
+                </div>
+                <pre
+                  v-if="command.outputBody"
+                  class="command-output-body"
+                >{{ command.outputBody }}</pre>
+                <NEmpty
+                  v-else
+                  description="Sem saida registrada para este comando."
+                  class="py-4"
+                />
+              </div>
+            </article>
+          </section>
+        </template>
+
+        <NEmpty
+          v-else-if="!loading"
+          description="Execucao indisponivel."
+          class="py-10"
+        />
       </NSpin>
-    </NCard>
-  </NModal>
+    </div>
+
+    <NModal v-model:show="showHelp">
+      <NCard
+        style="width: min(920px, calc(100vw - 32px))"
+        title="Ajuda da execucao de diagnostico"
+        :bordered="false"
+        role="dialog"
+        aria-modal="true"
+      >
+        <div class="max-h-[78vh] overflow-y-auto pr-1">
+          <div class="mb-5 rounded border border-white/10 p-4">
+            <NText
+              depth="3"
+              class="block text-sm"
+            >
+              Esta tela concentra a leitura operacional de uma execucao: o que foi rodado, o que retornou e como a IA resumiu esse resultado.
+            </NText>
+            <div class="mt-4 grid gap-3 md:grid-cols-3">
+              <div
+                v-for="item in helpQuickItems"
+                :key="item.title"
+                class="rounded bg-white/5 p-3"
+              >
+                <NText
+                  strong
+                  class="block text-sm"
+                >
+                  {{ item.title }}
+                </NText>
+                <NText
+                  depth="3"
+                  class="block text-xs mt-1"
+                >
+                  {{ item.description }}
+                </NText>
+              </div>
+            </div>
+          </div>
+
+          <div class="grid gap-5 lg:grid-cols-[1.1fr_0.9fr]">
+            <section>
+              <h2 class="text-sm font-semibold text-white mb-3">
+                Como ler a tela
+              </h2>
+              <div class="overflow-hidden rounded border border-white/10">
+                <div
+                  v-for="section in helpSections"
+                  :key="section.title"
+                  class="grid gap-2 border-b border-white/10 p-3 last:border-b-0 md:grid-cols-[160px_1fr]"
+                >
+                  <NText
+                    strong
+                    class="text-sm"
+                  >
+                    {{ section.title }}
+                  </NText>
+                  <NText
+                    depth="3"
+                    class="text-sm"
+                  >
+                    {{ section.description }}
+                  </NText>
+                </div>
+              </div>
+
+              <h2 class="text-sm font-semibold text-white mt-5 mb-3">
+                Passo a passo recomendado
+              </h2>
+              <div class="rounded border border-white/10 p-3">
+                <ol class="detail-help-steps">
+                  <li
+                    v-for="step in helpSteps"
+                    :key="step"
+                  >
+                    {{ step }}
+                  </li>
+                </ol>
+              </div>
+            </section>
+
+            <section class="space-y-5">
+              <div>
+                <h2 class="text-sm font-semibold text-white mb-3">
+                  Cenarios atendidos
+                </h2>
+                <div class="space-y-3">
+                  <div
+                    v-for="scenario in helpScenarios"
+                    :key="scenario.title"
+                    class="rounded border border-white/10 p-3"
+                  >
+                    <NText
+                      strong
+                      class="block text-sm"
+                    >
+                      {{ scenario.title }}
+                    </NText>
+                    <NText
+                      depth="3"
+                      class="block text-sm mt-2"
+                    >
+                      {{ scenario.description }}
+                    </NText>
+                  </div>
+                </div>
+              </div>
+
+              <div class="rounded border border-blue-500/30 bg-blue-500/10 p-3">
+                <NText
+                  strong
+                  class="block text-sm text-white"
+                >
+                  Leitura recomendada
+                </NText>
+                <NText
+                  depth="3"
+                  class="block text-sm mt-2"
+                >
+                  Use o resumo por IA como triagem. Use a saida dos comandos como evidencia final para decidir se o problema esta confirmado, se precisa de nova coleta ou se vale abrir o terminal para aprofundar.
+                </NText>
+              </div>
+            </section>
+          </div>
+        </div>
+      </NCard>
+    </NModal>
+
+    <NModal v-model:show="showTraceability">
+      <NCard
+        style="width: min(620px, calc(100vw - 32px))"
+        title="Vincular origem do diagnóstico"
+        :bordered="false"
+        role="dialog"
+        aria-modal="true"
+      >
+        <div class="space-y-4">
+          <NAlert
+            type="info"
+            :show-icon="false"
+          >
+            Cada referência será validada no mesmo tenant e host. Usuários comuns só podem vincular registros do próprio escopo.
+          </NAlert>
+          <div>
+            <label
+              for="diagnostic-origin-session"
+              class="mb-1 block text-sm text-zinc-300"
+            >ID da sessão</label>
+            <NInput
+              id="diagnostic-origin-session"
+              v-model:value="traceabilityForm.sessionId"
+              placeholder="Ex.: 1824"
+            />
+          </div>
+          <div>
+            <label
+              for="diagnostic-origin-ticket"
+              class="mb-1 block text-sm text-zinc-300"
+            >Ticket Jira</label>
+            <NInput
+              id="diagnostic-origin-ticket"
+              v-model:value="traceabilityForm.ticketKey"
+              placeholder="Ex.: OPS-1234"
+            />
+          </div>
+          <div>
+            <label
+              for="diagnostic-origin-action"
+              class="mb-1 block text-sm text-zinc-300"
+            >ID do ActionRun</label>
+            <NInput
+              id="diagnostic-origin-action"
+              v-model:value="traceabilityForm.actionRunId"
+              placeholder="Ex.: 74"
+            />
+          </div>
+          <div class="flex justify-end gap-2">
+            <NButton
+              :disabled="traceabilitySaving"
+              @click="showTraceability = false"
+            >
+              Cancelar
+            </NButton>
+            <NButton
+              type="primary"
+              :loading="traceabilitySaving"
+              @click="saveTraceability"
+            >
+              Validar e salvar
+            </NButton>
+          </div>
+        </div>
+      </NCard>
+    </NModal>
+
+    <NModal v-model:show="showJiraPublish">
+      <NCard
+        style="width: min(620px, calc(100vw - 32px))"
+        title="Publicar relatório no Jira"
+        :bordered="false"
+        role="dialog"
+        aria-modal="true"
+      >
+        <div class="space-y-4">
+          <NAlert
+            type="info"
+            :show-icon="false"
+          >
+            Será publicado um comentário no ticket {{ report?.traceability.ticketKey }} com link, resultado e checksum do relatório. O processamento ocorre pela outbox com retry.
+          </NAlert>
+          <NCheckbox
+            v-model:checked="jiraIncludeAttachment"
+            @update:checked="jiraAttachmentConfirmed = false"
+          >
+            Anexar também o relatório JSON verificável
+          </NCheckbox>
+          <NAlert
+            v-if="jiraIncludeAttachment"
+            type="warning"
+            :show-icon="false"
+          >
+            O anexo contém comandos e saídas sanitizadas do diagnóstico e será enviado ao Jira externo.
+            <div class="mt-3">
+              <NCheckbox v-model:checked="jiraAttachmentConfirmed">
+                Confirmo o envio das evidências operacionais para o Jira.
+              </NCheckbox>
+            </div>
+          </NAlert>
+          <div class="flex justify-end gap-2">
+            <NButton
+              :disabled="jiraPublishing"
+              @click="showJiraPublish = false"
+            >
+              Cancelar
+            </NButton>
+            <NButton
+              type="primary"
+              :loading="jiraPublishing"
+              :disabled="jiraIncludeAttachment && !jiraAttachmentConfirmed"
+              @click="publishToJira"
+            >
+              Enfileirar publicação
+            </NButton>
+          </div>
+        </div>
+      </NCard>
+    </NModal>
+
+    <NModal v-model:show="showComparison">
+      <NCard
+        style="width: min(960px, calc(100vw - 32px))"
+        title="Comparar antes/depois"
+        :bordered="false"
+        role="dialog"
+        aria-modal="true"
+      >
+        <NSpin :show="comparisonLoading">
+          <div class="space-y-4">
+            <NAlert
+              type="info"
+              :show-icon="false"
+            >
+              A execução aberta é o <strong>depois</strong>. A comparação usa diferenças observáveis e não atribui causalidade.
+            </NAlert>
+            <div
+              v-if="comparisonOptions.length"
+              class="comparison-selector"
+            >
+              <div class="min-w-0 flex-1">
+                <label
+                  for="diagnostic-comparison-baseline"
+                  class="mb-1 block text-sm text-zinc-300"
+                >Execução de referência (antes)</label>
+                <NSelect
+                  id="diagnostic-comparison-baseline"
+                  v-model:value="baselineRunId"
+                  :options="comparisonOptions"
+                  filterable
+                  @update:value="comparison = null"
+                />
+              </div>
+              <NButton
+                type="primary"
+                :disabled="!baselineRunId"
+                :loading="comparisonLoading"
+                @click="compareRuns"
+              >
+                Comparar
+              </NButton>
+            </div>
+            <NAlert
+              v-if="comparisonError"
+              type="error"
+              :title="comparisonError"
+            />
+            <NEmpty
+              v-if="!comparisonLoading && !comparisonOptions.length && !comparisonError"
+              description="Ainda não há outra execução acessível neste host para comparar."
+            />
+
+            <template v-if="comparison">
+              <div class="comparison-heading">
+                <div>
+                  <NText
+                    depth="3"
+                    class="block text-xs"
+                  >
+                    Resultado observado
+                  </NText><strong>#{{ comparison.baseline.runId }} antes → #{{ comparison.current.runId }} depois</strong>
+                </div>
+                <NTag :type="comparisonTagType(comparison.verdict)">
+                  {{ comparisonLabel(comparison.verdict) }}
+                </NTag>
+              </div>
+              <NAlert
+                v-for="warning in comparison.warnings"
+                :key="warning"
+                type="warning"
+                :show-icon="false"
+              >
+                {{ warning }}
+              </NAlert>
+              <div class="comparison-metrics">
+                <div
+                  v-for="metric in comparison.metrics"
+                  :key="metric.key"
+                  class="summary-tile"
+                >
+                  <span>{{ metric.label }}</span><strong>{{ metric.baseline }} → {{ metric.current }}</strong>
+                  <NTag
+                    size="small"
+                    :type="comparisonTagType(metric.change)"
+                  >
+                    {{ comparisonLabel(metric.change) }}
+                  </NTag>
+                </div>
+              </div>
+              <section>
+                <h3 class="comparison-section-title">
+                  Comandos
+                </h3>
+                <div class="comparison-command-list">
+                  <div
+                    v-for="command in comparison.commands"
+                    :key="command.commandId"
+                    class="comparison-command"
+                  >
+                    <div class="min-w-0">
+                      <strong>{{ command.commandId }}</strong><code>{{ command.command }}</code>
+                    </div>
+                    <div class="comparison-command-status">
+                      <span>{{ command.baselineStatus ?? 'ausente' }} → {{ command.currentStatus ?? 'ausente' }}</span><NTag
+                        size="small"
+                        :type="comparisonTagType(command.change)"
+                      >
+                        {{ comparisonLabel(command.change) }}
+                      </NTag>
+                    </div>
+                  </div>
+                </div>
+              </section>
+              <section class="comparison-findings">
+                <div>
+                  <h3>Resolvidos</h3><ul v-if="comparison.findings.resolved.length">
+                    <li
+                      v-for="item in comparison.findings.resolved"
+                      :key="item"
+                    >
+                      {{ item }}
+                    </li>
+                  </ul><NText
+                    v-else
+                    depth="3"
+                    class="text-xs"
+                  >
+                    Nenhum achado deixou de aparecer.
+                  </NText>
+                </div>
+                <div>
+                  <h3>Novos</h3><ul v-if="comparison.findings.new.length">
+                    <li
+                      v-for="item in comparison.findings.new"
+                      :key="item"
+                    >
+                      {{ item }}
+                    </li>
+                  </ul><NText
+                    v-else
+                    depth="3"
+                    class="text-xs"
+                  >
+                    Nenhum achado novo.
+                  </NText>
+                </div>
+                <div>
+                  <h3>Persistentes</h3><ul v-if="comparison.findings.persistent.length">
+                    <li
+                      v-for="item in comparison.findings.persistent"
+                      :key="item"
+                    >
+                      {{ item }}
+                    </li>
+                  </ul><NText
+                    v-else
+                    depth="3"
+                    class="text-xs"
+                  >
+                    Nenhum achado textual persistente.
+                  </NText>
+                </div>
+              </section>
+            </template>
+          </div>
+        </NSpin>
+      </NCard>
+    </NModal>
   </div>
 </template>
 

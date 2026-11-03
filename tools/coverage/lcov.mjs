@@ -19,14 +19,14 @@ export function parseLcov(text, root = process.cwd()) {
       if (current) throw new Error('Unterminated LCOV record')
       const file = sourcePath(root, line.slice(3))
       if (files.has(file)) throw new Error('Duplicate LCOV source')
-      current = { file, lines: new Map(), branches: new Map(), totals: {} }
+      current = { file, lines: new Map(), branches: new Map(), totals: new Map() }
       continue
     }
     if (!current) throw new Error('LCOV data without source')
     if (line === 'end_of_record') {
       const actual = { LF: current.lines.size, LH: [...current.lines.values()].filter(hits => hits > 0).length,
         BRF: current.branches.size, BRH: [...current.branches.values()].filter(branch => branch.hits > 0).length }
-      for (const [key, value] of Object.entries(actual)) if (current.totals[key] !== value) throw new Error('LCOV totals do not match records')
+      for (const [key, value] of Object.entries(actual)) if (current.totals.get(key) !== value) throw new Error('LCOV totals do not match records')
       files.set(current.file, current); current = undefined; continue
     }
     if (line.startsWith('DA:')) {
@@ -41,8 +41,8 @@ export function parseLcov(text, root = process.cwd()) {
       current.branches.set(key, { line: Number(fields[0]), hits: fields[3] === '-' ? 0 : Number(fields[3]) })
     } else if (/^(?:LF|LH|BRF|BRH):/.test(line)) {
       const [key, value] = line.split(':')
-      if (!integer(value) || current.totals[key] !== undefined) throw new Error('Invalid LCOV totals')
-      current.totals[key] = Number(value)
+      if (!integer(value) || current.totals.has(key)) throw new Error('Invalid LCOV totals')
+      current.totals.set(key, Number(value))
     } else if (!/^(?:FN|FNDA|FNF|FNH):/.test(line)) throw new Error('Unknown LCOV field')
   }
   if (current || !files.size) throw new Error('Incomplete LCOV report')
@@ -64,13 +64,13 @@ export function addedLines(diff) {
 
 export function diffCoverage(root, baseSha, headSha, lcov) {
   if (!/^[a-f0-9]{7,40}$/i.test(baseSha ?? '') || (headSha && !/^[a-f0-9]{7,40}$/i.test(headSha))) throw new Error('Coverage base/head must be commit SHAs')
-  const git = args => execFileSync('git', args, { cwd: root, encoding: 'utf8' })
+  const git = args => execFileSync('/usr/bin/git', args, { cwd: root, encoding: 'utf8' })
   const base = git(['rev-parse', '--verify', `${baseSha}^{commit}`]).trim()
   const head = headSha ? git(['rev-parse', '--verify', `${headSha}^{commit}`]).trim() : git(['rev-parse', 'HEAD']).trim()
   const range = headSha ? [base, head] : [base]
   const changed = git(['diff', '--name-only', '--diff-filter=ACMR', '-z', ...range, '--']).split('\0').filter(isSource)
   const untracked = headSha ? [] : git(['ls-files', '--others', '--exclude-standard', '-z']).split('\0').filter(isSource)
-  const files = [...new Set([...changed, ...untracked])].sort()
+  const files = [...new Set([...changed, ...untracked])].sort((left, right) => left.localeCompare(right, 'en'))
   const report = typeof lcov === 'string' ? parseLcov(lcov, root) : lcov
   let lines = 0, coveredLines = 0, conditions = 0, coveredConditions = 0
   const missing = []

@@ -54,6 +54,105 @@
       "hash": "897606994e729f1fa41a4ac3c0f223c6",
       "severity": "CRITICAL",
       "type": "BUG"
+    },
+    {
+      "key": "5bf1ab7b-83d9-4640-8584-0b27bb878ead",
+      "rule": "javascript:S2871",
+      "component": "nodeaccess:tools/coverage/inventory.mjs",
+      "line": 12,
+      "hash": "0455a6f48ec2ea18601f48c88fa39da0",
+      "severity": "CRITICAL",
+      "type": "BUG"
+    },
+    {
+      "key": "85039aab-a2a1-41d5-bf0a-a1deca353457",
+      "rule": "javascript:S4036",
+      "component": "nodeaccess:tools/coverage/inventory.mjs",
+      "line": 12,
+      "hash": "0455a6f48ec2ea18601f48c88fa39da0",
+      "severity": "MINOR",
+      "type": "VULNERABILITY"
+    },
+    {
+      "key": "3397e69e-3158-4e61-99a6-08ddc48bdd01",
+      "rule": "javascript:S3403",
+      "component": "nodeaccess:tools/coverage/lcov.mjs",
+      "line": 29,
+      "hash": "5c94808c727f697c76e18dee79ec0d29",
+      "severity": "MAJOR",
+      "type": "BUG"
+    },
+    {
+      "key": "6228f74e-1de9-471c-a397-da052d2b39b7",
+      "rule": "javascript:S4036",
+      "component": "nodeaccess:tools/coverage/lcov.mjs",
+      "line": 67,
+      "hash": "5f4ce656bf608ecf7050ee94d26768c4",
+      "severity": "MINOR",
+      "type": "VULNERABILITY"
+    },
+    {
+      "key": "007fda17-762e-4618-8711-9afb09cf3cbd",
+      "rule": "javascript:S2871",
+      "component": "nodeaccess:tools/coverage/lcov.mjs",
+      "line": 73,
+      "hash": "c4740dfee02653fb1d42865372f54d07",
+      "severity": "CRITICAL",
+      "type": "BUG"
+    },
+    {
+      "key": "ead3ecb3-0d03-4869-8216-ab72d796fd92",
+      "rule": "javascript:S2871",
+      "component": "nodeaccess:tools/coverage/node-map.mjs",
+      "line": 13,
+      "hash": "966d4cc2a4ef520170aafe56a475de22",
+      "severity": "CRITICAL",
+      "type": "BUG"
+    },
+    {
+      "key": "18e1be64-c90a-4edc-9634-ae1e37e1b2e5",
+      "rule": "javascript:S4036",
+      "component": "nodeaccess:tools/coverage/run.mjs",
+      "line": 29,
+      "hash": "93e5519f910d2f9924e510ed68ec9e70",
+      "severity": "MINOR",
+      "type": "VULNERABILITY"
+    },
+    {
+      "key": "a976b0bb-adcf-432c-ab18-ad265fd94ce3",
+      "rule": "javascript:S4036",
+      "component": "nodeaccess:tools/coverage/run.mjs",
+      "line": 40,
+      "hash": "dd88a083ad38c2a1a561612f7f4fbdfb",
+      "severity": "MINOR",
+      "type": "VULNERABILITY"
+    },
+    {
+      "key": "a1acdc7b-85e1-4797-abcf-c773f83259d7",
+      "rule": "javascript:S2871",
+      "component": "nodeaccess:tools/coverage/summary.mjs",
+      "line": 48,
+      "hash": "726513ea6018fdbbce1c5acd612f42f1",
+      "severity": "CRITICAL",
+      "type": "BUG"
+    },
+    {
+      "key": "f3319d29-c81b-4599-9d81-b8c7e8cd860f",
+      "rule": "javascript:S7737",
+      "component": "nodeaccess:tools/sonarqube/maintenance-common.mjs",
+      "line": 51,
+      "hash": "21147ed7e4201ee3619c69d591e6489c",
+      "severity": "MINOR",
+      "type": "CODE_SMELL"
+    },
+    {
+      "key": "4cb49b09-f9b0-4c34-a61a-3f6584c2cc14",
+      "rule": "javascript:S4036",
+      "component": "nodeaccess:tools/sonarqube/validate.mjs",
+      "line": 49,
+      "hash": "783db67800289ddfafc00e189e438164",
+      "severity": "MINOR",
+      "type": "VULNERABILITY"
     }
   ]
 }

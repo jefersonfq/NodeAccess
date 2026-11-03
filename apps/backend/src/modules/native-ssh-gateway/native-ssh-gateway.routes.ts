@@ -35,7 +35,14 @@ interface UpdateNativeSshGatewayConfigBody {
   publicKeyAuth: boolean
 }
 
-export async function nativeSshGatewayRoutes(app: FastifyInstance): Promise<void> {
+export function nativeSshGatewayRoutes(app: FastifyInstance): Promise<void> {
+  return new Promise<void>((resolve) => {
+    registerNativeSshGatewayRoutes(app)
+    resolve()
+  })
+}
+
+function registerNativeSshGatewayRoutes(app: FastifyInstance): void {
   app.get('/config', {
     preHandler: [requireAdmin],
     schema: {
@@ -126,7 +133,24 @@ export async function nativeSshGatewayRoutes(app: FastifyInstance): Promise<void
   })
 }
 
-async function getConfigResponse(tenantId: number) {
+interface NativeGatewayConfigResponse extends UpdateNativeSshGatewayConfigBody {
+  host: string
+  suggestedEndpoint: string
+  appUrl: string
+  configSource: string
+  effective: { enabled: boolean; bindHost: string; port: number; hostKeyConfigured: boolean; hostKeyPathConfigured: boolean }
+  operational: {
+    appMode: string; processStatusObservable: boolean; processState: string
+    runtimeHost: string | null; runtimePort: number | null
+    runtimeStartedAt: string | null; runtimeLastSeenAt: string | null; runtimeLastFailureAt: string | null; runtimeLastFailureMessage: string | null
+    hostKeyState: string; hostKeyPath: string | null; hostKeyAlgorithm: string | null; hostKeyFingerprint: string | null
+    hostKeyPermissionsSafe: boolean | null; hostKeyMessage: string | null; activeNativeSshSessions: number
+  }
+  differsFromEnv: boolean
+  requiresGatewayRestart: boolean
+}
+
+async function getConfigResponse(tenantId: number): Promise<NativeGatewayConfigResponse> {
   const saved = await findSavedConfig(tenantId)
   const [activeNativeSshSessions, runtimeStatus] = await Promise.all([
     countActiveNativeSshSessions(tenantId),

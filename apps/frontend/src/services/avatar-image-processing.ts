@@ -29,7 +29,7 @@ export function centeredAvatarOffset(
   naturalHeight: number,
   previewSize: number,
   zoom: number,
-) {
+): { x: number; y: number; scale: number; } {
   const scale = avatarPreviewScale(naturalWidth, naturalHeight, previewSize, zoom)
   return {
     x: (previewSize - naturalWidth * scale) / 2,
@@ -43,12 +43,12 @@ export function avatarPreviewScale(
   naturalHeight: number,
   previewSize: number,
   zoom: number,
-) {
+): number {
   const baseScale = Math.max(previewSize / naturalWidth, previewSize / naturalHeight)
   return baseScale * zoom
 }
 
-export function clampAvatarOffset(state: AvatarCropState) {
+export function clampAvatarOffset(state: AvatarCropState): { offsetX: number; offsetY: number; scaledWidth: number; scaledHeight: number; } {
   const scale = avatarPreviewScale(state.naturalWidth, state.naturalHeight, state.previewSize, state.zoom)
   const scaledWidth = state.naturalWidth * scale
   const scaledHeight = state.naturalHeight * scale
@@ -62,7 +62,7 @@ export function clampAvatarOffset(state: AvatarCropState) {
   }
 }
 
-export function avatarImageStyle(state: AvatarCropState) {
+export function avatarImageStyle(state: AvatarCropState): { width: string; height: string; transform: string; } {
   const scale = avatarPreviewScale(state.naturalWidth, state.naturalHeight, state.previewSize, state.zoom)
   const centered = centeredAvatarOffset(state.naturalWidth, state.naturalHeight, state.previewSize, state.zoom)
   const clamped = clampAvatarOffset(state)
@@ -129,7 +129,7 @@ function canvasToBlob(canvas: HTMLCanvasElement, type: string, quality: number):
   })
 }
 
-function normalizeAvatarFileName(fileName: string | undefined, mimeType: string) {
+function normalizeAvatarFileName(fileName: string | undefined, mimeType: string): string {
   const extension = mimeType === 'image/webp' ? 'webp' : 'jpg'
   const base = trimBoundaryCharacters((fileName || 'avatar')
     .replace(/\.[a-z0-9]+$/i, '')
@@ -138,6 +138,6 @@ function normalizeAvatarFileName(fileName: string | undefined, mimeType: string)
   return `${base}.${extension}`
 }
 
-function clamp(value: number, min: number, max: number) {
+function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value))
 }

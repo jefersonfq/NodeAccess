@@ -1,7 +1,14 @@
 import type { FastifyInstance } from 'fastify'
 import type { SharedSessionGateway } from './shared-session.gateway.js'
 
-export async function sharedSessionWsRoutes(app: FastifyInstance, gateway: SharedSessionGateway): Promise<void> {
+export function sharedSessionWsRoutes(app: FastifyInstance, gateway: SharedSessionGateway): Promise<void> {
+  return new Promise<void>((resolve) => {
+    registerSharedSessionWsRoutes(app, gateway)
+    resolve()
+  })
+}
+
+function registerSharedSessionWsRoutes(app: FastifyInstance, gateway: SharedSessionGateway): void {
   app.get<{
     Params: { sharedSessionId: string }
     Querystring: { token?: string }

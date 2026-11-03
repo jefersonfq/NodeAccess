@@ -33,7 +33,7 @@ function resolveAgentBinary(fileName: string): string {
     const filePath = resolve(dir, fileName)
     if (existsSync(filePath)) return filePath
   }
-  return resolve(AGENT_DIST_CANDIDATES[0]!, fileName)
+  return resolve(AGENT_DIST_CANDIDATES[0], fileName)
 }
 
 function resolveAgentDownloadVersion(platform: string): string {
@@ -139,7 +139,14 @@ if ($Service) {
 }
 `
 
-export async function agentRoutes(app: FastifyInstance, ctrl: AgentController): Promise<void> {
+export function agentRoutes(app: FastifyInstance, ctrl: AgentController): Promise<void> {
+  return new Promise<void>((resolve) => {
+    registerAgentRoutes(app, ctrl)
+    resolve()
+  })
+}
+
+function registerAgentRoutes(app: FastifyInstance, ctrl: AgentController): void {
   app.get('/', {
     preHandler: [requireAuth],
     schema: { tags: tag, summary: 'Listar agentes do usuário', security: [{ bearerAuth: [] }] },

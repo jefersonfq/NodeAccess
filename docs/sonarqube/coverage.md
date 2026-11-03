@@ -48,3 +48,15 @@ node node_modules/playwright/cli.js install --with-deps chromium
 A CI Ubuntu24 realiza essa instalação após `npm ci`. O WSL Ubuntu20.04 usado nesta frente não é suportado pelo Chromium1248 esperado pelo Playwright instalado; a tentativa de instalação falhou explicitamente. O ensaio local foi executado com `PLAYWRIGHT_EXECUTABLE_PATH=/root/.cache/ms-playwright/chromium-1234/chrome-linux64/chrome` (Chrome for Testing151.0.7922.34), como override consciente do ambiente de automação. Não há downgrade da dependência nem fallback automático. Esse ensaio local não substitui a validação do browser fixado no runner GitHub.
 
 A fase browser usa HTML sintético e componentes reais selecionados; não inicia a aplicação completa nem conecta backend, VPN ou hosts. O servidor responde404 em `/api/` e encerra no `finally`. Os dois scripts herdam ranges V8 da coleta; funções executadas exclusivamente dentro de `page.evaluate` permanecem não cobertas no Node. `coverage/browser/summary.json`, logs e cinco capturas guardam a evidência local. Requisições de módulo e subprocessos têm deadline; falhas de preparação, execução e cleanup reprovam o gate.
+
+## Git confiável e entrada CI local
+
+As operações Git da cobertura e da validação usam `/usr/bin/git`, com argumentos separados e sem shell. O contrato suportado é Linux/WSL e CI Ubuntu com Git instalado pelo sistema; um `git` colocado antes no `PATH` não é executado. O ambiente e a configuração Git continuam confiáveis, como o próprio checkout. Sem esse binário, a rotina falha; não há fallback automático para outro executável.
+
+Para executar o fluxo CI completo num checkout limpo, com Node24.21+, Docker e browser preparados:
+
+```sh
+SONAR_CI_BASE=<SHA-base-completo> npm run sonar:ci
+```
+
+Execute pela entrada npm: ela fornece `npm_execpath` ao processo, inclusive quando Node e npm estão em instalações diferentes. A chamada direta ao arquivo JavaScript depende de npm adjacente ao Node e pode falhar nesse ambiente. O fluxo coleta cobertura e inicia SonarQube/PostgreSQL descartáveis para analisar base/head; os pré-requisitos e limites são distintos de `npm run test:coverage`. Não use a instância persistente como destino desse ensaio.

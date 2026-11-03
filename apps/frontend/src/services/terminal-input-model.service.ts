@@ -24,24 +24,24 @@ export class TerminalInputModel {
   }
 
   snapshot(): TerminalInputSnapshot { return { value: this.value, cursor: this.cursor, reliable: this.reliable } }
-  append(text: string) { for (const char of text) this.insert(char); return this.value }
-  reset() { this.value = ''; this.cursor = 0; this.escape = ''; this.reliable = true }
-  current() { return this.reliable ? this.value : '' }
+  append(text: string): string { for (const char of text) this.insert(char); return this.value }
+  reset(): void { this.value = ''; this.cursor = 0; this.escape = ''; this.reliable = true }
+  current(): string { return this.reliable ? this.value : '' }
 
-  private insert(char: string) { this.value = `${this.value.slice(0, this.cursor)}${char}${this.value.slice(this.cursor)}`; this.cursor += char.length }
-  private backspace() { if (this.cursor > 0) { this.value = `${this.value.slice(0, this.cursor - 1)}${this.value.slice(this.cursor)}`; this.cursor -= 1 } }
-  private deletePreviousWord() {
+  private insert(char: string): void { this.value = `${this.value.slice(0, this.cursor)}${char}${this.value.slice(this.cursor)}`; this.cursor += char.length }
+  private backspace(): void { if (this.cursor > 0) { this.value = `${this.value.slice(0, this.cursor - 1)}${this.value.slice(this.cursor)}`; this.cursor -= 1 } }
+  private deletePreviousWord(): void {
     const left = this.value.slice(0, this.cursor)
     let end = left.length
-    while (end > 0 && /\s/.test(left[end - 1]!)) end -= 1
+    while (end > 0 && /\s/.test(left[end - 1])) end -= 1
     // An all-whitespace line was unchanged by the previous pattern.
     if (end === 0) return
-    while (end > 0 && !/\s/.test(left[end - 1]!)) end -= 1
-    while (end > 0 && /\s/.test(left[end - 1]!)) end -= 1
+    while (end > 0 && !/\s/.test(left[end - 1])) end -= 1
+    while (end > 0 && /\s/.test(left[end - 1])) end -= 1
     const nextLeft = left.slice(0, end)
     this.value = `${nextLeft}${this.value.slice(this.cursor)}`; this.cursor = nextLeft.length
   }
-  private consumeEscape(char: string) {
+  private consumeEscape(char: string): void {
     this.escape += char
     if (this.escape === '\u001b[' || this.escape === '\u001bO') return
     if (!/[@-~]$/.test(char)) return

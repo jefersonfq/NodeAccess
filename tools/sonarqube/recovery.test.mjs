@@ -56,3 +56,12 @@ test('restore rejects corrupted backup before allocating Docker resources',async
 test('private input reads the validated descriptor',async t=>{const {privateInput}=await import('./maintenance-common.mjs'),{readSync}=await import('node:fs'),root=await fixture(t);await writePrivate(join(root,'file'),'payload');await privateInput(join(root,'file'),await privateDirectory(root),fd=>{const bytes=Buffer.alloc(7);assert.equal(readSync(fd,bytes),7);assert.equal(bytes.toString(),'payload')})})
 test('backup manifest rejects wrong image roles even with valid SHA syntax',async t=>{const path=await backupFixture(t),file=join(path,'manifest.json'),manifest=JSON.parse(await readFile(file));manifest.images.other=manifest.images.db;delete manifest.images.db;await writePrivate(file,manifest);await assert.rejects(verifyBackup(path),{code:'MANIFEST_INVALID'})})
 test('privileged reader rejects foreign-owned file in user-owned private directory',{skip:process.getuid()!==0},async t=>{const {chown}=await import('node:fs/promises'),root=await fixture(t);await writePrivate(join(root,'foreign'),'protected-fixture');await chown(root,1000,1000);const owner={uid:1000,gid:1000};await assert.rejects(readFileSafe(join(root,'foreign'),{owner}),{code:'UNSAFE_FILE'});await assert.rejects(writePrivate(join(root,'foreign'),'replacement',owner),{code:'UNSAFE_FILE'});assert.equal(await readFile(join(root,'foreign'),'utf8'),'protected-fixture')})
+
+test('default file owner is resolved per call only for undefined, preserving null rejection', async t => {
+  const root = await fixture(t), path = join(root, 'default-owner')
+  await writePrivate(path, 'fixture', undefined)
+  const stat = await lstat(path)
+  assert.equal(stat.uid, process.getuid()); assert.equal(stat.gid, process.getgid()); assert.equal(stat.mode & 0o777, 0o600)
+  await assert.rejects(writePrivate(path, 'must not replace', null))
+  assert.equal(await readFile(path, 'utf8'), 'fixture')
+})

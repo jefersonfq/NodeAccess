@@ -56,3 +56,11 @@ test('rejects malformed records instead of dropping unknown or duplicated measur
   assert.throws(() => addedLines('@@ -1 +9007199254740992,1 @@'), /Invalid/)
   assert.throws(() => addedLines('@@ -1 +1,9007199254740992 @@'), /Invalid/)
 })
+
+test('LCOV totals distinguish valid zero from missing, duplicate and mismatched zero', () => {
+  const zero = 'SF:tools/empty.mjs\nLF:0\nLH:0\nBRF:0\nBRH:0\nend_of_record\n'
+  assert.equal(parseLcov(zero, '/project').get('tools/empty.mjs').totals.get('LF'), 0)
+  for (const value of [zero.replace('LF:0\n', ''), zero.replace('LF:0', 'LF:0\nLF:0'), zero.replace('LF:0', 'LF:1')]) {
+    assert.throws(() => parseLcov(value, '/project'))
+  }
+})

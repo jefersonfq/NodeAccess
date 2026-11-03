@@ -1,0 +1,19 @@
+✔ isolated browser orchestration uses loopback fixtures and private outputs without app/backend proxy (113.569191ms)
+✔ browser phase fails closed and cleans server on harness nonzero (38.687632ms)
+✔ browser phase fails closed and cleans server on harness deadline (24.247452ms)
+✔ browser phase fails closed and cleans server on non-loopback server (4.664118ms)
+✔ browser phase fails closed and cleans server on cleanup failure (24.892483ms)
+✔ browser setup errors remain explicit without claiming a harness ran (4.166847ms)
+✔ module readiness tolerates startup response then rejects an unavailable fixture within a deadline (207.182426ms)
+✔ real harness subprocesses retain logs, nonzero exits and forced termination (173.378608ms)
+✔ timeout kills resistant descendant when parent exits on SIGTERM (1014.575359ms)
+✔ timeout kills resistant descendant when parent also resists (6016.736484ms)
+✔ normal parent exit does not signal its descendant group (125.028312ms)
+ℹ tests 11
+ℹ suites 0
+ℹ pass 11
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 8196.316081

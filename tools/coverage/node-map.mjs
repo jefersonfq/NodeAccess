@@ -10,7 +10,7 @@ import libCoverage from 'istanbul-lib-coverage'
 export async function nodeCoverageMap({ root, directory, files, anomalies = [] }) {
   const allowed = new Set(files.map(file => resolve(root, file)))
   let merged = { result: [] }
-  const inputs = (await readdir(directory)).filter(file => /^coverage-.+\.json$/.test(file)).sort()
+  const inputs = (await readdir(directory)).filter(file => /^coverage-.+\.json$/.test(file)).sort((left, right) => left.localeCompare(right, 'en'))
   if (!inputs.length) throw new Error('Node coverage was not produced')
   for (const file of inputs) {
     const data = JSON.parse(await readFile(resolve(directory, file), 'utf8'))

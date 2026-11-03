@@ -84,3 +84,42 @@ test('real harness subprocesses retain logs, nonzero exits and forced terminatio
   assert.equal(blocked.timedOut, true); assert.notEqual(blocked.exitCode, 0)
   await assert.rejects(executeBrowserHarness(join(root, 'missing-cwd'), 'success.cjs', process.env, join(root, 'spawn-error.log')), /ENOENT/)
 })
+
+for (const parentResists of [false, true]) test(`timeout kills resistant descendant when parent ${parentResists ? 'also resists' : 'exits on SIGTERM'}`, { skip: process.platform !== 'linux', timeout: 12_000 }, async t => {
+  const root = fixture(t), pidFile = join(root, 'descendant.pid')
+  let descendant
+  t.after(() => { if (descendant) { try { process.kill(descendant, 'SIGKILL') } catch { /* Already terminated. */ } } })
+  writeFileSync(join(root, 'descendant.cjs'), "process.on('SIGTERM',()=>{});require('node:fs').writeFileSync(process.argv[2],String(process.pid));setInterval(()=>{},1000)")
+  writeFileSync(join(root, 'parent.cjs'), `${parentResists ? "process.on('SIGTERM',()=>{});" : ''}require('node:child_process').spawn(process.execPath,[require('node:path').join(__dirname,'descendant.cjs'),process.argv[1].replace('parent.cjs','descendant.pid')],{stdio:'ignore'});setInterval(()=>{},1000)`)
+  const started = performance.now()
+  const result = await executeBrowserHarness(root, 'parent.cjs', process.env, join(root, 'timeout.log'), 1000)
+  descendant = Number(readFileSync(pidFile, 'utf8'))
+  assert.ok(Number.isSafeInteger(descendant) && descendant > 1)
+  assert.equal(result.timedOut, true); assert.notEqual(result.exitCode, 0)
+  assert.ok(performance.now() - started < 9000, 'termination must remain bounded')
+  // A reparented zombie is terminated and awaits the host init reaper; it cannot execute work.
+  const isRunning = () => {
+    try { const stat = readFileSync(`/proc/${descendant}/stat`, 'utf8'); return stat.slice(stat.lastIndexOf(')') + 2).split(' ')[0] !== 'Z' }
+    catch (error) { if (error.code === 'ENOENT') return false; throw error }
+  }
+  const deadline = performance.now() + 500
+  while (isRunning() && performance.now() < deadline) await new Promise(resolve => setTimeout(resolve, 10))
+  assert.equal(isRunning(), false, 'resistant descendant must not survive the harness timeout')
+})
+
+test('normal parent exit does not signal its descendant group', { skip: process.platform !== 'linux', timeout: 5000 }, async t => {
+  const root = fixture(t), pidFile = join(root, 'normal.pid')
+  let descendant
+  t.after(() => { if (descendant) { try { process.kill(descendant, 'SIGKILL') } catch { /* Already terminated. */ } } })
+  writeFileSync(join(root, 'normal-child.cjs'), "require('node:fs').writeFileSync(process.argv[2],String(process.pid));setInterval(()=>{},1000)")
+  writeFileSync(join(root, 'normal-parent.cjs'), "const child=require('node:child_process').spawn(process.execPath,[require('node:path').join(__dirname,'normal-child.cjs'),require('node:path').join(__dirname,'normal.pid')],{stdio:'ignore'});child.unref()")
+  const result = await executeBrowserHarness(root, 'normal-parent.cjs', process.env, join(root, 'normal.log'), 2000)
+  const deadline = performance.now() + 1000
+  while (performance.now() < deadline) {
+    try { descendant = Number(readFileSync(pidFile, 'utf8')); break }
+    catch (error) { if (error.code !== 'ENOENT') throw error; await new Promise(resolve => setTimeout(resolve, 10)) }
+  }
+  assert.ok(Number.isSafeInteger(descendant) && descendant > 1)
+  assert.deepEqual(result, { exitCode: 0, timedOut: false })
+  assert.doesNotThrow(() => process.kill(descendant, 0))
+})

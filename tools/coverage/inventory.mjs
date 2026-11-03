@@ -9,7 +9,7 @@ export function isSource(file) {
     && !nonSourcePatterns.some(pattern => matchesGlob(file, pattern))
 }
 export function repositoryFiles(root) {
-  return [...new Set(execFileSync('git', ['ls-files', '--cached', '--others', '--exclude-standard', '-z'], { cwd: root, encoding: 'utf8' }).split('\0').filter(Boolean))].sort()
+  return [...new Set(execFileSync('/usr/bin/git', ['ls-files', '--cached', '--others', '--exclude-standard', '-z'], { cwd: root, encoding: 'utf8' }).split('\0').filter(Boolean))].sort((left, right) => left.localeCompare(right, 'en'))
 }
 export function sourceInventory(root) { return repositoryFiles(root).filter(file => isSource(file) && existsSync(resolve(root, file))) }
 export function nodeTestFiles(root) {

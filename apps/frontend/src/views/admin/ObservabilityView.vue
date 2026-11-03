@@ -724,7 +724,7 @@ function formatUptime(seconds: number): string {
                 <div
                   class="component-row"
                   role="group"
-                    :aria-label="`${componentLabels[component.name]}: ${statusLabel[component.status]}, ${component.latencyMs} ms. ${component.message || 'Sem mensagem adicional.'}`"
+                  :aria-label="`${componentLabels[component.name]}: ${statusLabel[component.status]}, ${component.latencyMs} ms. ${component.message || 'Sem mensagem adicional.'}`"
                 >
                   <span
                     class="status-dot"
@@ -783,7 +783,7 @@ function formatUptime(seconds: number): string {
                 <div
                   class="component-row"
                   role="group"
-                    :aria-label="`${backupLabels[backup.type]}: ${statusLabel[backup.status]}, ${backup.ageHours === null ? 'idade indisponível' : `${backup.ageHours} horas`}. ${backup.latestFile || backup.message || backup.directory}`"
+                  :aria-label="`${backupLabels[backup.type]}: ${statusLabel[backup.status]}, ${backup.ageHours === null ? 'idade indisponível' : `${backup.ageHours} horas`}. ${backup.latestFile || backup.message || backup.directory}`"
                 >
                   <span
                     class="status-dot"

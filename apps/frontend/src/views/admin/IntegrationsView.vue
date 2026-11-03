@@ -1588,7 +1588,10 @@ const localAiUseCases: IntegrationGuideItem[] = [
                 class="grid grid-cols-1 md:grid-cols-3 gap-3 mt-3"
               >
                 <div>
-                  <label for="jiraTicketUserIds" class="text-xs text-gray-400">Usuários</label>
+                  <label
+                    for="jiraTicketUserIds"
+                    class="text-xs text-gray-400"
+                  >Usuários</label>
                   <NSelect
                     v-model:value="jiraTicketUserIds"
                     :input-props="{ id: 'jiraTicketUserIds', 'aria-label': 'Usuários' }"
@@ -1599,7 +1602,10 @@ const localAiUseCases: IntegrationGuideItem[] = [
                   />
                 </div>
                 <div>
-                  <label for="jiraTicketGroupIds" class="text-xs text-gray-400">Grupos</label>
+                  <label
+                    for="jiraTicketGroupIds"
+                    class="text-xs text-gray-400"
+                  >Grupos</label>
                   <NSelect
                     v-model:value="jiraTicketGroupIds"
                     :input-props="{ id: 'jiraTicketGroupIds', 'aria-label': 'Grupos' }"
@@ -1611,7 +1617,10 @@ const localAiUseCases: IntegrationGuideItem[] = [
                   />
                 </div>
                 <div>
-                  <label for="jiraTicketInventoryFolderIds" class="text-xs text-gray-400">Pastas corporativas</label>
+                  <label
+                    for="jiraTicketInventoryFolderIds"
+                    class="text-xs text-gray-400"
+                  >Pastas corporativas</label>
                   <NSelect
                     v-model:value="jiraTicketInventoryFolderIds"
                     :input-props="{ id: 'jiraTicketInventoryFolderIds', 'aria-label': 'Pastas corporativas' }"
