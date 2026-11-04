@@ -1,0 +1,1425 @@
+{
+  "schemaVersion": 1,
+  "startedAt": "2026-11-04T21:01:32.988Z",
+  "head": "630040e6c956c1d645a55c89a076edcdc3854445",
+  "requestedBase": "f4a44b4b7ae87a8f688b1246d9e52a31f9a104bc",
+  "sourceFingerprint": "50cf86972b67ffd7b5582b9b5e68701b5beb31dc53cb4bd94744468ded71310d",
+  "status": "passed",
+  "failures": [],
+  "newCoverage": {
+    "status": "passed",
+    "base": "f4a44b4b7ae87a8f688b1246d9e52a31f9a104bc",
+    "head": "630040e6c956c1d645a55c89a076edcdc3854445",
+    "includesWorkingTree": true,
+    "threshold": 80,
+    "percent": 80.67188741346045,
+    "lines": 4562,
+    "coveredLines": 3682,
+    "conditions": 4249,
+    "coveredConditions": 3426,
+    "files": [
+      "apps/agent/src/index.js",
+      "apps/agent/src/local-listeners.js",
+      "apps/backend/src/config/env.ts",
+      "apps/backend/src/modules/agents/agent.routes.ts",
+      "apps/backend/src/modules/ai-ssh-actions/ai-script-artifact.repository.ts",
+      "apps/backend/src/modules/ai-ssh-actions/ai-ssh-action.execution.ts",
+      "apps/backend/src/modules/auth/scim.service.ts",
+      "apps/backend/src/modules/diagnostic-playbooks/diagnostic-run-ai.service.ts",
+      "apps/backend/src/modules/diagnostic-playbooks/diagnostic-run.controller.ts",
+      "apps/backend/src/modules/hosts/host.repository.ts",
+      "apps/backend/src/modules/hosts/host.service-NOTE-JEFF.ts",
+      "apps/backend/src/modules/hosts/host.service.ts",
+      "apps/backend/src/modules/integrations/jira.service.ts",
+      "apps/backend/src/modules/integrations/local-ai.service.ts",
+      "apps/backend/src/modules/integrations/openai.service.ts",
+      "apps/backend/src/modules/local-ai/local-ai.service.ts",
+      "apps/backend/src/modules/mcp/mcp-interactive-ssh.service.ts",
+      "apps/backend/src/modules/native-ssh-gateway/native-ssh-gateway.host-key.ts",
+      "apps/backend/src/modules/native-ssh-gateway/native-ssh-gateway.routes.ts",
+      "apps/backend/src/modules/network-access/tacacs-activation.ts",
+      "apps/backend/src/modules/network-access/tacacs-main.ts",
+      "apps/backend/src/modules/network-access/tacacs-server.ts",
+      "apps/backend/src/modules/session-audit/session-audit-normalizer.ts",
+      "apps/backend/src/modules/session-audit/session-audit.storage.ts",
+      "apps/backend/src/modules/sftp/sftp.controller.ts",
+      "apps/backend/src/modules/sftp/sftp.service.ts",
+      "apps/backend/src/modules/shared-sessions/shared-session.ws-routes.ts",
+      "apps/backend/src/modules/ssh/ssh.routes.ts",
+      "apps/backend/src/modules/terminal-highlights/terminal-highlight.service.ts",
+      "apps/backend/src/modules/trials/trial-machines.ts",
+      "apps/backend/src/modules/trials/trial.service.ts",
+      "apps/backend/src/modules/users/user.service.ts",
+      "apps/backend/src/modules/web-access/web-access.service.ts",
+      "apps/backend/src/shared/linear-text.ts",
+      "apps/backend/src/shared/private-storage.ts",
+      "apps/frontend/src/components/CommandPalette.vue",
+      "apps/frontend/src/components/diagnostics/DiagnosticRunHistoryPanel.vue",
+      "apps/frontend/src/components/HostAccessIndicator.vue",
+      "apps/frontend/src/components/ImportHostsModal.vue",
+      "apps/frontend/src/components/mcp/McpAgentSetup.vue",
+      "apps/frontend/src/components/platform/TenantLicenseEditor.vue",
+      "apps/frontend/src/components/SessionSupervisionPermission.vue",
+      "apps/frontend/src/components/TerminalHighlightEffectiveRules.vue",
+      "apps/frontend/src/components/TerminalHighlightPresetPicker.vue",
+      "apps/frontend/src/components/TerminalHighlightRuleEditor.vue",
+      "apps/frontend/src/components/TerminalPane.vue",
+      "apps/frontend/src/components/TunnelManager.vue",
+      "apps/frontend/src/composables/useHighlightPreview.ts",
+      "apps/frontend/src/composables/useTerminal.ts",
+      "apps/frontend/src/services/audit-text-patterns.ts",
+      "apps/frontend/src/services/avatar-image-processing.ts",
+      "apps/frontend/src/services/guacamole-import.service.ts",
+      "apps/frontend/src/services/host-ipv6-validation.service.ts",
+      "apps/frontend/src/services/host-view-preferences.service.ts",
+      "apps/frontend/src/services/mobaxterm-import.service.ts",
+      "apps/frontend/src/services/pem-key-encryption.ts",
+      "apps/frontend/src/services/session-import-detection.service.ts",
+      "apps/frontend/src/services/terminal-audit-controls.service.ts",
+      "apps/frontend/src/services/terminal-input-model.service.ts",
+      "apps/frontend/src/services/terminal-path-autocomplete.service.ts",
+      "apps/frontend/src/services/terminal-session-entity-index.service.ts",
+      "apps/frontend/src/services/text-boundaries.ts",
+      "apps/frontend/src/terminal/terminal-highlight-client.ts",
+      "apps/frontend/src/terminal/terminal-highlight-engine.ts",
+      "apps/frontend/src/terminal/terminal-highlight.worker.ts",
+      "apps/frontend/src/terminal/terminal-highlighter.ts",
+      "apps/frontend/src/views/admin/DashboardView.vue",
+      "apps/frontend/src/views/admin/HighAvailabilityView.vue",
+      "apps/frontend/src/views/admin/IntegrationsView.vue",
+      "apps/frontend/src/views/admin/McpTokensView.vue",
+      "apps/frontend/src/views/admin/ObservabilityView.vue",
+      "apps/frontend/src/views/admin/SessionAuditDetailView.vue",
+      "apps/frontend/src/views/admin/SettingsView.vue",
+      "apps/frontend/src/views/admin/TenantsView.vue",
+      "apps/frontend/src/views/auth/LoginView.vue",
+      "apps/frontend/src/views/DiagnosticRunDetailView.vue",
+      "apps/frontend/src/views/ForwardingsView.vue",
+      "apps/frontend/src/views/GraphicalSessionView.vue",
+      "apps/frontend/src/views/HostsView.vue",
+      "apps/frontend/src/views/SnippetsView.vue",
+      "apps/frontend/src/views/TerminalView.vue",
+      "packages/shared/src/types/host-associated-link.ts",
+      "scripts/change-governance-lib.mjs",
+      "scripts/change-status.mjs",
+      "scripts/dependency-patches/typedoc-minimatch.mjs",
+      "scripts/deploy/configure-trial.mjs",
+      "scripts/deploy/runtime-permissions.mjs",
+      "scripts/lint-changed.mjs",
+      "scripts/recovery.mjs",
+      "scripts/release/prepare-agent-windows.mjs",
+      "scripts/release/release-provenance.mjs",
+      "scripts/security/scan-images.mjs",
+      "scripts/security/sqlite-image-policy.mjs",
+      "scripts/trial-lab/provider.mjs",
+      "tools/agents/security-live.mjs",
+      "tools/backend/engineering-shutdown-real.mts",
+      "tools/backend/security-quota-real.mts",
+      "tools/coverage/browser-map.mjs",
+      "tools/coverage/browser.mjs",
+      "tools/coverage/harness-diagnostics.cjs",
+      "tools/coverage/inventory.mjs",
+      "tools/coverage/lcov.mjs",
+      "tools/coverage/node-map.mjs",
+      "tools/coverage/playwright-coverage.cjs",
+      "tools/coverage/run.mjs",
+      "tools/coverage/sources.mjs",
+      "tools/coverage/summary.mjs",
+      "tools/deploy/container-stack-real.mjs",
+      "tools/deploy/doctor-nodeaccess-harness.cjs",
+      "tools/deploy/helm-chart-harness.cjs",
+      "tools/deploy/release-source-real.mjs",
+      "tools/deploy/restore-mysql-env.cjs",
+      "tools/deploy/runtime-nonroot-real.mjs",
+      "tools/deploy/stack-upgrade-real.mjs",
+      "tools/docs/build-datasheets.cjs",
+      "tools/frontend/action-run-audit-playwright.cjs",
+      "tools/frontend/ai-investigations-playwright.cjs",
+      "tools/frontend/audit-export-review-playwright.cjs",
+      "tools/frontend/audit-input-safety-playwright.cjs",
+      "tools/frontend/audit-operational-playwright.cjs",
+      "tools/frontend/audit-reconstruction-playwright.cjs",
+      "tools/frontend/auth-access-origin-playwright.cjs",
+      "tools/frontend/csp-security-playwright.cjs",
+      "tools/frontend/file-utilities-playwright.cjs",
+      "tools/frontend/file-utilities-real-lab.mts",
+      "tools/frontend/forwardings-resilience-playwright.cjs",
+      "tools/frontend/ha-live-enrollment-harness.cjs",
+      "tools/frontend/ha-playwright-live-readonly.cjs",
+      "tools/frontend/ha-playwright-smoke.cjs",
+      "tools/frontend/host-access-dashboard-playwright.cjs",
+      "tools/frontend/host-duplicate-playwright.cjs",
+      "tools/frontend/host-form-tabs-playwright.cjs",
+      "tools/frontend/host-import-duplicates-playwright.cjs",
+      "tools/frontend/host-import-live.cjs",
+      "tools/frontend/hosts-acl-resilience-playwright.cjs",
+      "tools/frontend/hosts-feedback-ux-playwright.cjs",
+      "tools/frontend/hosts-personal-folders-playwright.cjs",
+      "tools/frontend/hosts-presence-resilience-playwright.cjs",
+      "tools/frontend/jira-breakglass-live-playwright.cjs",
+      "tools/frontend/ldap-integrations-harness.cjs",
+      "tools/frontend/lucien-feedback-ux-playwright.cjs",
+      "tools/frontend/manual-review-playwright.cjs",
+      "tools/frontend/mcp-agent-onboarding-playwright.cjs",
+      "tools/frontend/observability-cdp-harness.cjs",
+      "tools/frontend/observability-resilience-playwright.cjs",
+      "tools/frontend/oidc-login-playwright.cjs",
+      "tools/frontend/pem-key-passphrase-playwright.cjs",
+      "tools/frontend/platform-settings-playwright.cjs",
+      "tools/frontend/recent-host-access-playwright.cjs",
+      "tools/frontend/session-close-live.cjs",
+      "tools/frontend/session-command-policies-playwright.cjs",
+      "tools/frontend/session-playback-cdp-flow.cjs",
+      "tools/frontend/session-playback-playwright.cjs",
+      "tools/frontend/sessions-filters-playwright.cjs",
+      "tools/frontend/sftp-file-manager-harness.cjs",
+      "tools/frontend/sftp-review-playwright.cjs",
+      "tools/frontend/shared-viewer-geometry-playwright.cjs",
+      "tools/frontend/sharing-flows-playwright.cjs",
+      "tools/frontend/sidebar-cdp-ux.cjs",
+      "tools/frontend/snippets-macro-execution-playwright.cjs",
+      "tools/frontend/snippets-macros-playwright.cjs",
+      "tools/frontend/snippets-page-playwright.cjs",
+      "tools/frontend/sonar-fixture-expression.cjs",
+      "tools/frontend/sonar-flow-coverage.cjs",
+      "tools/frontend/sonar-flow-diagnostics.cjs",
+      "tools/frontend/sonar-flow-fixtures.cjs",
+      "tools/frontend/sonar-frontend-review.cjs",
+      "tools/frontend/tenant-return-review-playwright.cjs",
+      "tools/frontend/terminal-ai-command-playwright.cjs",
+      "tools/frontend/terminal-autocomplete-pty.ts",
+      "tools/frontend/terminal-cdp-load.cjs",
+      "tools/frontend/terminal-cdp-real-flow.cjs",
+      "tools/frontend/terminal-cdp-simulated-flow.cjs",
+      "tools/frontend/terminal-experience-playwright.cjs",
+      "tools/frontend/terminal-highlight-budget.mjs",
+      "tools/frontend/terminal-highlights-playwright.cjs",
+      "tools/frontend/terminal-lifecycle-review-playwright.cjs",
+      "tools/frontend/terminal-onboarding-playwright.cjs",
+      "tools/frontend/terminal-playwright-load.cjs",
+      "tools/frontend/terminal-sftp-assertions.cjs",
+      "tools/frontend/terminal-split-layout-playwright.cjs",
+      "tools/frontend/terminal-zoom-observer.cjs",
+      "tools/frontend/tls-review-playwright.cjs",
+      "tools/frontend/trial-live-boundaries.cjs",
+      "tools/frontend/trial-live-playwright.mts",
+      "tools/frontend/trial-onboarding-playwright.cjs",
+      "tools/frontend/trial-resources-playwright.cjs",
+      "tools/frontend/webhooks-resilience-playwright.cjs",
+      "tools/load-tests/scripts/mock-ssh-server.js",
+      "tools/load-tests/scripts/run-gateway-with-metrics.js",
+      "tools/manual/capture.cjs",
+      "tools/network-access/health-live.mjs",
+      "tools/network-access/live.mjs",
+      "tools/network-access/ssh-live.cjs",
+      "tools/network-access/ux.cjs",
+      "tools/network-access/watchdog-live.mjs",
+      "tools/performance/frontend-entry.cjs",
+      "tools/quality/context.mjs",
+      "tools/session-audit/mysql-playback-fixture.ts",
+      "tools/session-audit/operational-api.mts",
+      "tools/session-audit/readable-export-review.mts",
+      "tools/session-audit/reconstruction-fidelity.ts",
+      "tools/session-audit/reconstruction-local-review.mts",
+      "tools/session-audit/reconstruction-mysql-integration.mts",
+      "tools/session-audit/reconstruction-sql-review.mts",
+      "tools/session-audit/review-recorded-sessions.ts",
+      "tools/shared/harness-endpoint.cjs",
+      "tools/shared/linear-harness-text.cjs",
+      "tools/shared/private-artifacts.cjs",
+      "tools/shared/sonar-issue-id.cjs",
+      "tools/shared/trusted-executable.cjs",
+      "tools/shared/wait-for.cjs",
+      "tools/snippets/macro-progress-mysql.mts",
+      "tools/sonarqube/analyze.mjs",
+      "tools/sonarqube/ci-config.mjs",
+      "tools/sonarqube/ci-coverage-diagnostics.mjs",
+      "tools/sonarqube/ci-new-code.mjs",
+      "tools/sonarqube/ci-policy.mjs",
+      "tools/sonarqube/ci-rehearsal.mjs",
+      "tools/sonarqube/ci-run.mjs",
+      "tools/sonarqube/ci-server.mjs",
+      "tools/sonarqube/export.mjs",
+      "tools/sonarqube/install-maintenance.mjs",
+      "tools/sonarqube/ledger.mjs",
+      "tools/sonarqube/maintenance-common.mjs",
+      "tools/sonarqube/maintenance.mjs",
+      "tools/sonarqube/reconcile.mjs",
+      "tools/sonarqube/recovery-real.mjs",
+      "tools/sonarqube/recovery.mjs",
+      "tools/sonarqube/table-review.cjs",
+      "tools/sonarqube/token-maintenance.mjs",
+      "tools/sonarqube/validate.mjs",
+      "tools/tls/adapter.mjs",
+      "tools/tls/audit-integration.ts",
+      "tools/tls/certificates.mjs",
+      "tools/tls/challenge-files.mjs",
+      "tools/tls/integration.cjs",
+      "tools/tls/manager.mjs"
+    ],
+    "missing": []
+  },
+  "collectors": {
+    "vitest": {
+      "exitCode": 0,
+      "passed": 3629,
+      "failed": 0,
+      "skipped": 125
+    },
+    "node": {
+      "exitCode": 0,
+      "testFiles": 86
+    },
+    "browser": {
+      "exitCode": 0,
+      "status": "passed",
+      "phase": "complete",
+      "captureRunId": "e00145b1-0189-4224-8ca9-b2db84032df6",
+      "startedAt": "2026-11-04T21:04:35.594Z",
+      "kind": "real Chromium; Node and mapped browser coverage are collected separately",
+      "harnesses": [
+        {
+          "name": "frontend",
+          "coverageMode": "node-only",
+          "exitCode": 0,
+          "timedOut": false
+        },
+        {
+          "name": "table",
+          "coverageMode": "node-only",
+          "exitCode": 0,
+          "timedOut": false
+        },
+        {
+          "name": "terminal",
+          "coverageMode": "node-and-browser",
+          "exitCode": 0,
+          "timedOut": false
+        },
+        {
+          "name": "platform",
+          "coverageMode": "node-and-browser",
+          "exitCode": 0,
+          "timedOut": false
+        },
+        {
+          "name": "flows",
+          "coverageMode": "node-and-browser",
+          "exitCode": 0,
+          "timedOut": false
+        },
+        {
+          "name": "ha",
+          "coverageMode": "node-and-browser",
+          "exitCode": 0,
+          "timedOut": false
+        },
+        {
+          "name": "audit-input",
+          "coverageMode": "node-and-browser",
+          "exitCode": 0,
+          "timedOut": false
+        },
+        {
+          "name": "highlight-budget",
+          "coverageMode": "node-only",
+          "exitCode": 0,
+          "timedOut": false
+        }
+      ],
+      "origin": "http://127.0.0.1:42487",
+      "finishedAt": "2026-11-04T21:09:21.653Z"
+    }
+  },
+  "resolvedBase": "f4a44b4b7ae87a8f688b1246d9e52a31f9a104bc",
+  "conversionAnomalies": [
+    {
+      "file": "apps/agent/src/local-listeners.js",
+      "line": 38,
+      "collector": "vitest",
+      "branchId": "13",
+      "index": 1,
+      "rawCount": -1,
+      "normalized": 0,
+      "converterVersion": "ast-v8-to-istanbul@1.0.7"
+    },
+    {
+      "file": "apps/backend/src/modules/users/user.service.ts",
+      "line": 327,
+      "collector": "vitest",
+      "branchId": "47",
+      "index": 1,
+      "rawCount": -1,
+      "normalized": 0,
+      "converterVersion": "ast-v8-to-istanbul@1.0.7"
+    },
+    {
+      "file": "apps/agent/src/access-policy.js",
+      "line": 24,
+      "collector": "node",
+      "branchId": "19",
+      "index": 1,
+      "rawCount": -6,
+      "normalized": 0,
+      "converterVersion": "ast-v8-to-istanbul@1.0.7"
+    },
+    {
+      "file": "scripts/trial-lab/provider.mjs",
+      "line": 109,
+      "collector": "node",
+      "branchId": "51",
+      "index": 1,
+      "rawCount": -1,
+      "normalized": 0,
+      "converterVersion": "ast-v8-to-istanbul@1.0.7"
+    }
+  ],
+  "collectorAuthority": {
+    "nodeFiles": [
+      "apps/agent/src/access-policy.js",
+      "apps/agent/src/agent-runtime.js",
+      "apps/agent/src/connection-health.js",
+      "apps/agent/src/connection-security.js",
+      "apps/agent/src/desktop-edit.js",
+      "apps/agent/src/diagnostic-log.js",
+      "apps/agent/src/diagnostic-outbox.js",
+      "apps/agent/src/index.js",
+      "apps/agent/src/local-listeners.js",
+      "scripts/change-governance-lib.mjs",
+      "scripts/change-status-lib.mjs",
+      "scripts/change-status.mjs",
+      "scripts/dependency-patches/typedoc-minimatch.mjs",
+      "scripts/deploy/configure-trial.mjs",
+      "scripts/deploy/runtime-permissions.mjs",
+      "scripts/recovery.mjs",
+      "scripts/release/release-provenance.mjs",
+      "scripts/security/guacd-image-policy.mjs",
+      "scripts/security/history-secrets.mjs",
+      "scripts/security/image-policy.mjs",
+      "scripts/security/sqlite-image-policy.mjs",
+      "scripts/trial-lab/provider.mjs",
+      "tools/coverage/browser-map.mjs",
+      "tools/coverage/browser.mjs",
+      "tools/coverage/harness-diagnostics.cjs",
+      "tools/coverage/inventory.mjs",
+      "tools/coverage/lcov.mjs",
+      "tools/coverage/node-map.mjs",
+      "tools/coverage/playwright-coverage.cjs",
+      "tools/coverage/run.mjs",
+      "tools/coverage/sources.mjs",
+      "tools/coverage/summary.mjs",
+      "tools/deploy/restore-mysql-env.cjs",
+      "tools/frontend/audit-input-safety-playwright.cjs",
+      "tools/frontend/dev-warmup-lib.cjs",
+      "tools/frontend/ha-live-enrollment-harness.cjs",
+      "tools/frontend/ha-playwright-smoke.cjs",
+      "tools/frontend/hosts-browser-cache-lib.cjs",
+      "tools/frontend/platform-settings-playwright.cjs",
+      "tools/frontend/session-playback-playwright.cjs",
+      "tools/frontend/sonar-fixture-expression.cjs",
+      "tools/frontend/sonar-flow-coverage.cjs",
+      "tools/frontend/sonar-flow-diagnostics.cjs",
+      "tools/frontend/sonar-flow-fixtures.cjs",
+      "tools/frontend/sonar-frontend-review.cjs",
+      "tools/frontend/terminal-autocomplete-review.cjs",
+      "tools/frontend/terminal-experience-playwright.cjs",
+      "tools/frontend/terminal-highlight-budget.mjs",
+      "tools/frontend/terminal-mouse-playwright.cjs",
+      "tools/frontend/terminal-sftp-assertions.cjs",
+      "tools/frontend/terminal-zoom-observer.cjs",
+      "tools/frontend/trial-live-boundaries.cjs",
+      "tools/manual/build.cjs",
+      "tools/quality/context.mjs",
+      "tools/shared/harness-endpoint.cjs",
+      "tools/shared/linear-harness-text.cjs",
+      "tools/shared/private-artifacts.cjs",
+      "tools/shared/sonar-issue-id.cjs",
+      "tools/shared/trusted-executable.cjs",
+      "tools/shared/wait-for.cjs",
+      "tools/sonarqube/analyze.mjs",
+      "tools/sonarqube/ci-config.mjs",
+      "tools/sonarqube/ci-coverage-diagnostics.mjs",
+      "tools/sonarqube/ci-new-code.mjs",
+      "tools/sonarqube/ci-policy.mjs",
+      "tools/sonarqube/ci-rehearsal.mjs",
+      "tools/sonarqube/ci-run.mjs",
+      "tools/sonarqube/ci-server.mjs",
+      "tools/sonarqube/export.mjs",
+      "tools/sonarqube/install-maintenance.mjs",
+      "tools/sonarqube/ledger.mjs",
+      "tools/sonarqube/maintenance-common.mjs",
+      "tools/sonarqube/maintenance.mjs",
+      "tools/sonarqube/reconcile.mjs",
+      "tools/sonarqube/recovery-real.mjs",
+      "tools/sonarqube/recovery.mjs",
+      "tools/sonarqube/table-review.cjs",
+      "tools/sonarqube/token-maintenance.mjs",
+      "tools/sonarqube/validate.mjs",
+      "tools/tls/certificates.mjs",
+      "tools/tls/challenge-files.mjs",
+      "tools/tls/manager.mjs",
+      "tools/tls/prepare.mjs",
+      "tools/tls/retry.mjs",
+      "tools/tls/storage.mjs"
+    ],
+    "discardedVitestCredit": [
+      {
+        "file": "apps/agent/src/local-listeners.js",
+        "lines": 36,
+        "functions": 12,
+        "branches": 28
+      },
+      {
+        "file": "tools/frontend/sonar-flow-fixtures.cjs",
+        "lines": 17,
+        "functions": 6,
+        "branches": 4
+      }
+    ]
+  },
+  "dataArtifacts": [
+    "apps/frontend/src/locales/en.json",
+    "apps/frontend/src/locales/pt-BR.json",
+    "apps/frontend/src/views/diagnostic-contracts.fixture.json",
+    "apps/frontend/src/views/admin/dashboard-contracts.fixture.json",
+    "apps/frontend/src/views/admin/settings-contracts.fixture.json",
+    "packages/shared/src/data/agent-diagnostics.json"
+  ],
+  "browserCoverage": {
+    "captures": 12,
+    "scripts": 960,
+    "sources": [
+      {
+        "file": "apps/frontend/src/service-worker-bootstrap.js",
+        "sha256": "ef2777c13372dc3bd66a5fa0c29876b81771ee13aa6772119b2060cb3d36f412"
+      },
+      {
+        "file": "apps/frontend/src/main.ts",
+        "sha256": "64e844b0062ee45befb4a130a85e7f1174d5547a51e21f8fbd3060c6ced4e4e5"
+      },
+      {
+        "file": "apps/frontend/src/services/ui-error.service.ts",
+        "sha256": "843b7c824938766a047be3cdd0c1c5d237b470058b0957741b87c7e341335ea3"
+      },
+      {
+        "file": "apps/frontend/src/App.vue",
+        "sha256": "80de30e874973e13b130b97d42a3bf3b314a425411f17be7579e006fffb74442"
+      },
+      {
+        "file": "apps/frontend/src/router/index.ts",
+        "sha256": "a64c96200135ee357faab1f81b473bb3ecbc33f90369042e593f2c8456a54870"
+      },
+      {
+        "file": "apps/frontend/src/services/cache-diagnostics.service.ts",
+        "sha256": "0dfa6acf5e99838a3f87b0eebdbc520b2c37aa9a344c52577a4ea02c3d395d69"
+      },
+      {
+        "file": "apps/frontend/src/plugins/i18n.ts",
+        "sha256": "0842181e007b21a1b10c4342b819a1458c7f0a7bd892077dd90b677d9105e96b"
+      },
+      {
+        "file": "apps/frontend/src/stores/ui.ts",
+        "sha256": "8c0045d1ec50b2d9851e45e71954bf5a372b565269c5b3cc95ddfe2778a687b8"
+      },
+      {
+        "file": "apps/frontend/src/services/hosts-cache-warmup.service.ts",
+        "sha256": "5b6503b6fdaff77e37bc00cfc4c224dbc23de0bcad852c54321fb17d04f581ab"
+      },
+      {
+        "file": "apps/frontend/src/services/user-preferences.service.ts",
+        "sha256": "f5f4cf0bcecf5183617498f246397a8685ed763ad352981e46ae6399673382fd"
+      },
+      {
+        "file": "apps/frontend/src/services/terminal-popout-coordinator.service.ts",
+        "sha256": "7c7cae15300b326cc85a8fdad47880903641fce7ca65cd84769498f7fdbf3f83"
+      },
+      {
+        "file": "apps/frontend/src/services/auth-redirect.service.ts",
+        "sha256": "68112b6e233d357b8c932cafea3fc7215d85fd0b5a65c4618bf2b8d022747a4b"
+      },
+      {
+        "file": "apps/frontend/src/stores/auth.ts",
+        "sha256": "33d0ef491243dff4b8fda32ab37f415aa1ac659b3f128720deaf7059dd971bec"
+      },
+      {
+        "file": "apps/frontend/src/services/stale-reload.service.ts",
+        "sha256": "39cf9cc446426f294b3f95fefb6f68619d8135f3f2c38e713b39f431de542beb"
+      },
+      {
+        "file": "apps/frontend/src/services/user-productivity-telemetry.service.ts",
+        "sha256": "9e8eeb24fcdaa1a0765092190c62603c83f7b15fd05c981f5a912dee30d1d116"
+      },
+      {
+        "file": "apps/frontend/src/services/client-ux-telemetry.service.ts",
+        "sha256": "3cab56f026fceb7230e326b51e1949dcb38a15eac6e4c33b3a63c470f3530ede"
+      },
+      {
+        "file": "apps/frontend/src/services/local-ai-context.service.ts",
+        "sha256": "621f391864d2da59979fe27deb573ef46b0f0099b65c5630b2115bf17f4ba05b"
+      },
+      {
+        "file": "apps/frontend/src/services/service-cache.ts",
+        "sha256": "753b968839b2d33adbda34bd2169ad58c0e39769e58d8131690924ce96a75377"
+      },
+      {
+        "file": "apps/frontend/src/services/inventory.service.ts",
+        "sha256": "a40f4d7892dc681b68b586a551a45c5210f751622f6b3beedfc90fda531f5b65"
+      },
+      {
+        "file": "apps/frontend/src/services/host.service.ts",
+        "sha256": "40ee88a7d4d3017d51bce3dbdcd44e95b1ac3c5f2eed0931d40d579c1d3c9bbf"
+      },
+      {
+        "file": "apps/frontend/src/services/host-view-preferences.service.ts",
+        "sha256": "70bf4a88a6478ad62f0e458497631737af499f24655ee460d62335459c334d26"
+      },
+      {
+        "file": "apps/frontend/src/services/user.service.ts",
+        "sha256": "761e964acd719b764546e40b0565364d3d5c55697fe478157a266d4176be424e"
+      },
+      {
+        "file": "apps/frontend/src/services/snippet-view-preferences.service.ts",
+        "sha256": "b066eb01e33ddfb6cf8e0a90db6a931200b7fc009a74b6d12a412d0c33580175"
+      },
+      {
+        "file": "apps/frontend/src/services/host-quick-access.service.ts",
+        "sha256": "08569ce1010115bb663339191831140bd885291a2ca520156ab049bfbcd1834e"
+      },
+      {
+        "file": "apps/frontend/src/composables/terminal-preferences.ts",
+        "sha256": "9bbf2c64975ebe1b6b4b1c1f6b3d29414c79b3fcccff9d93e06a55711e2c38bf"
+      },
+      {
+        "file": "apps/frontend/src/composables/usePlatform.ts",
+        "sha256": "baae14f025d7298e7c3b655878e6b045d29fd9478b8c139c9017814a87f82e18"
+      },
+      {
+        "file": "apps/frontend/src/services/terminal-layout.service.ts",
+        "sha256": "a192800415ca4901f277763ee8459342a0d2dc4ab92d5e0730d128e2b553ef0f"
+      },
+      {
+        "file": "apps/frontend/src/stores/terminals.ts",
+        "sha256": "4843dc9d18767ded8b239d49daa611dfcd41ba48f34b6e500940babe33bf7584"
+      },
+      {
+        "file": "apps/frontend/src/services/terminal-popout.service.ts",
+        "sha256": "517b382b2d41e5d0f5eea073cdacd6fc75af4d7ade17eefbac918a936d6c7d10"
+      },
+      {
+        "file": "apps/frontend/src/services/auth.service.ts",
+        "sha256": "4b6373457e7203c7e479c27a578289611315d8a184a69912b08e389830f39c18"
+      },
+      {
+        "file": "apps/frontend/src/services/api.ts",
+        "sha256": "ab00f78f55ff9a2aa365890886dd750e8f2fa80a31afdb5b46f4cdddebc0694c"
+      },
+      {
+        "file": "apps/frontend/src/services/logs.service.ts",
+        "sha256": "ab127b432e09f911c371c236cf81ded8bf7d4d7da5e44b9f6b1d11c870290920"
+      },
+      {
+        "file": "apps/frontend/src/services/cache-ttl.service.ts",
+        "sha256": "81d40339b5229209e3be986208f5a9b2d58183b7a0099fff173ceaad8f41ac95"
+      },
+      {
+        "file": "apps/frontend/src/services/api-timeout-policy.ts",
+        "sha256": "9740da6c308ece18021969ea6ad54af9449d526eaed5fc6ad463291fb37315e9"
+      },
+      {
+        "file": "apps/frontend/src/services/auth-session.service.ts",
+        "sha256": "61640ceacb684cf710402f3a824930a36c1703ee5edb9cb1c5307e12d388cbe9"
+      },
+      {
+        "file": "apps/frontend/src/services/backend-recovery.service.ts",
+        "sha256": "4ad28607899cd8f546ee637de7ec512b64235040b863a58257fe2bc0f2e8ec34"
+      },
+      {
+        "file": "apps/frontend/src/services/api-auth-classification.ts",
+        "sha256": "343ff172e282bfd3cbdf72fd624a06b3f1b2fd2f4ab835a5d9de97b30e7240fd"
+      },
+      {
+        "file": "apps/frontend/src/services/features.service.ts",
+        "sha256": "52eb0216431d04b03b94ca440a968275d3ef3750536acf86442463ecd249d1bb"
+      },
+      {
+        "file": "apps/frontend/src/services/integration.service.ts",
+        "sha256": "6921224a6f3bd839fe0272a8abc8a5d6e91eb0e2c912ae0ad5aee155bd729413"
+      },
+      {
+        "file": "apps/frontend/src/services/settings.service.ts",
+        "sha256": "879e610fee80a066a631f778911d7703b56df07e5eef562c4e4dc1f7003296c1"
+      },
+      {
+        "file": "apps/frontend/src/layouts/AppLayout.vue",
+        "sha256": "a3ff452931f0d75f49370bda347e34e38abfe7fbfc8f9b0e3d61a651f2f0a502"
+      },
+      {
+        "file": "apps/frontend/src/views/admin/HighAvailabilityView.vue",
+        "sha256": "cb710934e5d042ff00b3883587d7c86adc65d9123fa3b25313e8ce12a33ccc42"
+      },
+      {
+        "file": "apps/frontend/src/services/trial-experience.ts",
+        "sha256": "6e197de5a06611139c2669be3243ab0d77fdff06886bbed1c59b020ed310175f"
+      },
+      {
+        "file": "apps/frontend/src/stores/manual.ts",
+        "sha256": "2c2ff78e36e83cc5c0df7c142affdce4b80debde61b106273158f0f81b168a74"
+      },
+      {
+        "file": "apps/frontend/src/components/manual/ManualLink.vue",
+        "sha256": "9d0647e99d0ff19da3d49bc14ba6a0fcbdeec27615a8529de1f60ead49dcdbd4"
+      },
+      {
+        "file": "apps/frontend/src/components/CommandPalette.vue",
+        "sha256": "31840ca717b10c9f08d8114ed4f61dc8b66c5a9320669c56707b2f8cf13b7a27"
+      },
+      {
+        "file": "apps/frontend/src/components/tls/TlsStatusIndicator.vue",
+        "sha256": "d6b338b6d0507b82c33a0124140afedfe82fbf32259583c60edc7e535e27c5e2"
+      },
+      {
+        "file": "apps/frontend/src/components/LocaleSwitcher.vue",
+        "sha256": "a9f07a9103fa956e2309022aefd51e960b82411dee4487b55b53daa4f9acabb2"
+      },
+      {
+        "file": "apps/frontend/src/components/UserAvatar.vue",
+        "sha256": "8ec40161a229c77a6ebe19bd35b37164e4fe5fd8a2f9ef27fa20d09d08bebbbd"
+      },
+      {
+        "file": "apps/frontend/src/services/session-supervision.service.ts",
+        "sha256": "0bdbc843b5ce3636881258b56c32ca641279c3f30dbdd09b2d9541f61c04969b"
+      },
+      {
+        "file": "apps/frontend/src/services/feedback.service.ts",
+        "sha256": "569c0faba7ce2bbe461222133c5208e6ba0d601d8917b168da4e7207530803d4"
+      },
+      {
+        "file": "apps/frontend/src/services/app-events.service.ts",
+        "sha256": "dd43041b340ff24f8f5624ebd46c574033500bf98b4406e156a10b57ec086e98"
+      },
+      {
+        "file": "apps/frontend/src/components/ha/HaHelpTooltip.vue",
+        "sha256": "128cd6228a5b4277b8948cf59441a32f2c4d1501a44034789a0dbabbcc240fda"
+      },
+      {
+        "file": "apps/frontend/src/components/ha/HaTopologyMap.vue",
+        "sha256": "96208e96a1bfc04e0952dab7a208d10891de641b93896fb8677ad42a2adfa680"
+      },
+      {
+        "file": "apps/frontend/src/components/ha/HaFailurePolicyGuide.vue",
+        "sha256": "2bc33b292454f7c8973590c8e5b6a8f7150a42d9c70625910ce6d8f884ddfe2b"
+      },
+      {
+        "file": "apps/frontend/src/components/ha/HaIncidentGuide.vue",
+        "sha256": "a7dc1745d5ad8afa0dda271ef77ecd5c689cadcc0634a088ddf6aa9198632852"
+      },
+      {
+        "file": "apps/frontend/src/components/CollapsibleSection.vue",
+        "sha256": "b6dc3e8b4edec7f2a21332a82d3e1f5daea2244795b4a0e6fcc98ee1d6f1cfa1"
+      },
+      {
+        "file": "apps/frontend/src/components/ha/HaSetupWizard.vue",
+        "sha256": "b0ab37a930416d7e9d805ce93d231f251990f058ceeb637d611111d1609aba20"
+      },
+      {
+        "file": "apps/frontend/src/services/ha.service.ts",
+        "sha256": "d9467f98f90ad5cc3f15a3f38a0f64346b7300f35fbe18a2aaa20e29da74a367"
+      },
+      {
+        "file": "apps/frontend/src/services/tls.service.ts",
+        "sha256": "45bb08b2127ff9fd49bcf5bfba15750c343bca280023211b3aa4c8a47e596b04"
+      },
+      {
+        "file": "apps/frontend/src/composables/useTerminal.ts",
+        "sha256": "a9a9eb2bc6b0aa99176250b973322597c9cea4adab115465fd37eabd61264c53"
+      },
+      {
+        "file": "apps/frontend/src/services/sessions.service.ts",
+        "sha256": "f3b71496ef25f1b82a4b8116c4c629953d2d6497914738b3763382832be1750c"
+      },
+      {
+        "file": "apps/frontend/src/services/terminal-osc-directory.service.ts",
+        "sha256": "667b8cb4085c1eb6a3bb8a60ec97479c6b86e48dd25a71201b8c97f357ed2594"
+      },
+      {
+        "file": "apps/frontend/src/services/text-boundaries.ts",
+        "sha256": "7dc18efdda15870fb397f77674527dd21f0450e4ff1e247432fa45850f8fb962"
+      },
+      {
+        "file": "apps/frontend/src/composables/useTerminalBroadcast.ts",
+        "sha256": "08f839c6f266b97c53b72b96201dfab7eb3ed5e2b55efba5790f197629d8c478"
+      },
+      {
+        "file": "apps/frontend/src/services/terminal-sftp-channel.service.ts",
+        "sha256": "5ef5a09e5dfa4d73053dd7b51bdea650aadd7f64e7f9d8fc5b958e3d81868d2c"
+      },
+      {
+        "file": "apps/frontend/src/terminal/xterm-adapter.ts",
+        "sha256": "4879d24a099d90094fa8b3da425f75fa5f998139604fd8a1f6f324c47b83d3a0"
+      },
+      {
+        "file": "apps/frontend/src/services/terminal-ai-prefix.service.ts",
+        "sha256": "f38489b258390f3df908cd8c2f5bb6b8d0c4b7e4748c2334ba01a4d72f4d95db"
+      },
+      {
+        "file": "apps/frontend/src/services/terminal-input-model.service.ts",
+        "sha256": "88c9abd8b4b4bd956e3f8306e3997dd9c71ecf6c5bc2b8abbd65a1d02bd8b18e"
+      },
+      {
+        "file": "apps/frontend/src/services/terminal-alternate-screen.service.ts",
+        "sha256": "d2c9e445f5e6d546753a9fd5e987e2c7b92f1baaf6c42f0b04692e2f6bf010a4"
+      },
+      {
+        "file": "apps/frontend/src/terminal/terminal-highlighter.ts",
+        "sha256": "263321ebced5088d0ea379a183def804806990c491a873fc08ce184856228dc9"
+      },
+      {
+        "file": "apps/frontend/src/services/terminal-highlight.service.ts",
+        "sha256": "45f916600989728fb6866253e9028f1fcbfa30c8d6c306223f88e4a917fc2cb3"
+      },
+      {
+        "file": "apps/frontend/src/terminal/terminal-highlight-client.ts",
+        "sha256": "d27813afcf260da313f8a46841d10c8c9f12115fefafdf1b02094509b1787c77"
+      },
+      {
+        "file": "apps/frontend/src/terminal/terminal-highlight-engine.ts",
+        "sha256": "02ff804271ec7914e2953f17c581770b5cb4df299b68820ac8ad5f3662aa5f91"
+      },
+      {
+        "file": "apps/frontend/src/views/admin/TenantsView.vue",
+        "sha256": "7fcf8ffe254225f49df0920d33254379bebccedffbdb276573f0539bf70ca9d5"
+      },
+      {
+        "file": "apps/frontend/src/services/tenant.service.ts",
+        "sha256": "4bf09aec131f29052a37d31a0a6caa38a8b1fa5e6f31b0f2acbff6cc5f5a2209"
+      },
+      {
+        "file": "apps/frontend/src/components/SkeletonTable.vue",
+        "sha256": "aa8ed3c8df5ad56c43b43ae404c01961b0b0c94d927aa690cd174ef993ea846d"
+      },
+      {
+        "file": "apps/frontend/src/components/platform/TenantLicenseEditor.vue",
+        "sha256": "9eb999fceed0f395f6a0fde4818270175ebd2d82105281d321f153cf865a56fd"
+      },
+      {
+        "file": "apps/frontend/src/services/license-catalog.service.ts",
+        "sha256": "2eb50ef600df347b5e62207607a219ba8ff10d7c956b6244c4a9bd58e0fa575b"
+      },
+      {
+        "file": "apps/frontend/src/views/admin/DashboardView.vue",
+        "sha256": "6f992339afec22f4cfe716f5bc835a7532fe75e6e09e670f950b9fc01dc9ac3d"
+      },
+      {
+        "file": "apps/frontend/src/services/dashboard.service.ts",
+        "sha256": "ff74dff6d67e740116611215582494d0c8d6c1ac85e2a79df65140405b1ac099"
+      },
+      {
+        "file": "apps/frontend/src/composables/useTunnelPresence.ts",
+        "sha256": "6bfc5f2b241a18010ed281c210ebb3246edfe382dbb9b56159337269741d45bf"
+      },
+      {
+        "file": "apps/frontend/src/views/HostsView.vue",
+        "sha256": "b8da8f1802d925b61a258e4854d9bef12662d0cf4582af093748a28c65c091b3"
+      },
+      {
+        "file": "apps/frontend/src/services/host-ipv6-validation.service.ts",
+        "sha256": "db31258522e5ada418eef3ab976273d8b725b744def0a88a11070e4cd144ae23"
+      },
+      {
+        "file": "apps/frontend/src/utils/host-folder-breadcrumb.ts",
+        "sha256": "5c81c06852e52b8a3f86f9de2a764a96658dec6339ce18c9362a9d8767460c75"
+      },
+      {
+        "file": "apps/frontend/src/services/host-duplicate.ts",
+        "sha256": "a4ecb224ea0a583d88d4bd4b4ab2b3fa249224181c3dddc80edbceed1650df10"
+      },
+      {
+        "file": "apps/frontend/src/components/HostFormTabNav.vue",
+        "sha256": "c7170b9ca8d1faa81b251cc240de778dfa91032e63d8a39140b13fda9e0c83de"
+      },
+      {
+        "file": "apps/frontend/src/services/agent.service.ts",
+        "sha256": "9cb3d625b021e60da241851628a5158025c91c5bcb3da114a76fcb60d6ee0483"
+      },
+      {
+        "file": "apps/frontend/src/services/folder.service.ts",
+        "sha256": "5460fa827ba7f100e6a70cf064c83b298cee9d95527034cbeb882afdc12ee432"
+      },
+      {
+        "file": "apps/frontend/src/services/pem-key.service.ts",
+        "sha256": "d85f1c7eef4b31403cc73ad38be8fe409bcd4db62cee4aa7c6a4c6ae966e7153"
+      },
+      {
+        "file": "apps/frontend/src/components/TrialResourcesPanel.vue",
+        "sha256": "db55f03d79db79186074fe42d29e7c25609bca85148e6d60c130a9a65b5e16f6"
+      },
+      {
+        "file": "apps/frontend/src/services/bastion.service.ts",
+        "sha256": "f42277f0ca1c1c6f79daac13cc35a3ed62b1450bf6fd5fb3c8b30e8df3130b44"
+      },
+      {
+        "file": "apps/frontend/src/services/pem-key-encryption.ts",
+        "sha256": "83436c8c95db0d528230c554979bfbc1f52f40af13aee9019a3e743d38a8d96e"
+      },
+      {
+        "file": "apps/frontend/src/services/secret.service.ts",
+        "sha256": "ab951f9066c0200f60161a6ad12f37df542f1fe8932736642a917e562b19d4ca"
+      },
+      {
+        "file": "apps/frontend/src/services/portForwarding.service.ts",
+        "sha256": "03bc625af0de2d2b2c9f07ccad6b54589e32ed8dccde7e463de0878dffcff0fc"
+      },
+      {
+        "file": "apps/frontend/src/services/tag.service.ts",
+        "sha256": "42bac7c589830171c29578c0f73b9c9410b74d6ae0bae0bd990ae65ccbb364ab"
+      },
+      {
+        "file": "apps/frontend/src/services/webAccess.service.ts",
+        "sha256": "cf3f302b81b71edd5ace252cb148d54b892fdfcdd62e8dc49a0ac0b0a700bc47"
+      },
+      {
+        "file": "apps/frontend/src/services/host-link.service.ts",
+        "sha256": "1ed9d39612d3dcf714eee126cacf1db9a09a79902701d35d395b6abc393f813d"
+      },
+      {
+        "file": "apps/frontend/src/services/snippet.service.ts",
+        "sha256": "e73f73add9d0800366b48d8e1d32f71d14ea83489f112694f499abd0af953821"
+      },
+      {
+        "file": "apps/frontend/src/services/host-open-sessions.service.ts",
+        "sha256": "b209481053590cb97607ce30d8d5284f1f6bb41e6212884a0360266980abaf0a"
+      },
+      {
+        "file": "apps/frontend/src/services/session-presence-projection.ts",
+        "sha256": "3fe5acd64b467231205d4b5e5c9daddbe54cc0d6ff5eb792e5d4297911ca17fb"
+      },
+      {
+        "file": "apps/frontend/src/components/HostOsIcon.vue",
+        "sha256": "165bbb4d9cf9b9b9560a6676d6d74f53c5302698e2a3a4d9e4f6146d5a5e7b0d"
+      },
+      {
+        "file": "apps/frontend/src/components/QuickAccessHostCard.vue",
+        "sha256": "8a5e69a8801da57853abf0f612db98fc891456e53ac6a9da18ef8161ae99938a"
+      },
+      {
+        "file": "apps/frontend/src/components/HostAccessIndicator.vue",
+        "sha256": "f7b25879e1d72b164cd16cc3ad168eac99510e9fe4adbd3788bf5980d083753b"
+      },
+      {
+        "file": "apps/frontend/src/services/host-agent-availability.ts",
+        "sha256": "859c19f481ce3d07f546f418458e98432845bd93f58660eb95cdcf3e88e80414"
+      },
+      {
+        "file": "apps/frontend/src/components/HostPresencePill.vue",
+        "sha256": "d3e584d738c2fca8e5e717dc1060110fb4037858909a9e6efc72776ebe70aee3"
+      },
+      {
+        "file": "apps/frontend/src/utils/host-recent-access.ts",
+        "sha256": "8a25860ae9c195a9eef85dca0d9a82e63103947ef530e0d6da9353423cebe1c4"
+      },
+      {
+        "file": "apps/frontend/src/components/TrialCustomHosts.vue",
+        "sha256": "a67644d80904ccecc1440f132cce914c866e7da7ea567ab01325b1dfe2e161f5"
+      },
+      {
+        "file": "apps/frontend/src/services/trial.service.ts",
+        "sha256": "cfb63a3c36b0ffcc55bbfc0456e9605967bb147ef6d0b98d62f6c5573f7fb2fc"
+      },
+      {
+        "file": "apps/frontend/src/services/snippet-grouping.service.ts",
+        "sha256": "5162635ea79a8b5fdcb6e9ae2ae71a61925a7fed3634e7e53178340c35abb90f"
+      },
+      {
+        "file": "apps/frontend/src/components/HostProtocolIcon.vue",
+        "sha256": "0fc813bd9832afca221444b3e97ad7b497c9ae716428131b4a685681e9a5bb1f"
+      },
+      {
+        "file": "apps/frontend/src/services/trial-registration.ts",
+        "sha256": "a0a08e811135a62c66428a360d66bfdfe2aafed5c47e865099a7ad11e135fc14"
+      },
+      {
+        "file": "apps/frontend/src/components/InventoryAclDrawer.vue",
+        "sha256": "13e58688e9e6b902e957ff0551f57f53fd1bfa8c1ed4e028668cbe8faa5a9ec9"
+      },
+      {
+        "file": "apps/frontend/src/services/inventory-acl.service.ts",
+        "sha256": "000732d30a8254ff38d8810727665d6a7356af32bc28a945e792761f6bc84103"
+      },
+      {
+        "file": "apps/frontend/src/services/group.service.ts",
+        "sha256": "75a6f1927831fb403ec6896105590748683028afb20478d1b4ccdc0682eaf133"
+      },
+      {
+        "file": "apps/frontend/src/components/AclUserSelect.vue",
+        "sha256": "733d77050a5690d76a6934266323d547e5c1de46d5cef9330ae0effb0717deff"
+      },
+      {
+        "file": "apps/frontend/src/components/AclPermissionSummary.vue",
+        "sha256": "8b1e20f49ddd921ee7f0a70b2d28cdc836c53bf03bfce7b280740ed98d77bf3a"
+      },
+      {
+        "file": "apps/frontend/src/components/InventoryAclEntriesTable.vue",
+        "sha256": "ac3ab000942db93cbd83c174cfca1e5eace84ec9142bf86ad883cf9546ae0338"
+      }
+    ],
+    "excluded": [
+      {
+        "external": 0,
+        "dependenciesOrGenerated": 79
+      },
+      {
+        "external": 0,
+        "dependenciesOrGenerated": 79
+      },
+      {
+        "external": 0,
+        "dependenciesOrGenerated": 79
+      },
+      {
+        "external": 0,
+        "dependenciesOrGenerated": 79
+      },
+      {
+        "external": 0,
+        "dependenciesOrGenerated": 79
+      },
+      {
+        "external": 0,
+        "dependenciesOrGenerated": 77
+      },
+      {
+        "external": 0,
+        "dependenciesOrGenerated": 75
+      },
+      {
+        "external": 0,
+        "dependenciesOrGenerated": 84
+      },
+      {
+        "external": 0,
+        "dependenciesOrGenerated": 79
+      },
+      {
+        "external": 0,
+        "dependenciesOrGenerated": 84
+      },
+      {
+        "external": 0,
+        "dependenciesOrGenerated": 82
+      },
+      {
+        "external": 0,
+        "dependenciesOrGenerated": 79
+      }
+    ],
+    "overlay": {
+      "policy": "exact original locations only; authoritative denominators unchanged",
+      "matched": {
+        "s": 64247,
+        "f": 18039,
+        "b": 19491
+      },
+      "unmatched": {
+        "s": 3756,
+        "f": 2167,
+        "b": 3173
+      },
+      "files": [
+        "apps/frontend/src/App.vue",
+        "apps/frontend/src/components/AclPermissionSummary.vue",
+        "apps/frontend/src/components/AclUserSelect.vue",
+        "apps/frontend/src/components/CollapsibleSection.vue",
+        "apps/frontend/src/components/CommandPalette.vue",
+        "apps/frontend/src/components/ha/HaFailurePolicyGuide.vue",
+        "apps/frontend/src/components/ha/HaHelpTooltip.vue",
+        "apps/frontend/src/components/ha/HaIncidentGuide.vue",
+        "apps/frontend/src/components/ha/HaSetupWizard.vue",
+        "apps/frontend/src/components/ha/HaTopologyMap.vue",
+        "apps/frontend/src/components/HostAccessIndicator.vue",
+        "apps/frontend/src/components/HostFormTabNav.vue",
+        "apps/frontend/src/components/HostOsIcon.vue",
+        "apps/frontend/src/components/HostPresencePill.vue",
+        "apps/frontend/src/components/HostProtocolIcon.vue",
+        "apps/frontend/src/components/InventoryAclDrawer.vue",
+        "apps/frontend/src/components/InventoryAclEntriesTable.vue",
+        "apps/frontend/src/components/LocaleSwitcher.vue",
+        "apps/frontend/src/components/manual/ManualLink.vue",
+        "apps/frontend/src/components/platform/TenantLicenseEditor.vue",
+        "apps/frontend/src/components/QuickAccessHostCard.vue",
+        "apps/frontend/src/components/SkeletonTable.vue",
+        "apps/frontend/src/components/tls/TlsStatusIndicator.vue",
+        "apps/frontend/src/components/TrialCustomHosts.vue",
+        "apps/frontend/src/components/TrialResourcesPanel.vue",
+        "apps/frontend/src/components/UserAvatar.vue",
+        "apps/frontend/src/composables/terminal-preferences.ts",
+        "apps/frontend/src/composables/usePlatform.ts",
+        "apps/frontend/src/composables/useTerminal.ts",
+        "apps/frontend/src/composables/useTerminalBroadcast.ts",
+        "apps/frontend/src/composables/useTunnelPresence.ts",
+        "apps/frontend/src/layouts/AppLayout.vue",
+        "apps/frontend/src/main.ts",
+        "apps/frontend/src/plugins/i18n.ts",
+        "apps/frontend/src/router/index.ts",
+        "apps/frontend/src/service-worker-bootstrap.js",
+        "apps/frontend/src/services/agent.service.ts",
+        "apps/frontend/src/services/api-auth-classification.ts",
+        "apps/frontend/src/services/api-timeout-policy.ts",
+        "apps/frontend/src/services/api.ts",
+        "apps/frontend/src/services/app-events.service.ts",
+        "apps/frontend/src/services/auth-redirect.service.ts",
+        "apps/frontend/src/services/auth-session.service.ts",
+        "apps/frontend/src/services/auth.service.ts",
+        "apps/frontend/src/services/backend-recovery.service.ts",
+        "apps/frontend/src/services/bastion.service.ts",
+        "apps/frontend/src/services/cache-diagnostics.service.ts",
+        "apps/frontend/src/services/cache-ttl.service.ts",
+        "apps/frontend/src/services/client-ux-telemetry.service.ts",
+        "apps/frontend/src/services/dashboard.service.ts",
+        "apps/frontend/src/services/features.service.ts",
+        "apps/frontend/src/services/feedback.service.ts",
+        "apps/frontend/src/services/folder.service.ts",
+        "apps/frontend/src/services/group.service.ts",
+        "apps/frontend/src/services/ha.service.ts",
+        "apps/frontend/src/services/host-agent-availability.ts",
+        "apps/frontend/src/services/host-duplicate.ts",
+        "apps/frontend/src/services/host-ipv6-validation.service.ts",
+        "apps/frontend/src/services/host-link.service.ts",
+        "apps/frontend/src/services/host-open-sessions.service.ts",
+        "apps/frontend/src/services/host-quick-access.service.ts",
+        "apps/frontend/src/services/host-view-preferences.service.ts",
+        "apps/frontend/src/services/host.service.ts",
+        "apps/frontend/src/services/hosts-cache-warmup.service.ts",
+        "apps/frontend/src/services/integration.service.ts",
+        "apps/frontend/src/services/inventory-acl.service.ts",
+        "apps/frontend/src/services/inventory.service.ts",
+        "apps/frontend/src/services/license-catalog.service.ts",
+        "apps/frontend/src/services/local-ai-context.service.ts",
+        "apps/frontend/src/services/logs.service.ts",
+        "apps/frontend/src/services/pem-key-encryption.ts",
+        "apps/frontend/src/services/pem-key.service.ts",
+        "apps/frontend/src/services/portForwarding.service.ts",
+        "apps/frontend/src/services/secret.service.ts",
+        "apps/frontend/src/services/service-cache.ts",
+        "apps/frontend/src/services/session-presence-projection.ts",
+        "apps/frontend/src/services/session-supervision.service.ts",
+        "apps/frontend/src/services/sessions.service.ts",
+        "apps/frontend/src/services/settings.service.ts",
+        "apps/frontend/src/services/snippet-grouping.service.ts",
+        "apps/frontend/src/services/snippet-view-preferences.service.ts",
+        "apps/frontend/src/services/snippet.service.ts",
+        "apps/frontend/src/services/stale-reload.service.ts",
+        "apps/frontend/src/services/tag.service.ts",
+        "apps/frontend/src/services/tenant.service.ts",
+        "apps/frontend/src/services/terminal-ai-prefix.service.ts",
+        "apps/frontend/src/services/terminal-alternate-screen.service.ts",
+        "apps/frontend/src/services/terminal-highlight.service.ts",
+        "apps/frontend/src/services/terminal-input-model.service.ts",
+        "apps/frontend/src/services/terminal-layout.service.ts",
+        "apps/frontend/src/services/terminal-osc-directory.service.ts",
+        "apps/frontend/src/services/terminal-popout-coordinator.service.ts",
+        "apps/frontend/src/services/terminal-popout.service.ts",
+        "apps/frontend/src/services/terminal-sftp-channel.service.ts",
+        "apps/frontend/src/services/text-boundaries.ts",
+        "apps/frontend/src/services/tls.service.ts",
+        "apps/frontend/src/services/trial-experience.ts",
+        "apps/frontend/src/services/trial-registration.ts",
+        "apps/frontend/src/services/trial.service.ts",
+        "apps/frontend/src/services/ui-error.service.ts",
+        "apps/frontend/src/services/user-preferences.service.ts",
+        "apps/frontend/src/services/user-productivity-telemetry.service.ts",
+        "apps/frontend/src/services/user.service.ts",
+        "apps/frontend/src/services/webAccess.service.ts",
+        "apps/frontend/src/stores/auth.ts",
+        "apps/frontend/src/stores/manual.ts",
+        "apps/frontend/src/stores/terminals.ts",
+        "apps/frontend/src/stores/ui.ts",
+        "apps/frontend/src/terminal/terminal-highlight-client.ts",
+        "apps/frontend/src/terminal/terminal-highlight-engine.ts",
+        "apps/frontend/src/terminal/terminal-highlighter.ts",
+        "apps/frontend/src/terminal/xterm-adapter.ts",
+        "apps/frontend/src/utils/host-folder-breadcrumb.ts",
+        "apps/frontend/src/utils/host-recent-access.ts",
+        "apps/frontend/src/views/admin/DashboardView.vue",
+        "apps/frontend/src/views/admin/HighAvailabilityView.vue",
+        "apps/frontend/src/views/admin/TenantsView.vue",
+        "apps/frontend/src/views/HostsView.vue"
+      ]
+    }
+  },
+  "global": {
+    "lines": {
+      "total": 81720,
+      "covered": 23866,
+      "skipped": 0,
+      "pct": 29.2
+    },
+    "statements": {
+      "total": 102405,
+      "covered": 28585,
+      "skipped": 0,
+      "pct": 27.91
+    },
+    "functions": {
+      "total": 27111,
+      "covered": 5708,
+      "skipped": 0,
+      "pct": 21.05
+    },
+    "branches": {
+      "total": 62584,
+      "covered": 19514,
+      "skipped": 0,
+      "pct": 31.18
+    },
+    "branchesTrue": {
+      "total": 0,
+      "covered": 0,
+      "skipped": 0,
+      "pct": "Unknown"
+    }
+  },
+  "globalIsInformational": true,
+  "layers": {
+    "apps/agent": {
+      "lines": {
+        "total": 586,
+        "covered": 429,
+        "skipped": 0,
+        "pct": 73.2
+      },
+      "statements": {
+        "total": 813,
+        "covered": 556,
+        "skipped": 0,
+        "pct": 68.38
+      },
+      "functions": {
+        "total": 120,
+        "covered": 85,
+        "skipped": 0,
+        "pct": 70.83
+      },
+      "branches": {
+        "total": 561,
+        "covered": 407,
+        "skipped": 0,
+        "pct": 72.54
+      },
+      "branchesTrue": {
+        "total": 0,
+        "covered": 0,
+        "skipped": 0,
+        "pct": "Unknown"
+      }
+    },
+    "apps/backend": {
+      "lines": {
+        "total": 21564,
+        "covered": 11667,
+        "skipped": 0,
+        "pct": 54.1
+      },
+      "statements": {
+        "total": 25685,
+        "covered": 13638,
+        "skipped": 0,
+        "pct": 53.09
+      },
+      "functions": {
+        "total": 5900,
+        "covered": 2742,
+        "skipped": 0,
+        "pct": 46.47
+      },
+      "branches": {
+        "total": 19874,
+        "covered": 10259,
+        "skipped": 0,
+        "pct": 51.62
+      },
+      "branchesTrue": {
+        "total": 0,
+        "covered": 0,
+        "skipped": 0,
+        "pct": "Unknown"
+      }
+    },
+    "apps/frontend": {
+      "lines": {
+        "total": 37198,
+        "covered": 6647,
+        "skipped": 0,
+        "pct": 17.86
+      },
+      "statements": {
+        "total": 46467,
+        "covered": 7860,
+        "skipped": 0,
+        "pct": 16.91
+      },
+      "functions": {
+        "total": 16696,
+        "covered": 2157,
+        "skipped": 0,
+        "pct": 12.91
+      },
+      "branches": {
+        "total": 27946,
+        "covered": 4941,
+        "skipped": 0,
+        "pct": 17.68
+      },
+      "branchesTrue": {
+        "total": 0,
+        "covered": 0,
+        "skipped": 0,
+        "pct": "Unknown"
+      }
+    },
+    "packages/shared": {
+      "lines": {
+        "total": 484,
+        "covered": 429,
+        "skipped": 0,
+        "pct": 88.63
+      },
+      "statements": {
+        "total": 509,
+        "covered": 449,
+        "skipped": 0,
+        "pct": 88.21
+      },
+      "functions": {
+        "total": 32,
+        "covered": 14,
+        "skipped": 0,
+        "pct": 43.75
+      },
+      "branches": {
+        "total": 85,
+        "covered": 58,
+        "skipped": 0,
+        "pct": 68.23
+      },
+      "branchesTrue": {
+        "total": 0,
+        "covered": 0,
+        "skipped": 0,
+        "pct": "Unknown"
+      }
+    },
+    "scripts": {
+      "lines": {
+        "total": 888,
+        "covered": 552,
+        "skipped": 0,
+        "pct": 62.16
+      },
+      "statements": {
+        "total": 1219,
+        "covered": 721,
+        "skipped": 0,
+        "pct": 59.14
+      },
+      "functions": {
+        "total": 156,
+        "covered": 111,
+        "skipped": 0,
+        "pct": 71.15
+      },
+      "branches": {
+        "total": 1057,
+        "covered": 686,
+        "skipped": 0,
+        "pct": 64.9
+      },
+      "branchesTrue": {
+        "total": 0,
+        "covered": 0,
+        "skipped": 0,
+        "pct": "Unknown"
+      }
+    },
+    "tools": {
+      "lines": {
+        "total": 21000,
+        "covered": 4142,
+        "skipped": 0,
+        "pct": 19.72
+      },
+      "statements": {
+        "total": 27712,
+        "covered": 5361,
+        "skipped": 0,
+        "pct": 19.34
+      },
+      "functions": {
+        "total": 4207,
+        "covered": 599,
+        "skipped": 0,
+        "pct": 14.23
+      },
+      "branches": {
+        "total": 13061,
+        "covered": 3163,
+        "skipped": 0,
+        "pct": 24.21
+      },
+      "branchesTrue": {
+        "total": 0,
+        "covered": 0,
+        "skipped": 0,
+        "pct": "Unknown"
+      }
+    }
+  },
+  "inventory": {
+    "count": 1029,
+    "reportedCount": 1029,
+    "missing": [],
+    "unexpected": []
+  },
+  "legacy": {
+    "pattern": "apps/backend/src/modules/**/*.service.ts",
+    "count": 97,
+    "thresholds": {
+      "lines": 70,
+      "functions": 70,
+      "branches": 60
+    },
+    "summary": {
+      "lines": {
+        "total": 9364,
+        "covered": 6853,
+        "skipped": 0,
+        "pct": 73.18
+      },
+      "statements": {
+        "total": 10933,
+        "covered": 7827,
+        "skipped": 0,
+        "pct": 71.59
+      },
+      "functions": {
+        "total": 2266,
+        "covered": 1593,
+        "skipped": 0,
+        "pct": 70.3
+      },
+      "branches": {
+        "total": 9863,
+        "covered": 6355,
+        "skipped": 0,
+        "pct": 64.43
+      },
+      "branchesTrue": {
+        "total": 0,
+        "covered": 0,
+        "skipped": 0,
+        "pct": "Unknown"
+      }
+    },
+    "passed": true
+  },
+  "finishedAt": "2026-11-04T21:09:39.500Z"
+}

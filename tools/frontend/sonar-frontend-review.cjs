@@ -9,6 +9,7 @@ const { parse } = require('@vue/compiler-sfc')
 const { baseParse, parserOptions } = require('@vue/compiler-dom')
 const { chromium } = require('playwright')
 const { parseFixtureExpression } = require('./sonar-fixture-expression.cjs')
+const { waitForResponsiveLayout } = require('./sonar-responsive-layout.cjs')
 // Published ancestor: Vue sources are byte-identical to the original local review snapshot.
 const reviewBaseline = 'f4a44b4b7ae87a8f688b1246d9e52a31f9a104bc'
 const gitExecutable = '/usr/bin/git'
@@ -137,6 +138,7 @@ async function main() {
  await page.evaluate(()=>scrollTo(0,0))
  await page.screenshot({path:path.join(output,'screenshots/labels-desktop.png')})
  await page.setViewportSize({width:390,height:844})
+ await waitForResponsiveLayout(page)
  assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'mobile overflow')
  await page.evaluate(()=>scrollTo(0,0))
  await page.screenshot({path:path.join(output,'screenshots/labels-mobile.png')})

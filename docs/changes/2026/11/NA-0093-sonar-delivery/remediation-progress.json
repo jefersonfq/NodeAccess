@@ -1,5 +1,5 @@
 {
-  "updatedAt": "2026-11-04T18:25:20.354Z",
+  "updatedAt": "2026-11-04T21:15:23.892Z",
   "baselineAudit": "NA-0145",
   "findings": [
     {
@@ -64,7 +64,7 @@
       "limitations": "Não inspecionada VPS, montagem persistente ou política de limpeza; checks de filesystem não são isolamento contra processo concorrente do mesmo UID.",
       "sonarSeverity": "CRITICAL",
       "domain": "Backend / shared / agent",
-      "serverState": "OPEN",
+      "serverState": "FIXED",
       "sourceSha": "ee436402db8bcce7fab4378d6ba28c1673b282b5",
       "baselineClassification": "risk_acceptance_required",
       "baselineReason": "O default de auditoria permanece em /tmp. A gravação usa diretório dedicado, proprietário do serviço, 0700, validação de symlinks e arquivo exclusivo 0600; não reproduzi escrita insegura. Persistência após limpeza/reboot, mesmo UID entre componentes e proteção do diretório em produção requerem decisão operacional explícita.",
@@ -97,7 +97,7 @@
       "limitations": "Sem inspeção da implantação, volume persistente ou concorrência hostil; não afirmar perda de avatares observada.",
       "sonarSeverity": "CRITICAL",
       "domain": "Backend / shared / agent",
-      "serverState": "OPEN",
+      "serverState": "FIXED",
       "sourceSha": "ee436402db8bcce7fab4378d6ba28c1673b282b5",
       "baselineClassification": "risk_acceptance_required",
       "baselineReason": "O default de avatares permanece em /tmp. O consumidor escreve via helper privado com owner/mode/symlink checks, mas retenção e compartilhamento seguro entre réplicas não decorrem desse default; precisam configuração e aceite operacional.",
@@ -15640,13 +15640,13 @@
   ],
   "manualServerTransitionsPerformed": true,
   "latestObservedAnalysis": {
-    "head": "025e82863d0a2cff49b29896dc283c7efdd00548",
-    "analysisId": "8d39384c-2529-4faf-b6c6-8eb273a57f9c",
+    "head": "630040e6c956c1d645a55c89a076edcdc3854445",
+    "analysisId": "6efa8065-5bb5-45b1-a128-b1e8f1365317",
     "verified": true,
-    "originalOpen": 3,
+    "originalOpen": 1,
     "newOpen": 0,
-    "totalOpen": 3,
-    "originalAbsentFromOpenExport": 291
+    "totalOpen": 1,
+    "originalAbsentFromOpenExport": 293
   },
   "newFindings": [
     {
@@ -15964,19 +15964,19 @@
     "actorDeactivated": true
   },
   "finalServerState": {
-    "revision": "025e82863d0a2cff49b29896dc283c7efdd00548",
-    "analysisId": "8d39384c-2529-4faf-b6c6-8eb273a57f9c",
+    "revision": "630040e6c956c1d645a55c89a076edcdc3854445",
+    "analysisId": "6efa8065-5bb5-45b1-a128-b1e8f1365317",
     "counts": {
       "FALSE_POSITIVE": 206,
-      "FIXED": 360,
-      "OPEN": 3
+      "FIXED": 362,
+      "OPEN": 1
     },
     "gate": "OK",
     "actorDeactivated": true
   },
   "originalFinalStates": {
-    "FIXED": 94,
-    "OPEN": 3,
-    "FALSE_POSITIVE": 197
+    "FIXED": 96,
+    "FALSE_POSITIVE": 197,
+    "OPEN": 1
   }
 }

@@ -1,0 +1,142 @@
+[
+  {
+    "id": 126865347268,
+    "name": "publish-windows-release",
+    "status": "completed",
+    "conclusion": "skipped",
+    "html_url": "https://github.com/jefersonfq/NodeAccess/actions/runs/41912187822/job/126865347268"
+  },
+  {
+    "id": 126865174867,
+    "name": "validate-windows-package",
+    "status": "completed",
+    "conclusion": "success",
+    "html_url": "https://github.com/jefersonfq/NodeAccess/actions/runs/41912187822/job/126865174867"
+  },
+  {
+    "id": 126862362422,
+    "name": "acl",
+    "status": "completed",
+    "conclusion": "success",
+    "html_url": "https://github.com/jefersonfq/NodeAccess/actions/runs/41912188219/job/126862362422"
+  },
+  {
+    "id": 126862362136,
+    "name": "change-governance",
+    "status": "completed",
+    "conclusion": "success",
+    "html_url": "https://github.com/jefersonfq/NodeAccess/actions/runs/41912188114/job/126862362136"
+  },
+  {
+    "id": 126862360241,
+    "name": "native-agent (ubuntu-latest)",
+    "status": "completed",
+    "conclusion": "success",
+    "html_url": "https://github.com/jefersonfq/NodeAccess/actions/runs/41912187822/job/126862360241"
+  },
+  {
+    "id": 126862360227,
+    "name": "native-agent (macos-latest)",
+    "status": "completed",
+    "conclusion": "success",
+    "html_url": "https://github.com/jefersonfq/NodeAccess/actions/runs/41912187822/job/126862360227"
+  },
+  {
+    "id": 126862360155,
+    "name": "native-agent (windows-latest)",
+    "status": "completed",
+    "conclusion": "success",
+    "html_url": "https://github.com/jefersonfq/NodeAccess/actions/runs/41912187822/job/126862360155"
+  },
+  {
+    "id": 126862360060,
+    "name": "build",
+    "status": "completed",
+    "conclusion": "success",
+    "html_url": "https://github.com/jefersonfq/NodeAccess/actions/runs/41912187753/job/126862360060"
+  },
+  {
+    "id": 126862360046,
+    "name": "tests",
+    "status": "completed",
+    "conclusion": "success",
+    "html_url": "https://github.com/jefersonfq/NodeAccess/actions/runs/41912187753/job/126862360046"
+  },
+  {
+    "id": 126862360044,
+    "name": "deterministic-playback",
+    "status": "completed",
+    "conclusion": "success",
+    "html_url": "https://github.com/jefersonfq/NodeAccess/actions/runs/41912187817/job/126862360044"
+  },
+  {
+    "id": 126862359933,
+    "name": "agent-ui-e2e",
+    "status": "completed",
+    "conclusion": "success",
+    "html_url": "https://github.com/jefersonfq/NodeAccess/actions/runs/41912187822/job/126862359933"
+  },
+  {
+    "id": 126862359926,
+    "name": "sonar-real",
+    "status": "completed",
+    "conclusion": "failure",
+    "html_url": "https://github.com/jefersonfq/NodeAccess/actions/runs/41912187763/job/126862359926"
+  },
+  {
+    "id": 126862359914,
+    "name": "oidc-and-helm-compatibility",
+    "status": "completed",
+    "conclusion": "success",
+    "html_url": "https://github.com/jefersonfq/NodeAccess/actions/runs/41912187753/job/126862359914"
+  },
+  {
+    "id": 126862359651,
+    "name": "manual",
+    "status": "completed",
+    "conclusion": "success",
+    "html_url": "https://github.com/jefersonfq/NodeAccess/actions/runs/41912187791/job/126862359651"
+  },
+  {
+    "id": 126862359503,
+    "name": "static-quality",
+    "status": "completed",
+    "conclusion": "success",
+    "html_url": "https://github.com/jefersonfq/NodeAccess/actions/runs/41912187753/job/126862359503"
+  },
+  {
+    "id": 126862359420,
+    "name": "dependencies",
+    "status": "completed",
+    "conclusion": "success",
+    "html_url": "https://github.com/jefersonfq/NodeAccess/actions/runs/41912187674/job/126862359420"
+  },
+  {
+    "id": 126862359267,
+    "name": "change-governance",
+    "status": "completed",
+    "conclusion": "success",
+    "html_url": "https://github.com/jefersonfq/NodeAccess/actions/runs/41912187569/job/126862359267"
+  },
+  {
+    "id": 126862359031,
+    "name": "csp-browser",
+    "status": "completed",
+    "conclusion": "success",
+    "html_url": "https://github.com/jefersonfq/NodeAccess/actions/runs/41912187653/job/126862359031"
+  },
+  {
+    "id": 126862358967,
+    "name": "static-and-secrets",
+    "status": "completed",
+    "conclusion": "success",
+    "html_url": "https://github.com/jefersonfq/NodeAccess/actions/runs/41912187674/job/126862358967"
+  },
+  {
+    "id": 126862358572,
+    "name": "upgrade-restore",
+    "status": "completed",
+    "conclusion": "success",
+    "html_url": "https://github.com/jefersonfq/NodeAccess/actions/runs/41912187728/job/126862358572"
+  }
+]

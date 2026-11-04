@@ -35,9 +35,9 @@
       "baselineLine": 171,
       "domain": "Backend / shared / agent",
       "signature": "4a4424ad79e8943584678f778ef8209268b1a0e99974e2ef04a2fe9061864f8c",
-      "status": "context_reviewed",
-      "observed": "present",
-      "rationale": "Decisão operacional pendente; não houve aceite automático. O default de auditoria permanece em /tmp. A gravação usa diretório dedicado, proprietário do serviço, 0700, validação de symlinks e arquivo exclusivo 0600; não reproduzi escrita insegura. Persistência após limpeza/reboot, mesmo UID entre componentes e proteção do diretório em produção requerem decisão operacional explícita.",
+      "status": "fixed",
+      "observed": "absent",
+      "rationale": "Estado FIXED confirmado pelo scanner final. Decisão operacional pendente; não houve aceite automático. O default de auditoria permanece em /tmp. A gravação usa diretório dedicado, proprietário do serviço, 0700, validação de symlinks e arquivo exclusivo 0600; não reproduzi escrita insegura. Persistência após limpeza/reboot, mesmo UID entre componentes e proteção do diretório em produção requerem decisão operacional explícita.",
       "evidence": [
         "apps/backend/src/config/env.ts",
         "apps/backend/src/shared/private-storage.ts",
@@ -48,7 +48,7 @@
       "branch": "fix/NA-0086-20261103-sonar-backend",
       "risk": "médio: API e gateway devem usar o mesmo UID; raiz compartilhada/symlink precisa correção operacional",
       "url": "http://localhost:9000/project/issues?id=nodeaccess&issues=fd531dd3-db54-4b67-95e7-00758d2d00a0",
-      "sonarState": "OPEN"
+      "sonarState": "FIXED"
     },
     {
       "issueId": "c2ee4394-aa20-4ba7-b15b-74616258fe5d",
@@ -60,9 +60,9 @@
       "baselineLine": 172,
       "domain": "Backend / shared / agent",
       "signature": "a095561b87c0959bef7f2eaea4b450323b4f2873a5275818d2d57d2a7fa10922",
-      "status": "context_reviewed",
-      "observed": "present",
-      "rationale": "Decisão operacional pendente; não houve aceite automático. O default de avatares permanece em /tmp. O consumidor escreve via helper privado com owner/mode/symlink checks, mas retenção e compartilhamento seguro entre réplicas não decorrem desse default; precisam configuração e aceite operacional.",
+      "status": "fixed",
+      "observed": "absent",
+      "rationale": "Estado FIXED confirmado pelo scanner final. Decisão operacional pendente; não houve aceite automático. O default de avatares permanece em /tmp. O consumidor escreve via helper privado com owner/mode/symlink checks, mas retenção e compartilhamento seguro entre réplicas não decorrem desse default; precisam configuração e aceite operacional.",
       "evidence": [
         "apps/backend/src/config/env.ts",
         "apps/backend/src/shared/private-storage.ts",
@@ -73,7 +73,7 @@
       "branch": "fix/NA-0086-20261103-sonar-backend",
       "risk": "médio: API e gateway devem usar o mesmo UID; raiz compartilhada/symlink precisa correção operacional",
       "url": "http://localhost:9000/project/issues?id=nodeaccess&issues=c2ee4394-aa20-4ba7-b15b-74616258fe5d",
-      "sonarState": "OPEN"
+      "sonarState": "FIXED"
     },
     {
       "issueId": "b422e598-2d23-4433-ac35-5a0f17fe2186",
@@ -15883,12 +15883,12 @@
     "analysisId": "6168dd15-05df-4b5c-93c9-82230698d37e"
   },
   "latestAnalysis": {
-    "revision": "025e82863d0a2cff49b29896dc283c7efdd00548",
-    "analysisId": "8d39384c-2529-4faf-b6c6-8eb273a57f9c",
+    "revision": "630040e6c956c1d645a55c89a076edcdc3854445",
+    "analysisId": "6efa8065-5bb5-45b1-a128-b1e8f1365317",
     "counts": {
       "FALSE_POSITIVE": 206,
-      "FIXED": 360,
-      "OPEN": 3
+      "FIXED": 362,
+      "OPEN": 1
     },
     "gate": "OK",
     "reviewActorDeactivated": true

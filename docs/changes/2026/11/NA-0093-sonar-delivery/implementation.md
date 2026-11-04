@@ -361,3 +361,14 @@ Ran: lint global primeiro falhou por heap4GB/OOM; repetido com8GB temporário, t
 Assinaturas finais das fontes:NA0163 a0c556fbd3b6e630643e5d4930731b5f4ca57679;NA0164 7535055076f86e953b99535340a13a96bc671a4d;NA0165 9c0471be8e8bca03524770b7fbdb604bfaacf690.
 
 Ran em 2026-11-04T18:01:25-03:00: lint:changed obrigatório PASS nos130arquivos de toda a frente contra basef4a, incluindo WIP. Lint global continua reprovado pela dívida preexistente documentada. Candidato pronto para checkpoint e validação completa; não há homologação humana.
+
+
+### 2026-11-04T18:15:53-03:00 — Dois achados corrigidos e sincronização do harness
+
+Ran630040: validate:sonar exit0,3629VitestPASS/125opt-in ignorados,640NodePASS/4ignorados,229contratosSonarPASS,oito harnessesChromiumPASS; diff80,6719%, QualityGateOK,206revisões verificadas/zero novas propostas,zeroachados inesperados. Servidor confirmouSQ0002/SQ0003FIXED, somenteSQ0030MD5OPEN. Catálogo362FIXED/206FP/1OPEN; recorte294agora96FIXED/197FP/1OPEN. Não houve aceite de risco ou nova transição manual.
+
+CI630040 repetiu asserção imediata de overflow após resize, antes deLCOV; demais18checksPASS. Integrado patchNA0166 8d75b512c: waitForFunction com predicado original/timeout5000 existente e assert final preservado, semCSSproduto. Ran: dois contratosNodePASS; Chromium opt-in5PASS com A/Btransitório e negativopersistente~5s;lint/governançaPASS. Revisão independente exigiu corrigir duas alegações documentais deCIbase; corrigidas antescommit. Prova sintética não comprova causa exata do incidente hospedado.
+
+Novo candidato precisa gates completos eCI; relatório630040 preservado. Segurança integrada do patch emexecução; sem homologação/merge/deploy.
+
+Ran em 2026-11-04T18:17:36-03:00: patch166 integrado, dois contratosNodePASS+umskipopt-in esperado; ensaio explícitoChromium5PASS/0skip, incluindooverflowpersistente reprovado pelo helper como esperado. Segurança integradaPASS:45fixturesexatas/zeropendentes,Semgrep898alvos/zeroachados/erros. Candidato pronto para novoSHA; cobertura/Sonar/CI completos aindaPlanned.

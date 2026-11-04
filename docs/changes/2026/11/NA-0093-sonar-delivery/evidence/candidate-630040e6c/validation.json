@@ -1,0 +1,63 @@
+{
+  "schemaVersion": 1,
+  "startedAt": "2026-11-04T21:01:25.836Z",
+  "finishedAt": "2026-11-04T21:14:37.435Z",
+  "passed": true,
+  "failures": [],
+  "warnings": [],
+  "base": "f4a44b4b7ae87a8f688b1246d9e52a31f9a104bc",
+  "head": "630040e6c956c1d645a55c89a076edcdc3854445",
+  "toolingExit": 0,
+  "coverageExit": 0,
+  "scannerExit": 0,
+  "analysisId": "6efa8065-5bb5-45b1-a128-b1e8f1365317",
+  "analysisVerified": true,
+  "comparison": {
+    "passed": true,
+    "reviewed": 1,
+    "unexpected": [],
+    "absentReviewedOccurrences": 294
+  },
+  "gate": {
+    "status": "OK",
+    "conditions": [
+      {
+        "status": "OK",
+        "metricKey": "new_coverage",
+        "comparator": "LT",
+        "errorThreshold": "80",
+        "actualValue": "80.5"
+      },
+      {
+        "status": "OK",
+        "metricKey": "new_duplicated_lines_density",
+        "comparator": "GT",
+        "errorThreshold": "3",
+        "actualValue": "0.07475"
+      },
+      {
+        "status": "OK",
+        "metricKey": "new_violations",
+        "comparator": "GT",
+        "errorThreshold": "0",
+        "actualValue": "0"
+      }
+    ],
+    "ignoredConditions": false,
+    "period": {
+      "mode": "PREVIOUS_VERSION",
+      "date": "2026-11-03T16:48:47+0000"
+    },
+    "caycStatus": "compliant"
+  },
+  "hotspotsToReview": 0,
+  "error": null,
+  "reviewedFalsePositives": {
+    "status": "dry_run",
+    "proposed": 0,
+    "changed": 0,
+    "absent": 0,
+    "unchanged": 206
+  },
+  "reviewsVerified": true
+}

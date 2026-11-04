@@ -1,0 +1,14 @@
+{
+  "at": "2026-11-04T21:16:48.060Z",
+  "gitleaks": {
+    "total": 45,
+    "reviewedFixtures": 45,
+    "unreviewed": []
+  },
+  "semgrep": {
+    "findings": [],
+    "errors": [],
+    "targets": 898
+  },
+  "passed": true
+}
