@@ -1,0 +1,107 @@
+{
+  "status": "passed",
+  "scenarios": [
+    "diagnostic evidence and disabled automatic summary",
+    "diagnostic load failure recovery, help and JSON download",
+    "traceability validation, failed save and successful scoped request",
+    "comparison and summary failure recovery with rendered evidence",
+    "Jira attachment explicit confirmation and queue failure recovery (API mocked)",
+    "dashboard rendered aggregates and four keyboard navigation contracts"
+  ],
+  "screenshots": [
+    "diagnostic-desktop.png",
+    "diagnostic-mobile.png",
+    "dashboard-desktop.png",
+    "dashboard-mobile.png"
+  ],
+  "geometry": [
+    {
+      "viewport": 1440,
+      "scroll": 1440
+    },
+    {
+      "viewport": 390,
+      "scroll": 390
+    },
+    {
+      "viewport": 1440,
+      "scroll": 1440
+    },
+    {
+      "viewport": 390,
+      "scroll": 390
+    }
+  ],
+  "traceabilityLabels": [
+    {
+      "id": "diagnostic-origin-session",
+      "labels": [
+        "ID da sessão"
+      ]
+    },
+    {
+      "id": "diagnostic-origin-ticket",
+      "labels": [
+        "Ticket Jira"
+      ]
+    },
+    {
+      "id": "diagnostic-origin-action",
+      "labels": [
+        "ID do ActionRun"
+      ]
+    }
+  ],
+  "mobileActions": [
+    {
+      "text": "Atualizar",
+      "left": 78,
+      "right": 152.46875,
+      "width": 74.46875,
+      "viewport": 390
+    },
+    {
+      "text": "Ajuda",
+      "left": 160.46875,
+      "right": 216.28125,
+      "width": 55.8125,
+      "viewport": 390
+    },
+    {
+      "text": "Exportar JSON",
+      "left": 224.28125,
+      "right": 338.421875,
+      "width": 114.140625,
+      "viewport": 390
+    },
+    {
+      "text": "Regerar resumo",
+      "left": 78,
+      "right": 199.15625,
+      "width": 121.15625,
+      "viewport": 390
+    },
+    {
+      "text": "Comparar antes/depois",
+      "left": 129.6875,
+      "right": 295.21875,
+      "width": 165.53125,
+      "viewport": 390
+    },
+    {
+      "text": "Vincular origem",
+      "left": 95,
+      "right": 212.015625,
+      "width": 117.015625,
+      "viewport": 390
+    },
+    {
+      "text": "Publicar no Jira",
+      "left": 220.015625,
+      "right": 336.515625,
+      "width": 116.5,
+      "viewport": 390
+    }
+  ],
+  "pageErrors": []
+}

@@ -73,3 +73,11 @@ for (const [error, category] of [
   const f = fixture(t); f.write({ collectors: { browser: { error } } })
   assert.equal(coverageDiagnostics(f.root).collectors.browser.errorCategory, category)
 })
+
+test('flow failure retains only known stage and class through CI projection', t => {
+  const f = fixture(t)
+  f.write({ collectors: { browser: { harnesses: [{ name: 'flows', exitCode: 1, timedOut: false, failure: { stage: 'hosts-destination', category: 'ASSERTION', message: 'PRIVATE', stack: 'PRIVATE' } }] } } })
+  assert.deepEqual(coverageDiagnostics(f.root).collectors.browser.harnesses, [{ name: 'flows', exitCode: 1, timedOut: false, failure: { stage: 'hosts-destination', category: 'ASSERTION' } }])
+  f.write({ collectors: { browser: { harnesses: [{ name: 'flows', failure: { stage: 'PRIVATE', category: 'OTHER' } }, { name: 'frontend', failure: { stage: 'setup', category: 'OTHER' } }] } } })
+  assert.deepEqual(coverageDiagnostics(f.root).collectors.browser.harnesses, [{ name: 'frontend' }, { name: 'flows' }])
+})

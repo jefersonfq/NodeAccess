@@ -169,3 +169,18 @@ test('missing explicit browser stays explicit and failure cannot fall back to an
   assert.equal(attempted, true); assert.equal(result.status, 'failed'); assert.equal(vite.closed, true)
   assert.equal(result.harnesses.length, 1); assert.equal(result.harnesses[0].exitCode, 1)
 })
+
+test('flow diagnostics are current, sanitized and never turn a failed run into success', async t => {
+  const root = fixture(t), vite = fakeVite(), directory = join(root, 'coverage/browser/flows')
+  mkdirSync(directory, { recursive: true })
+  writeFileSync(join(directory, 'report.json'), JSON.stringify({ failure: { stage: 'setup', category: 'OTHER' } }))
+  const result = await collectBrowserCoverage({ root, env: {}, create: vite.create, execute: async (_root, script, env) => {
+    if (!script.endsWith('sonar-flow-coverage.cjs')) return { exitCode: 0, timedOut: false }
+    assert.equal(existsSync(join(directory, 'report.json')), false)
+    writeFileSync(join(env.SONAR_FLOW_OUTPUT, 'report.json'), JSON.stringify({ failure: { stage: 'hosts-destination', category: 'ASSERTION', message: 'PRIVATE' } }))
+    return { exitCode: 1, timedOut: false }
+  } })
+  assert.equal(result.status, 'failed'); assert.equal(vite.closed, true)
+  assert.deepEqual(result.harnesses.at(-1), { name: 'flows', exitCode: 1, timedOut: false, failure: { stage: 'hosts-destination', category: 'ASSERTION' } })
+  assert.doesNotMatch(JSON.stringify(result), /PRIVATE/)
+})

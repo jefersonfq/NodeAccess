@@ -74,6 +74,7 @@ Classificação NECESSARY_CORRECTION, dentro da autorização de concluir a entr
 - NA-0134: preservar diagnóstico sanitizado de falhas de cobertura e artefatos ausentes antes do scanner, sem publicar mensagens livres ou segredos.
 - NA-0135: propagar o Chromium gerenciado pelo Playwright aos cinco harnesses quando não houver override explícito, evitando fallback divergente para navegador de sistema.
 - NA-0136: corrigir vulnerabilidades Node identificadas no scanner das imagens, atualizando bases por digest e validando TLS, stack descartável e scanner reais.
+- NA-0139: corrigir contratos das fixtures de navegação, aguardar destinos renderizados e preservar diagnóstico sanitizado após reproduzir TypeError em hosts; sem relaxar gates.
 - NA-0138: eliminar referência a commit local ausente no clone hospedado, usando baseline publicada com Vue idêntico, e preservar diagnóstico estruturado por etapas/códigos allowlist, sem exportar erros livres ou relaxar gates.
 - NA-0137: alinhar pins ativos de CI, fixtures e .nvmrc ao Node24.22.1, mantendo npm12.2.1 e contratos de compatibilidade existentes.
 

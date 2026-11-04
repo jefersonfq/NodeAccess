@@ -63,4 +63,10 @@ function dashboardFixture() {
   }
 }
 const jiraResult = { ticketKey: 'LAB-42', checksum: 'a'.repeat(64), queuedActions: ['COMMENT_DIAGNOSTIC_REPORT'] }
-module.exports = { settings, diagnosticFixture, dashboardFixture, jiraResult }
+function navigationFixture(path) {
+  if (['/api/v1/users', '/api/v1/hosts', '/api/v1/sessions'].includes(path)) return { data: [], page: 1, limit: 200, total: 0, totalPages: 0 }
+  if (path === '/api/v1/hosts/sidebar-bootstrap') return { folders: [], groups: [], tags: [], summary: { all: 0, global: 0, unfiled: 0, maxHosts: 20, folders: {}, groups: {}, tags: {} } }
+  if (path === '/api/v1/sessions/filter-options') return { users: [] }
+  return []
+}
+module.exports = { settings, diagnosticFixture, dashboardFixture, jiraResult, navigationFixture }

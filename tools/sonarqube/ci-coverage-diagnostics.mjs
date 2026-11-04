@@ -1,5 +1,7 @@
 import { lstatSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { createRequire } from 'node:module'
+const { sanitizeFlowFailure } = createRequire(import.meta.url)('../frontend/sonar-flow-diagnostics.cjs')
 
 const failures = new Set([
   'VITEST_TESTS_FAILED', 'NODE_TESTS_FAILED', 'BROWSER_TESTS_FAILED',
@@ -39,6 +41,8 @@ function browserDiagnostics(source) {
     const entry = { name }
     if (Number.isSafeInteger(run.exitCode) && run.exitCode >= 0 && run.exitCode <= 255) entry.exitCode = run.exitCode
     if (typeof run.timedOut === 'boolean') entry.timedOut = run.timedOut
+    const failure = name === 'flows' ? sanitizeFlowFailure(run.failure) : undefined
+    if (failure) entry.failure = failure
     safe.harnesses.push(entry)
   }
   return safe

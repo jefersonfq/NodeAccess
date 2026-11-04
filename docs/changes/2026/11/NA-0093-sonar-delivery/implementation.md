@@ -190,3 +190,33 @@ Integrado patch NA-0138 cb73864ed4475fcf4820dd911d9ba945706cef15, preservando su
 Ran na integração: 56 contratos PASS, incluindo bootstrap real de 44 labels e 10 controles nativos em clone independente sem o objeto antigo. Autor e revisor reproduziram os mesmos contratos. Controle Ubuntu24/Chromium1248/Node24.22.1 com instrumentação V8 e cache frio passou nos cinco harnesses em170,5s; esse controle antecede o patch e contém o histórico local, não substitui a validação final. Lint dos seis arquivos PASS na origem; análise estática integrada em andamento. Próximo passo: checkpoint NA-0093 e repetição de cobertura, scanner e CI no SHA final. Homologação humana permanece Manual.
 
 Ran antes do checkpoint: Gitleaks47/47 fixtures exatas, zero pendentes; Semgrep864 alvos, zero achados/erros; diffcheck PASS. Nenhuma baseline aceita, política ou limiar alterado.
+
+### 2026-11-03T20:59:34-03:00 — Novo checkpoint publicado com cobertura aprovada
+
+SHA2ce54c08887a7de4e194fdcb97a8f33c55655419 COMMITTED/PUSHED/PR_OPEN (#59draft), LOCAL_WIP clear; MERGED/MASTER_SYNCED pendentes. Ran: governança,177contratos Sonar,3.456Vitest PASS/125opt-in ignorados,462Node PASS/2ignorados e cinco harnesses Chromium PASS. CaptureRun e6338e64-c9f0-4347-80e6-b0d532f3d363. Cobertura entre commits explícitos81,44997% (4.786/5.876unidades), semworkingtree; serviços97=73,15/70,28/64,37 PASS; inventário1.009completo. Global informativo27,27/19,17/29,15. Capturas atuais em evidence/2ce54c088. Scanner e CI atuais em execução; não se presume aprovação deles nem homologação humana.
+
+### 2026-11-03T21:03:57-03:00 — Validação local final aprovada
+
+Ran no SHA 2ce54c08887a7de4e194fdcb97a8f33c55655419: validação completa PASS, análise verificada, Sonar gate OK, cobertura nova 81,2%, zero novas violações, duplicação 0,06259%, zero hotspots pendentes e nenhuma condição ignorada. Comparação contextual: 294 ocorrências revisadas, zero inesperadas; uma ocorrência previamente revisada está ausente. Baseline aceita inalterada. Revisão visual independente PASS_WITH_WARNINGS, fonte UI idêntica ao 66b e quatro capturas atuais revisadas. Limites de contraste/fixtures permanecem documentados. CI final ainda em execução; PR atualizada com os resultados reais. Não houve merge, deploy ou homologação humana presumida.
+
+### 2026-11-03T21:06:15-03:00 — Revisão independente dos gates finais locais
+
+PASS_WITH_WARNINGS para 2ce54c088: seis fontes da correção idênticas ao checkpoint NA-0138; árvore limpa, fingerprint recalculado confere, package/lock/configuração Sonar/baseline aceita preservados. Revisor conferiu artefatos reais, SHAs e cobertura entre commits sem working tree, inventário completo e gate local OK. Três contagens negativas V8 estão registradas e normalizadas para zero, sem crédito de cobertura. Não repetiu suites nem modificou arquivos. CI hospedado e homologação humana permanecem pendentes.
+
+### 2026-11-03T21:10:45-03:00 — CI final isolou falha no último harness
+
+No candidato 2ce, CI analisou o merge sintético 2b753ea52720e0639abfe52e920665aa4dacc64d; árvore conferida via API GitHub e idêntica à do candidato. Ran: todos os checks externos PASS, exceto sonar-real. Nesse job, quatro harnesses (frontend/tabela/terminal/plataforma), Vitest e Node passaram; flows retornou exit1 sem timeout. Serviços73,15/70,28/64,36 e diff80,4118% PASS; quality gate Sonar hospedado OK, cobertura nova80,2%, zero novas violações. Job FAIL corretamente por teste funcional, sem waiver. Diagnóstico seguro e cleanup completos. NA-0139 investiga cenário/etapa e correção localizada; nenhum merge ou homologação presumida. PR atualizada com o bloqueio real.
+
+### 2026-11-03T21:13:57-03:00 — Erro de contrato da fixture reproduzido
+
+Ran em navegador real: Space no segundo card do dashboard navega para /hosts; mantendo a rota carregada, o fallback original [] de sidebar-bootstrap provoca TypeError em groups.map. Evidência sanitizada /tmp/NA0139-host-repro-dAUd5R/report.json confirma solicitação do bootstrap, classe TypeError e cleanup completo. Isso demonstra defeito determinístico de fixture e dependência de timing do teste; não prova que foi a mensagem exata do CI histórico, cujo log bruto foi apagado. NA-0139 corrigirá o contrato e aguardará estado observável do destino, sem remover asserções ou ignorar pageErrors. Patch e testes posteriores ainda em andamento.
+
+### 2026-11-03T21:23:29-03:00 — Contratos de navegação corrigidos e revisão aprovada
+
+NA-0139 corrigiu os formatos simulados de bootstrap de hosts, listas paginadas e filtros de sessões. O harness aguarda os estados vazios renderizados dos destinos e verifica ausência de pageErrors após cada navegação. Asserções de Enter/Space e tecla neutra permanecem; nenhum arquivo de produto ou timeout foi alterado. Diagnóstico publica somente etapa/categoria conhecidas, leitura regular limitada a64KiB, limpeza de relatório antigo e revalidação na projeção CI.
+
+Ran na origem: depois da correção, navegação real Ubuntu24/Chromium1248/CPU2 PASS em37s; orquestrador completo com V8/CDP PASS nos cinco harnesses em174,19s, todos exit0/sem timeout, limite120s por filho preservado.35contratos Node,3Vitest dirigidos e lint PASS. Revisor independente reproduziu35/35contratos e conferiu hashes das evidências, resultado PASS_WITH_WARNINGS. Não repetiu browser/scanner e não inferiu homologação humana. Resumo público derivado registra correção editorial do nome da fixture; original privado preservado. Integração e validação do próximo SHA ainda Planned.
+
+Integrado como patch o checkpoint NA-0139 f6c68a3b1198639b52cef8f574030316b3d2c39e. Ran na integração:35/35 contratos PASS. Fonte da aplicação permanece intacta neste delta. Análise de segurança integrada em execução; próxima validação completa será vinculada ao novo SHA, sem reaproveitar aprovação do candidato anterior.
+
+Ran antes do checkpoint: Gitleaks47/47 fixtures exatas e zero pendentes; Semgrep865 alvos, zero achados/erros; diffcheck PASS. Governança, cobertura e scanner do próximo SHA permanecem Planned.
