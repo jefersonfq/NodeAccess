@@ -7,7 +7,7 @@ import { execFileSync } from 'node:child_process'
 import resolver from './trusted-executable.cjs'
 const { resolveExecutable, windowsCandidates, within } = resolver
 function fixture(t) {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'na0149-executable-'))
+  const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'na0149-executable-')))
   t.after(() => fs.rmSync(root, { recursive: true, force: true }))
   const bin = path.join(root, 'bin'); fs.mkdirSync(bin, { mode: 0o700 })
   const file = path.join(bin, 'fixture'); fs.writeFileSync(file, '#!/bin/sh\nprintf "%s" "$1"\n', { mode: 0o700 })
@@ -80,4 +80,13 @@ test('returns the validated POSIX target without a second realpath lookup', {ski
 })
 test('service cwd at filesystem root does not classify every installed tool as a workspace file', {skip:process.platform==='win32'}, t=>{
  const f=fixture(t);assert.equal(resolveExecutable('fixture',{...f.options,cwd:'/'}),f.file)
+})
+
+test('temporary directory aliases preserve canonical executable identity', { skip: process.platform === 'win32' }, t => {
+  const f = fixture(t)
+  const alias = path.join(f.root, 'temporary-alias')
+  fs.symlinkSync(f.bin, alias)
+  assert.equal(resolveExecutable('fixture', { ...f.options, env: { PATH: alias } }), f.file)
+  fs.chmodSync(f.file, 0o777)
+  assert.throws(() => resolveExecutable('fixture', { ...f.options, env: { PATH: alias } }), { code: 'EXECUTABLE_WRITABLE_BY_OTHERS' })
 })

@@ -326,3 +326,8 @@ Usuário pediu continuar. Scanner9a47 confirmado: cobertura Sonar80,4% PASS, dup
 Integradas branches NA0158 2436cf797 (41contratos PASS), NA0159 5bc84c11b (19testes PASS) e NA0160 84979965c (A/B TLS real não privilegiado:base HTTP01_LOCAL_FAILED/candidato PASS com ACME,SSH,WS e recuperação). Lint quatro arquivos PASS0warnings. Sem relaxar gates, matcher ativo ou propriedade exigida pelo worker. Primeira tentativa TLS usou tag antiga e falhou antes do cenário; corrigida seleção da imagem, hashes conferidos.
 
 Revisores delegados ficaram indisponíveis por limite da ferramenta; não inferir revisão independente destes três incrementos. Revisão da raiz e testes executados; revisão independente complementar e CI final pendentes. Próximo passo: checkpoint, nova análise e checks; nenhuma publicação em produção ou homologação.
+
+
+### 2026-11-04T14:27:45-03:00 — Fixture macOS e execução local reprovada
+
+Integrada NA0161 33202fd65: caminho físico da fixture macOS, sem alterar resolvedor.11testes PASS/2Windows ignorados e contrato de alias positivo/negativo. b32a6c9c1: segurança PASS e229contratos Sonar PASS; cobertura completa reprovou em sonar-baseline.test.mjs com VMtimeout10000ms. Carga WSL concorrente observada, causa não atribuída definitivamente. Execução encerrada após falha para consolidar candidato; não aprovar cobertura, browser ou scanner desse run. Logs privados preservados. Repetir sem aumentar timeout. Revisão temporária206decisões autorizada pelo usuário após validação, ainda não executada.
