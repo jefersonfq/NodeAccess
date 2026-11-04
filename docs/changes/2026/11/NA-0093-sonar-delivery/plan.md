@@ -82,3 +82,5 @@ Classificação NECESSARY_CORRECTION, dentro da autorização de concluir a entr
 - NA-0137: alinhar pins ativos de CI, fixtures e .nvmrc ao Node24.22.1, mantendo npm12.2.1 e contratos de compatibilidade existentes.
 
 Riscos adicionais: npm e majors transitivos podem afetar ferramentas de documentação, matching de caminhos e publicação estática. Build/typecheck isolados não bastam; usar CLI e servidores reais, negativos e revisão independente. Nenhuma alteração em produção ou deploy está autorizada por esta ampliação técnica.
+
+Correções necessárias adicionais: NA-0144 reconhece frames reais de erros Node sem ampliar dados públicos; NA-0143 registra investigação controlada da falha frontend hospedada, sem alterar produto/asserções nem atribuir causa não demonstrada. Reexecutar gates no candidato integrado.

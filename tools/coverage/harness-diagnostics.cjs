@@ -21,13 +21,13 @@ function locatorTimeout(line) {
   return false
 }
 function timeoutMessage(text) {
-  if (text.split(/[\n\r\u2028\u2029]/u).some(line => line.startsWith('TimeoutError:'))) return true
+  if (text.split(/[\n\r\u2028\u2029]/u).some(line => line.startsWith('TimeoutError:') || line.startsWith('Error [TimeoutError]:'))) return true
   return text.split('\n').some(line => locatorTimeout(line))
 }
 function parseHarnessDiagnostic(text, script) {
   const name = basename(script)
   if (!scripts.has(name) || typeof text !== 'string') return undefined
-  const pattern = new RegExp(`^ {4}at [^\\n]*[\\\\/]${name.replaceAll('.', '\\.')}:(\\d{1,7}):(\\d{1,6})\\)?$`, 'm')
+  const pattern = new RegExp(`^ {4}at [^\\n]*[\\\\/]${name.replaceAll('.', '\\.')}:(\\d{1,7}):(\\d{1,6})\\)?(?: \\{)?\\r?$`, 'm')
   const frame = pattern.exec(text)
   if (!frame) return undefined
   let category = 'OTHER'

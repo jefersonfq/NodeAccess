@@ -10875,7 +10875,7 @@
       "domain": "Ferramentas",
       "signature": "b20935d1235e499a461c4b4f2922efd5ff722f34a4732c354e5066b62c403801",
       "status": "fixed",
-      "observed": "present",
+      "observed": "absent",
       "rationale": "Regex com início multiline e classe que atravessa CR foi substituído por prefixos e busca progressiva de marcadores/dígitos/sufixo. Cada trecho é percorrido um número constante de vezes; múltiplos marcadores e precedência ASSERTION preservados.",
       "evidence": [
         "tools/coverage/harness-diagnostics.test.mjs",

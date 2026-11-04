@@ -1,0 +1,146 @@
+{
+  "schemaVersion": 1,
+  "baseSha": "b568eccf0e2c8048842c8db830ec42639c59c287",
+  "status": "CI_CAUSE_NOT_REPRODUCED",
+  "source": {
+    "file": "tools/frontend/sonar-frontend-review.cjs",
+    "sha256": "65d73118001816dfeb1600e3ae797224ed96cc8b722492741592525809174206"
+  },
+  "runtime": {
+    "node": "24.22.1",
+    "chromium": 1248,
+    "cpus": 2,
+    "network": "none"
+  },
+  "preparationAndPrivateControls": [
+    {
+      "series": "control",
+      "index": 1,
+      "scope": "Preparation only: launcher module absent, no browser assertions",
+      "status": "failed",
+      "exitCode": 1,
+      "startedAt": "2026-11-04T01:13:01.292Z",
+      "finishedAt": "2026-11-04T01:13:03.208Z",
+      "assertion": null
+    },
+    {
+      "series": "control",
+      "index": 2,
+      "scope": "Preparation only: launcher module absent, no browser assertions",
+      "status": "failed",
+      "exitCode": 1,
+      "startedAt": "2026-11-04T01:13:05.579Z",
+      "finishedAt": "2026-11-04T01:13:07.181Z",
+      "assertion": null
+    },
+    {
+      "series": "control",
+      "index": 3,
+      "scope": "Preparation only: launcher module absent, no browser assertions",
+      "status": "failed",
+      "exitCode": 1,
+      "startedAt": "2026-11-04T01:13:09.440Z",
+      "finishedAt": "2026-11-04T01:13:11.449Z",
+      "assertion": null
+    },
+    {
+      "series": "observed",
+      "index": 1,
+      "scope": "Private launcher serving app root with custom Vite cache; not equivalent to CI",
+      "status": "failed",
+      "exitCode": 1,
+      "startedAt": "2026-11-04T01:13:36.247Z",
+      "finishedAt": "2026-11-04T01:13:51.546Z",
+      "assertion": {
+        "stage": "indicator-enter",
+        "expectedExpanded": true,
+        "observedExpanded": false
+      }
+    },
+    {
+      "series": "observed",
+      "index": 2,
+      "scope": "Private launcher serving app root with custom Vite cache; not equivalent to CI",
+      "status": "failed",
+      "exitCode": 1,
+      "startedAt": "2026-11-04T01:13:52.772Z",
+      "finishedAt": "2026-11-04T01:14:07.048Z",
+      "assertion": {
+        "stage": "indicator-enter",
+        "expectedExpanded": true,
+        "observedExpanded": false
+      }
+    },
+    {
+      "series": "observed",
+      "index": 3,
+      "scope": "Private launcher serving app root with custom Vite cache; not equivalent to CI",
+      "status": "failed",
+      "exitCode": 1,
+      "startedAt": "2026-11-04T01:14:08.455Z",
+      "finishedAt": "2026-11-04T01:14:21.539Z",
+      "assertion": {
+        "stage": "indicator-enter",
+        "expectedExpanded": true,
+        "observedExpanded": false
+      }
+    },
+    {
+      "series": "isolated",
+      "index": 1,
+      "scope": "Private launcher serving isolated HTML with custom Vite cache; not equivalent to real collector dependency readiness/cache",
+      "status": "failed",
+      "exitCode": 1,
+      "startedAt": "2026-11-04T01:14:33.184Z",
+      "finishedAt": "2026-11-04T01:14:44.345Z",
+      "assertion": {
+        "stage": "indicator-enter",
+        "expectedExpanded": true,
+        "observedExpanded": false
+      }
+    },
+    {
+      "series": "isolated",
+      "index": 2,
+      "scope": "Private launcher serving isolated HTML with custom Vite cache; not equivalent to real collector dependency readiness/cache",
+      "status": "failed",
+      "exitCode": 1,
+      "startedAt": "2026-11-04T01:14:45.644Z",
+      "finishedAt": "2026-11-04T01:14:55.933Z",
+      "assertion": {
+        "stage": "indicator-enter",
+        "expectedExpanded": true,
+        "observedExpanded": false
+      }
+    },
+    {
+      "series": "isolated",
+      "index": 3,
+      "scope": "Private launcher serving isolated HTML with custom Vite cache; not equivalent to real collector dependency readiness/cache",
+      "status": "failed",
+      "exitCode": 1,
+      "startedAt": "2026-11-04T01:14:57.145Z",
+      "finishedAt": "2026-11-04T01:15:07.078Z",
+      "assertion": {
+        "stage": "indicator-enter",
+        "expectedExpanded": true,
+        "observedExpanded": false
+      }
+    }
+  ],
+  "realCollectorControl": {
+    "scope": "frontend only; real collector setup/readiness/environment",
+    "harnesses": [
+      {
+        "name": "frontend",
+        "exitCode": 0,
+        "timedOut": false
+      }
+    ],
+    "phase": "harness",
+    "error": "DIAGNOSTIC_FRONTEND_ONLY_STOP",
+    "startedAt": "2026-11-04T01:16:00.663Z",
+    "finishedAt": "2026-11-04T01:16:16.786Z"
+  },
+  "conclusion": "The actual collector frontend passed 44 labels and 10 native controls. Execution intentionally stopped before table; this is not a complete browser collection. Private launcher assertions do not establish the historical CI cause. No source or assertion change was made."
+}

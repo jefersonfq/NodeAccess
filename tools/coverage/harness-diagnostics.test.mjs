@@ -70,3 +70,36 @@ test('long failed markers and digit runs finish within a bounded real child proc
   assert.equal(child.error, undefined); assert.equal(child.status, 0)
   assert.deepEqual(JSON.parse(child.stdout), ['OTHER', 'OTHER', 'OTHER', 'TIMEOUT'])
 })
+
+test('real caught async errors preserve coordinates despite Node property-inspection suffix', t => {
+  const root = mkdtempSync(join(tmpdir(), 'harness-diagnostic-')); t.after(() => rmSync(root, { recursive: true, force: true }))
+  const file = join(root, scripts[0]), log = join(root, 'private.log')
+  for (const [statement, category] of [
+    ["require('node:assert/strict').equal('PRIVATE-A','PRIVATE-B')", 'ASSERTION'],
+    ["const error=new Error('PRIVATE');error.name='TimeoutError';throw error", 'TIMEOUT'],
+    ["throw new TypeError('PRIVATE')", 'OTHER'],
+  ]) {
+    writeFileSync(file, `async function main(){await Promise.resolve();${statement}}\nmain().catch(error=>{console.error(error);process.exitCode=1})`)
+    const child = spawnSync(process.execPath, [file], { encoding: 'utf8', timeout: 3000 })
+    assert.equal(child.status, 1)
+    writeFileSync(log, child.stderr, { mode: 0o600 })
+    const result = readHarnessDiagnostic(log, scripts[0])
+    assert.equal(result.category, category); assert.equal(result.line, 1); assert.ok(result.column > 0)
+    assert.doesNotMatch(JSON.stringify(result), /PRIVATE|tmp|main|\.cjs/)
+    if (category === 'ASSERTION') assert.ok(child.stderr.includes(') {\n'))
+  }
+})
+test('only exact Node suffixes and bounded positions are accepted for every allowlisted frame', () => {
+  for (const script of scripts) for (const suffix of ['', ')', ' {', ') {']) for (const ending of ['\n', '\r\n']) {
+    const result = parseHarnessDiagnostic(`AssertionError: PRIVATE\n    at main (/PRIVATE/${script}:1000000:100000${suffix}${ending}PRIVATE`, script)
+    assert.deepEqual(result, { category: 'ASSERTION', line: 1000000, column: 100000 })
+  }
+  for (const suffix of [') {PRIVATE', ') {{', ') PRIVATE', ') { ', ') {};', ')\t{']) {
+    assert.equal(parseHarnessDiagnostic(`AssertionError: PRIVATE\n    at main (/PRIVATE/table-review.cjs:8:2${suffix}`, 'table-review.cjs'), undefined)
+  }
+  for (const [line, column] of [[0, 1], [1, 0], [1000001, 1], [1, 100001]]) {
+    assert.equal(parseHarnessDiagnostic(`AssertionError: PRIVATE\n    at main (/PRIVATE/table-review.cjs:${line}:${column}) {`, 'table-review.cjs'), undefined)
+  }
+  assert.equal(parseHarnessDiagnostic('Error [TimeoutError]: PRIVATE\n    at /PRIVATE/not-allowed.cjs:8:2) {', 'not-allowed.cjs'), undefined)
+  assert.deepEqual(parseHarnessDiagnostic('Error [NotTimeoutError]: PRIVATE\n    at /PRIVATE/table-review.cjs:8:2) {', 'table-review.cjs'), { category: 'OTHER', line: 8, column: 2 })
+})
