@@ -260,3 +260,49 @@ Integrado patchNA-0144 320ebf1ccfba44f060bf0126344a45951bfd32cc. Parser aceita s
 NA-0143 investigou falhas Enter do indicador em launcher auxiliar; diferenças de cacheDir e imports fixos podiam carregar runtimesVue distintos, invalidando atribuição ao CI. Controle com collectBrowserCoverage real passou44labels+10controles em16,1s e foi interrompido explicitamente antes do segundo harness. Não é aprovação de pipeline completo. Nenhum pollingfix/produto alterado e não declaramos causa histórica resolvida. Próximo CI com diagnóstico corrigido deve fornecer localização se houver recorrência. CIb568 encerrou todos os demais checks aplicáveis PASS, inclusive upgrade/restore/imagens; somente coleta Sonar continua FAIL.
 
 Integrados registros NA-0143 8b6a36330, somente documentais. Ran antes do checkpoint:segurança PASS Gitleaks47fixtures exatas/zero pendentes,Semgrep867alvos/zero achados/erros;42contratos integrados PASS. Scanner/cobertura/CI do próximo SHA ainda Planned.
+
+### 2026-11-04T09:55:52-03:00 — Correções da reavaliação autorizadas
+
+Usuário autorizou seguir com testes e simulações para maior conformidade Sonar. Integrados documentos NA-0145 como patch do checkpoint670b21ab0, preservando branch de origem. Reavaliação revela242 propostas FP,43 riscos condicionais,7 correções e2 lacunas, além de dois defeitos adjacentes. P1 SQ0052 exige correção antes de homologação. Frentes isoladas:NA0146 pager linear,NA0147 highlights com limite efetivo,NA0148 UI/entradas/a11y,NA0149 ferramentas e TLS. Aceite humano de riscos/ruleset/homologação não inferido desta autorização técnica. Próximo passo: integrar correções revisadas, repetir cobertura/Sonar/CI e conciliar apenas classificações sustentadas por evidências.
+
+### 2026-11-04T10:17:11-03:00 — Pager integrado; provas adversariais e revisão operacional
+
+Integrado patch NA-0146 6efc571d750c1d117aaf7377091cea5979de77a9, preservando branch. Ran na origem: 200 testes focais, 69.180 casos diferenciais sem divergência, lint e revisão independente; scanner integrado ainda Planned. NA0145 CSV normalizado de CRLF para LF sem alteração das 294 decisões. PR59 confirmada draft no head ee436402d; não houve novo push/merge.
+
+NA0147 reproduziu que Chromium continua consumindo CPU aproximadamente2s após terminate do Worker; watchdog50ms protege resposta da UI, não é garantia de CPU50ms. Decisão técnica: suspender engine compartilhado pela vida da página após primeiro timeout, rejeitar fila e impedir novos workers por reconfiguração; sem cooldown presumido universal. Testes dessa versão ainda Planned.
+
+NA0149 revisão independente root do resolver, limites symlink/argv, contexto Helm e persistência TLS: 39PASS/2SKIP Windows em41 testes, zero falhas; Windows/macOS hospedados ainda Planned. Atualização do hash da fixture Helm existente permitida somente após diff confirmar literais sintéticos inalterados. NA0148 revisão do canvas/IPv6/playback sem novo bloqueio aparente; leitor de tela permanece Manual. Primeira falha de paginação preservada; controle A/B baseline e candidato passou sem alterar limites, causa não atribuída definitivamente à concorrência.
+
+LOCAL_WIP integração, COMMITTED/PUSHED/PR_OPEN ainda referem ee436402d; MERGED e MASTER_SYNCED pendentes. Próximo passo: concluir revisões das fontes, integrar patches, repetir gates completos no novo SHA e atualizar tabela com observação do scanner real.
+
+### 2026-11-04T10:40:55-03:00 — Integração das quatro correções e revisão das classificações
+
+Integrados como patches NA0147 0cc7906fe2f432fdebb4190deddd61cdd558d92f, NA0148 ca69c83f24f3e55d9f2b98714d5f3a47dbcd0a1b e NA0149 c07ca673c4f61a127635aeca21e7790ec875599e, além do NA0146 anterior. Binários/manifesto do manual0147 foram deliberadamente substituídos pela captura/revisão conjunta. Ran: manual:capture conjunto5imagens,20testes manual/check-reviewed5capítulos PASS; hashes de fontes mantidos durante captura. Raiz inspecionou prints terminal/hosts. Não representa homologação humana.
+
+Inventário de progresso contém294 IDs únicos e48 com remediação integrada, ainda sem scanner combinado. ID Sonar de SQ0069 acrescentado a resolution.json por correspondência única com catálogo para permitir junção, sem mudar decisão. Relatório NA0149 review-reconciliation.md impede fechamento coletivo de242 propostasFP: recomendações S7737/S2871 válidas precisam correção/decisão. Nova frente NA0150 aprovada para18 ocorrências (15ordenações e3defaults), com comparações UTF16/digest e contratos parciais; nenhum baseline ampliado.
+
+Revisão UX adicional identificou que suspensão dos destaques ficava oculta no popover; solicitado ajuste mínimo na0147 para estado visível no rótulo sem nova faixa. Ainda Planned teste/layout/recaptura após esse delta.
+
+Consulta adicional ao GitHub não concluiu handshake TLS; execução de leitura interrompida e adicionado timeout25s. curl sem credenciais para api.github.com também expirou5s. Nenhuma publicação nova presumida; tentar novamente após diagnóstico e continuar validações locais. Runtime Node24.22.1 copiado para diretório privado com UID atual, SHA256 binário idêntico, para cumprir resolvedor sem alterar modos/dono da instalação compartilhada.
+
+Estado: LOCAL_WIP integração; checkpoints das frentes COMMITTED localmente. PR59draft ainda no head publicadoee436402d; MERGED/MASTER_SYNCED pendentes. Próximo passo: dois deltas finais, scanner/cobertura/CI do candidato e reconciliação individual.
+
+### 2026-11-04T11:53:47-03:00 — Integração das correções e recuperação de acesso após VPN
+
+Usuário confirmou mudança de VPN. HTTPS GitHub validado com certificado e resolução por processo; túnel CONNECT restrito a github.com/api.github.com em loopback permite Git sem alterar DNS/VPN do sistema. PR59 continua draft ee436402d, sem novo push/merge.
+
+Integrados patches NA0150 (incluindo ec4259527, nove retornos/tipos com JavaScript emitido idêntico), NA0151 padrões lineares backend, NA0152 contratos frontend, NA0153 harness/restore com credenciais efêmeras e NA0154 lint frontend legado. Preservadas branches independentes e revisões. Tabela contém294 ocorrências originais,82 com correção integrada proposta; análise final ainda Planned, sem transições no servidor. Releitura individual sustenta195 propostas FP e14 ocorrências removidas na fonte, dependentes de confirmação do scanner.
+
+Ran: typecheck integrado concluiu sem diagnósticos; lint inicial encontrou1 erro de tipagem no teste IPv6 e9 warnings, em correção. Segurança integrada:Semgrep892 alvos/zero achados/erros; Gitleaks bloqueia evidências novas, investigação em andamento, sem novas exceções aprovadas. Manual:5 capturas inspecionadas,20 testes e5 capítulos revisados. Testes isolados das frentes não substituem gates combinados. HA apresenta recorte interno mobile preexistente documentado, sem promoção HA real nem homologação humana.
+
+LOCAL_WIP: integração /tmp/nodeaccess-NA-0093; documentos canônicos em docs do projeto atual. Próximo passo: resolver lint/segurança, congelar candidato e executar cobertura, Sonar real, CI e revisão no SHA correspondente.
+
+### 2026-11-04T11:58:35-03:00 — Pré-checks integrados e revalidação de fixtures
+
+Ran: lint estrito integrado PASS0 erros/0 warnings após ec4259527 e462e37a10; typecheck integrado e build completo PASS. Build mantém avisos de tamanho de chunks e anotação de dependência, sem falha. Gitleaks inicial revelou2 hashes em JSON interpretados como segredo e4 fixtures antigas cujo arquivo mudou; revisão confirmou literais byte-idênticos àbaseee436402. Formato das evidências passa a source/algorithm/digest, preservando hashes históricos; quatro hashes/uma linha deallowance revalidados, sem nova exceção. Exceção obsoleta restore removida após provar ausência no scan. Nova varredura completa em execução, ainda não declarada PASS.
+
+Revisão independente da tabela:82correções+195propostasFP+14removidas+3riscos=294;2defeitosadjacentes separados. O gerador agora rejeita IDs desconhecidos/duplicados/incompatíveis e distingue avaliação histórica da atual. Hashes históricos de fontes alteradas não constituem prova do candidato final;19FP estão em reconferência individual,16registros de correções preservam a proveniência original. Nenhuma transição Sonar nem expansão de baseline.
+
+Ran: nova varredura integrada PASS — Gitleaks46 fixtures exatas/zero pendentes, Semgrep892 alvos/zero achados/erros; saída em evidence/integration-prechecks/security.json. Resultado pertence ao WIP testado; candidato final ainda requer gates no SHA.
+
+Revalidação independente19/19FP concluída com anchors preservados e16 verificações PASS; proveniência atual/histórica mantida. Preparado checkpoint integrado após lint/types/build/segurança PASS. Cobertura/Sonar/CI do novo SHA permanecem Planned; não há homologação nem merge.

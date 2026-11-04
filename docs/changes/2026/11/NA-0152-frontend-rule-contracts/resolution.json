@@ -1,0 +1,68 @@
+[
+  {
+    "id": "SQ-0115",
+    "issueId": "76693a96-55cf-497b-b5c4-af0393ca2e56",
+    "rule": "Web:S6845",
+    "status": "correction_implemented_pending_integrated_scanner",
+    "evidence": [
+      "validation.md",
+      "differential-final.json",
+      "browser-after-final.json"
+    ]
+  },
+  {
+    "id": "SQ-0116",
+    "issueId": "84adc557-c63f-48b8-8072-4454abed948b",
+    "rule": "Web:S6845",
+    "status": "correction_implemented_pending_integrated_scanner",
+    "evidence": [
+      "validation.md",
+      "differential-final.json",
+      "browser-after-final.json"
+    ]
+  },
+  {
+    "id": "SQ-0117",
+    "issueId": "3c252e24-150c-4efc-849f-e9cafcf20ee8",
+    "rule": "Web:S6845",
+    "status": "correction_implemented_pending_integrated_scanner",
+    "evidence": [
+      "validation.md",
+      "differential-final.json",
+      "browser-after-final.json"
+    ]
+  },
+  {
+    "id": "SQ-0118",
+    "issueId": "86ece36a-8222-4fea-9a77-8eb9259976bb",
+    "rule": "Web:S6845",
+    "status": "correction_implemented_pending_integrated_scanner",
+    "evidence": [
+      "validation.md",
+      "differential-final.json",
+      "browser-after-final.json"
+    ]
+  },
+  {
+    "id": "SQ-0158",
+    "issueId": "525c047a-f7c2-41e0-a7af-9c916a99bfd5",
+    "rule": "typescript:S2310",
+    "status": "correction_implemented_pending_integrated_scanner",
+    "evidence": [
+      "validation.md",
+      "differential-final.json",
+      "browser-after-final.json"
+    ]
+  },
+  {
+    "id": "SQ-0161",
+    "issueId": "46318762-793a-478e-90cc-e0b93ae7d526",
+    "rule": "typescript:S8786",
+    "status": "correction_implemented_pending_integrated_scanner",
+    "evidence": [
+      "validation.md",
+      "differential-final.json",
+      "browser-after-final.json"
+    ]
+  }
+]

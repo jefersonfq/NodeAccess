@@ -4,7 +4,7 @@ const { chromium } = require('playwright')
 const FRONTEND = (process.env.FRONTEND_BASE || 'http://127.0.0.1:5173').replace(/\/$/, '')
 const now = '2026-08-16T21:42:37.000Z'
 const base = {
-  id: 12, tenantId: 1, hostId: 7026, hostName: 'VPN KING HOST', hostIp: '177.153.202.21',
+  id: 12, tenantId: 1, hostId: 7026, hostName: 'Lab Firewall', hostIp: '192.0.2.21',
   requestedById: 1, requestedByName: 'Audit Admin', mcpTokenId: 33, mcpTokenName: 'full_governado',
   objective: 'Investigar postura de firewall sem alterar o host', status: 'WAITING_USER', expiresAt: '2026-08-16T22:42:37.000Z',
   lastActivityAt: now, closedAt: null, closeReason: null, createdAt: now,
@@ -46,7 +46,7 @@ async function validate(browser, viewport, state) {
   await page.goto(`${FRONTEND}/admin/ai-investigations`, { waitUntil: 'domcontentloaded' })
   try { await page.getByTestId('ai-investigations-list').waitFor({ timeout: 10000 }) }
   catch (error) { throw new Error(`Tela não carregou em ${page.url()}: ${(await page.locator('body').innerText()).slice(0, 800)} | ${errors.join(' | ')}`, { cause: error }) }
-  await page.getByText('VPN KING HOST', { exact: false }).waitFor()
+  await page.getByText('Lab Firewall', { exact: false }).waitFor()
   await page.getByRole('button', { name: '#12' }).click()
   await page.getByTestId('ai-investigation-detail').waitFor()
   await page.getByText('full_governado', { exact: true }).waitFor()

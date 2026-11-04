@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+const { resolveExecutable } = require('../shared/trusted-executable.cjs')
 const { artifactPath } = require('../shared/private-artifacts.cjs')
 // Isolated browser acceptance: every API and WebSocket is mocked; never touches client hosts.
 const assert = require('node:assert/strict')
@@ -21,7 +22,7 @@ const tabKeys = ['connection', 'access', 'organization', 'resources']
 const results = []
 const startedAt = new Date().toISOString()
 function gitRef(...args) {
-  try { return execFileSync('git', args, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim() }
+  try { return execFileSync(resolveExecutable('git'), args, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim() }
   catch { return null }
 }
 const revision = {

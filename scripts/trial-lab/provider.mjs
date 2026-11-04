@@ -98,7 +98,7 @@ export class Provider {
   machine(state, index) { return { hostIp: address(cidr(state.subnet).start + 4 + index), password: randomBytes(32).toString('hex'), container: `na-trial-${state.id}-${index}`, keyDir: join(state.keyDir, String(index)) } }
   async ensure(id, request) { return this.serial(async () => {
     if (!UUID.test(id)) throw Error('INVALID_ID')
-    if (!request || Object.keys(request).sort().join(',') !== 'machineCount,maxSessions,networkCidr,templateId' || request.templateId !== 'alpine-ssh-v1' || !Number.isInteger(request.machineCount) || request.machineCount < 1 || request.machineCount > this.config.maxMachinesPerTrial || request.networkCidr !== this.config.networkCidr || !Number.isInteger(request.maxSessions) || request.maxSessions < 1 || request.maxSessions > 2) throw Error('INVALID_PROFILE')
+    if (!request || Object.keys(request).sort(compareCodeUnits).join(',') !== 'machineCount,maxSessions,networkCidr,templateId' || request.templateId !== 'alpine-ssh-v1' || !Number.isInteger(request.machineCount) || request.machineCount < 1 || request.machineCount > this.config.maxMachinesPerTrial || request.networkCidr !== this.config.networkCidr || !Number.isInteger(request.maxSessions) || request.maxSessions < 1 || request.maxSessions > 2) throw Error('INVALID_PROFILE')
     let state = await this.load(id)
     if (state?.phase === 'removing') throw Error('REMOVAL_PENDING')
     if (state?.phase === 'removed') return { trialId: id, state: 'removed', isolated: true, hosts: [] }
@@ -153,12 +153,12 @@ export class Provider {
     const image = JSON.parse(await this.run('docker', ['image', 'inspect', this.config.image]))[0]
     if (container.Image !== image.Id || !hc.ReadonlyRootfs || hc.Privileged || hc.NetworkMode !== state.network
       || hc.Memory !== 134217728 || hc.MemorySwap !== 134217728 || hc.NanoCpus !== 250000000 || hc.PidsLimit !== 64
-      || JSON.stringify([...(hc.CapDrop ?? [])].sort()) !== '["ALL"]'
-      || JSON.stringify((hc.CapAdd ?? []).map(cap => cap.replace(/^CAP_/, '')).sort()) !== JSON.stringify(expectedCaps)
+      || JSON.stringify([...(hc.CapDrop ?? [])].sort(compareCodeUnits)) !== '["ALL"]'
+      || JSON.stringify((hc.CapAdd ?? []).map(cap => cap.replace(/^CAP_/, '')).sort(compareCodeUnits)) !== JSON.stringify(expectedCaps)
       || JSON.stringify(hc.SecurityOpt) !== '["no-new-privileges:true"]' || hc.Binds?.length || hc.VolumesFrom?.length || hc.Devices?.length || hc.DeviceRequests?.length || hc.PidMode || hc.IpcMode !== 'private' || Object.keys(hc.PortBindings ?? {}).length
       || Object.keys(container.NetworkSettings.Networks).length !== 1
       || container.NetworkSettings.Networks[state.network]?.IPAddress && container.NetworkSettings.Networks[state.network].IPAddress !== state.hostIp
-      || Object.keys(hc.Tmpfs ?? {}).sort().join(',') !== '/etc,/home/demo,/run,/tmp'
+      || Object.keys(hc.Tmpfs ?? {}).sort(compareCodeUnits).join(',') !== '/etc,/home/demo,/run,/tmp'
       || hc.Dns?.join(',') !== '127.0.0.1' || hc.Sysctls?.['net.ipv6.conf.all.disable_ipv6'] !== '1'
       || hc.RestartPolicy?.Name !== 'no') throw Error('CONTAINER_POLICY_DRIFT')
     if (!container.State.Running) await this.run('docker', ['start', state.container])
@@ -227,4 +227,11 @@ if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1]
     throw Error('FLOCK_EXEC_REQUIRED')
   }
   await serve(config)
+}
+
+// Preserve the native string sort order used by canonical output and digests.
+function compareCodeUnits(left, right) {
+  if (left < right) return -1
+  if (left > right) return 1
+  return 0
 }

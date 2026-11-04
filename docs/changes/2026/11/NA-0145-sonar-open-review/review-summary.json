@@ -1,0 +1,13 @@
+{
+  "sourceSha": "ee436402db8bcce7fab4378d6ba28c1673b282b5",
+  "total": 294,
+  "counts": {
+    "false_positive": 242,
+    "risk_acceptance_required": 43,
+    "fix_required": 7,
+    "insufficient_evidence": 2
+  },
+  "serverModified": false,
+  "acceptedRiskByHuman": false,
+  "idCoverageVerified": true
+}

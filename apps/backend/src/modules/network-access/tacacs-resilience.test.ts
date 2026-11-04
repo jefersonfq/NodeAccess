@@ -19,7 +19,7 @@ afterEach(async () => {
   vi.restoreAllMocks()
   await Promise.all(runtimes.splice(0).map(runtime => runtime.close()))
 })
-async function setup(overrides = {}, limits = { connections: 64, perSource: 64, operations: 32, timeoutMs: 1000 }) {
+async function setup(overrides = {}, limits: Parameters<typeof createTacacsServer>[1] = { connections: 64, perSource: 64, operations: 32, timeoutMs: 1000 }) {
   const backend = {
     device: vi.fn().mockResolvedValue(device),
     authenticate: vi.fn().mockResolvedValue(true),
@@ -129,7 +129,7 @@ describe('TACACS+ fault injection and concurrent recovery', () => {
   })
 
   it.each(['device', 'authenticate', 'authorize', 'event'] as const)('does not release pending %s capacity prematurely after timeout, then recovers', async method => {
-    const gate = deferred<any>(), entered = deferred<void>()
+    const gate = deferred<unknown>(), entered = deferred<void>()
     const { port, backend, runtime } = await setup({}, { connections: 4, perSource: 4, operations: 1, timeoutMs: 80 })
     backend[method].mockImplementationOnce(() => { entered.resolve(); return gate.promise })
     const type = method === 'authenticate' ? 1 : method === 'event' ? 3 : 2
@@ -155,7 +155,7 @@ describe('TACACS+ fault injection and concurrent recovery', () => {
   it('expires idle and truncated-header/body clients without dispatching backend work', async () => {
     const { port, backend } = await setup({}, { connections: 8, perSource: 8, operations: 8, timeoutMs: 60 })
     const peers = await Promise.all([client(port), client(port), client(port)])
-    peers[1]!.socket.write(packet().subarray(0, 7)); peers[2]!.socket.write(packet().subarray(0, 15))
+    peers[1].socket.write(packet().subarray(0, 7)); peers[2].socket.write(packet().subarray(0, 15))
     await Promise.all(peers.map(p => p.closed))
     expect(backend.device).not.toHaveBeenCalled()
     peers.forEach(p => expect(p.frames).toHaveLength(0)); await healthy(port)
@@ -205,7 +205,7 @@ describe('TACACS+ fault injection and concurrent recovery', () => {
   })
 
   it('allows independent concurrent ASCII conversations with no username crossover', async () => {
-    const { port, backend } = await setup({ authenticate: vi.fn(async (_d: unknown, u: string, p: string) => p === 'password-for-' + u) })
+    const { port, backend } = await setup({ authenticate: vi.fn((_d: unknown, u: string, p: string) => Promise.resolve(p === 'password-for-' + u)) })
     await Promise.all(Array.from({ length: 8 }, async (_, i) => {
       const c = await client(port), id = 200 + i
       c.socket.write(packet(1, start('', '', true), 1, id))
@@ -271,5 +271,36 @@ describe('TACACS+ fault injection and concurrent recovery', () => {
     await runtime.close(); runtimes.splice(runtimes.indexOf(runtime), 1)
     await Promise.all([idle.closed, pending.closed]); gate.resolve(); await delay(10)
     expect(pending.frames).toHaveLength(0); expect(runtime.server.listening).toBe(false)
+  })
+})
+
+
+describe('limits property defaults', () => {
+  it('fills omitted and undefined fields without mutating frozen partial options', async () => {
+    const options = Object.freeze({ perSource: 2, timeoutMs: undefined })
+    const { runtime, port } = await setup({}, options)
+    expect(runtime.snapshot().limits).toEqual({ connections: 64, perSource: 2, operations: 32, timeoutMs: 5000 })
+    expect(options).toEqual({ perSource: 2, timeoutMs: undefined })
+    await healthy(port)
+  })
+
+  it('retains all omitted defaults and explicit zero limits', async () => {
+    const defaults = await setup({}, {})
+    expect(defaults.runtime.snapshot().limits).toEqual({ connections: 64, perSource: 8, operations: 32, timeoutMs: 5000 })
+    const denied = await setup({}, { connections: 0, perSource: 0, operations: 0, timeoutMs: 0 })
+    expect(denied.runtime.snapshot().limits).toEqual({ connections: 0, perSource: 0, operations: 0, timeoutMs: 0 })
+    expect(await exchange(denied.port, packet())).toHaveLength(0)
+    expect(denied.backend.device).not.toHaveBeenCalled()
+    expect(denied.runtime.stats.rejected).toBe(1)
+  })
+
+  it('enforces the default source cap when another limit alone is supplied', async () => {
+    const { runtime, port } = await setup({}, { timeoutMs: 1000 })
+    for (let index = 0; index < 8; index++) await client(port)
+    const ninth = await client(port)
+    await ninth.closed
+    expect(runtime.stats.accepted).toBe(8)
+    expect(runtime.stats.rejected).toBe(1)
+    expect(runtime.snapshot().connections).toBe(8)
   })
 })

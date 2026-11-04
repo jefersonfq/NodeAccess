@@ -1,3 +1,4 @@
+import { resolveExecutable } from '../shared/trusted-executable.cjs'
 import { artifactPath } from '../shared/private-artifacts.cjs'
 /** Opt-in ownership migration on one disposable volume; never loads .env. */
 import assert from 'node:assert/strict'
@@ -14,7 +15,7 @@ const volume = `na-nonroot-${randomBytes(8).toString('hex')}`
 const temporary = mkdtempSync(resolve(tmpdir(), 'na-nonroot-'))
 const output = resolve(process.env.NONROOT_OUTPUT || artifactPath('nodeaccess-nonroot-report.json'))
 const report = { passed: false, image, runnerUid: process.getuid(), checks: [] }
-const docker = args => execFileSync('docker', args, { encoding: 'utf8', timeout: 60000, stdio: ['pipe', 'pipe', 'pipe'] }).trim()
+const docker = args => execFileSync(resolveExecutable('docker'), args, { encoding: 'utf8', timeout: 60000, stdio: ['pipe', 'pipe', 'pipe'] }).trim()
 const base = ['run', '--rm', '--network', 'none', '--cap-drop', 'ALL', '--security-opt', 'no-new-privileges:true', '-v', `${volume}:/migration`]
 const owner = [...base, '--user', '0:0', '--cap-add', 'CHOWN', '--cap-add', 'DAC_OVERRIDE', '-v', `${temporary}:/state`, '-v', `${root}/scripts/deploy/runtime-permissions.mjs:/maintenance.mjs:ro`]
 const node = (user, script) => docker([...base, '--user', user, image, 'node', '-e', script])

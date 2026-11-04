@@ -182,6 +182,7 @@ async function main() {
   let failNextSnippetRequest = false
   let highlightEffectiveRequests = 0
   let highlightColor = 'amber'
+  let highlightAdversarial = false
   await context.route('**/api/v1/**', async (route) => {
     const path = new URL(route.request().url()).pathname
     let body = {}
@@ -237,7 +238,7 @@ async function main() {
       version: 'test:1',
       templates: [{ id: 71, name: 'Operação', version: 1 }],
       limits: { maxRules: 40, budgetMs: 8, maxMatchesPerPass: 120 },
-      rules: [{ id: '08dff7ec-57a8-4b18-a44c-7ed30068f15d', name: 'Avisos', pattern: 'WARNING', mode: 'literal', caseSensitive: false, wholeWord: true, foreground: highlightColor, background: null, bold: true, enabled: true, priority: 50, source: 'template', templateId: 71, templateName: 'Operação' }],
+      rules: [{ id: '08dff7ec-57a8-4b18-a44c-7ed30068f15d', name: 'Avisos', pattern: highlightAdversarial ? '(a|aa)+$' : 'WARNING', mode: highlightAdversarial ? 'regex' : 'literal', caseSensitive: false, wholeWord: true, foreground: highlightColor, background: null, bold: true, enabled: true, priority: 50, source: 'template', templateId: 71, templateName: 'Operação' }],
     } }
     else if (path === '/api/v1/terminal-highlights/telemetry') { await route.fulfill({ status: 204, body: '' }); return }
     else if (path.includes('/preferences')) body = null
@@ -1064,6 +1065,25 @@ async function main() {
   await inlineAi.getByRole('button', { name: 'Fechar assistente' }).click()
   await inlineAi.waitFor({ state: 'detached' })
 
+  const copyGeometry = await container.evaluate(element => ({ rows: element.dataset.terminalRows, cols: element.dataset.terminalCols }))
+  await page.locator('[data-terminal-action="copy-mode"]').click()
+  const copyText = page.locator('[data-terminal-copy-mode] pre')
+  await copyText.waitFor()
+  await page.locator('[data-terminal-action="close-copy-mode"]').focus()
+  await page.keyboard.press('Tab')
+  const copyFocus = await copyText.evaluate(element => ({ focused: document.activeElement === element, shadow: getComputedStyle(element).boxShadow, editable: element.isContentEditable }))
+  if (!copyFocus.focused || copyFocus.shadow === 'none' || copyFocus.editable) throw new Error('Modo texto deve ter foco visível e permanecer somente leitura')
+  const copyValue = await copyText.textContent()
+  await page.keyboard.type('COPY_MODE_READ_ONLY')
+  if (await copyText.textContent() !== copyValue) throw new Error('Modo texto alterou conteúdo durante digitação')
+  await page.screenshot({ path: artifactPath('nodeaccess-terminal-copy-focus.png'), fullPage: true })
+  await page.keyboard.press('Shift+Tab')
+  if (!await page.locator('[data-terminal-action="close-copy-mode"]').evaluate(element => document.activeElement === element)) throw new Error('Modo texto não permite voltar ao botão Fechar por teclado')
+  await page.keyboard.press('Enter')
+  await copyText.waitFor({ state: 'detached' })
+  const afterCopyGeometry = await container.evaluate(element => ({ rows: element.dataset.terminalRows, cols: element.dataset.terminalCols }))
+  if (JSON.stringify(copyGeometry) !== JSON.stringify(afterCopyGeometry)) throw new Error('Modo texto alterou área útil do terminal')
+
   const before = await container.evaluate((element) => ({ rows: Number(element.dataset.terminalRows), cols: Number(element.dataset.terminalCols), rect: element.getBoundingClientRect().toJSON(), resizeCount: window.__terminalExperience.resizeMessages.length }))
   const initialFont = await page.evaluate(() => Number(localStorage.getItem('na_term_fontSize') || 14))
   const box = await container.boundingBox()
@@ -1139,6 +1159,35 @@ async function main() {
   })
   await page.waitForFunction(() => Number(localStorage.getItem('na_term_fontSize')) === 10)
 
+  // The final adversarial fixture intentionally suspends highlights until reload.
+  if (!await page.locator('[data-terminal-action="highlights"]').count()) await page.locator('[data-terminal-action="show-toolbar"]').click()
+  await page.keyboard.press('Escape')
+  highlightAdversarial = true
+  const faultLoadCount = await page.evaluate(() => window.__NODEACCESS_TERMINAL_HARNESS__.events.filter(event => event.name === 'terminal-highlights-loaded').length)
+  await page.evaluate(() => window.dispatchEvent(new Event('nodeaccess:terminal-highlights-changed')))
+  await page.waitForFunction(count => window.__NODEACCESS_TERMINAL_HARNESS__.events.filter(event => event.name === 'terminal-highlights-loaded').length > count, faultLoadCount)
+  const beforeHighlightFault = await container.boundingBox()
+  await page.evaluate(() => window.__emitLatestSshBytes('\u001b[?1049l\r\n' + 'a'.repeat(60) + '!\r\n'))
+  const pausedHighlights = page.getByRole('button', { name: 'Destaques · pausados', exact: true })
+  await pausedHighlights.waitFor().catch(async error => {
+    await page.screenshot({ path: artifactPath('nodeaccess-highlight-paused-terminal-failure.png') })
+    console.error(JSON.stringify(await page.evaluate(() => ({ buttons: [...document.querySelectorAll('[data-terminal-action="highlights"]')].map(element => ({ text: element.textContent, title: element.title })), tail: document.querySelector('[data-terminal-container]')?.textContent?.slice(-500), events: window.__NODEACCESS_TERMINAL_HARNESS__?.events.slice(-8) }))))
+    throw error
+  })
+  if (await page.locator('[data-terminal-highlight-controls]').isVisible()) throw new Error('Pause status required an open popover')
+  if (JSON.stringify(await container.boundingBox()) !== JSON.stringify(beforeHighlightFault)) throw new Error('Highlight pause resized terminal')
+  const inputsBeforePause = await page.evaluate(() => window.__terminalExperience.inputSent.length)
+  await container.locator('.xterm-helper-textarea').focus()
+  await page.keyboard.type('alive_after_highlight_timeout')
+  await page.waitForFunction(before => window.__terminalExperience.inputSent.length > before, inputsBeforePause)
+  await page.screenshot({ path: artifactPath('nodeaccess-highlight-paused-terminal-desktop.png') })
+  await page.setViewportSize({ width: 390, height: 844 })
+  await pausedHighlights.waitFor()
+  const pausedBox = await pausedHighlights.boundingBox()
+  if (!pausedBox || pausedBox.x < 0 || pausedBox.x + pausedBox.width > 390) throw new Error('Pause label overflowed mobile viewport')
+  await page.screenshot({ path: artifactPath('nodeaccess-highlight-paused-terminal-mobile.png') })
+  await page.setViewportSize({ width: 1440, height: 900 })
+
   await page.goto(`${FRONTEND}/hosts?presenceExperience=${Date.now()}`, { waitUntil: 'domcontentloaded' })
   const presencePill = page.locator('[data-host-presence-pill="true"]')
   await presencePill.waitFor({ timeout: 10_000 }).catch(async () => {
@@ -1151,7 +1200,7 @@ async function main() {
   const performanceMetrics = await cdp.send('Performance.getMetrics')
   if (expectedCdpHttpErrors !== 0) throw new Error(`Falha HTTP esperada não foi observada pelo CDP: ${expectedCdpHttpErrors}`)
   if (cdpAnomalies.length) throw new Error(`Anomalias CDP: ${cdpAnomalies.join('; ')}`)
-  const report = { changeId: 'NA-0014', frontend: FRONTEND, result: 'passed', highlights: { matchCount: highlightPass.matchCount, liveRefresh: highlightRefresh, screenshot: HIGHLIGHT_SCREENSHOT_PATH }, snippets: { refreshedOnOpen: true, transientFailureRecovered: true, requestCount: snippetRequestCount }, sessionsNavigator: { lazyScaleRows: 20, totalHosts: 237, retryRecovered: true, staleSearchIgnored: true, deniedHostDisabled: true, doubleClickDeduplicated: true, focusReturnedFromPagination: true, mobileGeometry: mobileSessionsGeometry, modeCycles: modeCycleStats }, autocomplete: { review: autocompleteReview, literalPrefix: true, remotePath: true, escapedRemotePath: true, optionLikePathNeutralized: true, unicodePathSupported: true, orphanPathByteRecovered: orphanRecoveryBytes === '\u0005\u0015cd /var/log/anaconda/', cursorAwareEditing: true, sessionEntitiesLearned: true, successfulCommandLearning: true, failedCommandIgnored: true, contextualProviders: true, safeHistory: true, nonBlockingFailure: true, transientRetryRecovered: flakyAttempts === 2, sessionSftpReuse: true, sessionCacheInvalidation, restSftpRequestCount: autocompleteSftpRequests.length, intentionalAliasDiscovery: true, insertionWithoutExecution: true, keyboardNavigation: true, accessibleActiveOption: true, remoteRequestCount: sessionSftpAfterMutation.length, stressCycles: 1000, stressMs: autocompleteStressMs, geometry: autocompleteGeometry, mobileGeometry: mobileAutocompleteGeometry, screenshot: AUTOCOMPLETE_SCREENSHOT_PATH, mobileScreenshot: AUTOCOMPLETE_MOBILE_SCREENSHOT_PATH }, resilience: resilienceSnapshot, initialFont, zoomedFont: initialFont + 1, zoomBounds: { min: 10, max: 24 }, before, layout, htopRenderMs, hostEdit: { updates: hostUpdates, nameOnlyKeptSession: true, connectionChangeReconnected: true, mobileModalFits: true }, cdp: { anomalies: cdpAnomalies, metrics: Object.fromEntries(performanceMetrics.metrics.filter((metric) => ['JSHeapUsedSize', 'Nodes', 'LayoutCount', 'RecalcStyleCount'].includes(metric.name)).map((metric) => [metric.name, metric.value])) }, presenceEndedImmediately: true, screenshot: SCREENSHOT_PATH }
+  const report = { changeId: 'NA-0014', frontend: FRONTEND, result: 'passed', highlights: { pausedLabelVisible: true, pausedInputContinues: true, pausedTerminalGeometryPreserved: true, matchCount: highlightPass.matchCount, liveRefresh: highlightRefresh, screenshot: HIGHLIGHT_SCREENSHOT_PATH }, snippets: { refreshedOnOpen: true, transientFailureRecovered: true, requestCount: snippetRequestCount }, sessionsNavigator: { lazyScaleRows: 20, totalHosts: 237, retryRecovered: true, staleSearchIgnored: true, deniedHostDisabled: true, doubleClickDeduplicated: true, focusReturnedFromPagination: true, mobileGeometry: mobileSessionsGeometry, modeCycles: modeCycleStats }, autocomplete: { review: autocompleteReview, literalPrefix: true, remotePath: true, escapedRemotePath: true, optionLikePathNeutralized: true, unicodePathSupported: true, orphanPathByteRecovered: orphanRecoveryBytes === '\u0005\u0015cd /var/log/anaconda/', cursorAwareEditing: true, sessionEntitiesLearned: true, successfulCommandLearning: true, failedCommandIgnored: true, contextualProviders: true, safeHistory: true, nonBlockingFailure: true, transientRetryRecovered: flakyAttempts === 2, sessionSftpReuse: true, sessionCacheInvalidation, restSftpRequestCount: autocompleteSftpRequests.length, intentionalAliasDiscovery: true, insertionWithoutExecution: true, keyboardNavigation: true, accessibleActiveOption: true, remoteRequestCount: sessionSftpAfterMutation.length, stressCycles: 1000, stressMs: autocompleteStressMs, geometry: autocompleteGeometry, mobileGeometry: mobileAutocompleteGeometry, screenshot: AUTOCOMPLETE_SCREENSHOT_PATH, mobileScreenshot: AUTOCOMPLETE_MOBILE_SCREENSHOT_PATH }, resilience: resilienceSnapshot, initialFont, zoomedFont: initialFont + 1, zoomBounds: { min: 10, max: 24 }, before, layout, htopRenderMs, hostEdit: { updates: hostUpdates, nameOnlyKeptSession: true, connectionChangeReconnected: true, mobileModalFits: true }, cdp: { anomalies: cdpAnomalies, metrics: Object.fromEntries(performanceMetrics.metrics.filter((metric) => ['JSHeapUsedSize', 'Nodes', 'LayoutCount', 'RecalcStyleCount'].includes(metric.name)).map((metric) => [metric.name, metric.value])) }, presenceEndedImmediately: true, screenshot: SCREENSHOT_PATH }
   report.theme = UI_THEME
   report.themeSelection = { ...themeSelection, screenshot: THEME_SCREENSHOT_PATH }
   report.middleClickPaste = { singlePaste: true, remoteMouseTrackingPreserved: true, ...middlePasteSafety }

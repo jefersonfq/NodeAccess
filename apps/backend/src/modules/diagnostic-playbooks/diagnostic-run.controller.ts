@@ -17,7 +17,7 @@ interface CompareParam extends RunParam {
 export class DiagnosticRunController {
   constructor(private readonly service: DiagnosticRunService) {}
 
-  async createForHost(request: FastifyRequest<{ Params: HostParam; Body: CreateDiagnosticRunDto }>, reply: FastifyReply) {
+  async createForHost(request: FastifyRequest<{ Params: HostParam; Body: CreateDiagnosticRunDto }>, reply: FastifyReply): Promise<FastifyReply> {
     const run = await this.service.createForHost({
       hostId: Number(request.params.id),
       tenantId: request.jwtUser!.tenantId,
@@ -28,7 +28,7 @@ export class DiagnosticRunController {
     return reply.status(201).send(run)
   }
 
-  async listForHost(request: FastifyRequest<{ Params: HostParam }>, reply: FastifyReply) {
+  async listForHost(request: FastifyRequest<{ Params: HostParam }>, reply: FastifyReply): Promise<FastifyReply> {
     const runs = await this.service.listForHost({
       hostId: Number(request.params.id),
       tenantId: request.jwtUser!.tenantId,
@@ -38,7 +38,7 @@ export class DiagnosticRunController {
     return reply.send(runs)
   }
 
-  async getHistoryForHost(request: FastifyRequest<{ Params: HostParam }>, reply: FastifyReply) {
+  async getHistoryForHost(request: FastifyRequest<{ Params: HostParam }>, reply: FastifyReply): Promise<FastifyReply> {
     const history = await this.service.getHistoryForHost({
       hostId: Number(request.params.id),
       tenantId: request.jwtUser!.tenantId,
@@ -48,7 +48,7 @@ export class DiagnosticRunController {
     return reply.send(history)
   }
 
-  async getById(request: FastifyRequest<{ Params: RunParam }>, reply: FastifyReply) {
+  async getById(request: FastifyRequest<{ Params: RunParam }>, reply: FastifyReply): Promise<FastifyReply> {
     const run = await this.service.getById({
       id: Number(request.params.runId),
       tenantId: request.jwtUser!.tenantId,
@@ -58,7 +58,7 @@ export class DiagnosticRunController {
     return reply.send(run)
   }
 
-  async regenerateSummary(request: FastifyRequest<{ Params: RunParam }>, reply: FastifyReply) {
+  async regenerateSummary(request: FastifyRequest<{ Params: RunParam }>, reply: FastifyReply): Promise<FastifyReply> {
     const run = await this.service.regenerateSummary({
       id: Number(request.params.runId),
       tenantId: request.jwtUser!.tenantId,
@@ -68,7 +68,7 @@ export class DiagnosticRunController {
     return reply.send(run)
   }
 
-  async download(request: FastifyRequest<{ Params: RunParam }>, reply: FastifyReply) {
+  async download(request: FastifyRequest<{ Params: RunParam }>, reply: FastifyReply): Promise<FastifyReply> {
     const report = await this.service.exportRun({
       id: Number(request.params.runId),
       tenantId: request.jwtUser!.tenantId,
@@ -79,7 +79,7 @@ export class DiagnosticRunController {
     const safeName = report.identity.playbookName
       .toLowerCase()
       .replace(/[^a-z0-9]+/g, '-')
-      .replace(/^-+|-+$/g, '')
+      .replace(/^-|-$/g, '')
       .slice(0, 60) || 'diagnostic-run'
 
     return reply
@@ -88,7 +88,7 @@ export class DiagnosticRunController {
       .send(JSON.stringify(report, null, 2))
   }
 
-  async getReport(request: FastifyRequest<{ Params: RunParam }>, reply: FastifyReply) {
+  async getReport(request: FastifyRequest<{ Params: RunParam }>, reply: FastifyReply): Promise<FastifyReply> {
     const report = await this.service.getReport({
       id: Number(request.params.runId),
       tenantId: request.jwtUser!.tenantId,
@@ -98,7 +98,7 @@ export class DiagnosticRunController {
     return reply.send(report)
   }
 
-  async compareRuns(request: FastifyRequest<{ Params: CompareParam }>, reply: FastifyReply) {
+  async compareRuns(request: FastifyRequest<{ Params: CompareParam }>, reply: FastifyReply): Promise<FastifyReply> {
     const comparison = await this.service.compareRuns({
       id: Number(request.params.runId),
       baselineId: Number(request.params.baselineRunId),
@@ -109,7 +109,7 @@ export class DiagnosticRunController {
     return reply.send(comparison)
   }
 
-  async updateTraceability(request: FastifyRequest<{ Params: RunParam; Body: UpdateDiagnosticRunTraceabilityDto }>, reply: FastifyReply) {
+  async updateTraceability(request: FastifyRequest<{ Params: RunParam; Body: UpdateDiagnosticRunTraceabilityDto }>, reply: FastifyReply): Promise<FastifyReply> {
     const run = await this.service.updateTraceability({
       id: Number(request.params.runId),
       tenantId: request.jwtUser!.tenantId,
@@ -120,7 +120,7 @@ export class DiagnosticRunController {
     return reply.send(run)
   }
 
-  async publishReportToJira(request: FastifyRequest<{ Params: RunParam; Body: PublishDiagnosticRunReportToJiraDto }>, reply: FastifyReply) {
+  async publishReportToJira(request: FastifyRequest<{ Params: RunParam; Body: PublishDiagnosticRunReportToJiraDto }>, reply: FastifyReply): Promise<FastifyReply> {
     const result = await this.service.publishReportToJira({
       id: Number(request.params.runId),
       tenantId: request.jwtUser!.tenantId,

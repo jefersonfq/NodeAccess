@@ -1,0 +1,28 @@
+{
+  "sourceSHA": "ee436402db8bcce7fab4378d6ba28c1673b282b5",
+  "function": "summarizeInteractiveOutput",
+  "command": "less",
+  "separator": "U+2028",
+  "deadlineMs": 1500,
+  "results": [
+    {
+      "digits": 10000,
+      "elapsedMs": 143,
+      "status": 0,
+      "errorCode": null
+    },
+    {
+      "digits": 30000,
+      "elapsedMs": 691,
+      "status": 0,
+      "errorCode": null
+    },
+    {
+      "digits": 60000,
+      "elapsedMs": 1511,
+      "status": null,
+      "errorCode": "ETIMEDOUT"
+    }
+  ],
+  "limitations": "Original modules transpiled; no SSH/HTTP request, database or production load"
+}

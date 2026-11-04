@@ -2,7 +2,7 @@
 import type { TerminalHighlightRule } from '@nodeaccess/shared'
 import { computed, reactive } from 'vue'
 import { NAlert, NButton, NCheckbox, NInput, NInputNumber, NSelect, NSwitch, NTag } from 'naive-ui'
-import { compileHighlightRules, matchTerminalLine } from '@/terminal/terminal-highlighter'
+import { useHighlightPreview } from '@/composables/useHighlightPreview'
 
 const props = defineProps<{ modelValue: TerminalHighlightRule[]; disabled?: boolean }>()
 const emit = defineEmits<{ 'update:modelValue': [rules: TerminalHighlightRule[]] }>()
@@ -20,10 +20,9 @@ const starterRules = [
   { name: 'Crítico', pattern: 'CRITICAL', foreground: 'orange' },
   { name: 'Falha de autenticação', pattern: 'authentication failed', foreground: 'purple' },
 ] as const
-const preview = computed(() => Object.fromEntries(props.modelValue.map((rule) => {
-  const text = examples[rule.id] ?? `[serviço] ${rule.pattern} exemplo de saída`
-  return [rule.id, { text, ranges: matchTerminalLine(text, compileHighlightRules([rule])) }]
-})))
+const previewInput = computed(() => props.modelValue.map(rule => ({ key: rule.id, text: examples[rule.id] ?? `[serviço] ${rule.pattern} exemplo de saída`, rules: [rule] })))
+const { rows: previewRows, warning: previewWarning } = useHighlightPreview(() => ({ rows: previewInput.value }))
+const preview = computed(() => Object.fromEntries(previewInput.value.map(row => [row.key, { text: row.text, ranges: previewRows.value.find(result => result.key === row.key)?.ranges ?? [] }])))
 function segments(rule: TerminalHighlightRule): { text: string; matched: boolean; }[] {
   const current = preview.value[rule.id]
   const result: Array<{ text: string; matched: boolean }> = []
@@ -75,6 +74,13 @@ function add(): void {
         {{ starter.name }}
       </NButton>
     </div>
+    <p
+      v-if="previewWarning"
+      role="status"
+      class="text-xs text-amber-300"
+    >
+      {{ previewWarning }}
+    </p>
     <div
       v-if="!modelValue.length"
       class="rounded-lg border border-dashed border-gray-700 p-6 text-center text-sm text-gray-400"

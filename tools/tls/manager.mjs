@@ -9,10 +9,10 @@ import { retryAt, certificateAlerts } from './retry.mjs'
 const safe = error => {
   if(['ENOSPC','EDQUOT','EROFS','EACCES','EPERM'].includes(error?.code))error=storageError(error)
   return error instanceof TlsError
-    ? {code:error.code, message:error.message, ...(error.retryAfter ? {retryAfter:error.retryAfter} : {})}
+    ? {code:error.code, message:error.message, ...(error.retryAfter ? {retryAfter:error.retryAfter} : {}), ...(['STORAGE_FULL','STORAGE_READ_ONLY','STORAGE_FAILED'].includes(error.persistenceFailure?.code) ? {persistenceFailure:{code:error.persistenceFailure.code,message:storageError({}).message}} : {})}
     : {code:'TLS_OPERATION_FAILED', message:'Não foi possível concluir a operação. Consulte o diagnóstico e o certificado ativo.'}
 }
-const requestDigest = (input, actor) => createHash('sha256').update(JSON.stringify([actor, Object.keys(input).sort().map(key => [key,input[key]])])).digest('hex')
+const requestDigest = (input, actor) => createHash('sha256').update(JSON.stringify([actor, Object.keys(input).sort(compareCodeUnits).map(key => [key,input[key]])])).digest('hex')
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 const renewalActions = ['automatic','renew']
 
@@ -165,7 +165,7 @@ export class CertificateManager extends EventEmitter {
           this.event('operation.completed',job)
           await this.save();await this.cleanup()
           this.emit('completed',structuredClone(job))
-        }).catch(error=>{job.status='failed';job.error=safe(error);this.state.recoveryRequired=true;this.rememberJob(job)})
+        }).catch(error=>{job.status='failed';job.error=job.error ? {...job.error,persistenceFailure:safe(storageError(error))} : safe(error);this.state.recoveryRequired=true;this.rememberJob(job)})
         .finally(()=>{this.busy=false;this.runningJobId=null})
       return this.publicJob(job)
     }catch(error){this.busy=false;this.runningJobId=null;throw error}
@@ -202,7 +202,7 @@ export class CertificateManager extends EventEmitter {
     const previous=await fs.readlink(path.join(this.root,'current')),fingerprint=(await this.active())?.fingerprint
     const pending={previous,fingerprint}
     this.state.pending=pending;await this.save()
-    let resolved=false
+    let resolved=false, primaryError
     try {
       await this.point(`versions/${candidate.id}`)
       await this.step('nginx',()=>this.adapter.test())
@@ -210,13 +210,16 @@ export class CertificateManager extends EventEmitter {
       await this.step('verify',()=>this.adapter.verify(candidate.fingerprint));resolved=true
     }catch(error){
       try {await this.point(previous);await this.adapter.test();await this.adapter.reload();await this.adapter.verify(fingerprint);resolved=true}
-      catch{this.state.recoveryRequired=true;throw new TlsError('ROLLBACK_FAILED','Falha na aplicação e na verificação da recuperação. Verifique o Nginx pelo servidor.',500)}
-      if(this.state.storageError)throw error
-      throw new TlsError('APPLY_ROLLED_BACK','A aplicação falhou. O certificado anterior foi restaurado e verificado.',502)
-    }finally{
-      if(resolved)delete this.state.pending
-      try{await this.save()}catch(error){this.state.pending=pending;throw error}
+      catch{this.state.recoveryRequired=true;primaryError=new TlsError('ROLLBACK_FAILED','Falha na aplicação e na verificação da recuperação. Verifique o Nginx pelo servidor.',500)}
+      primaryError ??= this.state.storageError ? error : new TlsError('APPLY_ROLLED_BACK','A aplicação falhou. O certificado anterior foi restaurado e verificado.',502)
     }
+    if(resolved)delete this.state.pending
+    try{await this.save()}catch(error){
+      this.state.pending=pending
+      if(primaryError){primaryError.persistenceFailure=storageError(error);throw primaryError}
+      throw error
+    }
+    if(primaryError)throw primaryError
     this.state.previousVersion=path.basename(previous)
     this.state.observed={...candidate,checkedAt:new Date(this.now()).toISOString()};delete this.state.candidate
     return {message:'Certificado aplicado e verificado.',fingerprint:candidate.fingerprint}
@@ -273,4 +276,11 @@ export class CertificateManager extends EventEmitter {
     this.state.nextCheck=new Date(this.now()+12*3600000).toISOString()
     await this.submit({action:'renew'},'scheduler')
   }
+}
+
+// Preserve the native string sort order used by canonical output and digests.
+function compareCodeUnits(left, right) {
+  if (left < right) return -1
+  if (left > right) return 1
+  return 0
 }

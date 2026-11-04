@@ -1,0 +1,275 @@
+[
+  {
+    "id": "SQ-0001",
+    "issueId": "6f08bb36-06ce-43b6-ac45-3544ce696b80",
+    "rule": "javascript:S7737",
+    "file": "apps/agent/src/local-listeners.js",
+    "sourceLine": 8,
+    "status": "implemented_pending_integrated_analysis",
+    "priorClassification": "false_positive",
+    "evidence": [
+      "apps/agent/src/local-listeners.test.js"
+    ],
+    "rationale": "Defaults por propriedade apenas undefined; valores explícitos e política de negação preservados."
+  },
+  {
+    "id": "SQ-0031",
+    "issueId": "6bc86845-9e6f-473f-a781-6445af489247",
+    "rule": "typescript:S7737",
+    "file": "apps/backend/src/modules/network-access/tacacs-server.ts",
+    "sourceLine": 7,
+    "status": "implemented_pending_integrated_analysis",
+    "priorClassification": "risk_acceptance_required",
+    "evidence": [
+      "apps/backend/src/modules/network-access/tacacs-resilience.test.ts"
+    ],
+    "rationale": "Defaults por propriedade apenas undefined; valores explícitos e política de negação preservados."
+  },
+  {
+    "id": "SQ-0137",
+    "issueId": "b7da7a39-c1a8-478c-abb6-9a132c494cea",
+    "rule": "typescript:S2871",
+    "file": "apps/frontend/src/services/guacamole-import.service.ts",
+    "sourceLine": 172,
+    "status": "implemented_pending_integrated_analysis",
+    "priorClassification": "false_positive",
+    "evidence": [
+      "tools/shared/explicit-contracts.test.mjs",
+      "docs/changes/2026/11/NA-0150-explicit-contracts/validation.md",
+      "apps/frontend/src/services/guacamole-import.service.test.ts",
+      "apps/frontend/src/services/guacamole-import.fixtures.test.ts"
+    ],
+    "rationale": "Comparador UTF16 preserva ordem nativa e digest."
+  },
+  {
+    "id": "SQ-0138",
+    "issueId": "0f2487e8-4c5c-4d4f-88d9-7e547578da32",
+    "rule": "typescript:S2871",
+    "file": "apps/frontend/src/services/guacamole-import.service.ts",
+    "sourceLine": 174,
+    "status": "implemented_pending_integrated_analysis",
+    "priorClassification": "false_positive",
+    "evidence": [
+      "tools/shared/explicit-contracts.test.mjs",
+      "docs/changes/2026/11/NA-0150-explicit-contracts/validation.md",
+      "apps/frontend/src/services/guacamole-import.service.test.ts",
+      "apps/frontend/src/services/guacamole-import.fixtures.test.ts"
+    ],
+    "rationale": "Comparador UTF16 preserva ordem nativa e digest."
+  },
+  {
+    "id": "SQ-0139",
+    "issueId": "624de923-600c-4122-85e0-91d2568eedd5",
+    "rule": "typescript:S2871",
+    "file": "apps/frontend/src/services/guacamole-import.service.ts",
+    "sourceLine": 301,
+    "status": "implemented_pending_integrated_analysis",
+    "priorClassification": "false_positive",
+    "evidence": [
+      "tools/shared/explicit-contracts.test.mjs",
+      "docs/changes/2026/11/NA-0150-explicit-contracts/validation.md",
+      "apps/frontend/src/services/guacamole-import.service.test.ts",
+      "apps/frontend/src/services/guacamole-import.fixtures.test.ts"
+    ],
+    "rationale": "Comparador UTF16 preserva ordem nativa e digest."
+  },
+  {
+    "id": "SQ-0140",
+    "issueId": "e3393cf9-d69e-42e1-ad02-27f82e8d55ee",
+    "rule": "typescript:S2871",
+    "file": "apps/frontend/src/services/guacamole-import.service.ts",
+    "sourceLine": 305,
+    "status": "implemented_pending_integrated_analysis",
+    "priorClassification": "false_positive",
+    "evidence": [
+      "tools/shared/explicit-contracts.test.mjs",
+      "docs/changes/2026/11/NA-0150-explicit-contracts/validation.md",
+      "apps/frontend/src/services/guacamole-import.service.test.ts",
+      "apps/frontend/src/services/guacamole-import.fixtures.test.ts"
+    ],
+    "rationale": "Comparador UTF16 preserva ordem nativa e digest."
+  },
+  {
+    "id": "SQ-0144",
+    "issueId": "5e3e2f4a-6e2e-4321-b005-155915b7583b",
+    "rule": "typescript:S2871",
+    "file": "apps/frontend/src/services/mobaxterm-import.service.ts",
+    "sourceLine": 214,
+    "status": "implemented_pending_integrated_analysis",
+    "priorClassification": "false_positive",
+    "evidence": [
+      "tools/shared/explicit-contracts.test.mjs",
+      "docs/changes/2026/11/NA-0150-explicit-contracts/validation.md",
+      "apps/frontend/src/services/mobaxterm-import.service.test.ts"
+    ],
+    "rationale": "Comparador UTF16 preserva ordem nativa e digest."
+  },
+  {
+    "id": "SQ-0265",
+    "issueId": "885c7415-28e0-4e87-bd9a-45166a651ed6",
+    "rule": "javascript:S2871",
+    "file": "scripts/change-governance-lib.mjs",
+    "sourceLine": 63,
+    "status": "implemented_pending_integrated_analysis",
+    "priorClassification": "false_positive",
+    "evidence": [
+      "tools/shared/explicit-contracts.test.mjs",
+      "docs/changes/2026/11/NA-0150-explicit-contracts/validation.md"
+    ],
+    "rationale": "Comparador UTF16 preserva ordem nativa e digest."
+  },
+  {
+    "id": "SQ-0274",
+    "issueId": "be6062d4-f1d2-4979-b9b9-6e36fd70b81a",
+    "rule": "javascript:S2871",
+    "file": "scripts/deploy/runtime-permissions.mjs",
+    "sourceLine": 32,
+    "status": "implemented_pending_integrated_analysis",
+    "priorClassification": "false_positive",
+    "evidence": [
+      "tools/shared/explicit-contracts.test.mjs",
+      "docs/changes/2026/11/NA-0150-explicit-contracts/validation.md"
+    ],
+    "rationale": "Comparador UTF16 preserva ordem nativa e digest."
+  },
+  {
+    "id": "SQ-0275",
+    "issueId": "cf08cfec-0aab-4d31-9bc8-9727ff272f51",
+    "rule": "javascript:S2871",
+    "file": "scripts/lint-changed.mjs",
+    "sourceLine": 21,
+    "status": "implemented_pending_integrated_analysis",
+    "priorClassification": "false_positive",
+    "evidence": [
+      "tools/shared/explicit-contracts.test.mjs",
+      "docs/changes/2026/11/NA-0150-explicit-contracts/validation.md"
+    ],
+    "rationale": "Comparador UTF16 preserva ordem nativa e digest."
+  },
+  {
+    "id": "SQ-0280",
+    "issueId": "e1fbc810-1f77-4dbc-9b12-2ebbe1e3bafa",
+    "rule": "javascript:S2871",
+    "file": "scripts/release/release-provenance.mjs",
+    "sourceLine": 23,
+    "status": "implemented_pending_integrated_analysis",
+    "priorClassification": "false_positive",
+    "evidence": [
+      "tools/shared/explicit-contracts.test.mjs",
+      "docs/changes/2026/11/NA-0150-explicit-contracts/validation.md"
+    ],
+    "rationale": "Comparador UTF16 preserva ordem nativa e digest."
+  },
+  {
+    "id": "SQ-0282",
+    "issueId": "17b7851d-4055-4574-9ba8-6af5cf3a147e",
+    "rule": "javascript:S2871",
+    "file": "scripts/release/release-provenance.mjs",
+    "sourceLine": 59,
+    "status": "implemented_pending_integrated_analysis",
+    "priorClassification": "false_positive",
+    "evidence": [
+      "tools/shared/explicit-contracts.test.mjs",
+      "docs/changes/2026/11/NA-0150-explicit-contracts/validation.md"
+    ],
+    "rationale": "Comparador UTF16 preserva ordem nativa e digest."
+  },
+  {
+    "id": "SQ-0285",
+    "issueId": "5d54a36e-7ca0-4d30-95dd-d4256057c154",
+    "rule": "javascript:S2871",
+    "file": "scripts/trial-lab/provider.mjs",
+    "sourceLine": 101,
+    "status": "implemented_pending_integrated_analysis",
+    "priorClassification": "false_positive",
+    "evidence": [
+      "tools/shared/explicit-contracts.test.mjs",
+      "docs/changes/2026/11/NA-0150-explicit-contracts/validation.md"
+    ],
+    "rationale": "Comparador UTF16 preserva ordem nativa e digest."
+  },
+  {
+    "id": "SQ-0286",
+    "issueId": "a76b3a56-32a5-451c-a916-819b69dc6376",
+    "rule": "javascript:S2871",
+    "file": "scripts/trial-lab/provider.mjs",
+    "sourceLine": 156,
+    "status": "implemented_pending_integrated_analysis",
+    "priorClassification": "false_positive",
+    "evidence": [
+      "tools/shared/explicit-contracts.test.mjs",
+      "docs/changes/2026/11/NA-0150-explicit-contracts/validation.md"
+    ],
+    "rationale": "Comparador UTF16 preserva ordem nativa e digest."
+  },
+  {
+    "id": "SQ-0287",
+    "issueId": "1d6b5ef9-9e53-4e40-8828-352c37686c42",
+    "rule": "javascript:S2871",
+    "file": "scripts/trial-lab/provider.mjs",
+    "sourceLine": 161,
+    "status": "implemented_pending_integrated_analysis",
+    "priorClassification": "false_positive",
+    "evidence": [
+      "tools/shared/explicit-contracts.test.mjs",
+      "docs/changes/2026/11/NA-0150-explicit-contracts/validation.md"
+    ],
+    "rationale": "Comparador UTF16 preserva ordem nativa e digest."
+  },
+  {
+    "id": "SQ-0404",
+    "issueId": "7ff8efea-8102-4462-846a-a518199f9f70",
+    "rule": "javascript:S7737",
+    "file": "tools/frontend/session-command-policies-playwright.cjs",
+    "sourceLine": 69,
+    "status": "implemented_pending_integrated_analysis",
+    "priorClassification": "false_positive",
+    "evidence": [
+      "tools/shared/explicit-contracts.test.mjs:real viewport function"
+    ],
+    "rationale": "Defaults por propriedade apenas undefined; valores explícitos e política de negação preservados."
+  },
+  {
+    "id": "SQ-0506",
+    "issueId": "059dd274-fa85-4c4e-81f6-4cb610c27f23",
+    "rule": "typescript:S2871",
+    "file": "tools/session-audit/reconstruction-sql-review.mts",
+    "sourceLine": 137,
+    "status": "implemented_pending_integrated_analysis",
+    "priorClassification": "false_positive",
+    "evidence": [
+      "tools/shared/explicit-contracts.test.mjs",
+      "docs/changes/2026/11/NA-0150-explicit-contracts/validation.md"
+    ],
+    "rationale": "Comparador UTF16 preserva ordem nativa e digest."
+  },
+  {
+    "id": "SQ-0530",
+    "issueId": "a202c21e-60d3-46d8-aca1-5f8605556ff5",
+    "rule": "javascript:S2871",
+    "file": "tools/tls/manager.mjs",
+    "sourceLine": 15,
+    "status": "implemented_pending_integrated_analysis",
+    "priorClassification": "false_positive",
+    "evidence": [
+      "tools/shared/explicit-contracts.test.mjs",
+      "docs/changes/2026/11/NA-0150-explicit-contracts/validation.md",
+      "tools/tls/manager.test.mjs"
+    ],
+    "rationale": "Comparador UTF16 preserva ordem nativa e digest."
+  },
+  {
+    "id": "SQ-0014",
+    "issueId": "40822519-fa60-4e2e-abc6-503d70faa38c",
+    "rule": "typescript:S6959",
+    "file": "apps/backend/src/modules/hosts/host.repository.ts",
+    "sourceLine": 266,
+    "status": "implemented_pending_integrated_analysis",
+    "priorClassification": "false_positive",
+    "evidence": [
+      "apps/backend/src/modules/hosts/host.repository.filters.test.ts",
+      "apps/backend/src/modules/hosts/host.repository.recent-access.test.ts"
+    ],
+    "rationale": "Inicial explícito é o primeiro conjunto existente e somente slice(1) é reduzido; guarda vazia, ordem e multiplicidade preservadas."
+  }
+]

@@ -1,0 +1,97 @@
+{
+  "source": "Existing local collector artifact, not a new browser run in NA0145",
+  "head": "ee436402db8bcce7fab4378d6ba28c1673b282b5",
+  "finishedAt": "2026-11-04T01:23:28.567Z",
+  "results": [
+    {
+      "id": "SQ-0111",
+      "issueId": "837cb40c-e519-4569-a645-2fe22f255c74",
+      "file": "apps/frontend/src/components/integrations/TenantAuthPolicyCard.vue",
+      "sourceLine": 310,
+      "role": "textbox",
+      "named": true,
+      "focusable": true
+    },
+    {
+      "id": "SQ-0112",
+      "issueId": "b11287e3-9121-4ef2-b1de-3f4e068123ed",
+      "file": "apps/frontend/src/components/integrations/TenantAuthPolicyCard.vue",
+      "sourceLine": 315,
+      "role": "textbox",
+      "named": true,
+      "focusable": true
+    },
+    {
+      "id": "SQ-0113",
+      "issueId": "87095c85-f631-4cbe-bc4c-a65ba78e4709",
+      "file": "apps/frontend/src/components/integrations/TenantAuthPolicyCard.vue",
+      "sourceLine": 320,
+      "role": "textbox",
+      "named": true,
+      "focusable": true
+    },
+    {
+      "id": "SQ-0114",
+      "issueId": "d5ec8fbb-fe40-4f34-926d-aeb1d94bf79f",
+      "file": "apps/frontend/src/components/integrations/TenantAuthPolicyCard.vue",
+      "sourceLine": 325,
+      "role": "textbox",
+      "named": true,
+      "focusable": true
+    },
+    {
+      "id": "SQ-0119",
+      "issueId": "ae05e55c-7fdf-480b-8b31-7abf36b98ee2",
+      "file": "apps/frontend/src/components/platform/TenantLicenseEditor.vue",
+      "sourceLine": 176,
+      "role": "textbox",
+      "named": true,
+      "focusable": true
+    },
+    {
+      "id": "SQ-0122",
+      "issueId": "6b3dbbd2-f165-49b8-8c08-6f2233a0f5b1",
+      "file": "apps/frontend/src/components/snippets/MacroStepEditor.vue",
+      "sourceLine": 161,
+      "role": "textbox",
+      "named": true,
+      "focusable": true
+    },
+    {
+      "id": "SQ-0123",
+      "issueId": "ce693eb8-2ada-454c-a936-a1f0b0680fbd",
+      "file": "apps/frontend/src/components/snippets/MacroStepEditor.vue",
+      "sourceLine": 173,
+      "role": "textbox",
+      "named": true,
+      "focusable": true
+    },
+    {
+      "id": "SQ-0124",
+      "issueId": "eaa3c373-f07d-4d30-b489-0aee1d8b58b8",
+      "file": "apps/frontend/src/components/snippets/SnippetCommandEditor.vue",
+      "sourceLine": 74,
+      "role": "textbox",
+      "named": true,
+      "focusable": true
+    },
+    {
+      "id": "SQ-0175",
+      "issueId": "af7180f2-a438-4bd1-b586-4e6e8df1af16",
+      "file": "apps/frontend/src/views/admin/NativeSshGatewayView.vue",
+      "sourceLine": 365,
+      "role": "textbox",
+      "named": true,
+      "focusable": true
+    },
+    {
+      "id": "SQ-0176",
+      "issueId": "965f1baa-23a6-4e19-a71f-0c9fecbc6e1a",
+      "file": "apps/frontend/src/views/admin/NativeSshGatewayView.vue",
+      "sourceLine": 369,
+      "role": "textbox",
+      "named": true,
+      "focusable": true
+    }
+  ]
+}

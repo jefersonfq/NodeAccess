@@ -52,7 +52,7 @@ async function loadDirectory(input: { tenantId: number; hostId: number; sessionI
   const useSessionChannel = !!input.sessionId && hasTerminalSftpChannel(input.sessionId)
   const queryVariant = useSessionChannel ? `:${directoriesOnly ? 'd' : 'a'}:${normalizedPrefix}` : ':full'
   const key = `${input.tenantId}:${input.hostId}:${input.sessionId ?? 'none'}:${directory}${queryVariant}`
-  let cached = cache.get(key)
+  const cached = cache.get(key)
   if (cached?.expiresAt && cached.expiresAt > Date.now()) {
     metrics.cacheHits += 1
     cache.delete(key); cache.set(key, cached)
@@ -80,7 +80,7 @@ async function loadDirectory(input: { tenantId: number; hostId: number; sessionI
   return request
 }
 
-function filterEntries(entries: RemoteEntry[], prefix: string, directoryOnly: boolean) {
+function filterEntries(entries: RemoteEntry[], prefix: string, directoryOnly: boolean): RemoteEntry[] {
   const normalized = prefix.toLowerCase()
   return entries.filter((entry) => (!directoryOnly || entry.type === 'directory') && entry.name.toLowerCase().startsWith(normalized))
 }
@@ -102,44 +102,44 @@ function toCompletions(entries: RemoteEntry[], parsed: ParsedPathQuery): Termina
 
 // A relative filename beginning with "-" would otherwise be interpreted as a
 // command option. Prefixing only this case with ./ keeps the suggestion literal.
-function safeDisplayDirectory(displayDirectory: string, entryName: string, expandHome: boolean) {
+function safeDisplayDirectory(displayDirectory: string, entryName: string, expandHome: boolean): string {
   if (expandHome) return `~/${escapeShellPathSegment(displayDirectory.slice(2))}`
   return !displayDirectory && entryName.startsWith('-') ? './' : escapeShellPathSegment(displayDirectory)
 }
 
-function setCache(key: string, value: CachedDirectory) {
+function setCache(key: string, value: CachedDirectory): void {
   cache.delete(key); cache.set(key, value)
   while (cache.size > MAX_CACHE_ENTRIES) {
-    const oldest = cache.keys().next().value as string | undefined
+    const oldest = cache.keys().next().value
     if (!oldest) break
     cache.delete(oldest); metrics.evictions += 1
   }
 }
 
-function escapeShellPathSegment(value: string) { return value.replace(/([~\s\\"'`$&;|<>()[\]{}!*?])/g, '\\$1') }
-function unescapeShellToken(value: string) {
+function escapeShellPathSegment(value: string): string { return value.replace(/([~\s\\"'`$&;|<>()[\]{}!*?])/g, '\\$1') }
+function unescapeShellToken(value: string): string {
   let result = '', quote = ''
   for (let i = 0; i < value.length; i++) {
-    const char = value[i]!
+    const char = value[i]
     if (char === "'" && quote !== '"') { quote = quote ? '' : "'"; continue }
     if (char === '"' && quote !== "'") { quote = quote ? '' : '"'; continue }
-    if (char === '\\' && quote !== "'" && i + 1 < value.length && (!quote || /[\\"$`]/.test(value[i + 1]!))) { result += value[++i]; continue }
+    if (char === '\\' && quote !== "'" && i + 1 < value.length && (!quote || /[\\"$`]/.test(value[i + 1]))) { result += value[++i]; continue }
     result += char
   }
   return result
 }
-function ensureTrailingSlash(value: string) { return value.endsWith('/') ? value : `${value}/` }
-function joinRemotePath(parent: string, child: string) { return parent === '/' ? `/${child}` : `${parent.replace(/\/$/, '')}/${child}` }
+function ensureTrailingSlash(value: string): string { return value.endsWith('/') ? value : `${value}/` }
+function joinRemotePath(parent: string, child: string): string { return parent === '/' ? `/${child}` : `${parent.replace(/\/$/, '')}/${child}` }
 
-export function canSuggestRemotePaths(line: string) { return parsePathQuery(line, null) !== null }
-export function clearRemotePathAutocomplete(scope?: { tenantId: number; hostId: number; sessionId: number | null }) {
+export function canSuggestRemotePaths(line: string): boolean { return parsePathQuery(line, null) !== null }
+export function clearRemotePathAutocomplete(scope?: { tenantId: number; hostId: number; sessionId: number | null }): void {
   cacheGeneration += 1
   if (!scope) cache.clear()
   else { const prefix = `${scope.tenantId}:${scope.hostId}:${scope.sessionId ?? 'none'}:`; for (const key of cache.keys()) if (key.startsWith(prefix)) cache.delete(key) }
   pending.clear()
 }
-export function remotePathAutocompleteMetrics() { return { ...metrics, cacheSize: cache.size, pending: pending.size } }
-export function resetRemotePathAutocompleteMetrics() { for (const key of Object.keys(metrics) as Array<keyof typeof metrics>) metrics[key] = 0 }
+export function remotePathAutocompleteMetrics(): typeof metrics & { cacheSize: number; pending: number } { return { ...metrics, cacheSize: cache.size, pending: pending.size } }
+export function resetRemotePathAutocompleteMetrics(): void { for (const key of Object.keys(metrics) as Array<keyof typeof metrics>) metrics[key] = 0 }
 
 interface ParsedPathQuery { expandHome: boolean; command: string; directory: string; displayDirectory: string; namePrefix: string; linePrefix: string; typedPath: string; directoryOnly: boolean; expandExactDirectory: boolean }
 
@@ -171,54 +171,57 @@ function parsePathQuery(line: string, currentDirectory: string | null | undefine
   }
 }
 
-function findCommandIndex(tokens: Array<{ value: string; start: number }>) {
+function findCommandIndex(tokens: Array<{ value: string; start: number }>): number {
   let index = 0
   if (tokens[index]?.value === 'sudo') {
     index += 1
     const optionsWithValue = new Set(['-u', '--user', '-g', '--group', '-h', '--host', '-p', '--prompt', '-C', '--close-from', '-T', '--command-timeout', '-R', '--chroot', '-D', '--chdir'])
     while (tokens[index]?.value.startsWith('-')) {
-      const option = tokens[index]!.value.split('=')[0]!
+      const option = tokens[index].value.split('=')[0]
       index += 1
-      if (optionsWithValue.has(option) && !tokens[index - 1]!.value.includes('=')) index += 1
+      if (optionsWithValue.has(option) && !tokens[index - 1].value.includes('=')) index += 1
     }
   }
   if (tokens[index]?.value === 'env') {
     index += 1
     while (tokens[index]?.value.startsWith('-')) index += 1
   }
-  while (tokens[index] && /^[A-Za-z_][A-Za-z0-9_]*=/.test(tokens[index]!.value)) index += 1
+  while (tokens[index] && /^[A-Za-z_][A-Za-z0-9_]*=/.test(tokens[index].value)) index += 1
   return index
 }
 
-function resolveLookupDirectory(typedDirectory: string, currentDirectory?: string | null, expandHome = false) {
+function resolveLookupDirectory(typedDirectory: string, currentDirectory?: string | null, expandHome = false): string {
   if (!typedDirectory) return currentDirectory || '.'
   if (typedDirectory.startsWith('/')) return normalizeRemotePath(typedDirectory)
   if (expandHome) return normalizeRemotePath(`./${typedDirectory.slice(2)}`)
   return currentDirectory ? normalizeRemotePath(`${currentDirectory}/${typedDirectory}`) : typedDirectory
 }
-function normalizeRemotePath(value: string) {
+function normalizeRemotePath(value: string): string {
   const absolute = value.startsWith('/'), output: string[] = []
   for (const part of value.split('/')) { if (!part || part === '.') continue; output.push(part) }
   return `${absolute ? '/' : ''}${output.join('/')}` || (absolute ? '/' : '.')
 }
-function findLastCommandSegmentStart(line: string) {
+function findLastCommandSegmentStart(line: string): number {
   let quote = '', escaped = false, start = 0
   for (let index = 0; index < line.length; index += 1) {
-    const char = line[index]!
+    const char = line[index]
     if (escaped) { escaped = false; continue }
     if (char === '\\') { escaped = true; continue }
     if (quote) { if (char === quote) quote = ''; continue }
     if (char === '"' || char === "'") { quote = char; continue }
-    if (char === ';' || char === '|' || (char === '&' && line[index + 1] === '&')) { start = index + (line[index + 1] === char ? 2 : 1); index = start - 1 }
+    if (char === ';' || char === '|' || (char === '&' && line[index + 1] === '&')) {
+      if (line[index + 1] === char) index += 1
+      start = index + 1
+    }
   }
   return start
 }
-function tokenizeShellSegment(segment: string) {
+function tokenizeShellSegment(segment: string): Array<{ value: string; start: number }> {
   const tokens: Array<{ value: string; start: number }> = []
   let value = '', start = -1, quote = '', escaped = false
-  const push = () => { if (start >= 0) tokens.push({ value, start }); value = ''; start = -1 }
+  const push = (): void => { if (start >= 0) tokens.push({ value, start }); value = ''; start = -1 }
   for (let index = 0; index < segment.length; index += 1) {
-    const char = segment[index]!
+    const char = segment[index]
     if (start < 0 && !/\s/.test(char)) start = index
     if (escaped) { value += `\\${char}`; escaped = false; continue }
     if (char === '\\') { escaped = true; continue }

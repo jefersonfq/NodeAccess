@@ -1,3 +1,4 @@
+import { resolveExecutable } from '../../tools/shared/trusted-executable.cjs'
 import { execFileSync } from 'node:child_process'
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { resolve, join } from 'node:path'
@@ -18,7 +19,7 @@ const triage = JSON.parse(readFileSync(new URL('../../security/image-triage.json
 const guacdTriage = JSON.parse(readFileSync(new URL('../../security/guacd-image-triage.json', import.meta.url)))
 const summary = { scanner, at: new Date().toISOString(), policy: 'Block unreviewed High/Critical/Unknown. Exact, expiring component and FIPS-channel false positives remain in the raw report.', images: [], passed: true }
 function docker(args) {
-  return execFileSync('docker', args, { encoding: 'utf8', timeout: 300_000, maxBuffer: 128 * 1024 * 1024, stdio: ['ignore', 'pipe', 'pipe'] })
+  return execFileSync(resolveExecutable('docker'), args, { encoding: 'utf8', timeout: 300_000, maxBuffer: 128 * 1024 * 1024, stdio: ['ignore', 'pipe', 'pipe'] })
 }
 for (const ref of images) {
   try {

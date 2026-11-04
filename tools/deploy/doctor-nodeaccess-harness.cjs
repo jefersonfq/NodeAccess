@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+const { resolveExecutable } = require('../shared/trusted-executable.cjs')
 
 const { spawnSync } = require('node:child_process')
 const fs = require('node:fs')
@@ -104,7 +105,7 @@ fs.writeFileSync(dockerPath, fakeDocker)
 fs.chmodSync(dockerPath, 0o755)
 
 function runDoctor(extraEnv = {}) {
-  return spawnSync('bash', ['scripts/deploy/doctor-nodeaccess.sh'], {
+  return spawnSync(resolveExecutable('bash'), ['scripts/deploy/doctor-nodeaccess.sh'], {
     cwd: repoRoot,
     env: {
       ...process.env,

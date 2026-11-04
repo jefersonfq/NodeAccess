@@ -52,6 +52,7 @@ Se a origem não carregar, tente novamente. Se uma pasta, rota ou credencial cop
 
 ### Cadastrar ou editar um host
 1. Abra **Novo host** ou a ação de edição de um host autorizado. A aba **Conexão** mostra nome, protocolo, endereço e porta. Em SSH, configure também usuário, autenticação e rota conforme o destino. As opções disponíveis acompanham o protocolo escolhido.
+   Para IPv6, informe o endereço completo; se usar CIDR, informe também a máscara de 0 a 128. Durante a digitação, um prefixo parcial mostra orientação. Ao sair do campo ou tentar salvar, um endereço incompleto ou inválido exige correção e o cadastro não é enviado.
 2. Confira o resumo de **Acesso** no cabeçalho. Clique nele ou na aba **Acesso** para selecionar a pasta corporativa. Na edição de SSH, essa aba também apresenta a chave do servidor e seu histórico de confiança.
 3. Em **Organização**, ajuste perfil do equipamento quando disponível, sistema operacional, pasta pessoal, descrição e tags. Esses dados ajudam a localizar e identificar o host.
 4. Em **Recursos**, configure macros e links associados quando necessários. Túneis SSH e outros recursos de edição aparecem apenas quando aplicáveis ao host e às suas permissões.

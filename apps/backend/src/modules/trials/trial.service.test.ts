@@ -626,3 +626,14 @@ describe('versioned lifecycle acknowledgement', () => {
     expect(f.data.trialConsentEvent).toHaveLength(0)
   })
 })
+
+
+describe('provisioned fingerprint persistence', () => {
+  it.each(['', '='])('persists one padding for valid provider fingerprints %s', async padding => {
+    const f = fixture([trial({ status: 'QUEUED', verifiedAt: new Date() })])
+    f.provisioner.ensure.mockResolvedValue({ trialId: id, state: 'ready', isolated: true, hosts: [{ ...host, fingerprint: host.fingerprint + padding }] })
+    await f.service.tick()
+    expect(f.data.trialRegistration[0]).toMatchObject({ status: 'ACTIVE' })
+    expect(f.data.host[0]).toMatchObject({ trustedHostKeyFingerprint: host.fingerprint + '=' })
+  })
+})

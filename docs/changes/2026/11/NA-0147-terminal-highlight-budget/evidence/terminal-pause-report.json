@@ -1,0 +1,16 @@
+{
+  "result": "passed",
+  "highlights": {
+    "pausedLabelVisible": true,
+    "pausedInputContinues": true,
+    "pausedTerminalGeometryPreserved": true,
+    "matchCount": 1,
+    "liveRefresh": {
+      "cycles": 3,
+      "geometryFocusInputAndConnectionPreserved": true
+    },
+    "screenshot": "/tmp/nodeaccess-harness-0-6a6d1bea33e8/nodeaccess-terminal-highlight-warning.png"
+  },
+  "browser": "Chromium151 override1234",
+  "limitations": "Real app/terminal/Worker with fake WebSocket transport; no VPS/PTY. Input checked via recorded fake transport; no host execution."
+}

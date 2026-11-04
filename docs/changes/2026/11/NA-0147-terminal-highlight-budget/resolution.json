@@ -1,0 +1,12 @@
+{
+  "id": "SQ-0069",
+  "status": "implemented_pending_integrated_analysis",
+  "baseSha": "ee436402db8bcce7fab4378d6ba28c1673b282b5",
+  "resolution": "Scanner linear equivalente no detector e todos consumidores produtivos do matcher isolados em Worker compartilhado, com circuito global permanente após falha.",
+  "limitations": [
+    "Watchdog50ms solicita término; não garante CPU encerrada em50ms.",
+    "Chromium151 mostrou CPU residual por cerca de2s; nenhum novo Worker é criado após falha.",
+    "Homologação humana e Sonar integrado pendentes; não fechar issue automaticamente."
+  ],
+  "issueId": "3f86540b-6f80-4ea5-a65c-bdd9d3d710fd"
+}

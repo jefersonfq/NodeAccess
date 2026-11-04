@@ -1,0 +1,14 @@
+[
+  {
+    "file": "apps/backend/src/modules/network-access/tacacs-server.ts",
+    "identical": true,
+    "emittedSha256": "d41c8fe7715cdd4f9fc20b7bfc7642aa9b23dc9217d1b626ae6fd100d370d222",
+    "sourceSha256": "49627473e953dbf5ecfab55c30e90fb2deafce000f932d7ffb4d9193ee3a1106"
+  },
+  {
+    "file": "apps/frontend/src/services/guacamole-import.service.ts",
+    "identical": true,
+    "emittedSha256": "bdb379a342871eeb313884ef2093974b549b71bf122c009c43a74c77cc5cc5d6",
+    "sourceSha256": "54b5c3d77417777b8e9ea22f8e515e5feb771b28cfddd56e3f360a5af0cc281a"
+  }
+]

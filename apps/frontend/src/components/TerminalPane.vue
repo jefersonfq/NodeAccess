@@ -3,7 +3,7 @@ import { trimTrailingCharacters } from '@/services/text-boundaries'
 import type { TerminalPaneHandle } from './terminal-pane-handle'
 import TerminalConnectionDiagnostic from '@/components/TerminalConnectionDiagnostic.vue'
 import NTooltip from '@/components/ActionTooltip'
-import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue'
+import { ref, computed, watch, onMounted, onBeforeUnmount, onUnmounted, nextTick } from 'vue'
 import { NInput, NPopconfirm, NButton, NSelect, NText, NPopover, NModal, NCard, NAlert } from 'naive-ui'
 import { useI18n } from 'vue-i18n'
 import { useTerminal, termSettings, setFontSize, setTheme, applyTerminalPreset, setShowTerminalToolbar, themeOptions, presetOptions, currentThemeColors, type HostKeyVerificationChallenge, type CredentialsChallenge, type SavePasswordOffer, type TunnelState, type ConnectionMethod } from '@/composables/useTerminal'
@@ -18,7 +18,7 @@ import { canSuggestRemotePaths, clearRemotePathAutocomplete, suggestRemotePathsD
 import { positionTerminalAutocomplete, type TerminalAutocompleteAnchor } from '@/services/terminal-autocomplete-position.service'
 import { TerminalSessionEntityIndex } from '@/services/terminal-session-entity-index.service'
 import { TerminalOscCommandTracker } from '@/services/terminal-osc-command.service'
-import { compileHighlightRules, matchTerminalLine } from '@/terminal/terminal-highlighter'
+import { createHighlightClient, HighlightError, highlightErrorMessage } from '@/terminal/terminal-highlight-client'
 
 const props = defineProps<{
   hostId:  number
@@ -101,7 +101,7 @@ const activeAutocompleteId = computed(() => autocompleteItems.value[autocomplete
 
 const { platform, shortcuts, isSnippetShortcutEvent, isHostSwitcherShortcutEvent } = usePlatform()
 
-const { status, error, errorCode, closedReason, sessionId, hostName, isScrolledUp, latency, currentDirectory, tunnelState, hostKeyChallenge, credentialsChallenge, savePasswordOffer, outputVersion, latestOutputChunk, connectionMethod, agentName, terminalMetrics, activeHighlightRules, focusedHighlightRuleId, mount, connect, reconnect: rawReconnect, disconnect, fit, focus,
+const { status, error, errorCode, closedReason, sessionId, hostName, isScrolledUp, latency, currentDirectory, tunnelState, hostKeyChallenge, credentialsChallenge, savePasswordOffer, outputVersion, latestOutputChunk, connectionMethod, agentName, terminalMetrics, activeHighlightRules, focusedHighlightRuleId, highlightWarning, mount, connect, reconnect: rawReconnect, disconnect, fit, focus,
         searchNext, searchPrev, focusHighlightRule, clear, scrollToBottom, sendText, sendSnippetText, sendSecretText, sendCredentialsResponse, dismissSavePasswordOffer, canInsertAiCommand, getBufferText, getSelectionText, getCursorAnchor, setDisableStdin, isMouseTrackingEnabled, setAiPrefixHandler } = useTerminal(props.tabId)
 const showHighlightMatches = ref(false)
 const showHighlightControls = ref(false)
@@ -116,17 +116,50 @@ watch(() => termSettings.showTerminalToolbar && !props.minimal && props.visible,
 const highlightMatchedLines = ref<Array<{ text: string; ruleNames: string[] }>>([])
 let highlightLineCarry = ''
 
+const matchedLineClient = createHighlightClient()
+const matchedLineWarning = ref('')
+let matchedVersion = 0
+let matchingLines = false
+let pendingMatchedLines: string[] = []
+onBeforeUnmount(() => { matchedVersion++; pendingMatchedLines = []; matchedLineClient.dispose() })
+watch([activeHighlightRules, focusedHighlightRuleId, showHighlightMatches], () => {
+  matchedVersion++; matchedLineClient.cancel(); pendingMatchedLines = []; highlightMatchedLines.value = []; highlightLineCarry = ''; matchedLineWarning.value = ''
+})
+async function drainMatchedLines(): Promise<void> {
+  if (matchingLines) return
+  matchingLines = true
+  const current = matchedVersion
+  const rules = focusedHighlightRuleId.value ? activeHighlightRules.value.filter(rule => rule.id === focusedHighlightRuleId.value) : activeHighlightRules.value
+  try {
+    while (pendingMatchedLines.length && current === matchedVersion) {
+      const batch = pendingMatchedLines.splice(0, 40)
+      const result = await matchedLineClient.run({ rows: batch.map((text, index) => ({ key: String(index), text, rules, independent: true })) })
+      if (current !== matchedVersion) return
+      for (const row of result.rows) {
+        const ruleNames = rules.filter(rule => row.counts[rule.id] > 0).map(rule => rule.name)
+        if (ruleNames.length) highlightMatchedLines.value.push({ text: batch[Number(row.key)], ruleNames })
+      }
+      if (highlightMatchedLines.value.length > 200) highlightMatchedLines.value.splice(0, highlightMatchedLines.value.length - 200)
+    }
+  } catch (error) {
+    if (current === matchedVersion && !(error instanceof HighlightError && error.code === 'superseded')) {
+      pendingMatchedLines = []; matchedLineWarning.value = highlightErrorMessage(error)
+    }
+  } finally {
+    matchingLines = false
+    if (pendingMatchedLines.length) void drainMatchedLines()
+  }
+}
 watch(latestOutputChunk, (chunk) => {
-  if (!showHighlightMatches.value || !chunk || !activeHighlightRules.value.length) return
+  if (!showHighlightMatches.value || !chunk || !activeHighlightRules.value.length || matchedLineWarning.value) return
   const normalized = `${highlightLineCarry}${chunk}`.replace(/\x1b\[[0-?]*[ -\/]*[@-~]/g, '')
   const lines = normalized.split(/\r?\n/)
   highlightLineCarry = lines.pop() ?? ''
-  const rules = focusedHighlightRuleId.value ? activeHighlightRules.value.filter((rule) => rule.id === focusedHighlightRuleId.value) : activeHighlightRules.value
-  for (const line of lines) {
-    const ruleNames = rules.filter((rule) => matchTerminalLine(line, compileHighlightRules([rule]), 1).length > 0).map((rule) => rule.name)
-    if (ruleNames.length) highlightMatchedLines.value.push({ text: line, ruleNames })
+  if (highlightLineCarry.length > 65536 || pendingMatchedLines.length + lines.length > 2000 || lines.reduce((sum, line) => sum + line.length, 0) + pendingMatchedLines.reduce((sum, line) => sum + line.length, 0) > 262144) {
+    highlightLineCarry = ''; pendingMatchedLines = []; matchedLineClient.cancel(); matchedLineWarning.value = 'A lista de destaques foi pausada: o conteúdo excedeu o limite de análise.'; return
   }
-  if (highlightMatchedLines.value.length > 200) highlightMatchedLines.value.splice(0, highlightMatchedLines.value.length - 200)
+  pendingMatchedLines.push(...lines)
+  void drainMatchedLines()
 })
 function toggleHighlightMatches(): void {
   showHighlightMatches.value = !showHighlightMatches.value
@@ -1057,9 +1090,10 @@ function reportTerminalUiError(error: unknown): void {
             style="color:#d1d5db"
             data-terminal-action="highlights"
             :aria-expanded="showHighlightControls"
+            :title="highlightWarning || matchedLineWarning || 'Destaques'"
             @keydown.esc.stop="closeHighlightControls"
           >
-            Destaques <span aria-hidden="true">▾</span>
+            {{ highlightWarning || matchedLineWarning ? 'Destaques · pausados' : 'Destaques' }} <span aria-hidden="true">▾</span>
           </button>
         </template>
         <section
@@ -1074,6 +1108,13 @@ function reportTerminalUiError(error: unknown): void {
             class="flex max-h-48 flex-wrap gap-2 overflow-y-auto"
             aria-label="Regras de destaque"
           >
+            <p
+              v-if="highlightWarning || matchedLineWarning"
+              role="status"
+              class="mb-2 max-w-xs text-xs text-amber-300"
+            >
+              {{ highlightWarning || matchedLineWarning }}
+            </p>
             <NButton
               v-for="rule in activeHighlightRules"
               :key="rule.id"
@@ -1736,7 +1777,7 @@ function reportTerminalUiError(error: unknown): void {
           <pre
             ref="copyModeEl"
             tabindex="0"
-            class="flex-1 overflow-auto p-3 m-0 select-text"
+            class="flex-1 overflow-auto p-3 m-0 select-text focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-emerald-400"
             :style="{
               fontFamily: 'Menlo, Monaco, Courier New, monospace',
               fontSize: termSettings.fontSize + 'px',
@@ -1745,7 +1786,6 @@ function reportTerminalUiError(error: unknown): void {
               whiteSpace: 'pre',
               cursor: 'text',
               border: 'none',
-              outline: 'none',
             }"
           >{{ copyModeText }}</pre>
         </div>

@@ -9,10 +9,10 @@ PROJECT_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 
 DUMP_FILE="${1:-}"
 KEEP_RESTORE_HARNESS="${KEEP_RESTORE_HARNESS:-false}"
-RESTORE_PROJECT_NAME="${RESTORE_PROJECT_NAME:-nodeaccess-restore-harness-$(date +%Y%m%d%H%M%S)}"
-TMP_ROOT="${TMP_ROOT:-$(mktemp -d /tmp/nodeaccess-restore-harness.XXXXXX)}"
-RESTORE_ENV_FILE="${TMP_ROOT}/.env"
-RESTORE_COMPOSE_FILE="${TMP_ROOT}/docker-compose.restore.yml"
+RESTORE_PROJECT_NAME="${RESTORE_PROJECT_NAME:-}"
+TMP_ROOT="${TMP_ROOT:-}"
+RESTORE_OWNS_WORKSPACE=false
+RESTORE_OWNS_PROJECT=false
 
 if [[ -z "$DUMP_FILE" ]]; then
   echo "Uso: bash tools/deploy/restore-mysql-isolated-harness.sh <backup.sql.gz>" >&2
@@ -36,8 +36,10 @@ cleanup() {
     return
   fi
 
-  docker compose -p "$RESTORE_PROJECT_NAME" -f "$RESTORE_COMPOSE_FILE" --env-file "$RESTORE_ENV_FILE" down -v >/dev/null 2>&1 || true
-  rm -rf "$TMP_ROOT"
+  if [[ "$RESTORE_OWNS_PROJECT" == "true" ]]; then
+    docker compose -p "$RESTORE_PROJECT_NAME" -f "$RESTORE_COMPOSE_FILE" --env-file "$RESTORE_ENV_FILE" down -v >/dev/null 2>&1 || true
+  fi
+  if [[ "$RESTORE_OWNS_WORKSPACE" == "true" ]]; then rm -rf "$TMP_ROOT"; fi
 }
 trap cleanup EXIT
 
@@ -51,20 +53,32 @@ require_command() {
 require_command docker
 require_command bash
 require_command gunzip
+require_command node
 
-mkdir -p "$TMP_ROOT"
-
-cat > "$RESTORE_ENV_FILE" <<'EOF'
-DB_ROOT_PASSWORD=nodeaccess-restore-root
-DB_NAME=nodeaccess_restore
-DB_USER=nodeaccess_restore
-DB_PASSWORD=nodeaccess_restore
-PEM_ENCRYPTION_KEY=0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
-MYSQL_ROOT_PASSWORD=nodeaccess-restore-root
-MYSQL_DATABASE=nodeaccess_restore
-MYSQL_USER=nodeaccess_restore
-MYSQL_PASSWORD=nodeaccess_restore
-EOF
+if [[ -z "$RESTORE_PROJECT_NAME" ]]; then
+  RESTORE_PROJECT_NAME="nodeaccess-restore-harness-$(node -e "process.stdout.write(require('node:crypto').randomBytes(12).toString('hex'))")"
+fi
+if [[ ! "$RESTORE_PROJECT_NAME" =~ ^[a-z0-9][a-z0-9_-]+$ ]]; then
+  echo "RESTORE_PROJECT_NAME_INVALID" >&2
+  exit 1
+fi
+for resource in container network volume; do
+  if [[ "$resource" == "container" ]]; then
+    existing="$(docker ps -aq --filter "label=com.docker.compose.project=$RESTORE_PROJECT_NAME")"
+  else
+    existing="$(docker "$resource" ls -q --filter "label=com.docker.compose.project=$RESTORE_PROJECT_NAME")"
+  fi
+  if [[ -n "$existing" ]]; then echo "RESTORE_PROJECT_ALREADY_EXISTS" >&2; exit 1; fi
+done
+if [[ -z "$TMP_ROOT" ]]; then
+  TMP_ROOT="$(mktemp -d /tmp/nodeaccess-restore-harness.XXXXXX)"
+  RESTORE_OWNS_WORKSPACE=true
+fi
+node "$SCRIPT_DIR/restore-mysql-env.cjs" "$TMP_ROOT"
+RESTORE_OWNS_WORKSPACE=true
+RESTORE_ENV_FILE="${TMP_ROOT}/.env"
+RESTORE_COMPOSE_FILE="${TMP_ROOT}/docker-compose.restore.yml"
+umask 077
 
 cat > "$RESTORE_COMPOSE_FILE" <<'EOF'
 services:
@@ -85,6 +99,7 @@ services:
 EOF
 
 echo "[nodeaccess] Subindo MySQL isolado para restore..."
+RESTORE_OWNS_PROJECT=true
 docker compose -p "$RESTORE_PROJECT_NAME" -f "$RESTORE_COMPOSE_FILE" --env-file "$RESTORE_ENV_FILE" up -d mysql
 
 echo "[nodeaccess] Aguardando MySQL do harness ficar saudavel..."

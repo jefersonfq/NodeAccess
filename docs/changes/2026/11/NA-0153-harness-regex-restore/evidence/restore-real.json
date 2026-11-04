@@ -1,0 +1,16 @@
+{
+  "project": "na0153-after-a882c0519625",
+  "syntheticDump": true,
+  "restoreExit": 0,
+  "envMode": "0o600",
+  "oldCredentialRejected": true,
+  "ephemeralCredentialAccepted": true,
+  "noSecretsInLog": true,
+  "passed": true,
+  "workspaceRemoved": true,
+  "remainingContainersAbsent": true,
+  "remainingNetworksAbsent": true,
+  "remainingVolumesAbsent": true,
+  "credentialScope": "MySQL root authentication; user/root alias pairs and uniqueness checked by unit contracts",
+  "logComparisonScope": "Generated MySQL passwords compared against captured log; PEM key non-disclosure additionally inspected in source"
+}

@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 'use strict'
+const { containsYearAndTime } = require('../shared/linear-harness-text.cjs')
 const { artifactPath } = require('../shared/private-artifacts.cjs')
 
 const assert = require('node:assert/strict')
@@ -95,7 +96,7 @@ async function validate(browser, viewport, name) {
   assert.equal(await page.locator('[data-quick-access-favorite="true"]').count(), 2)
   await dashboardAccess.first().hover()
   await page.getByTestId('quick-access-time-tooltip').waitFor()
-  assert.match(await page.getByTestId('quick-access-time-tooltip').innerText(), /\d{4}.*\d{2}:\d{2}/)
+  assert.ok(containsYearAndTime(await page.getByTestId('quick-access-time-tooltip').innerText()), 'Tooltip must include year and time on the same line')
   assert.equal(await dashboardAccess.first().getAttribute('title'), '')
   await page.mouse.move(0, 0)
   const dashboardGeometry = await assertNoOverflow(page, `${name}/dashboard`)

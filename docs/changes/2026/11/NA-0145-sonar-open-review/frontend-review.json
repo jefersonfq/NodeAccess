@@ -1,0 +1,1450 @@
+[
+  {
+    "id": "SQ-0100",
+    "issueId": "17a7c454-1215-476c-9512-a55c4660791d",
+    "rule": "Web:InputWithoutLabelCheck",
+    "file": "apps/frontend/src/components/FileManager.vue",
+    "sourceLine": 685,
+    "classification": "false_positive",
+    "priority": "P3",
+    "reason": "O input uploadRef de seleção múltipla de arquivos do gerenciador usa class hidden (display:none) e não é o controle apresentado ao usuário. A seleção é aberta por acionador visível nomeado; adicionar label ao elemento oculto não corrige uma falta de nome na interface.",
+    "evidence": [
+      "apps/frontend/src/components/FileManager.vue:685",
+      "apps/frontend/src/components/FileManager.vue:307",
+      "apps/frontend/src/components/FileManager.vue:661"
+    ],
+    "validation": "Leitura da ocorrência e do fluxo consumidor na fonte atual ee436402; sem alteração ou nova execução do produto.",
+    "limitations": "Revisados input oculto e acionador correspondente na fonte; não repetido seletor nativo de arquivos/tecnologia assistiva. A conclusão depende da classe hidden continuar display:none."
+  },
+  {
+    "id": "SQ-0103",
+    "issueId": "802e7b24-b894-43ab-a3c0-660dbc6a115e",
+    "rule": "typescript:S1313",
+    "file": "apps/frontend/src/components/ImportHostsModal.vue",
+    "sourceLine": 665,
+    "classification": "false_positive",
+    "priority": "P3",
+    "reason": "O IP pertence a GUACAMOLE_JDBC_TEMPLATE, exemplo exportável para o usuário preencher; não é endpoint operacional fixado nem conexão iniciada por esse literal.",
+    "evidence": [
+      "apps/frontend/src/components/ImportHostsModal.vue:665",
+      "apps/frontend/src/components/ImportHostsModal.vue:655",
+      "apps/frontend/src/components/ImportHostsModal.vue:671"
+    ],
+    "validation": "Leitura da ocorrência e do fluxo consumidor na fonte atual ee436402; sem alteração ou nova execução do produto.",
+    "limitations": "O usuário pode importar o exemplo deliberadamente; isso não equivale a destino de produção aprovado. Trocar por faixa documental seria melhoria de exemplo, não correção de segredo/endpoint obrigatório."
+  },
+  {
+    "id": "SQ-0104",
+    "issueId": "37509f88-2ee7-4d6d-bc37-494774e1b76c",
+    "rule": "Web:InputWithoutLabelCheck",
+    "file": "apps/frontend/src/components/ImportHostsModal.vue",
+    "sourceLine": 1924,
+    "classification": "false_positive",
+    "priority": "P3",
+    "reason": "O input universalFileRef de entrada universal do importador, acionada também por Enter/Space no botão de drop usa class hidden (display:none) e não é o controle apresentado ao usuário. A seleção é aberta por acionador visível nomeado; adicionar label ao elemento oculto não corrige uma falta de nome na interface.",
+    "evidence": [
+      "apps/frontend/src/components/ImportHostsModal.vue:1924",
+      "apps/frontend/src/components/ImportHostsModal.vue:1916",
+      "apps/frontend/src/components/ImportHostsModal.vue:1917"
+    ],
+    "validation": "Leitura da ocorrência e do fluxo consumidor na fonte atual ee436402; sem alteração ou nova execução do produto.",
+    "limitations": "Revisados input oculto e acionador correspondente na fonte; não repetido seletor nativo de arquivos/tecnologia assistiva. A conclusão depende da classe hidden continuar display:none."
+  },
+  {
+    "id": "SQ-0106",
+    "issueId": "6a458e75-14da-4f35-819d-e4cf7511f500",
+    "rule": "Web:InputWithoutLabelCheck",
+    "file": "apps/frontend/src/components/ImportHostsModal.vue",
+    "sourceLine": 2078,
+    "classification": "false_positive",
+    "priority": "P3",
+    "reason": "O input sshFileRef de carregamento de configuração SSH usa class hidden (display:none) e não é o controle apresentado ao usuário. A seleção é aberta por acionador visível nomeado; adicionar label ao elemento oculto não corrige uma falta de nome na interface.",
+    "evidence": [
+      "apps/frontend/src/components/ImportHostsModal.vue:2078",
+      "apps/frontend/src/components/ImportHostsModal.vue:2072",
+      "apps/frontend/src/components/ImportHostsModal.vue:2076"
+    ],
+    "validation": "Leitura da ocorrência e do fluxo consumidor na fonte atual ee436402; sem alteração ou nova execução do produto.",
+    "limitations": "Revisados input oculto e acionador correspondente na fonte; não repetido seletor nativo de arquivos/tecnologia assistiva. A conclusão depende da classe hidden continuar display:none."
+  },
+  {
+    "id": "SQ-0107",
+    "issueId": "a4a4ac67-1571-4e32-8c90-843e7c8ed168",
+    "rule": "Web:InputWithoutLabelCheck",
+    "file": "apps/frontend/src/components/ImportHostsModal.vue",
+    "sourceLine": 2111,
+    "classification": "false_positive",
+    "priority": "P3",
+    "reason": "O input csvFileRef de carregamento CSV usa class hidden (display:none) e não é o controle apresentado ao usuário. A seleção é aberta por acionador visível nomeado; adicionar label ao elemento oculto não corrige uma falta de nome na interface.",
+    "evidence": [
+      "apps/frontend/src/components/ImportHostsModal.vue:2111",
+      "apps/frontend/src/components/ImportHostsModal.vue:2105",
+      "apps/frontend/src/components/ImportHostsModal.vue:2109"
+    ],
+    "validation": "Leitura da ocorrência e do fluxo consumidor na fonte atual ee436402; sem alteração ou nova execução do produto.",
+    "limitations": "Revisados input oculto e acionador correspondente na fonte; não repetido seletor nativo de arquivos/tecnologia assistiva. A conclusão depende da classe hidden continuar display:none."
+  },
+  {
+    "id": "SQ-0108",
+    "issueId": "a571a75e-1826-4f29-adf7-da031092ec50",
+    "rule": "Web:InputWithoutLabelCheck",
+    "file": "apps/frontend/src/components/ImportHostsModal.vue",
+    "sourceLine": 2260,
+    "classification": "false_positive",
+    "priority": "P3",
+    "reason": "O input guacamoleFileRef de carregamento XML/JSON do Guacamole usa class hidden (display:none) e não é o controle apresentado ao usuário. A seleção é aberta por acionador visível nomeado; adicionar label ao elemento oculto não corrige uma falta de nome na interface.",
+    "evidence": [
+      "apps/frontend/src/components/ImportHostsModal.vue:2260",
+      "apps/frontend/src/components/ImportHostsModal.vue:2240",
+      "apps/frontend/src/components/ImportHostsModal.vue:2260"
+    ],
+    "validation": "Leitura da ocorrência e do fluxo consumidor na fonte atual ee436402; sem alteração ou nova execução do produto.",
+    "limitations": "Revisados input oculto e acionador correspondente na fonte; não repetido seletor nativo de arquivos/tecnologia assistiva. A conclusão depende da classe hidden continuar display:none."
+  },
+  {
+    "id": "SQ-0109",
+    "issueId": "e989d673-060b-46ef-b746-65433ca5e20b",
+    "rule": "Web:S6845",
+    "file": "apps/frontend/src/components/ImportHostsModal.vue",
+    "sourceLine": 2401,
+    "classification": "false_positive",
+    "priority": "P3",
+    "reason": "tabindex=0 torna a lista de dependências com max-height e overflow-y:auto alcançável para rolagem por teclado. Há aria-label e estilo focus-visible explícito; retirar foco prejudicaria navegação da região rolável.",
+    "evidence": [
+      "apps/frontend/src/components/ImportHostsModal.vue:2401",
+      "apps/frontend/src/components/ImportHostsModal.vue:3391",
+      "apps/frontend/src/components/ImportHostsModal.vue:3402"
+    ],
+    "validation": "Leitura da ocorrência e do fluxo consumidor na fonte atual ee436402; sem alteração ou nova execução do produto.",
+    "limitations": "Não executado leitor de tela; nome de região genérica pode ser aprimorado semanticamente sem invalidar necessidade de foco para scroll."
+  },
+  {
+    "id": "SQ-0111",
+    "issueId": "837cb40c-e519-4569-a645-2fe22f255c74",
+    "rule": "Web:S6853",
+    "file": "apps/frontend/src/components/integrations/TenantAuthPolicyCard.vue",
+    "sourceLine": 310,
+    "classification": "false_positive",
+    "priority": "P3",
+    "reason": "O label envolve lockoutMaxAttempts, usado para limite de tentativas antes do bloqueio. Naive renderiza o controle nativo dentro desse ancestral; a evidência DOM desta ocorrência possui nome acessível e foco. O scanner estático não expande o componente Vue.",
+    "evidence": [
+      "apps/frontend/src/components/integrations/TenantAuthPolicyCard.vue:310",
+      "apps/frontend/src/components/integrations/TenantAuthPolicyCard.vue:311",
+      "docs/changes/2026/11/NA-0145-sonar-open-review/frontend-dom-evidence.json"
+    ],
+    "validation": "Fonte atual lida e issueId confrontado individualmente com evidência DOM do coletor local ee436402 (2026-11-04T01:23:28.567Z); nenhum rerun de browser nesta revisão.",
+    "limitations": "Fixture DOM por ocorrência, não homologação do formulário inteiro ou leitor de tela. Nome/foco foram realmente medidos na coleta existente, não inferidos só do nome do componente."
+  },
+  {
+    "id": "SQ-0112",
+    "issueId": "b11287e3-9121-4ef2-b1de-3f4e068123ed",
+    "rule": "Web:S6853",
+    "file": "apps/frontend/src/components/integrations/TenantAuthPolicyCard.vue",
+    "sourceLine": 315,
+    "classification": "false_positive",
+    "priority": "P3",
+    "reason": "O label envolve lockoutDurationMinutes, usado para duração do bloqueio em minutos. Naive renderiza o controle nativo dentro desse ancestral; a evidência DOM desta ocorrência possui nome acessível e foco. O scanner estático não expande o componente Vue.",
+    "evidence": [
+      "apps/frontend/src/components/integrations/TenantAuthPolicyCard.vue:315",
+      "apps/frontend/src/components/integrations/TenantAuthPolicyCard.vue:316",
+      "docs/changes/2026/11/NA-0145-sonar-open-review/frontend-dom-evidence.json"
+    ],
+    "validation": "Fonte atual lida e issueId confrontado individualmente com evidência DOM do coletor local ee436402 (2026-11-04T01:23:28.567Z); nenhum rerun de browser nesta revisão.",
+    "limitations": "Fixture DOM por ocorrência, não homologação do formulário inteiro ou leitor de tela. Nome/foco foram realmente medidos na coleta existente, não inferidos só do nome do componente."
+  },
+  {
+    "id": "SQ-0113",
+    "issueId": "87095c85-f631-4cbe-bc4c-a65ba78e4709",
+    "rule": "Web:S6853",
+    "file": "apps/frontend/src/components/integrations/TenantAuthPolicyCard.vue",
+    "sourceLine": 320,
+    "classification": "false_positive",
+    "priority": "P3",
+    "reason": "O label envolve accessTokenMinutes, usado para validade do access token. Naive renderiza o controle nativo dentro desse ancestral; a evidência DOM desta ocorrência possui nome acessível e foco. O scanner estático não expande o componente Vue.",
+    "evidence": [
+      "apps/frontend/src/components/integrations/TenantAuthPolicyCard.vue:320",
+      "apps/frontend/src/components/integrations/TenantAuthPolicyCard.vue:321",
+      "docs/changes/2026/11/NA-0145-sonar-open-review/frontend-dom-evidence.json"
+    ],
+    "validation": "Fonte atual lida e issueId confrontado individualmente com evidência DOM do coletor local ee436402 (2026-11-04T01:23:28.567Z); nenhum rerun de browser nesta revisão.",
+    "limitations": "Fixture DOM por ocorrência, não homologação do formulário inteiro ou leitor de tela. Nome/foco foram realmente medidos na coleta existente, não inferidos só do nome do componente."
+  },
+  {
+    "id": "SQ-0114",
+    "issueId": "d5ec8fbb-fe40-4f34-926d-aeb1d94bf79f",
+    "rule": "Web:S6853",
+    "file": "apps/frontend/src/components/integrations/TenantAuthPolicyCard.vue",
+    "sourceLine": 325,
+    "classification": "false_positive",
+    "priority": "P3",
+    "reason": "O label envolve refreshTokenDays, usado para validade do refresh token em dias. Naive renderiza o controle nativo dentro desse ancestral; a evidência DOM desta ocorrência possui nome acessível e foco. O scanner estático não expande o componente Vue.",
+    "evidence": [
+      "apps/frontend/src/components/integrations/TenantAuthPolicyCard.vue:325",
+      "apps/frontend/src/components/integrations/TenantAuthPolicyCard.vue:326",
+      "docs/changes/2026/11/NA-0145-sonar-open-review/frontend-dom-evidence.json"
+    ],
+    "validation": "Fonte atual lida e issueId confrontado individualmente com evidência DOM do coletor local ee436402 (2026-11-04T01:23:28.567Z); nenhum rerun de browser nesta revisão.",
+    "limitations": "Fixture DOM por ocorrência, não homologação do formulário inteiro ou leitor de tela. Nome/foco foram realmente medidos na coleta existente, não inferidos só do nome do componente."
+  },
+  {
+    "id": "SQ-0115",
+    "issueId": "76693a96-55cf-497b-b5c4-af0393ca2e56",
+    "rule": "Web:S6845",
+    "file": "apps/frontend/src/components/mcp/McpAgentSetup.vue",
+    "sourceLine": 133,
+    "classification": "false_positive",
+    "priority": "P3",
+    "reason": "O pre de comando de cadastro Codex é nomeado e usa overflow:auto; tabindex permite alcançar e selecionar/percorrer o bloco de código pelo teclado. Não está fingindo ser botão que executa o comando.",
+    "evidence": [
+      "apps/frontend/src/components/mcp/McpAgentSetup.vue:133",
+      "apps/frontend/src/components/mcp/McpAgentSetup.vue:318"
+    ],
+    "validation": "Leitura da ocorrência e do fluxo consumidor na fonte atual ee436402; sem alteração ou nova execução do produto.",
+    "limitations": "Fonte e CSS revisados; não certifica leitor de tela nem testa overflow com toda configuração possível. A presença de foco é intencional, não autorização para executar o comando."
+  },
+  {
+    "id": "SQ-0116",
+    "issueId": "84adc557-c63f-48b8-8072-4454abed948b",
+    "rule": "Web:S6845",
+    "file": "apps/frontend/src/components/mcp/McpAgentSetup.vue",
+    "sourceLine": 150,
+    "classification": "false_positive",
+    "priority": "P3",
+    "reason": "O pre de configuração MCP na alternativa expansível de arquivo é nomeado e usa overflow:auto; tabindex permite alcançar e selecionar/percorrer o bloco de código pelo teclado. Não está fingindo ser botão que executa o comando.",
+    "evidence": [
+      "apps/frontend/src/components/mcp/McpAgentSetup.vue:150",
+      "apps/frontend/src/components/mcp/McpAgentSetup.vue:318"
+    ],
+    "validation": "Leitura da ocorrência e do fluxo consumidor na fonte atual ee436402; sem alteração ou nova execução do produto.",
+    "limitations": "Fonte e CSS revisados; não certifica leitor de tela nem testa overflow com toda configuração possível. A presença de foco é intencional, não autorização para executar o comando."
+  },
+  {
+    "id": "SQ-0117",
+    "issueId": "3c252e24-150c-4efc-849f-e9cafcf20ee8",
+    "rule": "Web:S6845",
+    "file": "apps/frontend/src/components/mcp/McpAgentSetup.vue",
+    "sourceLine": 166,
+    "classification": "false_positive",
+    "priority": "P3",
+    "reason": "O pre de configuração MCP da variante sem cadastro automático é nomeado e usa overflow:auto; tabindex permite alcançar e selecionar/percorrer o bloco de código pelo teclado. Não está fingindo ser botão que executa o comando.",
+    "evidence": [
+      "apps/frontend/src/components/mcp/McpAgentSetup.vue:166",
+      "apps/frontend/src/components/mcp/McpAgentSetup.vue:318"
+    ],
+    "validation": "Leitura da ocorrência e do fluxo consumidor na fonte atual ee436402; sem alteração ou nova execução do produto.",
+    "limitations": "Fonte e CSS revisados; não certifica leitor de tela nem testa overflow com toda configuração possível. A presença de foco é intencional, não autorização para executar o comando."
+  },
+  {
+    "id": "SQ-0118",
+    "issueId": "86ece36a-8222-4fea-9a77-8eb9259976bb",
+    "rule": "Web:S6845",
+    "file": "apps/frontend/src/components/mcp/McpAgentSetup.vue",
+    "sourceLine": 195,
+    "classification": "false_positive",
+    "priority": "P3",
+    "reason": "O pre de comando de inicialização do agente é nomeado e usa overflow:auto; tabindex permite alcançar e selecionar/percorrer o bloco de código pelo teclado. Não está fingindo ser botão que executa o comando.",
+    "evidence": [
+      "apps/frontend/src/components/mcp/McpAgentSetup.vue:195",
+      "apps/frontend/src/components/mcp/McpAgentSetup.vue:318"
+    ],
+    "validation": "Leitura da ocorrência e do fluxo consumidor na fonte atual ee436402; sem alteração ou nova execução do produto.",
+    "limitations": "Fonte e CSS revisados; não certifica leitor de tela nem testa overflow com toda configuração possível. A presença de foco é intencional, não autorização para executar o comando."
+  },
+  {
+    "id": "SQ-0119",
+    "issueId": "ae05e55c-7fdf-480b-8b31-7abf36b98ee2",
+    "rule": "Web:S6853",
+    "file": "apps/frontend/src/components/platform/TenantLicenseEditor.vue",
+    "sourceLine": 176,
+    "classification": "false_positive",
+    "priority": "P3",
+    "reason": "O label envolve maxUsers, usado para quantidade máxima de usuários e ajuda contextual. Naive renderiza o controle nativo dentro desse ancestral; a evidência DOM desta ocorrência possui nome acessível e foco. O scanner estático não expande o componente Vue.",
+    "evidence": [
+      "apps/frontend/src/components/platform/TenantLicenseEditor.vue:176",
+      "apps/frontend/src/components/platform/TenantLicenseEditor.vue:178",
+      "docs/changes/2026/11/NA-0145-sonar-open-review/frontend-dom-evidence.json"
+    ],
+    "validation": "Fonte atual lida e issueId confrontado individualmente com evidência DOM do coletor local ee436402 (2026-11-04T01:23:28.567Z); nenhum rerun de browser nesta revisão.",
+    "limitations": "Fixture DOM por ocorrência, não homologação do formulário inteiro ou leitor de tela. Nome/foco foram realmente medidos na coleta existente, não inferidos só do nome do componente."
+  },
+  {
+    "id": "SQ-0122",
+    "issueId": "6b3dbbd2-f165-49b8-8c08-6f2233a0f5b1",
+    "rule": "Web:S6853",
+    "file": "apps/frontend/src/components/snippets/MacroStepEditor.vue",
+    "sourceLine": 161,
+    "classification": "false_positive",
+    "priority": "P3",
+    "reason": "O label envolve timeoutMs, usado para timeout da etapa wait, incluindo aria-label no input-props. Naive renderiza o controle nativo dentro desse ancestral; a evidência DOM desta ocorrência possui nome acessível e foco. O scanner estático não expande o componente Vue.",
+    "evidence": [
+      "apps/frontend/src/components/snippets/MacroStepEditor.vue:161",
+      "apps/frontend/src/components/snippets/MacroStepEditor.vue:165",
+      "docs/changes/2026/11/NA-0145-sonar-open-review/frontend-dom-evidence.json"
+    ],
+    "validation": "Fonte atual lida e issueId confrontado individualmente com evidência DOM do coletor local ee436402 (2026-11-04T01:23:28.567Z); nenhum rerun de browser nesta revisão.",
+    "limitations": "Fixture DOM por ocorrência, não homologação do formulário inteiro ou leitor de tela. Nome/foco foram realmente medidos na coleta existente, não inferidos só do nome do componente."
+  },
+  {
+    "id": "SQ-0123",
+    "issueId": "ce693eb8-2ada-454c-a936-a1f0b0680fbd",
+    "rule": "Web:S6853",
+    "file": "apps/frontend/src/components/snippets/MacroStepEditor.vue",
+    "sourceLine": 173,
+    "classification": "false_positive",
+    "priority": "P3",
+    "reason": "O label envolve durationMs, usado para duração da pausa, incluindo aria-label no input-props. Naive renderiza o controle nativo dentro desse ancestral; a evidência DOM desta ocorrência possui nome acessível e foco. O scanner estático não expande o componente Vue.",
+    "evidence": [
+      "apps/frontend/src/components/snippets/MacroStepEditor.vue:173",
+      "apps/frontend/src/components/snippets/MacroStepEditor.vue:178",
+      "docs/changes/2026/11/NA-0145-sonar-open-review/frontend-dom-evidence.json"
+    ],
+    "validation": "Fonte atual lida e issueId confrontado individualmente com evidência DOM do coletor local ee436402 (2026-11-04T01:23:28.567Z); nenhum rerun de browser nesta revisão.",
+    "limitations": "Fixture DOM por ocorrência, não homologação do formulário inteiro ou leitor de tela. Nome/foco foram realmente medidos na coleta existente, não inferidos só do nome do componente."
+  },
+  {
+    "id": "SQ-0124",
+    "issueId": "eaa3c373-f07d-4d30-b489-0aee1d8b58b8",
+    "rule": "Web:S6853",
+    "file": "apps/frontend/src/components/snippets/SnippetCommandEditor.vue",
+    "sourceLine": 74,
+    "classification": "false_positive",
+    "priority": "P3",
+    "reason": "O label envolve modelValue[field], usado para editor textarea do comando com aria-label traduzido. Naive renderiza o controle nativo dentro desse ancestral; a evidência DOM desta ocorrência possui nome acessível e foco. O scanner estático não expande o componente Vue.",
+    "evidence": [
+      "apps/frontend/src/components/snippets/SnippetCommandEditor.vue:74",
+      "apps/frontend/src/components/snippets/SnippetCommandEditor.vue:78",
+      "docs/changes/2026/11/NA-0145-sonar-open-review/frontend-dom-evidence.json"
+    ],
+    "validation": "Fonte atual lida e issueId confrontado individualmente com evidência DOM do coletor local ee436402 (2026-11-04T01:23:28.567Z); nenhum rerun de browser nesta revisão.",
+    "limitations": "Fixture DOM por ocorrência, não homologação do formulário inteiro ou leitor de tela. Nome/foco foram realmente medidos na coleta existente, não inferidos só do nome do componente."
+  },
+  {
+    "id": "SQ-0125",
+    "issueId": "739a8fec-c667-4a25-a144-605e43a1ee18",
+    "rule": "Web:InputWithoutLabelCheck",
+    "file": "apps/frontend/src/components/snippets/SnippetTransfer.vue",
+    "sourceLine": 44,
+    "classification": "false_positive",
+    "priority": "P3",
+    "reason": "O input file de importação JSON de snippets usa class hidden (display:none) e não é o controle apresentado ao usuário. A seleção é aberta por acionador visível nomeado; adicionar label ao elemento oculto não corrige uma falta de nome na interface.",
+    "evidence": [
+      "apps/frontend/src/components/snippets/SnippetTransfer.vue:44",
+      "apps/frontend/src/components/snippets/SnippetTransfer.vue:54",
+      "apps/frontend/src/components/snippets/SnippetTransfer.vue:56"
+    ],
+    "validation": "Leitura da ocorrência e do fluxo consumidor na fonte atual ee436402; sem alteração ou nova execução do produto.",
+    "limitations": "Revisados input oculto e acionador correspondente na fonte; não repetido seletor nativo de arquivos/tecnologia assistiva. A conclusão depende da classe hidden continuar display:none."
+  },
+  {
+    "id": "SQ-0127",
+    "issueId": "a330cd3b-b4f9-4cd4-9b1a-1614d8f626ed",
+    "rule": "Web:S6845",
+    "file": "apps/frontend/src/components/TerminalPane.vue",
+    "sourceLine": 1736,
+    "classification": "insufficient_evidence",
+    "priority": "P2",
+    "reason": "O pre de modo cópia tem finalidade legítima de seleção/rolagem por teclado e define outline:none. Não foi verificado o estilo computado nem se um ancestral fornece indicação de foco suficiente. A fonte isolada não permite concluir falso positivo completo ou defeito visual comprovado; verificar foco real antes de classificar definitivamente.",
+    "evidence": [
+      "apps/frontend/src/components/TerminalPane.vue:1736",
+      "apps/frontend/src/components/TerminalPane.vue:1739",
+      "apps/frontend/src/components/TerminalPane.vue:1748"
+    ],
+    "validation": "Leitura da ocorrência e do fluxo consumidor na fonte atual ee436402; sem alteração ou nova execução do produto.",
+    "limitations": "Próxima validação: abrir modo cópia, navegar por Tab e inspecionar estilo/indicação de foco e rolagem. Sem screenshot/browser focal dessa condição, não há risco comprovado para aceitar nem correção visual demonstrada."
+  },
+  {
+    "id": "SQ-0130",
+    "issueId": "dc176616-0f62-47ea-b291-d61aff75e56f",
+    "rule": "typescript:S7767",
+    "file": "apps/frontend/src/components/UserAvatar.vue",
+    "sourceLine": 42,
+    "classification": "false_positive",
+    "priority": "P3",
+    "reason": "hash |= 0 realiza coerção a inteiro assinado de32bits a cada caractere do seed de avatar. Math.trunc remove fração, mas não faz o mesmo wrap; substituição automática mudaria cores estáveis para seeds longos.",
+    "evidence": [
+      "apps/frontend/src/components/UserAvatar.vue:42",
+      "apps/frontend/src/components/UserAvatar.vue:40",
+      "apps/frontend/src/components/UserAvatar.vue:44"
+    ],
+    "validation": "Leitura da ocorrência e do fluxo consumidor na fonte atual ee436402; sem alteração ou nova execução do produto.",
+    "limitations": "Hash visual, sem uso criptográfico. Revisão aritmética/fonte; não executada nova regressão visual de avatares."
+  },
+  {
+    "id": "SQ-0132",
+    "issueId": "7dec507b-3e5e-426e-b161-00389785b295",
+    "rule": "secrets:S6697",
+    "file": "apps/frontend/src/locales/en-BACKUP-UX.json",
+    "sourceLine": 1522,
+    "classification": "false_positive",
+    "priority": "P3",
+    "reason": "A tradução de exemplo MySQL em inglês, cópia BACKUP-UX, contém sintaxe de substituição de alias do cofre (duplas chaves secret:alias), não o valor resolvido de uma credencial. A descrição ensina resolução posterior no backend e mascaramento.",
+    "evidence": [
+      "apps/frontend/src/locales/en-BACKUP-UX.json:1522"
+    ],
+    "validation": "Inspecionados os pares JSON title/cmd/desc e confirmado placeholder estruturado em cada um dos quatro arquivos sem imprimir valor de credencial.",
+    "limitations": "Conclusão sobre o literal do exemplo; não garante redaction de toda execução de comando. Cópias históricas mantidas, sem exclusão de scanner."
+  },
+  {
+    "id": "SQ-0133",
+    "issueId": "459c43e5-ddb0-42a7-84ec-f5b4ea41a6fc",
+    "rule": "secrets:S6697",
+    "file": "apps/frontend/src/locales/en-NOTE-JEFF.json",
+    "sourceLine": 1247,
+    "classification": "false_positive",
+    "priority": "P3",
+    "reason": "A tradução de exemplo MySQL em inglês, cópia NOTE-JEFF, contém sintaxe de substituição de alias do cofre (duplas chaves secret:alias), não o valor resolvido de uma credencial. A descrição ensina resolução posterior no backend e mascaramento.",
+    "evidence": [
+      "apps/frontend/src/locales/en-NOTE-JEFF.json:1247"
+    ],
+    "validation": "Inspecionados os pares JSON title/cmd/desc e confirmado placeholder estruturado em cada um dos quatro arquivos sem imprimir valor de credencial.",
+    "limitations": "Conclusão sobre o literal do exemplo; não garante redaction de toda execução de comando. Cópias históricas mantidas, sem exclusão de scanner."
+  },
+  {
+    "id": "SQ-0134",
+    "issueId": "304c953c-ca09-4f1b-8e01-41ae8777740d",
+    "rule": "secrets:S6697",
+    "file": "apps/frontend/src/locales/pt-BR-BACKUP-UX.json",
+    "sourceLine": 1522,
+    "classification": "false_positive",
+    "priority": "P3",
+    "reason": "A tradução de exemplo MySQL em português, cópia BACKUP-UX, contém sintaxe de substituição de alias do cofre (duplas chaves secret:alias), não o valor resolvido de uma credencial. A descrição ensina resolução posterior no backend e mascaramento.",
+    "evidence": [
+      "apps/frontend/src/locales/pt-BR-BACKUP-UX.json:1522"
+    ],
+    "validation": "Inspecionados os pares JSON title/cmd/desc e confirmado placeholder estruturado em cada um dos quatro arquivos sem imprimir valor de credencial.",
+    "limitations": "Conclusão sobre o literal do exemplo; não garante redaction de toda execução de comando. Cópias históricas mantidas, sem exclusão de scanner."
+  },
+  {
+    "id": "SQ-0135",
+    "issueId": "32464ed2-e9a3-4645-87b0-1f2a38f05a88",
+    "rule": "secrets:S6697",
+    "file": "apps/frontend/src/locales/pt-BR-NOTE-JEFF.json",
+    "sourceLine": 1247,
+    "classification": "false_positive",
+    "priority": "P3",
+    "reason": "A tradução de exemplo MySQL em português, cópia NOTE-JEFF, contém sintaxe de substituição de alias do cofre (duplas chaves secret:alias), não o valor resolvido de uma credencial. A descrição ensina resolução posterior no backend e mascaramento.",
+    "evidence": [
+      "apps/frontend/src/locales/pt-BR-NOTE-JEFF.json:1247"
+    ],
+    "validation": "Inspecionados os pares JSON title/cmd/desc e confirmado placeholder estruturado em cada um dos quatro arquivos sem imprimir valor de credencial.",
+    "limitations": "Conclusão sobre o literal do exemplo; não garante redaction de toda execução de comando. Cópias históricas mantidas, sem exclusão de scanner."
+  },
+  {
+    "id": "SQ-0137",
+    "issueId": "b7da7a39-c1a8-478c-abb6-9a132c494cea",
+    "rule": "typescript:S2871",
+    "file": "apps/frontend/src/services/guacamole-import.service.ts",
+    "sourceLine": 172,
+    "classification": "false_positive",
+    "priority": "P3",
+    "reason": "A coleção contém Set<string> de nomes de protocolos XML, não números. sort() produz ordenação lexicográfica determinística desses identificadores; a falta de comparador numérico não altera seu significado.",
+    "evidence": [
+      "apps/frontend/src/services/guacamole-import.service.ts:172",
+      "apps/frontend/src/services/guacamole-import.service.ts:96"
+    ],
+    "validation": "Leitura da ocorrência e do fluxo consumidor na fonte atual ee436402; sem alteração ou nova execução do produto.",
+    "limitations": "Ordenação é por unidades de código, não collation humana localizada. Se o produto exigir ordem linguística, isso precisa requisito próprio; não foi presumido."
+  },
+  {
+    "id": "SQ-0138",
+    "issueId": "0f2487e8-4c5c-4d4f-88d9-7e547578da32",
+    "rule": "typescript:S2871",
+    "file": "apps/frontend/src/services/guacamole-import.service.ts",
+    "sourceLine": 174,
+    "classification": "false_positive",
+    "priority": "P3",
+    "reason": "A coleção contém Set<string> de usernames/principals XML, não números. sort() produz ordenação lexicográfica determinística desses identificadores; a falta de comparador numérico não altera seu significado.",
+    "evidence": [
+      "apps/frontend/src/services/guacamole-import.service.ts:174",
+      "apps/frontend/src/services/guacamole-import.service.ts:99"
+    ],
+    "validation": "Leitura da ocorrência e do fluxo consumidor na fonte atual ee436402; sem alteração ou nova execução do produto.",
+    "limitations": "Ordenação é por unidades de código, não collation humana localizada. Se o produto exigir ordem linguística, isso precisa requisito próprio; não foi presumido."
+  },
+  {
+    "id": "SQ-0139",
+    "issueId": "624de923-600c-4122-85e0-91d2568eedd5",
+    "rule": "typescript:S2871",
+    "file": "apps/frontend/src/services/guacamole-import.service.ts",
+    "sourceLine": 301,
+    "classification": "false_positive",
+    "priority": "P3",
+    "reason": "A coleção contém Set<string> de nomes de protocolos JDBC, não números. sort() produz ordenação lexicográfica determinística desses identificadores; a falta de comparador numérico não altera seu significado.",
+    "evidence": [
+      "apps/frontend/src/services/guacamole-import.service.ts:301",
+      "apps/frontend/src/services/guacamole-import.service.ts:232"
+    ],
+    "validation": "Leitura da ocorrência e do fluxo consumidor na fonte atual ee436402; sem alteração ou nova execução do produto.",
+    "limitations": "Ordenação é por unidades de código, não collation humana localizada. Se o produto exigir ordem linguística, isso precisa requisito próprio; não foi presumido."
+  },
+  {
+    "id": "SQ-0140",
+    "issueId": "e3393cf9-d69e-42e1-ad02-27f82e8d55ee",
+    "rule": "typescript:S2871",
+    "file": "apps/frontend/src/services/guacamole-import.service.ts",
+    "sourceLine": 305,
+    "classification": "false_positive",
+    "priority": "P3",
+    "reason": "A coleção contém nomes textuais de entidades JDBC após filtro de vazios e Set, não números. sort() produz ordenação lexicográfica determinística desses identificadores; a falta de comparador numérico não altera seu significado.",
+    "evidence": [
+      "apps/frontend/src/services/guacamole-import.service.ts:305",
+      "apps/frontend/src/services/guacamole-import.service.ts:303"
+    ],
+    "validation": "Leitura da ocorrência e do fluxo consumidor na fonte atual ee436402; sem alteração ou nova execução do produto.",
+    "limitations": "Ordenação é por unidades de código, não collation humana localizada. Se o produto exigir ordem linguística, isso precisa requisito próprio; não foi presumido."
+  },
+  {
+    "id": "SQ-0144",
+    "issueId": "5e3e2f4a-6e2e-4321-b005-155915b7583b",
+    "rule": "typescript:S2871",
+    "file": "apps/frontend/src/services/mobaxterm-import.service.ts",
+    "sourceLine": 214,
+    "classification": "false_positive",
+    "priority": "P3",
+    "reason": "A coleção contém Set<string> de marcadores de tipo de sessão MobaXterm, não números. sort() produz ordenação lexicográfica determinística desses identificadores; a falta de comparador numérico não altera seu significado.",
+    "evidence": [
+      "apps/frontend/src/services/mobaxterm-import.service.ts:214",
+      "apps/frontend/src/services/mobaxterm-import.service.ts:103"
+    ],
+    "validation": "Leitura da ocorrência e do fluxo consumidor na fonte atual ee436402; sem alteração ou nova execução do produto.",
+    "limitations": "Ordenação é por unidades de código, não collation humana localizada. Se o produto exigir ordem linguística, isso precisa requisito próprio; não foi presumido."
+  },
+  {
+    "id": "SQ-0146",
+    "issueId": "58537d45-fe46-4910-aa3f-845520ec34b1",
+    "rule": "typescript:S2245",
+    "file": "apps/frontend/src/services/service-cache.ts",
+    "sourceLine": 94,
+    "classification": "false_positive",
+    "priority": "P3",
+    "reason": "O aleatório identifica a origem de mensagens BroadcastChannel para ignorar eco da própria aba, não cria token, senha ou decisão de autorização. A previsibilidade não fornece privilégio a outro origin.",
+    "evidence": [
+      "apps/frontend/src/services/service-cache.ts:94",
+      "apps/frontend/src/services/service-cache.ts:108",
+      "apps/frontend/src/services/service-cache.ts:123"
+    ],
+    "validation": "Leitura da ocorrência e do fluxo consumidor na fonte atual ee436402; sem alteração ou nova execução do produto.",
+    "limitations": "Possibilidade de colisão é risco de confiabilidade distinto, não criptografia. Não certifica isolamento contra script já executando no mesmo origin."
+  },
+  {
+    "id": "SQ-0149",
+    "issueId": "b9900a35-4b3d-4816-98dd-1724aa8f69a8",
+    "rule": "typescript:S6324",
+    "file": "apps/frontend/src/services/terminal-input-model.service.ts",
+    "sourceLine": 49,
+    "classification": "false_positive",
+    "priority": "P3",
+    "reason": "ESC introduz a sequência Alt+b/Alt+f; o modelo marca edição por palavra como não confiável em vez de interpretar esse byte como texto digitado.",
+    "evidence": [
+      "apps/frontend/src/services/terminal-input-model.service.ts:49"
+    ],
+    "validation": "Leitura da ocorrência e do fluxo consumidor na fonte atual ee436402; sem alteração ou nova execução do produto.",
+    "limitations": "Falso positivo da regra sobre presença de byte de controle; não declaração de que todo parser/regex seja seguro. Defeitos associados, quando existem, estão separados e não aceitos."
+  },
+  {
+    "id": "SQ-0150",
+    "issueId": "5be8a4e5-1585-44bf-b336-f0abfefb13e8",
+    "rule": "typescript:S6324",
+    "file": "apps/frontend/src/services/terminal-osc-command.service.ts",
+    "sourceLine": 5,
+    "classification": "false_positive",
+    "priority": "P3",
+    "reason": "BEL é uma das duas terminações válidas da mensagem OSC133;D de status do comando; removê-lo altera o protocolo aceito.",
+    "evidence": [
+      "apps/frontend/src/services/terminal-osc-command.service.ts:5",
+      "apps/frontend/src/services/terminal-osc-command.service.ts:4"
+    ],
+    "validation": "Leitura da ocorrência e do fluxo consumidor na fonte atual ee436402; sem alteração ou nova execução do produto.",
+    "limitations": "Falso positivo da regra sobre presença de byte de controle; não declaração de que todo parser/regex seja seguro. Defeitos associados, quando existem, estão separados e não aceitos."
+  },
+  {
+    "id": "SQ-0151",
+    "issueId": "8e96c3c6-a328-4ec7-92c1-ca14252d691f",
+    "rule": "typescript:S6324",
+    "file": "apps/frontend/src/services/terminal-osc-command.service.ts",
+    "sourceLine": 5,
+    "classification": "false_positive",
+    "priority": "P3",
+    "reason": "ESC seguido de barra invertida compõe ST, a outra terminação de OSC133;D; o buffer está limitado a1024caracteres.",
+    "evidence": [
+      "apps/frontend/src/services/terminal-osc-command.service.ts:5",
+      "apps/frontend/src/services/terminal-osc-command.service.ts:4"
+    ],
+    "validation": "Leitura da ocorrência e do fluxo consumidor na fonte atual ee436402; sem alteração ou nova execução do produto.",
+    "limitations": "Falso positivo da regra sobre presença de byte de controle; não declaração de que todo parser/regex seja seguro. Defeitos associados, quando existem, estão separados e não aceitos."
+  },
+  {
+    "id": "SQ-0152",
+    "issueId": "2de0581d-4ec3-41cc-b313-93006fc3eb5c",
+    "rule": "typescript:S6324",
+    "file": "apps/frontend/src/services/terminal-osc-directory.service.ts",
+    "sourceLine": 5,
+    "classification": "false_positive",
+    "priority": "P3",
+    "reason": "BEL é excluído do trecho de autoridade do URI OSC7 para impedir que a mensagem ultrapasse o terminador nessa região.",
+    "evidence": [
+      "apps/frontend/src/services/terminal-osc-directory.service.ts:5",
+      "apps/frontend/src/services/terminal-osc-directory.service.ts:4"
+    ],
+    "validation": "Leitura da ocorrência e do fluxo consumidor na fonte atual ee436402; sem alteração ou nova execução do produto.",
+    "limitations": "Falso positivo da regra sobre presença de byte de controle; não declaração de que todo parser/regex seja seguro. Defeitos associados, quando existem, estão separados e não aceitos."
+  },
+  {
+    "id": "SQ-0153",
+    "issueId": "54effdb2-129d-46d1-82ab-520a90c9d5a2",
+    "rule": "typescript:S6324",
+    "file": "apps/frontend/src/services/terminal-osc-directory.service.ts",
+    "sourceLine": 5,
+    "classification": "false_positive",
+    "priority": "P3",
+    "reason": "ESC é excluído da autoridade OSC7 porque inicia ST; não é caractere acidental da expressão.",
+    "evidence": [
+      "apps/frontend/src/services/terminal-osc-directory.service.ts:5",
+      "apps/frontend/src/services/terminal-osc-directory.service.ts:4"
+    ],
+    "validation": "Leitura da ocorrência e do fluxo consumidor na fonte atual ee436402; sem alteração ou nova execução do produto.",
+    "limitations": "Falso positivo da regra sobre presença de byte de controle; não declaração de que todo parser/regex seja seguro. Defeitos associados, quando existem, estão separados e não aceitos."
+  },
+  {
+    "id": "SQ-0154",
+    "issueId": "560176a2-6772-4170-828d-74ef224ac53f",
+    "rule": "typescript:S6324",
+    "file": "apps/frontend/src/services/terminal-osc-directory.service.ts",
+    "sourceLine": 5,
+    "classification": "false_positive",
+    "priority": "P3",
+    "reason": "BEL é excluído da captura do caminho OSC7, separando caminho de fim de mensagem.",
+    "evidence": [
+      "apps/frontend/src/services/terminal-osc-directory.service.ts:5",
+      "apps/frontend/src/services/terminal-osc-directory.service.ts:4"
+    ],
+    "validation": "Leitura da ocorrência e do fluxo consumidor na fonte atual ee436402; sem alteração ou nova execução do produto.",
+    "limitations": "Falso positivo da regra sobre presença de byte de controle; não declaração de que todo parser/regex seja seguro. Defeitos associados, quando existem, estão separados e não aceitos."
+  },
+  {
+    "id": "SQ-0155",
+    "issueId": "72bbfbfd-9e08-4565-bbe5-df1c8d06005e",
+    "rule": "typescript:S6324",
+    "file": "apps/frontend/src/services/terminal-osc-directory.service.ts",
+    "sourceLine": 5,
+    "classification": "false_positive",
+    "priority": "P3",
+    "reason": "ESC é excluído da captura do caminho OSC7 para não incorporar ST ao diretório devolvido.",
+    "evidence": [
+      "apps/frontend/src/services/terminal-osc-directory.service.ts:5",
+      "apps/frontend/src/services/terminal-osc-directory.service.ts:4"
+    ],
+    "validation": "Leitura da ocorrência e do fluxo consumidor na fonte atual ee436402; sem alteração ou nova execução do produto.",
+    "limitations": "Falso positivo da regra sobre presença de byte de controle; não declaração de que todo parser/regex seja seguro. Defeitos associados, quando existem, estão separados e não aceitos."
+  },
+  {
+    "id": "SQ-0156",
+    "issueId": "c1829053-a40e-4399-9d9b-3e6c51fb8737",
+    "rule": "typescript:S6324",
+    "file": "apps/frontend/src/services/terminal-osc-directory.service.ts",
+    "sourceLine": 5,
+    "classification": "false_positive",
+    "priority": "P3",
+    "reason": "BEL na alternativa final encerra OSC7; é delimitador protocolar explícito com buffer2048.",
+    "evidence": [
+      "apps/frontend/src/services/terminal-osc-directory.service.ts:5",
+      "apps/frontend/src/services/terminal-osc-directory.service.ts:4"
+    ],
+    "validation": "Leitura da ocorrência e do fluxo consumidor na fonte atual ee436402; sem alteração ou nova execução do produto.",
+    "limitations": "Falso positivo da regra sobre presença de byte de controle; não declaração de que todo parser/regex seja seguro. Defeitos associados, quando existem, estão separados e não aceitos."
+  },
+  {
+    "id": "SQ-0157",
+    "issueId": "daaa581a-7de7-459b-961c-93abf6f8d327",
+    "rule": "typescript:S6324",
+    "file": "apps/frontend/src/services/terminal-osc-directory.service.ts",
+    "sourceLine": 5,
+    "classification": "false_positive",
+    "priority": "P3",
+    "reason": "ESC na alternativa final forma ST para encerrar OSC7, preservando a variante de terminal que não usa BEL.",
+    "evidence": [
+      "apps/frontend/src/services/terminal-osc-directory.service.ts:5",
+      "apps/frontend/src/services/terminal-osc-directory.service.ts:4"
+    ],
+    "validation": "Leitura da ocorrência e do fluxo consumidor na fonte atual ee436402; sem alteração ou nova execução do produto.",
+    "limitations": "Falso positivo da regra sobre presença de byte de controle; não declaração de que todo parser/regex seja seguro. Defeitos associados, quando existem, estão separados e não aceitos."
+  },
+  {
+    "id": "SQ-0158",
+    "issueId": "525c047a-f7c2-41e0-a7af-9c916a99bfd5",
+    "rule": "typescript:S2310",
+    "file": "apps/frontend/src/services/terminal-path-autocomplete.service.ts",
+    "sourceLine": 212,
+    "classification": "false_positive",
+    "priority": "P3",
+    "reason": "O índice avança para start-1 após reconhecer ;, pipe ou &&; o incremento do for posiciona no próximo segmento. É um salto lexical deliberado para não reprocessar a segunda metade do separador, mantendo avanço monotônico.",
+    "evidence": [
+      "apps/frontend/src/services/terminal-path-autocomplete.service.ts:212",
+      "apps/frontend/src/services/terminal-path-autocomplete.service.ts:205",
+      "apps/frontend/src/services/terminal-path-autocomplete.service.test.ts:61"
+    ],
+    "validation": "Leitura da ocorrência e do fluxo consumidor na fonte atual ee436402; sem alteração ou nova execução do produto.",
+    "limitations": "Testes existentes de segmentação foram lidos, não reexecutados nesta revisão; não afirma equivalência com um parser completo de shell."
+  },
+  {
+    "id": "SQ-0161",
+    "issueId": "46318762-793a-478e-90cc-e0b93ae7d526",
+    "rule": "typescript:S8786",
+    "file": "apps/frontend/src/views/admin/HighAvailabilityView.vue",
+    "sourceLine": 320,
+    "classification": "false_positive",
+    "priority": "P3",
+    "reason": "A expressão opera exclusivamente sobre new Date().toISOString(), de comprimento limitado e formato conhecido, para remover milissegundos do ID guiado. Não recebe texto não confiável nem entrada longa capaz de amplificar backtracking.",
+    "evidence": [
+      "apps/frontend/src/views/admin/HighAvailabilityView.vue:320",
+      "apps/frontend/src/views/admin/HighAvailabilityView.vue:318",
+      "apps/frontend/src/views/admin/HighAvailabilityView.vue:324"
+    ],
+    "validation": "Leitura da ocorrência e do fluxo consumidor na fonte atual ee436402; sem alteração ou nova execução do produto.",
+    "limitations": "O comentário de performance vale para essa origem limitada; reutilizar a expressão em texto arbitrário exigiria outra análise."
+  },
+  {
+    "id": "SQ-0165",
+    "issueId": "034a0e51-7fef-44f1-9251-a1b19ad6eb23",
+    "rule": "Web:InputWithoutLabelCheck",
+    "file": "apps/frontend/src/views/admin/IntegrationsView.vue",
+    "sourceLine": 3581,
+    "classification": "false_positive",
+    "priority": "P3",
+    "reason": "O input localAiUploadRef de envio de arquivo para implantação de IA usa class hidden (display:none) e não é o controle apresentado ao usuário. A seleção é aberta por acionador visível nomeado; adicionar label ao elemento oculto não corrige uma falta de nome na interface.",
+    "evidence": [
+      "apps/frontend/src/views/admin/IntegrationsView.vue:3581",
+      "apps/frontend/src/views/admin/IntegrationsView.vue:3591",
+      "apps/frontend/src/views/admin/IntegrationsView.vue:3593"
+    ],
+    "validation": "Leitura da ocorrência e do fluxo consumidor na fonte atual ee436402; sem alteração ou nova execução do produto.",
+    "limitations": "Revisados input oculto e acionador correspondente na fonte; não repetido seletor nativo de arquivos/tecnologia assistiva. A conclusão depende da classe hidden continuar display:none."
+  },
+  {
+    "id": "SQ-0170",
+    "issueId": "32469d52-2866-4ebf-b024-8225fe5fb9be",
+    "rule": "typescript:S1313",
+    "file": "apps/frontend/src/views/admin/NativeSshGatewayView.vue",
+    "sourceLine": 37,
+    "classification": "false_positive",
+    "priority": "P3",
+    "reason": "O endereço privado é exemplo em estado inicial editável sampleTarget, exibido para copiar; não alimenta diretamente transporte SSH da aplicação. O destino é configurável na seção Parâmetros dos exemplos.",
+    "evidence": [
+      "apps/frontend/src/views/admin/NativeSshGatewayView.vue:37",
+      "apps/frontend/src/views/admin/NativeSshGatewayView.vue:363",
+      "apps/frontend/src/views/admin/NativeSshGatewayView.vue:367"
+    ],
+    "validation": "Leitura da ocorrência e do fluxo consumidor na fonte atual ee436402; sem alteração ou nova execução do produto.",
+    "limitations": "Não autoriza uso desse endereço em produção; segurança de comandos personalizados é um fluxo distinto. Não foi estabelecida conexão ao IP durante a revisão."
+  },
+  {
+    "id": "SQ-0171",
+    "issueId": "13f51efd-0eb5-4e93-a1eb-fcd3495f55a2",
+    "rule": "typescript:S1313",
+    "file": "apps/frontend/src/views/admin/NativeSshGatewayView.vue",
+    "sourceLine": 61,
+    "classification": "false_positive",
+    "priority": "P3",
+    "reason": "O endereço privado é exemplo em comando com usuário padrão via -l, exibido para copiar; não alimenta diretamente transporte SSH da aplicação. O destino é configurável na seção Parâmetros dos exemplos.",
+    "evidence": [
+      "apps/frontend/src/views/admin/NativeSshGatewayView.vue:61",
+      "apps/frontend/src/views/admin/NativeSshGatewayView.vue:363",
+      "apps/frontend/src/views/admin/NativeSshGatewayView.vue:367"
+    ],
+    "validation": "Leitura da ocorrência e do fluxo consumidor na fonte atual ee436402; sem alteração ou nova execução do produto.",
+    "limitations": "Não autoriza uso desse endereço em produção; segurança de comandos personalizados é um fluxo distinto. Não foi estabelecida conexão ao IP durante a revisão."
+  },
+  {
+    "id": "SQ-0172",
+    "issueId": "583835f7-b72e-47de-88b3-4990813c965c",
+    "rule": "typescript:S1313",
+    "file": "apps/frontend/src/views/admin/NativeSshGatewayView.vue",
+    "sourceLine": 65,
+    "classification": "false_positive",
+    "priority": "P3",
+    "reason": "O endereço privado é exemplo em comando com override de usuário via -l, exibido para copiar; não alimenta diretamente transporte SSH da aplicação. O destino é configurável na seção Parâmetros dos exemplos.",
+    "evidence": [
+      "apps/frontend/src/views/admin/NativeSshGatewayView.vue:65",
+      "apps/frontend/src/views/admin/NativeSshGatewayView.vue:363",
+      "apps/frontend/src/views/admin/NativeSshGatewayView.vue:367"
+    ],
+    "validation": "Leitura da ocorrência e do fluxo consumidor na fonte atual ee436402; sem alteração ou nova execução do produto.",
+    "limitations": "Não autoriza uso desse endereço em produção; segurança de comandos personalizados é um fluxo distinto. Não foi estabelecida conexão ao IP durante a revisão."
+  },
+  {
+    "id": "SQ-0173",
+    "issueId": "3572e6ae-d574-4859-8a15-09a08adcb8ec",
+    "rule": "typescript:S1313",
+    "file": "apps/frontend/src/views/admin/NativeSshGatewayView.vue",
+    "sourceLine": 70,
+    "classification": "false_positive",
+    "priority": "P3",
+    "reason": "O endereço privado é exemplo em forma inline com usuário padrão e IdentitiesOnly, exibido para copiar; não alimenta diretamente transporte SSH da aplicação. O destino é configurável na seção Parâmetros dos exemplos.",
+    "evidence": [
+      "apps/frontend/src/views/admin/NativeSshGatewayView.vue:70",
+      "apps/frontend/src/views/admin/NativeSshGatewayView.vue:363",
+      "apps/frontend/src/views/admin/NativeSshGatewayView.vue:367"
+    ],
+    "validation": "Leitura da ocorrência e do fluxo consumidor na fonte atual ee436402; sem alteração ou nova execução do produto.",
+    "limitations": "Não autoriza uso desse endereço em produção; segurança de comandos personalizados é um fluxo distinto. Não foi estabelecida conexão ao IP durante a revisão."
+  },
+  {
+    "id": "SQ-0174",
+    "issueId": "b41f16f6-a42c-4176-9303-6d286f19211b",
+    "rule": "typescript:S1313",
+    "file": "apps/frontend/src/views/admin/NativeSshGatewayView.vue",
+    "sourceLine": 75,
+    "classification": "false_positive",
+    "priority": "P3",
+    "reason": "O endereço privado é exemplo em forma inline com override e IdentitiesOnly, exibido para copiar; não alimenta diretamente transporte SSH da aplicação. O destino é configurável na seção Parâmetros dos exemplos.",
+    "evidence": [
+      "apps/frontend/src/views/admin/NativeSshGatewayView.vue:75",
+      "apps/frontend/src/views/admin/NativeSshGatewayView.vue:363",
+      "apps/frontend/src/views/admin/NativeSshGatewayView.vue:367"
+    ],
+    "validation": "Leitura da ocorrência e do fluxo consumidor na fonte atual ee436402; sem alteração ou nova execução do produto.",
+    "limitations": "Não autoriza uso desse endereço em produção; segurança de comandos personalizados é um fluxo distinto. Não foi estabelecida conexão ao IP durante a revisão."
+  },
+  {
+    "id": "SQ-0175",
+    "issueId": "af7180f2-a438-4bd1-b586-4e6e8df1af16",
+    "rule": "Web:S6853",
+    "file": "apps/frontend/src/views/admin/NativeSshGatewayView.vue",
+    "sourceLine": 365,
+    "classification": "false_positive",
+    "priority": "P3",
+    "reason": "O label envolve sampleTarget, usado para host de destino do exemplo SSH. Naive renderiza o controle nativo dentro desse ancestral; a evidência DOM desta ocorrência possui nome acessível e foco. O scanner estático não expande o componente Vue.",
+    "evidence": [
+      "apps/frontend/src/views/admin/NativeSshGatewayView.vue:365",
+      "apps/frontend/src/views/admin/NativeSshGatewayView.vue:367",
+      "docs/changes/2026/11/NA-0145-sonar-open-review/frontend-dom-evidence.json"
+    ],
+    "validation": "Fonte atual lida e issueId confrontado individualmente com evidência DOM do coletor local ee436402 (2026-11-04T01:23:28.567Z); nenhum rerun de browser nesta revisão.",
+    "limitations": "Fixture DOM por ocorrência, não homologação do formulário inteiro ou leitor de tela. Nome/foco foram realmente medidos na coleta existente, não inferidos só do nome do componente."
+  },
+  {
+    "id": "SQ-0176",
+    "issueId": "965f1baa-23a6-4e19-a71f-0c9fecbc6e1a",
+    "rule": "Web:S6853",
+    "file": "apps/frontend/src/views/admin/NativeSshGatewayView.vue",
+    "sourceLine": 369,
+    "classification": "false_positive",
+    "priority": "P3",
+    "reason": "O label envolve sampleTargetUser, usado para usuário SSH opcional do exemplo. Naive renderiza o controle nativo dentro desse ancestral; a evidência DOM desta ocorrência possui nome acessível e foco. O scanner estático não expande o componente Vue.",
+    "evidence": [
+      "apps/frontend/src/views/admin/NativeSshGatewayView.vue:369",
+      "apps/frontend/src/views/admin/NativeSshGatewayView.vue:371",
+      "docs/changes/2026/11/NA-0145-sonar-open-review/frontend-dom-evidence.json"
+    ],
+    "validation": "Fonte atual lida e issueId confrontado individualmente com evidência DOM do coletor local ee436402 (2026-11-04T01:23:28.567Z); nenhum rerun de browser nesta revisão.",
+    "limitations": "Fixture DOM por ocorrência, não homologação do formulário inteiro ou leitor de tela. Nome/foco foram realmente medidos na coleta existente, não inferidos só do nome do componente."
+  },
+  {
+    "id": "SQ-0187",
+    "issueId": "3487a5af-f76e-4323-a02d-64f6562dd25b",
+    "rule": "typescript:S6324",
+    "file": "apps/frontend/src/views/admin/SessionAuditDetailView.vue",
+    "sourceLine": 802,
+    "classification": "false_positive",
+    "priority": "P3",
+    "reason": "BEL é excluído do corpo OSC no sanitizador de auditoria para parar no delimitador, não texto de usuário.",
+    "evidence": [
+      "apps/frontend/src/views/admin/SessionAuditDetailView.vue:802"
+    ],
+    "validation": "Leitura da ocorrência e do fluxo consumidor na fonte atual ee436402; sem alteração ou nova execução do produto.",
+    "limitations": "Falso positivo da regra sobre presença de byte de controle; não declaração de que todo parser/regex seja seguro. Defeitos associados, quando existem, estão separados e não aceitos."
+  },
+  {
+    "id": "SQ-0188",
+    "issueId": "3685a6e6-d0ea-48dd-88e6-12f161062375",
+    "rule": "typescript:S6324",
+    "file": "apps/frontend/src/views/admin/SessionAuditDetailView.vue",
+    "sourceLine": 802,
+    "classification": "false_positive",
+    "priority": "P3",
+    "reason": "ESC é excluído do corpo OSC para reconhecer ST sem consumir o início da terminação.",
+    "evidence": [
+      "apps/frontend/src/views/admin/SessionAuditDetailView.vue:802"
+    ],
+    "validation": "Leitura da ocorrência e do fluxo consumidor na fonte atual ee436402; sem alteração ou nova execução do produto.",
+    "limitations": "Falso positivo da regra sobre presença de byte de controle; não declaração de que todo parser/regex seja seguro. Defeitos associados, quando existem, estão separados e não aceitos."
+  },
+  {
+    "id": "SQ-0189",
+    "issueId": "a1c79e7d-46b6-475d-8cd3-16381e212563",
+    "rule": "typescript:S6324",
+    "file": "apps/frontend/src/views/admin/SessionAuditDetailView.vue",
+    "sourceLine": 802,
+    "classification": "false_positive",
+    "priority": "P3",
+    "reason": "BEL na alternativa final conclui a remoção de OSC; suporte necessário ao formato de saída terminal.",
+    "evidence": [
+      "apps/frontend/src/views/admin/SessionAuditDetailView.vue:802"
+    ],
+    "validation": "Leitura da ocorrência e do fluxo consumidor na fonte atual ee436402; sem alteração ou nova execução do produto.",
+    "limitations": "Falso positivo da regra sobre presença de byte de controle; não declaração de que todo parser/regex seja seguro. Defeitos associados, quando existem, estão separados e não aceitos."
+  },
+  {
+    "id": "SQ-0190",
+    "issueId": "a9f0e611-4fe5-4a35-bee7-78aacadf516a",
+    "rule": "typescript:S6324",
+    "file": "apps/frontend/src/views/admin/SessionAuditDetailView.vue",
+    "sourceLine": 802,
+    "classification": "false_positive",
+    "priority": "P3",
+    "reason": "ESC na alternativa final compõe ST na remoção de OSC; não pode ser eliminado como caractere de controle supérfluo.",
+    "evidence": [
+      "apps/frontend/src/views/admin/SessionAuditDetailView.vue:802"
+    ],
+    "validation": "Leitura da ocorrência e do fluxo consumidor na fonte atual ee436402; sem alteração ou nova execução do produto.",
+    "limitations": "Falso positivo da regra sobre presença de byte de controle; não declaração de que todo parser/regex seja seguro. Defeitos associados, quando existem, estão separados e não aceitos."
+  },
+  {
+    "id": "SQ-0191",
+    "issueId": "09ee6126-cd1d-46b0-a3cc-4ccf8b4ce0bf",
+    "rule": "typescript:S6324",
+    "file": "apps/frontend/src/views/admin/SessionAuditDetailView.vue",
+    "sourceLine": 803,
+    "classification": "false_positive",
+    "priority": "P2",
+    "reason": "ESC antes de P identifica início DCS na limpeza da auditoria; byte intencional. O risco de custo da busca DCS incompleta é separado em NA0145-F03.",
+    "evidence": [
+      "apps/frontend/src/views/admin/SessionAuditDetailView.vue:803",
+      "docs/changes/2026/11/NA-0145-sonar-open-review/frontend-related-findings.json",
+      "docs/changes/2026/11/NA-0145-sonar-open-review/frontend-probes.json"
+    ],
+    "validation": "Leitura da ocorrência e do fluxo consumidor na fonte atual ee436402; sem alteração ou nova execução do produto.",
+    "limitations": "Falso positivo da regra sobre presença de byte de controle; não declaração de que todo parser/regex seja seguro. Defeitos associados, quando existem, estão separados e não aceitos.",
+    "relatedFindings": [
+      "NA0145-F03"
+    ]
+  },
+  {
+    "id": "SQ-0192",
+    "issueId": "736dba82-a117-4326-896e-1e9c27ba3254",
+    "rule": "typescript:S6324",
+    "file": "apps/frontend/src/views/admin/SessionAuditDetailView.vue",
+    "sourceLine": 803,
+    "classification": "false_positive",
+    "priority": "P2",
+    "reason": "ESC seguido de barra invertida encerra DCS na limpeza; ocorrência intencional. A escolha de busca não ancorada tem defeito adjacente NA0145-F03.",
+    "evidence": [
+      "apps/frontend/src/views/admin/SessionAuditDetailView.vue:803",
+      "docs/changes/2026/11/NA-0145-sonar-open-review/frontend-related-findings.json",
+      "docs/changes/2026/11/NA-0145-sonar-open-review/frontend-probes.json"
+    ],
+    "validation": "Leitura da ocorrência e do fluxo consumidor na fonte atual ee436402; sem alteração ou nova execução do produto.",
+    "limitations": "Falso positivo da regra sobre presença de byte de controle; não declaração de que todo parser/regex seja seguro. Defeitos associados, quando existem, estão separados e não aceitos.",
+    "relatedFindings": [
+      "NA0145-F03"
+    ]
+  },
+  {
+    "id": "SQ-0193",
+    "issueId": "a87faa89-0064-4fe7-8df3-e11e90a4ff69",
+    "rule": "typescript:S6324",
+    "file": "apps/frontend/src/views/admin/SessionAuditDetailView.vue",
+    "sourceLine": 803,
+    "classification": "false_positive",
+    "priority": "P2",
+    "reason": "BEL como alternativa de encerramento DCS integra compatibilidade do sanitizador; a regra de byte não detecta o custo quadrático documentado em NA0145-F03.",
+    "evidence": [
+      "apps/frontend/src/views/admin/SessionAuditDetailView.vue:803",
+      "docs/changes/2026/11/NA-0145-sonar-open-review/frontend-related-findings.json",
+      "docs/changes/2026/11/NA-0145-sonar-open-review/frontend-probes.json"
+    ],
+    "validation": "Leitura da ocorrência e do fluxo consumidor na fonte atual ee436402; sem alteração ou nova execução do produto.",
+    "limitations": "Falso positivo da regra sobre presença de byte de controle; não declaração de que todo parser/regex seja seguro. Defeitos associados, quando existem, estão separados e não aceitos.",
+    "relatedFindings": [
+      "NA0145-F03"
+    ]
+  },
+  {
+    "id": "SQ-0194",
+    "issueId": "fe92b416-ad6c-4791-b2b1-3b6a1861e310",
+    "rule": "typescript:S6324",
+    "file": "apps/frontend/src/views/admin/SessionAuditDetailView.vue",
+    "sourceLine": 805,
+    "classification": "false_positive",
+    "priority": "P3",
+    "reason": "ESC inicia sequências de seleção de charset em stripTerminalControlSequences; retirada quebraria a limpeza de bytes ANSI.",
+    "evidence": [
+      "apps/frontend/src/views/admin/SessionAuditDetailView.vue:805"
+    ],
+    "validation": "Leitura da ocorrência e do fluxo consumidor na fonte atual ee436402; sem alteração ou nova execução do produto.",
+    "limitations": "Falso positivo da regra sobre presença de byte de controle; não declaração de que todo parser/regex seja seguro. Defeitos associados, quando existem, estão separados e não aceitos."
+  },
+  {
+    "id": "SQ-0195",
+    "issueId": "a367d93e-9d8c-421c-8b46-4dec0464e86b",
+    "rule": "typescript:S6324",
+    "file": "apps/frontend/src/views/admin/SessionAuditDetailView.vue",
+    "sourceLine": 806,
+    "classification": "false_positive",
+    "priority": "P3",
+    "reason": "ESC introduz a família genérica de controles ANSI de um caractere no sanitizador; contexto é processamento explícito do terminal.",
+    "evidence": [
+      "apps/frontend/src/views/admin/SessionAuditDetailView.vue:806"
+    ],
+    "validation": "Leitura da ocorrência e do fluxo consumidor na fonte atual ee436402; sem alteração ou nova execução do produto.",
+    "limitations": "Falso positivo da regra sobre presença de byte de controle; não declaração de que todo parser/regex seja seguro. Defeitos associados, quando existem, estão separados e não aceitos."
+  },
+  {
+    "id": "SQ-0196",
+    "issueId": "9011cf17-5c88-4a04-bc04-eff61b7ef495",
+    "rule": "typescript:S6324",
+    "file": "apps/frontend/src/views/admin/SessionAuditDetailView.vue",
+    "sourceLine": 807,
+    "classification": "false_positive",
+    "priority": "P3",
+    "reason": "ESC introduz comandos curtos como salvar/restaurar cursor e modos no sanitizador; não constitui texto de controle oculto acidental.",
+    "evidence": [
+      "apps/frontend/src/views/admin/SessionAuditDetailView.vue:807"
+    ],
+    "validation": "Leitura da ocorrência e do fluxo consumidor na fonte atual ee436402; sem alteração ou nova execução do produto.",
+    "limitations": "Falso positivo da regra sobre presença de byte de controle; não declaração de que todo parser/regex seja seguro. Defeitos associados, quando existem, estão separados e não aceitos."
+  },
+  {
+    "id": "SQ-0199",
+    "issueId": "25a45bc9-4f10-4dbb-b161-37616ca58930",
+    "rule": "typescript:S6324",
+    "file": "apps/frontend/src/views/admin/SessionAuditDetailView.vue",
+    "sourceLine": 933,
+    "classification": "false_positive",
+    "priority": "P3",
+    "reason": "ESC é o prefixo comum da contagem de controles na heurística de redraw; sem ele a expressão confundiria texto imprimível com ANSI.",
+    "evidence": [
+      "apps/frontend/src/views/admin/SessionAuditDetailView.vue:933"
+    ],
+    "validation": "Leitura da ocorrência e do fluxo consumidor na fonte atual ee436402; sem alteração ou nova execução do produto.",
+    "limitations": "Falso positivo da regra sobre presença de byte de controle; não declaração de que todo parser/regex seja seguro. Defeitos associados, quando existem, estão separados e não aceitos."
+  },
+  {
+    "id": "SQ-0200",
+    "issueId": "4cc6162f-7900-423c-b4a6-ce8060863ebd",
+    "rule": "typescript:S6324",
+    "file": "apps/frontend/src/views/admin/SessionAuditDetailView.vue",
+    "sourceLine": 933,
+    "classification": "false_positive",
+    "priority": "P3",
+    "reason": "BEL excluído do ramo OSC da heurística delimita corretamente seu corpo antes do terminador.",
+    "evidence": [
+      "apps/frontend/src/views/admin/SessionAuditDetailView.vue:933"
+    ],
+    "validation": "Leitura da ocorrência e do fluxo consumidor na fonte atual ee436402; sem alteração ou nova execução do produto.",
+    "limitations": "Falso positivo da regra sobre presença de byte de controle; não declaração de que todo parser/regex seja seguro. Defeitos associados, quando existem, estão separados e não aceitos."
+  },
+  {
+    "id": "SQ-0201",
+    "issueId": "6e9576d8-088d-4bb8-8356-be76a88ec569",
+    "rule": "typescript:S6324",
+    "file": "apps/frontend/src/views/admin/SessionAuditDetailView.vue",
+    "sourceLine": 933,
+    "classification": "false_positive",
+    "priority": "P3",
+    "reason": "ESC excluído do ramo OSC impede consumir ST como parte do payload na contagem de redraw.",
+    "evidence": [
+      "apps/frontend/src/views/admin/SessionAuditDetailView.vue:933"
+    ],
+    "validation": "Leitura da ocorrência e do fluxo consumidor na fonte atual ee436402; sem alteração ou nova execução do produto.",
+    "limitations": "Falso positivo da regra sobre presença de byte de controle; não declaração de que todo parser/regex seja seguro. Defeitos associados, quando existem, estão separados e não aceitos."
+  },
+  {
+    "id": "SQ-0202",
+    "issueId": "a1917e2b-b10b-4c35-9302-b5cf80309e78",
+    "rule": "typescript:S6324",
+    "file": "apps/frontend/src/views/admin/SessionAuditDetailView.vue",
+    "sourceLine": 933,
+    "classification": "false_positive",
+    "priority": "P3",
+    "reason": "BEL na terminação OSC permite reconhecer esse controle dentro de um frame redesenhado.",
+    "evidence": [
+      "apps/frontend/src/views/admin/SessionAuditDetailView.vue:933"
+    ],
+    "validation": "Leitura da ocorrência e do fluxo consumidor na fonte atual ee436402; sem alteração ou nova execução do produto.",
+    "limitations": "Falso positivo da regra sobre presença de byte de controle; não declaração de que todo parser/regex seja seguro. Defeitos associados, quando existem, estão separados e não aceitos."
+  },
+  {
+    "id": "SQ-0203",
+    "issueId": "beeb18b0-02f9-478d-b589-226149f79c31",
+    "rule": "typescript:S6324",
+    "file": "apps/frontend/src/views/admin/SessionAuditDetailView.vue",
+    "sourceLine": 933,
+    "classification": "false_positive",
+    "priority": "P3",
+    "reason": "ESC seguido de barra invertida é ST na terminação OSC da heurística, e não conteúdo arbitrário.",
+    "evidence": [
+      "apps/frontend/src/views/admin/SessionAuditDetailView.vue:933"
+    ],
+    "validation": "Leitura da ocorrência e do fluxo consumidor na fonte atual ee436402; sem alteração ou nova execução do produto.",
+    "limitations": "Falso positivo da regra sobre presença de byte de controle; não declaração de que todo parser/regex seja seguro. Defeitos associados, quando existem, estão separados e não aceitos."
+  },
+  {
+    "id": "SQ-0204",
+    "issueId": "cd643ed1-287f-40c8-a2bd-4e25f14160f7",
+    "rule": "typescript:S6324",
+    "file": "apps/frontend/src/views/admin/SessionAuditDetailView.vue",
+    "sourceLine": 933,
+    "classification": "false_positive",
+    "priority": "P2",
+    "reason": "ESC termina o ramo DCS por ST na contagem de redraw; a ocorrência é protocolar, mas a busca DCS pode reexaminar sufixos conforme NA0145-F03.",
+    "evidence": [
+      "apps/frontend/src/views/admin/SessionAuditDetailView.vue:933",
+      "docs/changes/2026/11/NA-0145-sonar-open-review/frontend-related-findings.json",
+      "docs/changes/2026/11/NA-0145-sonar-open-review/frontend-probes.json"
+    ],
+    "validation": "Leitura da ocorrência e do fluxo consumidor na fonte atual ee436402; sem alteração ou nova execução do produto.",
+    "limitations": "Falso positivo da regra sobre presença de byte de controle; não declaração de que todo parser/regex seja seguro. Defeitos associados, quando existem, estão separados e não aceitos.",
+    "relatedFindings": [
+      "NA0145-F03"
+    ]
+  },
+  {
+    "id": "SQ-0205",
+    "issueId": "d40afe8e-6f8f-42cb-9f79-08b90a312128",
+    "rule": "typescript:S6324",
+    "file": "apps/frontend/src/views/admin/SessionAuditDetailView.vue",
+    "sourceLine": 933,
+    "classification": "false_positive",
+    "priority": "P2",
+    "reason": "BEL termina o ramo DCS alternativo da heurística; byte intencional, com custo da expressão tratado uma vez em NA0145-F03.",
+    "evidence": [
+      "apps/frontend/src/views/admin/SessionAuditDetailView.vue:933",
+      "docs/changes/2026/11/NA-0145-sonar-open-review/frontend-related-findings.json",
+      "docs/changes/2026/11/NA-0145-sonar-open-review/frontend-probes.json"
+    ],
+    "validation": "Leitura da ocorrência e do fluxo consumidor na fonte atual ee436402; sem alteração ou nova execução do produto.",
+    "limitations": "Falso positivo da regra sobre presença de byte de controle; não declaração de que todo parser/regex seja seguro. Defeitos associados, quando existem, estão separados e não aceitos.",
+    "relatedFindings": [
+      "NA0145-F03"
+    ]
+  },
+  {
+    "id": "SQ-0208",
+    "issueId": "4549f072-ce30-4397-b815-19201f93ff3f",
+    "rule": "Web:S6845",
+    "file": "apps/frontend/src/views/admin/SessionAuditDetailView.vue",
+    "sourceLine": 2387,
+    "classification": "fix_required",
+    "priority": "P2",
+    "reason": "A região de playback recebe Tab por tabindex=0, mas @keydown.prevent cancela todas as teclas sem executar navegação alternativa. O modificador Vue real confirma cancelamento de Tab, setas, PageDown e Ctrl+C; isso contradiz o objetivo de tornar o painel rolável acessível.",
+    "evidence": [
+      "apps/frontend/src/views/admin/SessionAuditDetailView.vue:2387",
+      "apps/frontend/src/views/admin/SessionAuditDetailView.vue:2395",
+      "apps/frontend/src/views/admin/SessionAuditDetailView.vue:2396",
+      "docs/changes/2026/11/NA-0145-sonar-open-review/frontend-probes.json"
+    ],
+    "validation": "Extração da função/modificador da fonte atual e execução de Vue withModifiers real com eventos canceláveis; os quatro defaultPrevented ficaram true. Raiz reproduziu independentemente.",
+    "limitations": "Não houve teste completo com leitor de tela/browser da rota. Prova cobre o cancelamento de eventos; corrigir mantendo controles de playback e sem enviar teclas a servidor.",
+    "relatedFindings": [
+      "NA0145-F01"
+    ]
+  },
+  {
+    "id": "SQ-0232",
+    "issueId": "2cbebbc8-bb22-4019-84df-0c6abcf41900",
+    "rule": "Web:InputWithoutLabelCheck",
+    "file": "apps/frontend/src/views/admin/WebhooksView.vue",
+    "sourceLine": 1078,
+    "classification": "false_positive",
+    "priority": "P3",
+    "reason": "Campo auxiliar de usuário para desviar autofill em criação de webhook inbound; class hidden e tabindex=-1 retiram-no da interação visual e por Tab. Não é o campo real de credencial nem carece de label de um controle visível.",
+    "evidence": [
+      "apps/frontend/src/views/admin/WebhooksView.vue:1078"
+    ],
+    "validation": "Leitura da ocorrência e do fluxo consumidor na fonte atual ee436402; sem alteração ou nova execução do produto.",
+    "limitations": "A classificação cobre somente falta de label nesse campo oculto; não certifica comportamento de todos os gerenciadores de senhas ou segurança do autofill. Cópias BACKUP/NOTE foram preservadas."
+  },
+  {
+    "id": "SQ-0233",
+    "issueId": "41d12852-dd37-4c69-939b-065e369a35d8",
+    "rule": "Web:InputWithoutLabelCheck",
+    "file": "apps/frontend/src/views/admin/WebhooksView.vue",
+    "sourceLine": 1079,
+    "classification": "false_positive",
+    "priority": "P3",
+    "reason": "Campo auxiliar de senha para desviar autofill em criação de webhook inbound; class hidden e tabindex=-1 retiram-no da interação visual e por Tab. Não é o campo real de credencial nem carece de label de um controle visível.",
+    "evidence": [
+      "apps/frontend/src/views/admin/WebhooksView.vue:1079"
+    ],
+    "validation": "Leitura da ocorrência e do fluxo consumidor na fonte atual ee436402; sem alteração ou nova execução do produto.",
+    "limitations": "A classificação cobre somente falta de label nesse campo oculto; não certifica comportamento de todos os gerenciadores de senhas ou segurança do autofill. Cópias BACKUP/NOTE foram preservadas."
+  },
+  {
+    "id": "SQ-0240",
+    "issueId": "0087ae89-303e-45f7-9348-faf429a64cfc",
+    "rule": "Web:S6843",
+    "file": "apps/frontend/src/views/GraphicalSessionView.vue",
+    "sourceLine": 1977,
+    "classification": "insufficient_evidence",
+    "priority": "P2",
+    "reason": "Canvas possui interação remota real, nome acessível e handler de teclado, justificando foco. Contudo a adequação de role=application e a saída de foco usando somente teclado/tecnologia assistiva não foram demonstradas por esta revisão. A ausência dessa evidência impede tanto falso positivo conclusivo quanto aceite de risco fundamentado.",
+    "evidence": [
+      "apps/frontend/src/views/GraphicalSessionView.vue:1977",
+      "apps/frontend/src/views/GraphicalSessionView.vue:1270",
+      "apps/frontend/src/views/GraphicalSessionView.vue:1980",
+      "apps/frontend/src/views/GraphicalSessionView.vue:1988"
+    ],
+    "validation": "Leitura da ocorrência e do fluxo consumidor na fonte atual ee436402; sem alteração ou nova execução do produto.",
+    "limitations": "Próxima validação: confirmar mecanismo local de liberação do foco e comportamento com leitor de tela, sem presumir que testes de desenho/teclas remotas cobrem acessibilidade. Nenhum aceite humano inferido."
+  },
+  {
+    "id": "SQ-0241",
+    "issueId": "833480a6-62e9-43a8-98dd-1750989ac29e",
+    "rule": "Web:InputWithoutLabelCheck",
+    "file": "apps/frontend/src/views/HostsView-BACKUP-UX.vue",
+    "sourceLine": 2264,
+    "classification": "false_positive",
+    "priority": "P3",
+    "reason": "Campo auxiliar de usuário para desviar autofill em formulário de host na cópia BACKUP-UX; class hidden e tabindex=-1 retiram-no da interação visual e por Tab. Não é o campo real de credencial nem carece de label de um controle visível.",
+    "evidence": [
+      "apps/frontend/src/views/HostsView-BACKUP-UX.vue:2264"
+    ],
+    "validation": "Leitura da ocorrência e do fluxo consumidor na fonte atual ee436402; sem alteração ou nova execução do produto.",
+    "limitations": "A classificação cobre somente falta de label nesse campo oculto; não certifica comportamento de todos os gerenciadores de senhas ou segurança do autofill. Cópias BACKUP/NOTE foram preservadas."
+  },
+  {
+    "id": "SQ-0242",
+    "issueId": "cbe3d036-1644-4461-b7fa-af1e068b29ca",
+    "rule": "Web:InputWithoutLabelCheck",
+    "file": "apps/frontend/src/views/HostsView-BACKUP-UX.vue",
+    "sourceLine": 2265,
+    "classification": "false_positive",
+    "priority": "P3",
+    "reason": "Campo auxiliar de senha para desviar autofill em formulário de host na cópia BACKUP-UX; class hidden e tabindex=-1 retiram-no da interação visual e por Tab. Não é o campo real de credencial nem carece de label de um controle visível.",
+    "evidence": [
+      "apps/frontend/src/views/HostsView-BACKUP-UX.vue:2265"
+    ],
+    "validation": "Leitura da ocorrência e do fluxo consumidor na fonte atual ee436402; sem alteração ou nova execução do produto.",
+    "limitations": "A classificação cobre somente falta de label nesse campo oculto; não certifica comportamento de todos os gerenciadores de senhas ou segurança do autofill. Cópias BACKUP/NOTE foram preservadas."
+  },
+  {
+    "id": "SQ-0243",
+    "issueId": "f625cc4f-4415-4aa0-bfba-7a4615c3a498",
+    "rule": "Web:InputWithoutLabelCheck",
+    "file": "apps/frontend/src/views/HostsView-NOTE-JEFF.vue",
+    "sourceLine": 2007,
+    "classification": "false_positive",
+    "priority": "P3",
+    "reason": "Campo auxiliar de usuário para desviar autofill em formulário de host na cópia NOTE-JEFF; class hidden e tabindex=-1 retiram-no da interação visual e por Tab. Não é o campo real de credencial nem carece de label de um controle visível.",
+    "evidence": [
+      "apps/frontend/src/views/HostsView-NOTE-JEFF.vue:2007"
+    ],
+    "validation": "Leitura da ocorrência e do fluxo consumidor na fonte atual ee436402; sem alteração ou nova execução do produto.",
+    "limitations": "A classificação cobre somente falta de label nesse campo oculto; não certifica comportamento de todos os gerenciadores de senhas ou segurança do autofill. Cópias BACKUP/NOTE foram preservadas."
+  },
+  {
+    "id": "SQ-0244",
+    "issueId": "d12d496d-68ac-4023-8b3f-d8a798a0a3ff",
+    "rule": "Web:InputWithoutLabelCheck",
+    "file": "apps/frontend/src/views/HostsView-NOTE-JEFF.vue",
+    "sourceLine": 2008,
+    "classification": "false_positive",
+    "priority": "P3",
+    "reason": "Campo auxiliar de senha para desviar autofill em formulário de host na cópia NOTE-JEFF; class hidden e tabindex=-1 retiram-no da interação visual e por Tab. Não é o campo real de credencial nem carece de label de um controle visível.",
+    "evidence": [
+      "apps/frontend/src/views/HostsView-NOTE-JEFF.vue:2008"
+    ],
+    "validation": "Leitura da ocorrência e do fluxo consumidor na fonte atual ee436402; sem alteração ou nova execução do produto.",
+    "limitations": "A classificação cobre somente falta de label nesse campo oculto; não certifica comportamento de todos os gerenciadores de senhas ou segurança do autofill. Cópias BACKUP/NOTE foram preservadas."
+  },
+  {
+    "id": "SQ-0245",
+    "issueId": "70968de4-2f43-43ac-a7a2-87781cc597fe",
+    "rule": "typescript:S6324",
+    "file": "apps/frontend/src/views/HostsView.vue",
+    "sourceLine": 3294,
+    "classification": "false_positive",
+    "priority": "P2",
+    "reason": "NUL é um marcador temporário deliberado usado apenas para contar compressões IPv6, não um byte invisível acidental. Há defeito adjacente: replace sem global torna a contagem de múltiplos :: ineficaz (NA0145-F02).",
+    "evidence": [
+      "apps/frontend/src/views/HostsView.vue:3294",
+      "docs/changes/2026/11/NA-0145-sonar-open-review/frontend-related-findings.json",
+      "docs/changes/2026/11/NA-0145-sonar-open-review/frontend-probes.json"
+    ],
+    "validation": "Leitura da ocorrência e do fluxo consumidor na fonte atual ee436402; sem alteração ou nova execução do produto.",
+    "limitations": "Falso positivo da regra sobre presença de byte de controle; não declaração de que todo parser/regex seja seguro. Defeitos associados, quando existem, estão separados e não aceitos.",
+    "relatedFindings": [
+      "NA0145-F02"
+    ]
+  },
+  {
+    "id": "SQ-0246",
+    "issueId": "bb62b45e-9ab2-4860-94ec-479a18cc4a2a",
+    "rule": "Web:InputWithoutLabelCheck",
+    "file": "apps/frontend/src/views/HostsView.vue",
+    "sourceLine": 7468,
+    "classification": "false_positive",
+    "priority": "P3",
+    "reason": "O input hostPemKeyFileInput de seleção da chave no formulário de host usa class hidden (display:none) e não é o controle apresentado ao usuário. A seleção é aberta por acionador visível nomeado; adicionar label ao elemento oculto não corrige uma falta de nome na interface.",
+    "evidence": [
+      "apps/frontend/src/views/HostsView.vue:7468",
+      "apps/frontend/src/views/HostsView.vue:7484",
+      "apps/frontend/src/views/HostsView.vue:7488"
+    ],
+    "validation": "Leitura da ocorrência e do fluxo consumidor na fonte atual ee436402; sem alteração ou nova execução do produto.",
+    "limitations": "Revisados input oculto e acionador correspondente na fonte; não repetido seletor nativo de arquivos/tecnologia assistiva. A conclusão depende da classe hidden continuar display:none."
+  },
+  {
+    "id": "SQ-0247",
+    "issueId": "ba8d47c8-3b80-44bf-8f69-35607b633fbb",
+    "rule": "Web:InputWithoutLabelCheck",
+    "file": "apps/frontend/src/views/PemKeysView.vue",
+    "sourceLine": 199,
+    "classification": "false_positive",
+    "priority": "P3",
+    "reason": "O input pemKeyFileInput de seleção de chave PEM usa class hidden (display:none) e não é o controle apresentado ao usuário. A seleção é aberta por acionador visível nomeado; adicionar label ao elemento oculto não corrige uma falta de nome na interface.",
+    "evidence": [
+      "apps/frontend/src/views/PemKeysView.vue:199",
+      "apps/frontend/src/views/PemKeysView.vue:71",
+      "apps/frontend/src/views/PemKeysView.vue:215"
+    ],
+    "validation": "Leitura da ocorrência e do fluxo consumidor na fonte atual ee436402; sem alteração ou nova execução do produto.",
+    "limitations": "Revisados input oculto e acionador correspondente na fonte; não repetido seletor nativo de arquivos/tecnologia assistiva. A conclusão depende da classe hidden continuar display:none."
+  },
+  {
+    "id": "SQ-0248",
+    "issueId": "5130a863-488e-42ac-8257-afcc4fe5952e",
+    "rule": "Web:InputWithoutLabelCheck",
+    "file": "apps/frontend/src/views/ProfileView.vue",
+    "sourceLine": 286,
+    "classification": "false_positive",
+    "priority": "P3",
+    "reason": "O input avatarInput de seleção de imagem do perfil usa class hidden (display:none) e não é o controle apresentado ao usuário. A seleção é aberta por acionador visível nomeado; adicionar label ao elemento oculto não corrige uma falta de nome na interface.",
+    "evidence": [
+      "apps/frontend/src/views/ProfileView.vue:286",
+      "apps/frontend/src/views/ProfileView.vue:115",
+      "apps/frontend/src/views/ProfileView.vue:296"
+    ],
+    "validation": "Leitura da ocorrência e do fluxo consumidor na fonte atual ee436402; sem alteração ou nova execução do produto.",
+    "limitations": "Revisados input oculto e acionador correspondente na fonte; não repetido seletor nativo de arquivos/tecnologia assistiva. A conclusão depende da classe hidden continuar display:none."
+  },
+  {
+    "id": "SQ-0249",
+    "issueId": "2fc01788-1448-4cbd-80e4-8aa88ddcd828",
+    "rule": "Web:InputWithoutLabelCheck",
+    "file": "apps/frontend/src/views/SecretsView.vue",
+    "sourceLine": 483,
+    "classification": "false_positive",
+    "priority": "P3",
+    "reason": "Campo auxiliar de usuário para desviar autofill em criação/edição de segredo; class hidden e tabindex=-1 retiram-no da interação visual e por Tab. Não é o campo real de credencial nem carece de label de um controle visível.",
+    "evidence": [
+      "apps/frontend/src/views/SecretsView.vue:483"
+    ],
+    "validation": "Leitura da ocorrência e do fluxo consumidor na fonte atual ee436402; sem alteração ou nova execução do produto.",
+    "limitations": "A classificação cobre somente falta de label nesse campo oculto; não certifica comportamento de todos os gerenciadores de senhas ou segurança do autofill. Cópias BACKUP/NOTE foram preservadas."
+  },
+  {
+    "id": "SQ-0250",
+    "issueId": "a9f5d014-437d-4323-ae23-0a4944ac8ef0",
+    "rule": "Web:InputWithoutLabelCheck",
+    "file": "apps/frontend/src/views/SecretsView.vue",
+    "sourceLine": 484,
+    "classification": "false_positive",
+    "priority": "P3",
+    "reason": "Campo auxiliar de senha para desviar autofill em criação/edição de segredo; class hidden e tabindex=-1 retiram-no da interação visual e por Tab. Não é o campo real de credencial nem carece de label de um controle visível.",
+    "evidence": [
+      "apps/frontend/src/views/SecretsView.vue:484"
+    ],
+    "validation": "Leitura da ocorrência e do fluxo consumidor na fonte atual ee436402; sem alteração ou nova execução do produto.",
+    "limitations": "A classificação cobre somente falta de label nesse campo oculto; não certifica comportamento de todos os gerenciadores de senhas ou segurança do autofill. Cópias BACKUP/NOTE foram preservadas."
+  },
+  {
+    "id": "SQ-0251",
+    "issueId": "d588759e-235d-4423-9039-a401b0b93bfd",
+    "rule": "Web:InputWithoutLabelCheck",
+    "file": "apps/frontend/src/views/SecretsView.vue",
+    "sourceLine": 540,
+    "classification": "false_positive",
+    "priority": "P3",
+    "reason": "Campo auxiliar de usuário para desviar autofill em rotação de segredo; class hidden e tabindex=-1 retiram-no da interação visual e por Tab. Não é o campo real de credencial nem carece de label de um controle visível.",
+    "evidence": [
+      "apps/frontend/src/views/SecretsView.vue:540"
+    ],
+    "validation": "Leitura da ocorrência e do fluxo consumidor na fonte atual ee436402; sem alteração ou nova execução do produto.",
+    "limitations": "A classificação cobre somente falta de label nesse campo oculto; não certifica comportamento de todos os gerenciadores de senhas ou segurança do autofill. Cópias BACKUP/NOTE foram preservadas."
+  },
+  {
+    "id": "SQ-0252",
+    "issueId": "b813dac2-d404-4ced-904b-95be0a919162",
+    "rule": "Web:InputWithoutLabelCheck",
+    "file": "apps/frontend/src/views/SecretsView.vue",
+    "sourceLine": 541,
+    "classification": "false_positive",
+    "priority": "P3",
+    "reason": "Campo auxiliar de senha para desviar autofill em rotação de segredo; class hidden e tabindex=-1 retiram-no da interação visual e por Tab. Não é o campo real de credencial nem carece de label de um controle visível.",
+    "evidence": [
+      "apps/frontend/src/views/SecretsView.vue:541"
+    ],
+    "validation": "Leitura da ocorrência e do fluxo consumidor na fonte atual ee436402; sem alteração ou nova execução do produto.",
+    "limitations": "A classificação cobre somente falta de label nesse campo oculto; não certifica comportamento de todos os gerenciadores de senhas ou segurança do autofill. Cópias BACKUP/NOTE foram preservadas."
+  },
+  {
+    "id": "SQ-0258",
+    "issueId": "82e86ed8-7ffd-45a7-a0dc-27893a7e4ef0",
+    "rule": "typescript:S2245",
+    "file": "apps/frontend/src/views/TerminalView.vue",
+    "sourceLine": 1893,
+    "classification": "false_positive",
+    "priority": "P3",
+    "reason": "O fallback combina relógio e Math.random para correlação de execução de snippet; o caminho preferido já usa crypto.randomUUID. O identificador não é credencial nem concede autorização ao SSH.",
+    "evidence": [
+      "apps/frontend/src/views/TerminalView.vue:1893",
+      "apps/frontend/src/views/TerminalView.vue:1763",
+      "apps/frontend/src/views/TerminalView.vue:1889"
+    ],
+    "validation": "Leitura da ocorrência e do fluxo consumidor na fonte atual ee436402; sem alteração ou nova execução do produto.",
+    "limitations": "Não é garantia matemática de unicidade. Contexto de auditoria e autenticação real permanecem responsabilidade do backend, não inferidos deste ID."
+  },
+  {
+    "id": "SQ-0259",
+    "issueId": "636a6118-ffaf-49c1-a6ce-3a2e9637c4f8",
+    "rule": "Web:S6845",
+    "file": "apps/frontend/src/views/TerminalView.vue",
+    "sourceLine": 4391,
+    "classification": "false_positive",
+    "priority": "P3",
+    "reason": "O elemento é um separador interativo de colunas/vertical, com role=separator, orientação, valor atual/mínimo/máximo e handler de teclado. Não é um div decorativo colocado indevidamente na ordem de Tab.",
+    "evidence": [
+      "apps/frontend/src/views/TerminalView.vue:4391",
+      "apps/frontend/src/views/TerminalView.vue:4395",
+      "apps/frontend/src/views/TerminalView.vue:4403"
+    ],
+    "validation": "Leitura da ocorrência e do fluxo consumidor na fonte atual ee436402; sem alteração ou nova execução do produto.",
+    "limitations": "Fonte semântica e handlers conferidos; não reexecutado resize de terminal/PTY, pois nenhuma alteração foi feita. Isso não equivale a homologação de todas as combinações de teclado."
+  },
+  {
+    "id": "SQ-0260",
+    "issueId": "9a5ede13-349c-4765-8d7c-24156b6103f7",
+    "rule": "Web:S6845",
+    "file": "apps/frontend/src/views/TerminalView.vue",
+    "sourceLine": 4408,
+    "classification": "false_positive",
+    "priority": "P3",
+    "reason": "O elemento é um separador interativo de linhas/horizontal, com role=separator, orientação, valor atual/mínimo/máximo e handler de teclado. Não é um div decorativo colocado indevidamente na ordem de Tab.",
+    "evidence": [
+      "apps/frontend/src/views/TerminalView.vue:4408",
+      "apps/frontend/src/views/TerminalView.vue:4412",
+      "apps/frontend/src/views/TerminalView.vue:4420"
+    ],
+    "validation": "Leitura da ocorrência e do fluxo consumidor na fonte atual ee436402; sem alteração ou nova execução do produto.",
+    "limitations": "Fonte semântica e handlers conferidos; não reexecutado resize de terminal/PTY, pois nenhuma alteração foi feita. Isso não equivale a homologação de todas as combinações de teclado."
+  },
+  {
+    "id": "SQ-0262",
+    "issueId": "b989b69e-d796-4659-aa6d-5679943326e9",
+    "rule": "Web:InputWithoutLabelCheck",
+    "file": "apps/frontend/src/views/TerminalView.vue",
+    "sourceLine": 6010,
+    "classification": "false_positive",
+    "priority": "P3",
+    "reason": "O input pemFixFileInput de seleção de chave para corrigir a sessão do terminal usa class hidden (display:none) e não é o controle apresentado ao usuário. A seleção é aberta por acionador visível nomeado; adicionar label ao elemento oculto não corrige uma falta de nome na interface.",
+    "evidence": [
+      "apps/frontend/src/views/TerminalView.vue:6010",
+      "apps/frontend/src/views/TerminalView.vue:6005",
+      "apps/frontend/src/views/TerminalView.vue:6007"
+    ],
+    "validation": "Leitura da ocorrência e do fluxo consumidor na fonte atual ee436402; sem alteração ou nova execução do produto.",
+    "limitations": "Revisados input oculto e acionador correspondente na fonte; não repetido seletor nativo de arquivos/tecnologia assistiva. A conclusão depende da classe hidden continuar display:none."
+  }
+]

@@ -1,0 +1,45 @@
+{
+  "ok": true,
+  "results": [
+    {
+      "viewport": {
+        "width": 1440,
+        "height": 960
+      },
+      "state": "open",
+      "tokenVisible": true,
+      "actionRunLinked": true,
+      "noFakePlayback": true
+    },
+    {
+      "viewport": {
+        "width": 1440,
+        "height": 960
+      },
+      "state": "completed",
+      "tokenVisible": true,
+      "actionRunLinked": true,
+      "noFakePlayback": true
+    },
+    {
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "state": "open",
+      "tokenVisible": true,
+      "actionRunLinked": true,
+      "noFakePlayback": true
+    },
+    {
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "state": "completed",
+      "tokenVisible": true,
+      "actionRunLinked": true,
+      "noFakePlayback": true
+    }
+  ]
+}

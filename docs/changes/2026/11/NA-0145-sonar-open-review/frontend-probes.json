@@ -1,0 +1,61 @@
+{
+  "kind": "focused source extraction transpiled by TypeScript; real Vue withModifiers; no coverage credit",
+  "ipv6": [
+    {
+      "value": "2001:db8::1",
+      "result": null,
+      "nodeIsIP": 6
+    },
+    {
+      "value": "1::2::3",
+      "result": null,
+      "nodeIsIP": 0
+    },
+    {
+      "value": "abcd::def::123",
+      "result": null,
+      "nodeIsIP": 0
+    },
+    {
+      "value": "2001:db8::1/129",
+      "result": "Máscara IPv6 inválida — deve ser 0–128",
+      "nodeIsIP": 6
+    }
+  ],
+  "keyboard": [
+    {
+      "key": "Tab",
+      "ctrlKey": false,
+      "defaultPrevented": true
+    },
+    {
+      "key": "ArrowDown",
+      "ctrlKey": false,
+      "defaultPrevented": true
+    },
+    {
+      "key": "PageDown",
+      "ctrlKey": false,
+      "defaultPrevented": true
+    },
+    {
+      "key": "c",
+      "ctrlKey": true,
+      "defaultPrevented": true
+    }
+  ],
+  "dcsStripMeasurements": [
+    {
+      "count": 1000,
+      "milliseconds": 1.4170480000000012
+    },
+    {
+      "count": 4000,
+      "milliseconds": 16.583449
+    },
+    {
+      "count": 12000,
+      "milliseconds": 124.19675099999999
+    }
+  ]
+}

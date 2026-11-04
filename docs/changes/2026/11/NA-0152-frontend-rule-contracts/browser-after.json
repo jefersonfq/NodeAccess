@@ -1,0 +1,82 @@
+{
+  "mode": "after",
+  "results": [
+    {
+      "viewport": {
+        "width": 1365,
+        "height": 1000
+      },
+      "pres": [
+        {
+          "name": "Comando de cadastro Codex",
+          "tabIndex": -1,
+          "rect": {
+            "width": 772,
+            "height": 62.375
+          },
+          "text": "codex mcp add nodeaccess --url 'https://nodeaccess.example.test/api/v1/mcp/jsonrpc' --bearer-token-env-var NODEACCESS_MCP_TOKEN"
+        },
+        {
+          "name": "Configuração MCP",
+          "tabIndex": -1,
+          "rect": {
+            "width": 772,
+            "height": 81.5625
+          },
+          "text": "[mcp_servers.nodeaccess]\nurl = \"https://nodeaccess.example.test/api/v1/mcp/jsonrpc\"\nbearer_token_env_var = \"NODEACCESS_MCP_TOKEN\""
+        },
+        {
+          "name": "Comando de inicialização",
+          "tabIndex": -1,
+          "rect": {
+            "width": 772,
+            "height": 119.9375
+          },
+          "text": "(\n  read -rsp \"Token MCP: \" NODEACCESS_MCP_TOKEN; printf '\\n'\n  export NODEACCESS_MCP_TOKEN\n  codex\n)"
+        }
+      ]
+    },
+    {
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "pres": [
+        {
+          "name": "Comando de cadastro Codex",
+          "tabIndex": -1,
+          "rect": {
+            "width": 318,
+            "height": 100.75
+          },
+          "text": "codex mcp add nodeaccess --url 'https://nodeaccess.example.test/api/v1/mcp/jsonrpc' --bearer-token-env-var NODEACCESS_MCP_TOKEN"
+        },
+        {
+          "name": "Configuração MCP",
+          "tabIndex": -1,
+          "rect": {
+            "width": 318,
+            "height": 139.125
+          },
+          "text": "[mcp_servers.nodeaccess]\nurl = \"https://nodeaccess.example.test/api/v1/mcp/jsonrpc\"\nbearer_token_env_var = \"NODEACCESS_MCP_TOKEN\""
+        },
+        {
+          "name": "Comando de inicialização",
+          "tabIndex": -1,
+          "rect": {
+            "width": 318,
+            "height": 139.125
+          },
+          "text": "(\n  read -rsp \"Token MCP: \" NODEACCESS_MCP_TOKEN; printf '\\n'\n  export NODEACCESS_MCP_TOKEN\n  codex\n)"
+        }
+      ]
+    }
+  ],
+  "target": {
+    "tag": "BUTTON",
+    "text": " Copiar configuração ",
+    "tabIndex": 0
+  },
+  "errors": [],
+  "clipboardCount": 2
+}

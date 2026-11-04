@@ -2067,6 +2067,8 @@
     }
   },
   "graphicalSession": {
+    "keyboardExitHint": "Ctrl + Alt + Shift releases the remote keyboard. Then use Tab to navigate the controls.",
+    "keyboardReturn": "Resume remote keyboard",
     "title": "Graphical session",
     "subtitle": "Reserved area for graphical host protocols.",
     "displayLabel": "Graphical session display area",

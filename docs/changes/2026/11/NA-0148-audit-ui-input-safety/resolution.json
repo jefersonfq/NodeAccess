@@ -1,0 +1,30 @@
+[
+  {
+    "id": "SQ-0208",
+    "issueId": "4549f072-ce30-4397-b815-19201f93ff3f",
+    "proposedStatus": "fixed_pending_integrated_scan",
+    "reason": "Blanket key cancellation removed; real keyboard leaves/returns, scroll/copy shortcuts not prevented, content remains read-only."
+  },
+  {
+    "id": "SQ-0127",
+    "issueId": "a330cd3b-b4f9-4cd4-9b1a-1614d8f626ed",
+    "proposedStatus": "context_reviewed_with_focus_fix",
+    "reason": "Scrollable selectable pre intentionally focusable; explicit focus-visible inset ring and real Tab/ShiftTab/read-only/geometry checks now present. No formal assistive technology certification."
+  },
+  {
+    "id": "SQ-0240",
+    "issueId": "0087ae89-303e-45f7-9348-faf429a64cfc",
+    "proposedStatus": "keyboard_escape_fixed_at_evidence_pending",
+    "reason": "Canvas is the interactive remote display, retains role application and remote Tab/Escape; CtrlAltShift releases held remote keys and focuses local return button, also verified fullscreen. Role appropriateness with screen readers remains unvalidated."
+  },
+  {
+    "id": "NA0145-F02",
+    "proposedStatus": "fixed_pending_integration",
+    "reason": "Native IPv6 parsing rejects multiple compression; partial input receives guidance and cannot create a host."
+  },
+  {
+    "id": "NA0145-F03",
+    "proposedStatus": "fixed_pending_integration",
+    "reason": "DCS stripping/count scans each unfinished suffix once; 2744 differential inputs and 500k-unit adversarial input preserve data and precedence."
+  }
+]

@@ -1,0 +1,186 @@
+{
+  "base": "ee436402db8bcce7fab4378d6ba28c1673b282b5",
+  "state": "candidate at checkpoint; final SHA provided externally",
+  "files": [
+    {
+      "file": ".dockerignore",
+      "sha256": "645154e26726066231c8512b155fc5aeedf19cf3e28699d14d56f674cec2aa20"
+    },
+    {
+      "file": ".github/workflows/agent-native-smoke.yml",
+      "sha256": "979fb06a88ecf6df4c2a1f0fbc2d7e922a8fff38f412c76613b5f48074ac1d70"
+    },
+    {
+      "file": "docker/frontend.Dockerfile",
+      "sha256": "e73da6cc04080d743b1d90217e216e93b6256b43a0fbc6fa4cbb5158327a4a2c"
+    },
+    {
+      "file": "scripts/change-governance-lib.mjs",
+      "sha256": "cc751d36f0098abbbaf741f72fcc357575fa9dd14a902c69244260d11d70a3e8"
+    },
+    {
+      "file": "scripts/change-status.mjs",
+      "sha256": "7904fbe31086ed247c0ee19cca5edcd79eb779fedde26d1f91e6aa1e432e3bb0"
+    },
+    {
+      "file": "scripts/lint-changed.mjs",
+      "sha256": "dd168c7f2f5b1b5e31e7f3f30acdbd3b65184ee9009041773923f46f5bb41b7f"
+    },
+    {
+      "file": "scripts/recovery.mjs",
+      "sha256": "1a95b300e1cdad84a3168b7fec0e5f608e027e97137aeb6cfc4573a05bd56f02"
+    },
+    {
+      "file": "scripts/release/build-release.sh",
+      "sha256": "cc264c4587e61b67bce64f0cc1fee26486ec8de7f9a82af62537ee38102eec1d"
+    },
+    {
+      "file": "scripts/release/prepare-agent-windows.mjs",
+      "sha256": "ad195d195b695f35a2e280138e58f153b0a14d12ad03213ce1d95048b1361829"
+    },
+    {
+      "file": "scripts/release/release-provenance.mjs",
+      "sha256": "894242422c176a6d3c4bd574e77d00ed6bb5bf1e195f3ca7578adb572c63d3d3"
+    },
+    {
+      "file": "scripts/security/scan-images.mjs",
+      "sha256": "cebbe2603b9c2173c62fd5ce2826ec0b4243994d594a22e9b513ae3251fc0831"
+    },
+    {
+      "file": "security/gitleaks-fixtures.json",
+      "sha256": "a1975ea01cf7f16cb2ab0ed5aeb1cd1c96b0cf2b496e36b682292e997686dc29"
+    },
+    {
+      "file": "tools/agents/security-live.mjs",
+      "sha256": "92b1dc9bf8b19ce1bc05781b8c9582f0f866707462024e53e3f07a746edc8e5a"
+    },
+    {
+      "file": "tools/deploy/doctor-nodeaccess-harness.cjs",
+      "sha256": "bd99d6f21328dc4f5d279f231edf1050f8c68307f0437e2596cc8b89445f1766"
+    },
+    {
+      "file": "tools/deploy/helm-chart-harness.cjs",
+      "sha256": "31cc5504950a63250012891e76daf3a56c37387d86778b57c13f65a8e79f4359"
+    },
+    {
+      "file": "tools/deploy/helm-context-boundaries.test.mjs",
+      "sha256": "0fcf876cdb265d04fef406fcfd3ab69ab448d0f9ee7780dcc39ccd912890c45a"
+    },
+    {
+      "file": "tools/deploy/helm-ollama-kind-certification.sh",
+      "sha256": "b613f46164f6f06afaa7e5a205985f7c103bbf1de76f0f27caac77265ddb1280"
+    },
+    {
+      "file": "tools/deploy/release-package.test.mjs",
+      "sha256": "29b24737c84cf4fc5a8829e092a4cce845d90e7d2cf0bc9ffd4a3c1643b04804"
+    },
+    {
+      "file": "tools/deploy/release-source-real.mjs",
+      "sha256": "2c314904b1e6a21235221e8b2d977d77a8f38da06e5ca0da6b5499c4f4318cda"
+    },
+    {
+      "file": "tools/deploy/runtime-nonroot-real.mjs",
+      "sha256": "314a524a92376ef3bff0c08e7ee5c76379d552bb5872a73554c2237b2b883232"
+    },
+    {
+      "file": "tools/frontend/action-run-audit-playwright.cjs",
+      "sha256": "9eeb46010171606ba843d7627fccdf4989e4f04d2d6d5d575eb9fe0635558d0e"
+    },
+    {
+      "file": "tools/frontend/ai-investigations-playwright.cjs",
+      "sha256": "76452dfebffd480dfeeaa70d7d0b5424853b0df7a2756430f54933eedcf442fb"
+    },
+    {
+      "file": "tools/frontend/host-duplicate-playwright.cjs",
+      "sha256": "a8d6b208c5bd75757433d21df20fe66784ce0c5567a7bd004fcb87462204b075"
+    },
+    {
+      "file": "tools/frontend/host-form-tabs-playwright.cjs",
+      "sha256": "833923ed41bd090c89a2617f7f80d416fab50c0879d087834eb51a52a914742b"
+    },
+    {
+      "file": "tools/frontend/terminal-autocomplete-pty.ts",
+      "sha256": "0fa28ff918f4606f64db5b30093c146671438c525cd56fe899a79c3cc260ed70"
+    },
+    {
+      "file": "tools/frontend/terminal-cdp-load.cjs",
+      "sha256": "cee2a421e96c98a7f3f1c427bc473a413fc8896fcc7811e53f1c343ed0e76fa6"
+    },
+    {
+      "file": "tools/frontend/terminal-playwright-load.cjs",
+      "sha256": "774c806e6824b4f20c6558839546be2ac85fe5f367a03c49f5d8c25798417ad4"
+    },
+    {
+      "file": "tools/frontend/trial-live-boundaries.cjs",
+      "sha256": "c660ebb1ab97db854eb641e45d150c3108dab39e8210ee3cbf3de6510596cfa7"
+    },
+    {
+      "file": "tools/frontend/trial-live-boundaries.test.mjs",
+      "sha256": "e5f5a7a3402108c43a575a69376af90c35e188e5f66640559f07b4fa0839edbd"
+    },
+    {
+      "file": "tools/frontend/trial-live-playwright.mts",
+      "sha256": "2984df32556ba482d2c85c7643e87739cad24897094289184a9abda59e83b0b9"
+    },
+    {
+      "file": "tools/frontend/trial-onboarding-playwright.cjs",
+      "sha256": "22b22252e90d33447ac3a1b6aaaf40fbc6910cd8f2d0692b9f2d498429745663"
+    },
+    {
+      "file": "tools/load-tests/scripts/mock-ssh-server.js",
+      "sha256": "ad7fa2e277e9748a88a8e63087f54bd2f53f5bb5f942896a673934d33cbca97d"
+    },
+    {
+      "file": "tools/load-tests/scripts/run-gateway-with-metrics.js",
+      "sha256": "b01e82f51394bdb4b4419284802d26f4573bba1d5192ad12fb24a1ac94966c91"
+    },
+    {
+      "file": "tools/session-audit/reconstruction-fidelity.ts",
+      "sha256": "a90e87ae5f7798a46a209f6b38cc36f0fe930534131afaba1162f2578786712f"
+    },
+    {
+      "file": "tools/shared/trusted-executable.cjs",
+      "sha256": "e5c7fb84132c9f26ed28a15966d022e64d2b029449bdeed3eb98302d0e1c48c1"
+    },
+    {
+      "file": "tools/shared/trusted-executable.test.mjs",
+      "sha256": "d8a82cc6725e64e41d1efae609240caf749a19eedb662fc05cd23d3fe59b3552"
+    },
+    {
+      "file": "tools/snippets/macro-progress-mysql.mts",
+      "sha256": "0d0b267cf1b4855164f536c3fb9b69e7b5d8e66d789bf4d63a6e81441f71d7dd"
+    },
+    {
+      "file": "tools/tls/adapter.mjs",
+      "sha256": "d63e387be49cfdeeaeef2fb83853f6fa3c65d750e921868f047ed7e82166119b"
+    },
+    {
+      "file": "tools/tls/audit-integration.ts",
+      "sha256": "aa1c288fcadcd9d245e8c103f201cdb8d08c63521dffc6dcbbd4d95d441d1e14"
+    },
+    {
+      "file": "tools/tls/certificates.mjs",
+      "sha256": "59398a650caf7d96c3db54ce8f11882cd74bb211e2a3fd905961285ab08c9907"
+    },
+    {
+      "file": "tools/tls/challenge-files.mjs",
+      "sha256": "99e7aa68b5b055faa4da81f6213e58fcc0b1ad867064108e0e916fd908ddbf1a"
+    },
+    {
+      "file": "tools/tls/challenge-files.test.mjs",
+      "sha256": "6e2bae2203ea776cf9083ac2c9512b17009b525a51d703744fe1ac05dbf7564a"
+    },
+    {
+      "file": "tools/tls/integration.cjs",
+      "sha256": "9a3f403d7ab476bb00951532332c17145e3dc50588a0970649ffd069b88f1a13"
+    },
+    {
+      "file": "tools/tls/manager.mjs",
+      "sha256": "51cbb4ffa16cdd53b3fcbee11e00f7da7a2951310e783a614d9b73c7666af501"
+    },
+    {
+      "file": "tools/tls/manager.test.mjs",
+      "sha256": "cfde5cf6d1a07f57f0df7487393e9a3e4736c9ed42f62976d48095d039d9c3c7"
+    }
+  ]
+}

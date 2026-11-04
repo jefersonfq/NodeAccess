@@ -1,0 +1,43 @@
+{
+  "runtime": "v24.22.1",
+  "measuredAt": "2026-11-04T13:11:37.866Z",
+  "kind": "single-process synthetic measurements; not an end-to-end exploit or SLA",
+  "results": [
+    {
+      "prefixes": 1000,
+      "utf16Units": 2004,
+      "stripMs": 0.6913880000000177,
+      "countMs": 1.0687649999999849,
+      "legacyMs": 4.3850700000000415,
+      "unchanged": true,
+      "count": 1000
+    },
+    {
+      "prefixes": 4000,
+      "utf16Units": 8004,
+      "stripMs": 1.7728849999999738,
+      "countMs": 2.4121829999999704,
+      "legacyMs": 27.552283999999986,
+      "unchanged": true,
+      "count": 4000
+    },
+    {
+      "prefixes": 12000,
+      "utf16Units": 24004,
+      "stripMs": 0.2859540000000038,
+      "countMs": 1.6113090000000057,
+      "legacyMs": 244.59508,
+      "unchanged": true,
+      "count": 12000
+    },
+    {
+      "prefixes": 250000,
+      "utf16Units": 500004,
+      "stripMs": 7.201333000000091,
+      "countMs": 37.94962599999997,
+      "legacyMs": null,
+      "unchanged": true,
+      "count": 250000
+    }
+  ]
+}

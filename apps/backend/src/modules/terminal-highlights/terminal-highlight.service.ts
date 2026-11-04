@@ -17,11 +17,26 @@ type EffectiveHighlights = {
   limits: { maxRules: number; budgetMs: number; maxMatchesPerPass: number }
 }
 
+/** Preserve the previous syntax heuristic in linear time; execution safety lives in the worker. */
+export function hasRejectedQuantifiers(pattern: string): boolean {
+  let opened = false, quantified = false
+  for (let index = 0; index < pattern.length; index++) {
+    const char = pattern[index]
+    if ((char === '+' || char === '*') && pattern[index + 1] === char) return true
+    if (char === '(') opened = true
+    else if (char === ')') {
+      if (opened && quantified && '+*{'.includes(pattern[index + 1] ?? '\0')) return true
+      opened = false; quantified = false
+    } else if (opened && (char === '+' || char === '*')) quantified = true
+  }
+  return false
+}
+
 function validateRules(input: unknown): TerminalHighlightRule[] {
   const rules = TerminalHighlightRulesSchema.parse(input)
   for (const rule of rules) {
     if (rule.mode !== 'regex') continue
-    if (/\([^)]*[+*][^)]*\)[+*{]/.test(rule.pattern) || /([+*])\1/.test(rule.pattern)) {
+    if (hasRejectedQuantifiers(rule.pattern)) {
       throw new BadRequestError(`Regex potencialmente custoso na regra "${rule.name}"`)
     }
     try { new RegExp(rule.pattern, rule.caseSensitive ? 'g' : 'gi') } catch {

@@ -1,0 +1,606 @@
+[
+  {
+    "id": "SQ-0267",
+    "issueId": "f4b38745-7be4-49d8-9e0f-c01d1680718a",
+    "rule": "javascript:S4036",
+    "file": "scripts/change-governance-lib.mjs",
+    "category": "executable",
+    "proposedStatus": "implemented_pending_integrated_validation_and_scan",
+    "priorClassification": "risk_acceptance_required",
+    "evidence": [
+      "tools/shared/trusted-executable.test.mjs",
+      "/tmp/NA0149-final-unit.log"
+    ],
+    "remainingLimitations": "Nenhum estado Sonar alterado. Aprovação humana e CI multiplataforma pendentes; ambiente do mesmo UID/administrador continua fronteira confiada."
+  },
+  {
+    "id": "SQ-0268",
+    "issueId": "e6db4527-d205-4b65-82a4-20473c7a0af2",
+    "rule": "javascript:S4036",
+    "file": "scripts/change-status.mjs",
+    "category": "executable",
+    "proposedStatus": "implemented_pending_integrated_validation_and_scan",
+    "priorClassification": "risk_acceptance_required",
+    "evidence": [
+      "tools/shared/trusted-executable.test.mjs",
+      "/tmp/NA0149-final-unit.log"
+    ],
+    "remainingLimitations": "Nenhum estado Sonar alterado. Aprovação humana e CI multiplataforma pendentes; ambiente do mesmo UID/administrador continua fronteira confiada."
+  },
+  {
+    "id": "SQ-0269",
+    "issueId": "cbf76345-d77a-46cf-a00c-27978215d7e0",
+    "rule": "javascript:S4036",
+    "file": "scripts/change-status.mjs",
+    "category": "executable",
+    "proposedStatus": "implemented_pending_integrated_validation_and_scan",
+    "priorClassification": "risk_acceptance_required",
+    "evidence": [
+      "tools/shared/trusted-executable.test.mjs",
+      "/tmp/NA0149-final-unit.log"
+    ],
+    "remainingLimitations": "Nenhum estado Sonar alterado. Aprovação humana e CI multiplataforma pendentes; ambiente do mesmo UID/administrador continua fronteira confiada."
+  },
+  {
+    "id": "SQ-0270",
+    "issueId": "7a9dd819-63b3-4925-8bf1-a23a64a017d8",
+    "rule": "javascript:S4036",
+    "file": "scripts/change-status.mjs",
+    "category": "executable",
+    "proposedStatus": "implemented_pending_integrated_validation_and_scan",
+    "priorClassification": "risk_acceptance_required",
+    "evidence": [
+      "tools/shared/trusted-executable.test.mjs",
+      "/tmp/NA0149-final-unit.log"
+    ],
+    "remainingLimitations": "Nenhum estado Sonar alterado. Aprovação humana e CI multiplataforma pendentes; ambiente do mesmo UID/administrador continua fronteira confiada."
+  },
+  {
+    "id": "SQ-0276",
+    "issueId": "8a0e3005-99ec-4f1b-935c-955e696763b4",
+    "rule": "javascript:S4036",
+    "file": "scripts/lint-changed.mjs",
+    "category": "executable",
+    "proposedStatus": "implemented_pending_integrated_validation_and_scan",
+    "priorClassification": "risk_acceptance_required",
+    "evidence": [
+      "tools/shared/trusted-executable.test.mjs",
+      "/tmp/NA0149-final-unit.log"
+    ],
+    "remainingLimitations": "Nenhum estado Sonar alterado. Aprovação humana e CI multiplataforma pendentes; ambiente do mesmo UID/administrador continua fronteira confiada."
+  },
+  {
+    "id": "SQ-0277",
+    "issueId": "1ee93983-533f-452b-af10-c0cd9c92747e",
+    "rule": "javascript:S4036",
+    "file": "scripts/recovery.mjs",
+    "category": "executable",
+    "proposedStatus": "implemented_pending_integrated_validation_and_scan",
+    "priorClassification": "risk_acceptance_required",
+    "evidence": [
+      "tools/shared/trusted-executable.test.mjs",
+      "/tmp/NA0149-final-unit.log"
+    ],
+    "remainingLimitations": "Nenhum estado Sonar alterado. Aprovação humana e CI multiplataforma pendentes; ambiente do mesmo UID/administrador continua fronteira confiada."
+  },
+  {
+    "id": "SQ-0278",
+    "issueId": "ea96801a-5f0b-4b26-a19f-2a2bd3f45016",
+    "rule": "javascript:S4036",
+    "file": "scripts/release/prepare-agent-windows.mjs",
+    "category": "executable",
+    "proposedStatus": "implemented_pending_integrated_validation_and_scan",
+    "priorClassification": "risk_acceptance_required",
+    "evidence": [
+      "tools/shared/trusted-executable.test.mjs",
+      "/tmp/NA0149-final-unit.log"
+    ],
+    "remainingLimitations": "Nenhum estado Sonar alterado. Aprovação humana e CI multiplataforma pendentes; ambiente do mesmo UID/administrador continua fronteira confiada."
+  },
+  {
+    "id": "SQ-0279",
+    "issueId": "517bffb9-78de-4cf5-8c50-77cc96e43890",
+    "rule": "javascript:S4036",
+    "file": "scripts/release/release-provenance.mjs",
+    "category": "executable",
+    "proposedStatus": "implemented_pending_integrated_validation_and_scan",
+    "priorClassification": "risk_acceptance_required",
+    "evidence": [
+      "tools/shared/trusted-executable.test.mjs",
+      "/tmp/NA0149-final-unit.log"
+    ],
+    "remainingLimitations": "Nenhum estado Sonar alterado. Aprovação humana e CI multiplataforma pendentes; ambiente do mesmo UID/administrador continua fronteira confiada."
+  },
+  {
+    "id": "SQ-0283",
+    "issueId": "5a01276f-19d8-49dd-8715-0eaa79098c10",
+    "rule": "javascript:S4036",
+    "file": "scripts/security/scan-images.mjs",
+    "category": "executable",
+    "proposedStatus": "implemented_pending_integrated_validation_and_scan",
+    "priorClassification": "risk_acceptance_required",
+    "evidence": [
+      "tools/shared/trusted-executable.test.mjs",
+      "/tmp/NA0149-final-unit.log"
+    ],
+    "remainingLimitations": "Nenhum estado Sonar alterado. Aprovação humana e CI multiplataforma pendentes; ambiente do mesmo UID/administrador continua fronteira confiada."
+  },
+  {
+    "id": "SQ-0288",
+    "issueId": "a9fdf1a9-5c8b-4b12-b5ca-049a3d86ab78",
+    "rule": "javascript:S4036",
+    "file": "tools/agents/security-live.mjs",
+    "category": "executable",
+    "proposedStatus": "implemented_pending_integrated_validation_and_scan",
+    "priorClassification": "risk_acceptance_required",
+    "evidence": [
+      "tools/shared/trusted-executable.test.mjs",
+      "/tmp/NA0149-final-unit.log"
+    ],
+    "remainingLimitations": "Nenhum estado Sonar alterado. Aprovação humana e CI multiplataforma pendentes; ambiente do mesmo UID/administrador continua fronteira confiada."
+  },
+  {
+    "id": "SQ-0296",
+    "issueId": "5a7afb65-b563-49e4-8ab4-8f25f0682c6f",
+    "rule": "javascript:S4036",
+    "file": "tools/deploy/doctor-nodeaccess-harness.cjs",
+    "category": "executable",
+    "proposedStatus": "implemented_pending_integrated_validation_and_scan",
+    "priorClassification": "risk_acceptance_required",
+    "evidence": [
+      "tools/shared/trusted-executable.test.mjs",
+      "/tmp/NA0149-final-unit.log"
+    ],
+    "remainingLimitations": "Nenhum estado Sonar alterado. Aprovação humana e CI multiplataforma pendentes; ambiente do mesmo UID/administrador continua fronteira confiada."
+  },
+  {
+    "id": "SQ-0302",
+    "issueId": "9f3f163a-424a-4186-a664-99add28cfd13",
+    "rule": "javascript:S4036",
+    "file": "tools/deploy/helm-chart-harness.cjs",
+    "category": "executable",
+    "proposedStatus": "implemented_pending_integrated_validation_and_scan",
+    "priorClassification": "risk_acceptance_required",
+    "evidence": [
+      "tools/shared/trusted-executable.test.mjs",
+      "/tmp/NA0149-final-unit.log"
+    ],
+    "remainingLimitations": "Nenhum estado Sonar alterado. Aprovação humana e CI multiplataforma pendentes; ambiente do mesmo UID/administrador continua fronteira confiada."
+  },
+  {
+    "id": "SQ-0304",
+    "issueId": "4abb2a68-195b-4a2e-a5e4-2185ea88969a",
+    "rule": "secrets:S6697",
+    "file": "tools/deploy/helm-ollama-kind-certification.sh",
+    "category": "cluster-context",
+    "proposedStatus": "implemented_pending_integrated_validation_and_scan",
+    "priorClassification": "risk_acceptance_required",
+    "evidence": [
+      "tools/deploy/helm-context-boundaries.test.mjs"
+    ],
+    "remainingLimitations": "Não houve acesso à VPS; ver validation.md para extensão exata dos ensaios e limites."
+  },
+  {
+    "id": "SQ-0305",
+    "issueId": "5018c007-244b-4651-bb12-575b91502797",
+    "rule": "javascript:S4036",
+    "file": "tools/deploy/release-source-real.mjs",
+    "category": "executable",
+    "proposedStatus": "implemented_pending_integrated_validation_and_scan",
+    "priorClassification": "risk_acceptance_required",
+    "evidence": [
+      "tools/shared/trusted-executable.test.mjs",
+      "/tmp/NA0149-final-unit.log"
+    ],
+    "remainingLimitations": "Nenhum estado Sonar alterado. Aprovação humana e CI multiplataforma pendentes; ambiente do mesmo UID/administrador continua fronteira confiada."
+  },
+  {
+    "id": "SQ-0309",
+    "issueId": "a4dec299-69b4-4548-a6ef-acf6b1aabbba",
+    "rule": "javascript:S4036",
+    "file": "tools/deploy/runtime-nonroot-real.mjs",
+    "category": "executable",
+    "proposedStatus": "implemented_pending_integrated_validation_and_scan",
+    "priorClassification": "risk_acceptance_required",
+    "evidence": [
+      "tools/shared/trusted-executable.test.mjs",
+      "/tmp/NA0149-final-unit.log"
+    ],
+    "remainingLimitations": "Nenhum estado Sonar alterado. Aprovação humana e CI multiplataforma pendentes; ambiente do mesmo UID/administrador continua fronteira confiada."
+  },
+  {
+    "id": "SQ-0314",
+    "issueId": "3af3c35d-f247-481c-b38b-da1fef3fd8b3",
+    "rule": "javascript:S1313",
+    "file": "tools/frontend/action-run-audit-playwright.cjs",
+    "category": "fixture",
+    "proposedStatus": "implemented_pending_integrated_validation_and_scan",
+    "priorClassification": "fix_required",
+    "evidence": [
+      "/tmp/NA0149-fidelity.log",
+      "/tmp/NA0149-audit-browser-fixed.log",
+      "/tmp/NA0149-investigations-browser.log"
+    ],
+    "remainingLimitations": "Não houve acesso à VPS; ver validation.md para extensão exata dos ensaios e limites."
+  },
+  {
+    "id": "SQ-0319",
+    "issueId": "15f5eb04-a72b-4dea-b009-6c1b72366713",
+    "rule": "javascript:S1313",
+    "file": "tools/frontend/ai-investigations-playwright.cjs",
+    "category": "fixture",
+    "proposedStatus": "implemented_pending_integrated_validation_and_scan",
+    "priorClassification": "fix_required",
+    "evidence": [
+      "/tmp/NA0149-fidelity.log",
+      "/tmp/NA0149-audit-browser-fixed.log",
+      "/tmp/NA0149-investigations-browser.log"
+    ],
+    "remainingLimitations": "Não houve acesso à VPS; ver validation.md para extensão exata dos ensaios e limites."
+  },
+  {
+    "id": "SQ-0346",
+    "issueId": "7bf890ec-ffbb-4f17-bbd0-63cd54de7ee9",
+    "rule": "javascript:S4036",
+    "file": "tools/frontend/host-duplicate-playwright.cjs",
+    "category": "executable",
+    "proposedStatus": "implemented_pending_integrated_validation_and_scan",
+    "priorClassification": "risk_acceptance_required",
+    "evidence": [
+      "tools/shared/trusted-executable.test.mjs",
+      "/tmp/NA0149-final-unit.log"
+    ],
+    "remainingLimitations": "Nenhum estado Sonar alterado. Aprovação humana e CI multiplataforma pendentes; ambiente do mesmo UID/administrador continua fronteira confiada."
+  },
+  {
+    "id": "SQ-0349",
+    "issueId": "e15abec7-b36e-43ef-aba9-c9b6e0d859e8",
+    "rule": "javascript:S4036",
+    "file": "tools/frontend/host-form-tabs-playwright.cjs",
+    "category": "executable",
+    "proposedStatus": "implemented_pending_integrated_validation_and_scan",
+    "priorClassification": "risk_acceptance_required",
+    "evidence": [
+      "tools/shared/trusted-executable.test.mjs",
+      "/tmp/NA0149-final-unit.log"
+    ],
+    "remainingLimitations": "Nenhum estado Sonar alterado. Aprovação humana e CI multiplataforma pendentes; ambiente do mesmo UID/administrador continua fronteira confiada."
+  },
+  {
+    "id": "SQ-0425",
+    "issueId": "369f75e2-77b5-421b-808e-21349efcfcd3",
+    "rule": "typescript:S4036",
+    "file": "tools/frontend/terminal-autocomplete-pty.ts",
+    "category": "executable",
+    "proposedStatus": "implemented_pending_integrated_validation_and_scan",
+    "priorClassification": "risk_acceptance_required",
+    "evidence": [
+      "tools/shared/trusted-executable.test.mjs",
+      "/tmp/NA0149-final-unit.log"
+    ],
+    "remainingLimitations": "Nenhum estado Sonar alterado. Aprovação humana e CI multiplataforma pendentes; ambiente do mesmo UID/administrador continua fronteira confiada."
+  },
+  {
+    "id": "SQ-0427",
+    "issueId": "23c425a3-9828-45c6-b699-2696506b35ad",
+    "rule": "javascript:S4036",
+    "file": "tools/frontend/terminal-cdp-load.cjs",
+    "category": "executable",
+    "proposedStatus": "implemented_pending_integrated_validation_and_scan",
+    "priorClassification": "risk_acceptance_required",
+    "evidence": [
+      "tools/shared/trusted-executable.test.mjs",
+      "/tmp/NA0149-final-unit.log"
+    ],
+    "remainingLimitations": "Nenhum estado Sonar alterado. Aprovação humana e CI multiplataforma pendentes; ambiente do mesmo UID/administrador continua fronteira confiada."
+  },
+  {
+    "id": "SQ-0450",
+    "issueId": "537d0961-fdf8-4197-a0da-882109f3207b",
+    "rule": "javascript:S4036",
+    "file": "tools/frontend/terminal-playwright-load.cjs",
+    "category": "executable",
+    "proposedStatus": "implemented_pending_integrated_validation_and_scan",
+    "priorClassification": "risk_acceptance_required",
+    "evidence": [
+      "tools/shared/trusted-executable.test.mjs",
+      "/tmp/NA0149-final-unit.log"
+    ],
+    "remainingLimitations": "Nenhum estado Sonar alterado. Aprovação humana e CI multiplataforma pendentes; ambiente do mesmo UID/administrador continua fronteira confiada."
+  },
+  {
+    "id": "SQ-0453",
+    "issueId": "7f790b45-ad73-40b5-9b9f-cb13fde93cf4",
+    "rule": "typescript:S1313",
+    "file": "tools/frontend/trial-live-playwright.mts",
+    "category": "trial-boundary",
+    "proposedStatus": "implemented_pending_integrated_validation_and_scan",
+    "priorClassification": "fix_required",
+    "evidence": [
+      "tools/frontend/trial-live-boundaries.test.mjs",
+      "/tmp/NA0149-boundaries.log"
+    ],
+    "remainingLimitations": "Não houve acesso à VPS; ver validation.md para extensão exata dos ensaios e limites."
+  },
+  {
+    "id": "SQ-0455",
+    "issueId": "6053ef1d-a1bf-442f-a362-24a01e522e08",
+    "rule": "typescript:S2068",
+    "file": "tools/frontend/trial-live-playwright.mts",
+    "category": "trial-boundary",
+    "proposedStatus": "implemented_pending_integrated_validation_and_scan",
+    "priorClassification": "risk_acceptance_required",
+    "evidence": [
+      "tools/frontend/trial-live-boundaries.test.mjs",
+      "/tmp/NA0149-boundaries.log"
+    ],
+    "remainingLimitations": "Não houve acesso à VPS; ver validation.md para extensão exata dos ensaios e limites."
+  },
+  {
+    "id": "SQ-0457",
+    "issueId": "087751d9-875c-4501-aa5e-556ab0984c34",
+    "rule": "typescript:S1313",
+    "file": "tools/frontend/trial-live-playwright.mts",
+    "category": "trial-boundary",
+    "proposedStatus": "implemented_pending_integrated_validation_and_scan",
+    "priorClassification": "risk_acceptance_required",
+    "evidence": [
+      "tools/frontend/trial-live-boundaries.test.mjs",
+      "/tmp/NA0149-boundaries.log"
+    ],
+    "remainingLimitations": "Não houve acesso à VPS; ver validation.md para extensão exata dos ensaios e limites."
+  },
+  {
+    "id": "SQ-0458",
+    "issueId": "726e9475-bee2-4470-a178-1fa17acb2fff",
+    "rule": "typescript:S1313",
+    "file": "tools/frontend/trial-live-playwright.mts",
+    "category": "trial-boundary",
+    "proposedStatus": "implemented_pending_integrated_validation_and_scan",
+    "priorClassification": "risk_acceptance_required",
+    "evidence": [
+      "tools/frontend/trial-live-boundaries.test.mjs",
+      "/tmp/NA0149-boundaries.log"
+    ],
+    "remainingLimitations": "Não houve acesso à VPS; ver validation.md para extensão exata dos ensaios e limites."
+  },
+  {
+    "id": "SQ-0466",
+    "issueId": "0fb8ef31-e096-489b-a236-072d10a4df88",
+    "rule": "javascript:S4036",
+    "file": "tools/frontend/trial-onboarding-playwright.cjs",
+    "category": "executable",
+    "proposedStatus": "implemented_pending_integrated_validation_and_scan",
+    "priorClassification": "risk_acceptance_required",
+    "evidence": [
+      "tools/shared/trusted-executable.test.mjs",
+      "/tmp/NA0149-final-unit.log"
+    ],
+    "remainingLimitations": "Nenhum estado Sonar alterado. Aprovação humana e CI multiplataforma pendentes; ambiente do mesmo UID/administrador continua fronteira confiada."
+  },
+  {
+    "id": "SQ-0467",
+    "issueId": "df2c960f-16d4-4b79-b226-571e028ed441",
+    "rule": "javascript:S4036",
+    "file": "tools/frontend/trial-onboarding-playwright.cjs",
+    "category": "executable",
+    "proposedStatus": "implemented_pending_integrated_validation_and_scan",
+    "priorClassification": "risk_acceptance_required",
+    "evidence": [
+      "tools/shared/trusted-executable.test.mjs",
+      "/tmp/NA0149-final-unit.log"
+    ],
+    "remainingLimitations": "Nenhum estado Sonar alterado. Aprovação humana e CI multiplataforma pendentes; ambiente do mesmo UID/administrador continua fronteira confiada."
+  },
+  {
+    "id": "SQ-0477",
+    "issueId": "bc6bff92-4617-4e65-a26c-b343e134a847",
+    "rule": "javascript:S4036",
+    "file": "tools/load-tests/scripts/mock-ssh-server.js",
+    "category": "executable",
+    "proposedStatus": "implemented_pending_integrated_validation_and_scan",
+    "priorClassification": "risk_acceptance_required",
+    "evidence": [
+      "tools/shared/trusted-executable.test.mjs",
+      "/tmp/NA0149-final-unit.log"
+    ],
+    "remainingLimitations": "Nenhum estado Sonar alterado. Aprovação humana e CI multiplataforma pendentes; ambiente do mesmo UID/administrador continua fronteira confiada."
+  },
+  {
+    "id": "SQ-0478",
+    "issueId": "b3b3cd3d-4ffc-45be-bdc2-fa9b9fd6beb5",
+    "rule": "javascript:S4036",
+    "file": "tools/load-tests/scripts/run-gateway-with-metrics.js",
+    "category": "executable",
+    "proposedStatus": "implemented_pending_integrated_validation_and_scan",
+    "priorClassification": "risk_acceptance_required",
+    "evidence": [
+      "tools/shared/trusted-executable.test.mjs",
+      "/tmp/NA0149-final-unit.log"
+    ],
+    "remainingLimitations": "Nenhum estado Sonar alterado. Aprovação humana e CI multiplataforma pendentes; ambiente do mesmo UID/administrador continua fronteira confiada."
+  },
+  {
+    "id": "SQ-0503",
+    "issueId": "31ea97a5-38d9-4b1d-af92-981f86b3610a",
+    "rule": "typescript:S1313",
+    "file": "tools/session-audit/reconstruction-fidelity.ts",
+    "category": "fixture",
+    "proposedStatus": "implemented_pending_integrated_validation_and_scan",
+    "priorClassification": "fix_required",
+    "evidence": [
+      "/tmp/NA0149-fidelity.log",
+      "/tmp/NA0149-audit-browser-fixed.log",
+      "/tmp/NA0149-investigations-browser.log"
+    ],
+    "remainingLimitations": "Não houve acesso à VPS; ver validation.md para extensão exata dos ensaios e limites."
+  },
+  {
+    "id": "SQ-0515",
+    "issueId": "600b14dd-bef9-4541-9f92-c8e7c1dc0e57",
+    "rule": "typescript:S4036",
+    "file": "tools/snippets/macro-progress-mysql.mts",
+    "category": "executable",
+    "proposedStatus": "implemented_pending_integrated_validation_and_scan",
+    "priorClassification": "risk_acceptance_required",
+    "evidence": [
+      "tools/shared/trusted-executable.test.mjs",
+      "/tmp/NA0149-final-unit.log"
+    ],
+    "remainingLimitations": "Nenhum estado Sonar alterado. Aprovação humana e CI multiplataforma pendentes; ambiente do mesmo UID/administrador continua fronteira confiada."
+  },
+  {
+    "id": "SQ-0516",
+    "issueId": "8b9377a7-d9c2-42d4-8680-c7fc5e5fb288",
+    "rule": "typescript:S4036",
+    "file": "tools/snippets/macro-progress-mysql.mts",
+    "category": "executable",
+    "proposedStatus": "implemented_pending_integrated_validation_and_scan",
+    "priorClassification": "risk_acceptance_required",
+    "evidence": [
+      "tools/shared/trusted-executable.test.mjs",
+      "/tmp/NA0149-final-unit.log"
+    ],
+    "remainingLimitations": "Nenhum estado Sonar alterado. Aprovação humana e CI multiplataforma pendentes; ambiente do mesmo UID/administrador continua fronteira confiada."
+  },
+  {
+    "id": "SQ-0518",
+    "issueId": "2ab3ec46-2ba6-4822-942e-e604bf3e8b17",
+    "rule": "javascript:S2612",
+    "file": "tools/tls/adapter.mjs",
+    "category": "webroot",
+    "proposedStatus": "implemented_pending_integrated_validation_and_scan",
+    "priorClassification": "risk_acceptance_required",
+    "evidence": [
+      "tools/tls/challenge-files.test.mjs",
+      "/tmp/NA0149-tls-real2.log"
+    ],
+    "remainingLimitations": "Não houve acesso à VPS; ver validation.md para extensão exata dos ensaios e limites."
+  },
+  {
+    "id": "SQ-0519",
+    "issueId": "fa21b890-0c38-4c89-a0b6-d097194371a9",
+    "rule": "javascript:S2612",
+    "file": "tools/tls/adapter.mjs",
+    "category": "webroot",
+    "proposedStatus": "implemented_pending_integrated_validation_and_scan",
+    "priorClassification": "risk_acceptance_required",
+    "evidence": [
+      "tools/tls/challenge-files.test.mjs",
+      "/tmp/NA0149-tls-real2.log"
+    ],
+    "remainingLimitations": "Não houve acesso à VPS; ver validation.md para extensão exata dos ensaios e limites."
+  },
+  {
+    "id": "SQ-0521",
+    "issueId": "bfaec988-7e99-46b9-89f7-c90ef484cd0b",
+    "rule": "javascript:S4036",
+    "file": "tools/tls/adapter.mjs",
+    "category": "executable",
+    "proposedStatus": "implemented_pending_integrated_validation_and_scan",
+    "priorClassification": "risk_acceptance_required",
+    "evidence": [
+      "tools/shared/trusted-executable.test.mjs",
+      "/tmp/NA0149-final-unit.log"
+    ],
+    "remainingLimitations": "Nenhum estado Sonar alterado. Aprovação humana e CI multiplataforma pendentes; ambiente do mesmo UID/administrador continua fronteira confiada."
+  },
+  {
+    "id": "SQ-0522",
+    "issueId": "7080df1e-8fcf-4c0c-be0f-e9eaf6d78477",
+    "rule": "typescript:S4036",
+    "file": "tools/tls/audit-integration.ts",
+    "category": "executable",
+    "proposedStatus": "implemented_pending_integrated_validation_and_scan",
+    "priorClassification": "risk_acceptance_required",
+    "evidence": [
+      "tools/shared/trusted-executable.test.mjs",
+      "/tmp/NA0149-final-unit.log"
+    ],
+    "remainingLimitations": "Nenhum estado Sonar alterado. Aprovação humana e CI multiplataforma pendentes; ambiente do mesmo UID/administrador continua fronteira confiada."
+  },
+  {
+    "id": "SQ-0524",
+    "issueId": "cedff12b-10c1-42cc-b0de-2641890c28d8",
+    "rule": "javascript:S4036",
+    "file": "tools/tls/integration.cjs",
+    "category": "executable",
+    "proposedStatus": "implemented_pending_integrated_validation_and_scan",
+    "priorClassification": "risk_acceptance_required",
+    "evidence": [
+      "tools/shared/trusted-executable.test.mjs",
+      "/tmp/NA0149-final-unit.log"
+    ],
+    "remainingLimitations": "Nenhum estado Sonar alterado. Aprovação humana e CI multiplataforma pendentes; ambiente do mesmo UID/administrador continua fronteira confiada."
+  },
+  {
+    "id": "SQ-0525",
+    "issueId": "8793b0a9-e2a6-4952-9cfe-13acaa0ed6aa",
+    "rule": "javascript:S4036",
+    "file": "tools/tls/integration.cjs",
+    "category": "executable",
+    "proposedStatus": "implemented_pending_integrated_validation_and_scan",
+    "priorClassification": "risk_acceptance_required",
+    "evidence": [
+      "tools/shared/trusted-executable.test.mjs",
+      "/tmp/NA0149-final-unit.log"
+    ],
+    "remainingLimitations": "Nenhum estado Sonar alterado. Aprovação humana e CI multiplataforma pendentes; ambiente do mesmo UID/administrador continua fronteira confiada."
+  },
+  {
+    "id": "SQ-0526",
+    "issueId": "00bf2ac9-df75-4f0d-8860-7cf1cdd3200d",
+    "rule": "javascript:S4036",
+    "file": "tools/tls/integration.cjs",
+    "category": "executable",
+    "proposedStatus": "implemented_pending_integrated_validation_and_scan",
+    "priorClassification": "risk_acceptance_required",
+    "evidence": [
+      "tools/shared/trusted-executable.test.mjs",
+      "/tmp/NA0149-final-unit.log"
+    ],
+    "remainingLimitations": "Nenhum estado Sonar alterado. Aprovação humana e CI multiplataforma pendentes; ambiente do mesmo UID/administrador continua fronteira confiada."
+  },
+  {
+    "id": "SQ-0527",
+    "issueId": "ff4c8100-c58d-453d-97b9-e8308768a0cf",
+    "rule": "javascript:S4036",
+    "file": "tools/tls/integration.cjs",
+    "category": "executable",
+    "proposedStatus": "implemented_pending_integrated_validation_and_scan",
+    "priorClassification": "risk_acceptance_required",
+    "evidence": [
+      "tools/shared/trusted-executable.test.mjs",
+      "/tmp/NA0149-final-unit.log"
+    ],
+    "remainingLimitations": "Nenhum estado Sonar alterado. Aprovação humana e CI multiplataforma pendentes; ambiente do mesmo UID/administrador continua fronteira confiada."
+  },
+  {
+    "id": "SQ-0529",
+    "issueId": "959a983a-635e-41b3-b931-5e8396d28bb5",
+    "rule": "javascript:S4036",
+    "file": "tools/tls/integration.cjs",
+    "category": "executable",
+    "proposedStatus": "implemented_pending_integrated_validation_and_scan",
+    "priorClassification": "risk_acceptance_required",
+    "evidence": [
+      "tools/shared/trusted-executable.test.mjs",
+      "/tmp/NA0149-final-unit.log"
+    ],
+    "remainingLimitations": "Nenhum estado Sonar alterado. Aprovação humana e CI multiplataforma pendentes; ambiente do mesmo UID/administrador continua fronteira confiada."
+  },
+  {
+    "id": "SQ-0533",
+    "issueId": "7817bd82-93c1-490a-85e0-3a84f44cbaab",
+    "rule": "javascript:S1143",
+    "file": "tools/tls/manager.mjs",
+    "category": "tls-diagnostics",
+    "proposedStatus": "implemented_pending_integrated_validation_and_scan",
+    "priorClassification": "risk_acceptance_required",
+    "evidence": [
+      "tools/tls/manager.test.mjs",
+      "/tmp/NA0149-manager-final.log"
+    ],
+    "remainingLimitations": "Não houve acesso à VPS; ver validation.md para extensão exata dos ensaios e limites."
+  }
+]

@@ -1,3 +1,4 @@
+import { resolveExecutable } from '../../tools/shared/trusted-executable.cjs'
 import { createHash } from 'node:crypto'
 import { existsSync, readFileSync, readdirSync, writeFileSync } from 'node:fs'
 import { relative, resolve, join, sep } from 'node:path'
@@ -6,7 +7,7 @@ import { pathToFileURL } from 'node:url'
 
 const sha256 = bytes => createHash('sha256').update(bytes).digest('hex')
 function git(root, args) {
-  const result = spawnSync('git', ['-C', root, ...args], { encoding: 'utf8', maxBuffer: 16 * 1024 * 1024 })
+  const result = spawnSync(resolveExecutable('git'), ['-C', root, ...args], { encoding: 'utf8', maxBuffer: 16 * 1024 * 1024 })
   if (result.status !== 0) throw new Error('Git source provenance unavailable')
   return result.stdout.trim()
 }
@@ -20,7 +21,7 @@ function sourceHashes(root) {
     }
     if (existsSync(join(root, migrations, 'migration_lock.toml'))) paths.push(`${migrations}/migration_lock.toml`)
   }
-  return Object.fromEntries(paths.sort().map(file => [file, sha256(readFileSync(join(root, file)))]))
+  return Object.fromEntries(paths.sort(compareCodeUnits).map(file => [file, sha256(readFileSync(join(root, file)))]))
 }
 export function collectSource(root, releaseDir, allowUnverified = false) {
   root = resolve(root)
@@ -46,7 +47,8 @@ export function collectSource(root, releaseDir, allowUnverified = false) {
   }
   return { ...source, filesSha256: sourceHashes(root) }
 }
-export function collectImages(refs, inspect = true, run = spawnSync) {
+function runImageCommand(command, args, options) { return spawnSync(resolveExecutable(command), args, options) }
+export function collectImages(refs, inspect = true, run = runImageCommand) {
   return refs.map(reference => {
     if (!inspect) return { reference, id: null, repoDigests: [], inspected: false }
     const result = run('docker', ['image', 'inspect', reference], { encoding: 'utf8', maxBuffer: 4 * 1024 * 1024 })
@@ -56,7 +58,7 @@ export function collectImages(refs, inspect = true, run = spawnSync) {
     }
     const [record] = JSON.parse(result.stdout)
     if (!/^sha256:[a-f0-9]{64}$/.test(record?.Id)) throw new Error(`Invalid image ID: ${reference}`)
-    return { reference, id: record.Id, repoDigests: [...(record.RepoDigests ?? [])].sort(), inspected: true }
+    return { reference, id: record.Id, repoDigests: [...(record.RepoDigests ?? [])].sort(compareCodeUnits), inspected: true }
   })
 }
 export function finalize(root, releaseDir, snapshotFile, inspect, refs, allowUnverified = false) {
@@ -96,4 +98,11 @@ if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1]
     process.stderr.write(`[release] ${error.message}\n`)
     process.exitCode = 1
   }
+}
+
+// Preserve the native string sort order used by canonical output and digests.
+function compareCodeUnits(left, right) {
+  if (left < right) return -1
+  if (left > right) return 1
+  return 0
 }

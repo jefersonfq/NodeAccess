@@ -3,7 +3,7 @@
     "id": "hosts",
     "title": "Hosts e sessões abertas",
     "summary": "Encontre o equipamento certo e retome seu trabalho com segurança.",
-    "reviewedAt": "2026-11-03",
+    "reviewedAt": "2026-11-04",
     "sourceFiles": [
       "apps/frontend/src/views/HostsView.vue",
       "apps/frontend/src/components/TrialResourcesPanel.vue",
@@ -32,13 +32,13 @@
       "Conferir o destino",
       "Conectar ou retomar"
     ],
-    "reviewedSourceHash": "a0d782f10779716bcb288b5634e25b3604f51b2856f126317c62fadf49115ab9"
+    "reviewedSourceHash": "5b7ef2d9f80d54eac4aa03618cc514a379d0c52d369632007e7951262546b63c"
   },
   {
     "id": "terminal",
     "title": "Terminal e organização das abas",
     "summary": "Trabalhe com várias conexões mantendo o destino e o estado de cada aba claros.",
-    "reviewedAt": "2026-11-03",
+    "reviewedAt": "2026-11-04T14:22:30.098Z",
     "sourceFiles": [
       "apps/frontend/src/views/TerminalView.vue",
       "apps/frontend/src/components/TerminalPane.vue",
@@ -82,7 +82,7 @@
       "Organizar as abas",
       "Retomar o trabalho"
     ],
-    "reviewedSourceHash": "4a03f3a33c0a8c228b05375ad4a0b445ede3a11db59c87d499cf17c51f69ab9b"
+    "reviewedSourceHash": "eaa9ccc33622ffd63b7bd24ad4dd1cb3b54f9734b5e33503110b55777d6a9e98"
   },
   {
     "id": "sharing",

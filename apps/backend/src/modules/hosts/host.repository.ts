@@ -263,10 +263,10 @@ export class HostRepository {
 
     const idFilters = [visibleHostIds, inventoryHostIds, personalFolderHostIds].filter((ids): ids is number[] => ids !== null)
     const allowedHostIds = idFilters.length > 0
-      ? idFilters.reduce((current, ids) => {
+      ? idFilters.slice(1).reduce((current, ids) => {
           const allowed = new Set(ids)
           return current.filter((id) => allowed.has(id))
-        })
+        }, idFilters[0]!)
       : null
     if (allowedHostIds !== null && allowedHostIds.length === 0) {
       return { hosts: [], total: 0 }

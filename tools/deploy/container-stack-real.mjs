@@ -1,3 +1,4 @@
+import { stripFingerprintPadding } from '../shared/linear-harness-text.cjs'
 import { artifactPath } from '../shared/private-artifacts.cjs'
 /** Opt-in tests of built images. No .env, existing containers, or production data. */
 import assert from 'node:assert/strict'
@@ -203,7 +204,7 @@ try {
     assert.match(untrusted.presentedFingerprint, /^SHA256:/)
     const publicKeys = docker(['exec', ssh, 'sh', '-c', 'find /config -name "ssh_host_*.pub" -exec ssh-keygen -lf {} \\;'])
     // OpenSSH prints unpadded base64; NodeAccess stores the full digest encoding.
-    assert.ok(publicKeys.split('\n').some(line => line.split(/\s+/)[1] === untrusted.presentedFingerprint.replace(/=+$/, '')),
+    assert.ok(publicKeys.split('\n').some(line => line.split(/\s+/)[1] === stripFingerprintPadding(untrusted.presentedFingerprint)),
       'Fingerprint independently verified against the disposable SSH server')
     const trusted = await request(base, `/api/v1/hosts/${hosts[0].id}/trust-host-key`, {
       method: 'POST', token: verified.json.accessToken, body: { fingerprint: untrusted.presentedFingerprint },

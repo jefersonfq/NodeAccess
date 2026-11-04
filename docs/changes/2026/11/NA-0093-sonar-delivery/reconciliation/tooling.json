@@ -1,0 +1,1562 @@
+{
+  "reviewedAt": "2026-11-04T13:51:25.952607+00:00",
+  "root": "/tmp/nodeaccess-NA-0093",
+  "gitHead": "ee436402db8bcce7fab4378d6ba28c1673b282b5",
+  "worktreeState": "WIP integration; per-file SHA256 is authority",
+  "count": 78,
+  "counts": {
+    "technical_fp_supported": 72,
+    "needs_reassessment": 6
+  },
+  "ruleDefinitionSha256": "5315429470556c15084cd5835beb920169c461b8ab49565dd7d7487d9d3a9402",
+  "serverTransitions": 0,
+  "baselineChanges": 0,
+  "issues": [
+    {
+      "id": "SQ-0281",
+      "issueId": "33f39287-656d-4183-b324-9c6585ec4e64",
+      "rule": "javascript:S3403",
+      "file": "scripts/release/release-provenance.mjs",
+      "sourceLine": 56,
+      "originalLine": 54,
+      "sourceSha256": "6c38d166172ab61a32a2f2001c90cc348c0d13ebad38b773275eb354e0f94424",
+      "exactOriginalLinePresent": true,
+      "classification": "technical_fp_supported",
+      "reason": "inspect aceita boolean e string available: CLI converte explicitamente esse modo e teste chama collectImages com available. Comparação pode ser verdadeira, não são tipos sempre disjuntos.",
+      "evidence": [
+        "scripts/release/release-provenance.mjs:56",
+        "scripts/release/release-provenance.mjs:92",
+        "tools/deploy/release-provenance.test.mjs:76"
+      ],
+      "validation": "Leitura de fonte atual, comparação com ocorrência original e definição instalada; nenhum harness completo repetido nesta rodada.",
+      "limitations": "Conclusão restrita à ocorrência e ao hash revisado; não homologa execução completa, segurança de todo harness ou transição no Sonar. Reanálise final precisa confirmar assinatura/range."
+    },
+    {
+      "id": "SQ-0284",
+      "issueId": "1803f60d-4bea-4ede-a1bc-06bcb2d1e73d",
+      "rule": "javascript:S7059",
+      "file": "scripts/trial-lab/provider.mjs",
+      "sourceLine": 44,
+      "originalLine": 44,
+      "sourceSha256": "b7beb3d4bc2e975e8643e776aee739cc004ea5b05bbefc257cddce23b02f3654",
+      "exactOriginalLinePresent": true,
+      "classification": "technical_fp_supported",
+      "reason": "Promise.resolve() sem argumento é sentinela já resolvida da fila; construtor não retorna Promise nem aguarda inicialização. Operação real é anexada posteriormente em serial(action).",
+      "evidence": [
+        "scripts/trial-lab/provider.mjs:44",
+        "scripts/trial-lab/provider.mjs:45"
+      ],
+      "validation": "Leitura de fonte atual, comparação com ocorrência original e definição instalada; nenhum harness completo repetido nesta rodada.",
+      "limitations": "Conclusão restrita à ocorrência e ao hash revisado; não homologa execução completa, segurança de todo harness ou transição no Sonar. Reanálise final precisa confirmar assinatura/range."
+    },
+    {
+      "id": "SQ-0291",
+      "issueId": "0786f01d-e9b3-4bcc-8165-fbd61ecee004",
+      "rule": "secrets:S6697",
+      "file": "tools/deploy/backup-user-avatars-harness.sh",
+      "sourceLine": 19,
+      "originalLine": 19,
+      "sourceSha256": "2731cd861905c682f93112c8a93fedbb0a604149be555fbbadc456a1177fe019",
+      "exactOriginalLinePresent": true,
+      "classification": "technical_fp_supported",
+      "reason": "URI MySQL é preenchimento de configuração do harness de arquivos; backup/restore de avatars usam diretórios de fixture e não autenticam nessa URI. Não existe conta provisionada por esse literal.",
+      "evidence": [
+        "tools/deploy/backup-user-avatars-harness.sh:19",
+        "tools/deploy/backup-user-avatars-harness.sh:18",
+        "tools/deploy/backup-user-avatars-harness.sh:27",
+        "scripts/backup/backup-user-avatars.sh:27"
+      ],
+      "validation": "Leitura de fonte atual, comparação com ocorrência original e definição instalada; nenhum harness completo repetido nesta rodada.",
+      "limitations": "Conclusão restrita à ocorrência e ao hash revisado; não homologa execução completa, segurança de todo harness ou transição no Sonar. Reanálise final precisa confirmar assinatura/range."
+    },
+    {
+      "id": "SQ-0293",
+      "issueId": "ca3c7e88-3dd1-4223-a139-ad509f031e53",
+      "rule": "javascript:S8786",
+      "file": "tools/deploy/container-stack-real.mjs",
+      "sourceLine": 206,
+      "originalLine": 206,
+      "sourceSha256": "28563f2a7fa794d5129e4915bb97962a890070397f6d7b284f5b050399515bb4",
+      "exactOriginalLinePresent": true,
+      "classification": "needs_reassessment",
+      "reason": "Regex de remoção de padding tem repetição não ancorada ao início: sufixo inválido provoca tentativas repetidas. Fingerprint esperado pequeno limita exposição atual, mas a recomendação de complexidade é válida; não sustentar FP apenas por ser harness.",
+      "evidence": [
+        "tools/deploy/container-stack-real.mjs:206",
+        "/tmp/NA0093-tooling-fp-probes.json"
+      ],
+      "validation": "Leitura de fonte atual, comparação com ocorrência original e definição instalada; nenhum harness completo repetido nesta rodada. Probe em subprocesso timeout3s: tamanhos1000/2000/4000, crescimento compatível com backtracking; não prova alcance por inputexterno.",
+      "limitations": "Conclusão restrita à ocorrência e ao hash revisado; não homologa execução completa, segurança de todo harness ou transição no Sonar. Reanálise final precisa confirmar assinatura/range."
+    },
+    {
+      "id": "SQ-0294",
+      "issueId": "08a38452-6346-47dc-ad4c-c37b39ef72dd",
+      "rule": "secrets:S6697",
+      "file": "tools/deploy/doctor-nodeaccess-harness.cjs",
+      "sourceLine": 27,
+      "originalLine": 26,
+      "sourceSha256": "bd99d6f21328dc4f5d279f231edf1050f8c68307f0437e2596cc8b89445f1766",
+      "exactOriginalLinePresent": true,
+      "classification": "technical_fp_supported",
+      "reason": "URI preenchida somente no env descartável do doctor. Docker falso é executado e deep health/smoke estão desabilitados; literal não autentica conta MySQL real.",
+      "evidence": [
+        "tools/deploy/doctor-nodeaccess-harness.cjs:27",
+        "tools/deploy/doctor-nodeaccess-harness.cjs:23",
+        "tools/deploy/doctor-nodeaccess-harness.cjs:107",
+        "tools/deploy/doctor-nodeaccess-harness.cjs:119"
+      ],
+      "validation": "Leitura de fonte atual, comparação com ocorrência original e definição instalada; nenhum harness completo repetido nesta rodada.",
+      "limitations": "Conclusão restrita à ocorrência e ao hash revisado; não homologa execução completa, segurança de todo harness ou transição no Sonar. Reanálise final precisa confirmar assinatura/range."
+    },
+    {
+      "id": "SQ-0295",
+      "issueId": "47ffe909-38d1-4c9b-acfb-07a6151f88e0",
+      "rule": "javascript:S2612",
+      "file": "tools/deploy/doctor-nodeaccess-harness.cjs",
+      "sourceLine": 105,
+      "originalLine": 104,
+      "sourceSha256": "bd99d6f21328dc4f5d279f231edf1050f8c68307f0437e2596cc8b89445f1766",
+      "exactOriginalLinePresent": true,
+      "classification": "technical_fp_supported",
+      "reason": "Modo755 torna executável apenas o stub Docker sem segredo; fica abaixo de mkdtemp privado0700, não acessível por outros usuários. Permissão de execução é requisito do stub, sem escrita pública.",
+      "evidence": [
+        "tools/deploy/doctor-nodeaccess-harness.cjs:105",
+        "tools/deploy/doctor-nodeaccess-harness.cjs:10"
+      ],
+      "validation": "Leitura de fonte atual, comparação com ocorrência original e definição instalada; nenhum harness completo repetido nesta rodada.",
+      "limitations": "Conclusão restrita à ocorrência e ao hash revisado; não homologa execução completa, segurança de todo harness ou transição no Sonar. Reanálise final precisa confirmar assinatura/range."
+    },
+    {
+      "id": "SQ-0297",
+      "issueId": "7fbf0fc1-dacd-4726-96ae-2b3c1832c7c4",
+      "rule": "python:S5443",
+      "file": "tools/deploy/engineering-security-headers-harness.py",
+      "sourceLine": 7,
+      "originalLine": 7,
+      "sourceSha256": "315c57c74f924735a7fe80dd941ebf57d6ce742afcdc7615d1f5a590b643b591",
+      "exactOriginalLinePresent": true,
+      "classification": "technical_fp_supported",
+      "reason": "TemporaryDirectory cria diretório exclusivo0700 em /tmp, não arquivo previsível público; chaves de laboratório ficam dentro desse pai privado e contexto remove ao final.",
+      "evidence": [
+        "tools/deploy/engineering-security-headers-harness.py:7",
+        "/tmp/NA0093-tooling-fp-temporary-mode.json"
+      ],
+      "validation": "Leitura de fonte atual, comparação com ocorrência original e definição instalada; nenhum harness completo repetido nesta rodada. TemporaryDirectory real criado e removido; stat0700 confirmado.",
+      "limitations": "Conclusão restrita à ocorrência e ao hash revisado; não homologa execução completa, segurança de todo harness ou transição no Sonar. Reanálise final precisa confirmar assinatura/range."
+    },
+    {
+      "id": "SQ-0301",
+      "issueId": "5fd8556e-09be-4952-a3a0-f17e1d555459",
+      "rule": "secrets:S6697",
+      "file": "tools/deploy/ha-state-readiness-harness.sh",
+      "sourceLine": 20,
+      "originalLine": 20,
+      "sourceSha256": "6773c77ae48c28a811e34ad976fc4c5a0226d1bef406dc0262f31ea5234d03f5",
+      "exactOriginalLinePresent": true,
+      "classification": "technical_fp_supported",
+      "reason": "URI é dado do env de teste do verificador HA; consumidor só valida formato mysql:// e presença, com storage paths de fixture explícitos. Não há autenticação MySQL por esse literal.",
+      "evidence": [
+        "tools/deploy/ha-state-readiness-harness.sh:20",
+        "tools/deploy/ha-state-readiness-harness.sh:19",
+        "scripts/deploy/ha-state-readiness.sh:179",
+        "scripts/deploy/ha-state-readiness.sh:189"
+      ],
+      "validation": "Leitura de fonte atual, comparação com ocorrência original e definição instalada; nenhum harness completo repetido nesta rodada.",
+      "limitations": "Conclusão restrita à ocorrência e ao hash revisado; não homologa execução completa, segurança de todo harness ou transição no Sonar. Reanálise final precisa confirmar assinatura/range."
+    },
+    {
+      "id": "SQ-0303",
+      "issueId": "eb6fea74-53ec-4125-8fb6-712aeb35eeb4",
+      "rule": "secrets:S6697",
+      "file": "tools/deploy/helm-migration-recovery-harness.sh",
+      "sourceLine": 13,
+      "originalLine": 13,
+      "sourceSha256": "0d905cbf8ab2a8dbbbc11237ce223c40ec6051863a009293652520d419e57811",
+      "exactOriginalLinePresent": true,
+      "classification": "technical_fp_supported",
+      "reason": "URI deliberadamente inválida é injetada para provar falha de migração; credencial válida é outra variável obrigatória externa. Não é senha de conta existente exposta. Risco operacional de patch no cluster não é resolvido por esta conclusão restrita ao segredo.",
+      "evidence": [
+        "tools/deploy/helm-migration-recovery-harness.sh:13",
+        "tools/deploy/helm-migration-recovery-harness.sh:12",
+        "tools/deploy/helm-migration-recovery-harness.sh:27",
+        "tools/deploy/helm-migration-recovery-harness.sh:30"
+      ],
+      "validation": "Leitura de fonte atual, comparação com ocorrência original e definição instalada; nenhum harness completo repetido nesta rodada.",
+      "limitations": "Conclusão restrita à ocorrência e ao hash revisado; não homologa execução completa, segurança de todo harness ou transição no Sonar. Reanálise final precisa confirmar assinatura/range."
+    },
+    {
+      "id": "SQ-0306",
+      "issueId": "c580abfd-2d2c-494d-bc3a-859a9d7a32cc",
+      "rule": "secrets:S6697",
+      "file": "tools/deploy/restore-mysql-isolated-harness.sh",
+      "sourceLine": 66,
+      "originalLine": 66,
+      "sourceSha256": "f85f86c85ba2aa4edd78a6d3cacb0b796bf4a8500bdc9c9743548a1503a6f62b",
+      "exactOriginalLinePresent": true,
+      "classification": "needs_reassessment",
+      "reason": "Literal configura credencial efetivamente utilizável de MySQL que recebe backup real. Rede dedicada sem porta publicada reduz exposição, mas não elimina natureza de segredo hardcoded nem acesso por host/participantes da rede. Propor geração efêmera ou decisão explícita de risco, não FP automático.",
+      "evidence": [
+        "tools/deploy/restore-mysql-isolated-harness.sh:66",
+        "tools/deploy/restore-mysql-isolated-harness.sh:57",
+        "tools/deploy/restore-mysql-isolated-harness.sh:75",
+        "tools/deploy/restore-mysql-isolated-harness.sh:88"
+      ],
+      "validation": "Leitura de fonte atual, comparação com ocorrência original e definição instalada; nenhum harness completo repetido nesta rodada.",
+      "limitations": "Conclusão restrita à ocorrência e ao hash revisado; não homologa execução completa, segurança de todo harness ou transição no Sonar. Reanálise final precisa confirmar assinatura/range."
+    },
+    {
+      "id": "SQ-0307",
+      "issueId": "5d9ecf0d-1bd4-423a-9aeb-5b71e2b39cb4",
+      "rule": "secrets:S6697",
+      "file": "tools/deploy/restore-session-audit-isolated-harness.sh",
+      "sourceLine": 50,
+      "originalLine": 50,
+      "sourceSha256": "ee1f7f9f9cf78abcdc1e5a87e50995638a2b7a32f8b58f9d63d808e78b3d0b6c",
+      "exactOriginalLinePresent": true,
+      "classification": "technical_fp_supported",
+      "reason": "Env contém URI de preenchimento, mas fluxo restaura apenas volume de auditoria com helper de arquivos. Não inicia MySQL nem autentica com a URI; imagem mysql usada como utilitário não torna a string segredo operacional.",
+      "evidence": [
+        "tools/deploy/restore-session-audit-isolated-harness.sh:50",
+        "tools/deploy/restore-session-audit-isolated-harness.sh:46",
+        "tools/deploy/restore-session-audit-isolated-harness.sh:63",
+        "scripts/backup/restore-session-audit.sh:107"
+      ],
+      "validation": "Leitura de fonte atual, comparação com ocorrência original e definição instalada; nenhum harness completo repetido nesta rodada.",
+      "limitations": "Conclusão restrita à ocorrência e ao hash revisado; não homologa execução completa, segurança de todo harness ou transição no Sonar. Reanálise final precisa confirmar assinatura/range."
+    },
+    {
+      "id": "SQ-0310",
+      "issueId": "73c395e4-0617-4616-a206-e488cfc6cb94",
+      "rule": "secrets:S6697",
+      "file": "tools/deploy/stack-upgrade-real.mjs",
+      "sourceLine": 18,
+      "originalLine": 18,
+      "sourceSha256": "1999ced8c35d9c57e2c5230a7ac5e09acca42c2bc1fffc3f3f73994ca62c7203",
+      "exactOriginalLinePresent": true,
+      "classification": "technical_fp_supported",
+      "reason": "URI sentinel loopback porta1 impede uso acidental de configuração global; bancos reais descartáveis recebem senha randomBytes24 e datasources específicos. Literal sentinel não corresponde à credencial provisionada.",
+      "evidence": [
+        "tools/deploy/stack-upgrade-real.mjs:18",
+        "tools/deploy/stack-upgrade-real.mjs:17",
+        "tools/deploy/stack-upgrade-real.mjs:37"
+      ],
+      "validation": "Leitura de fonte atual, comparação com ocorrência original e definição instalada; nenhum harness completo repetido nesta rodada.",
+      "limitations": "Conclusão restrita à ocorrência e ao hash revisado; não homologa execução completa, segurança de todo harness ou transição no Sonar. Reanálise final precisa confirmar assinatura/range."
+    },
+    {
+      "id": "SQ-0315",
+      "issueId": "131b663c-07de-4a04-8987-7a9c68723160",
+      "rule": "javascript:S1313",
+      "file": "tools/frontend/agents-experience-playwright.cjs",
+      "sourceLine": 16,
+      "originalLine": 16,
+      "sourceSha256": "ec1882138e803d948031225ed3c82799f1dcf50d1848917af5594253a7e9a194",
+      "exactOriginalLinePresent": true,
+      "classification": "technical_fp_supported",
+      "reason": "Literal representa remoteIp do agente mock. Não é endereço de infraestrutura configurado pelo produto: o consumidor recebe dado sintético através da fronteira de simulação verificada.",
+      "evidence": [
+        "tools/frontend/agents-experience-playwright.cjs:16",
+        "tools/frontend/agents-experience-playwright.cjs:35",
+        "tools/frontend/agents-experience-playwright.cjs:68"
+      ],
+      "validation": "Leitura de fonte atual, comparação com ocorrência original e definição instalada; nenhum harness completo repetido nesta rodada.",
+      "limitations": "Conclusão restrita à ocorrência e ao hash revisado; não homologa execução completa, segurança de todo harness ou transição no Sonar. Reanálise final precisa confirmar assinatura/range."
+    },
+    {
+      "id": "SQ-0316",
+      "issueId": "e3e9eafc-6bab-4b45-a31d-9e241cce08af",
+      "rule": "javascript:S1313",
+      "file": "tools/frontend/agents-experience-playwright.cjs",
+      "sourceLine": 16,
+      "originalLine": 16,
+      "sourceSha256": "ec1882138e803d948031225ed3c82799f1dcf50d1848917af5594253a7e9a194",
+      "exactOriginalLinePresent": true,
+      "classification": "technical_fp_supported",
+      "reason": "Literal representa lastRemoteIp do agente mock. Não é endereço de infraestrutura configurado pelo produto: o consumidor recebe dado sintético através da fronteira de simulação verificada.",
+      "evidence": [
+        "tools/frontend/agents-experience-playwright.cjs:16",
+        "tools/frontend/agents-experience-playwright.cjs:35",
+        "tools/frontend/agents-experience-playwright.cjs:68"
+      ],
+      "validation": "Leitura de fonte atual, comparação com ocorrência original e definição instalada; nenhum harness completo repetido nesta rodada.",
+      "limitations": "Conclusão restrita à ocorrência e ao hash revisado; não homologa execução completa, segurança de todo harness ou transição no Sonar. Reanálise final precisa confirmar assinatura/range."
+    },
+    {
+      "id": "SQ-0317",
+      "issueId": "2ecd3d20-ea72-42a3-9583-d0e276773f80",
+      "rule": "javascript:S1313",
+      "file": "tools/frontend/agents-experience-playwright.cjs",
+      "sourceLine": 20,
+      "originalLine": 20,
+      "sourceSha256": "ec1882138e803d948031225ed3c82799f1dcf50d1848917af5594253a7e9a194",
+      "exactOriginalLinePresent": true,
+      "classification": "technical_fp_supported",
+      "reason": "Literal representa CIDR de permissão do conector mock. Não é endereço de infraestrutura configurado pelo produto: o consumidor recebe dado sintético através da fronteira de simulação verificada.",
+      "evidence": [
+        "tools/frontend/agents-experience-playwright.cjs:20",
+        "tools/frontend/agents-experience-playwright.cjs:35",
+        "tools/frontend/agents-experience-playwright.cjs:68"
+      ],
+      "validation": "Leitura de fonte atual, comparação com ocorrência original e definição instalada; nenhum harness completo repetido nesta rodada.",
+      "limitations": "Conclusão restrita à ocorrência e ao hash revisado; não homologa execução completa, segurança de todo harness ou transição no Sonar. Reanálise final precisa confirmar assinatura/range."
+    },
+    {
+      "id": "SQ-0318",
+      "issueId": "7d69e3a7-624b-41b6-affe-b4bd0bca181e",
+      "rule": "javascript:S1313",
+      "file": "tools/frontend/agents-experience-playwright.cjs",
+      "sourceLine": 62,
+      "originalLine": 62,
+      "sourceSha256": "ec1882138e803d948031225ed3c82799f1dcf50d1848917af5594253a7e9a194",
+      "exactOriginalLinePresent": true,
+      "classification": "technical_fp_supported",
+      "reason": "Literal representa host retornado por API mock de agentes. Não é endereço de infraestrutura configurado pelo produto: o consumidor recebe dado sintético através da fronteira de simulação verificada.",
+      "evidence": [
+        "tools/frontend/agents-experience-playwright.cjs:62",
+        "tools/frontend/agents-experience-playwright.cjs:35",
+        "tools/frontend/agents-experience-playwright.cjs:68"
+      ],
+      "validation": "Leitura de fonte atual, comparação com ocorrência original e definição instalada; nenhum harness completo repetido nesta rodada.",
+      "limitations": "Conclusão restrita à ocorrência e ao hash revisado; não homologa execução completa, segurança de todo harness ou transição no Sonar. Reanálise final precisa confirmar assinatura/range."
+    },
+    {
+      "id": "SQ-0328",
+      "issueId": "b5abd9cf-d0f8-4da4-8f8a-d0f3d6b33b0a",
+      "rule": "javascript:S1313",
+      "file": "tools/frontend/forwardings-resilience-playwright.cjs",
+      "sourceLine": 14,
+      "originalLine": 14,
+      "sourceSha256": "0931580432cf425923ca257610d8651946cb09fa3c2c83f24a8b826968a81f86",
+      "exactOriginalLinePresent": true,
+      "classification": "technical_fp_supported",
+      "reason": "Literal representa template mock de encaminhamento. Não é endereço de infraestrutura configurado pelo produto: o consumidor recebe dado sintético através da fronteira de simulação verificada.",
+      "evidence": [
+        "tools/frontend/forwardings-resilience-playwright.cjs:14",
+        "tools/frontend/forwardings-resilience-playwright.cjs:19",
+        "tools/frontend/forwardings-resilience-playwright.cjs:60"
+      ],
+      "validation": "Leitura de fonte atual, comparação com ocorrência original e definição instalada; nenhum harness completo repetido nesta rodada.",
+      "limitations": "Conclusão restrita à ocorrência e ao hash revisado; não homologa execução completa, segurança de todo harness ou transição no Sonar. Reanálise final precisa confirmar assinatura/range."
+    },
+    {
+      "id": "SQ-0329",
+      "issueId": "fb113cdc-66f4-40c5-b33d-39afdfc86bad",
+      "rule": "javascript:S1313",
+      "file": "tools/frontend/forwardings-resilience-playwright.cjs",
+      "sourceLine": 34,
+      "originalLine": 34,
+      "sourceSha256": "0931580432cf425923ca257610d8651946cb09fa3c2c83f24a8b826968a81f86",
+      "exactOriginalLinePresent": true,
+      "classification": "technical_fp_supported",
+      "reason": "Literal representa host da lista mock de encaminhamento. Não é endereço de infraestrutura configurado pelo produto: o consumidor recebe dado sintético através da fronteira de simulação verificada.",
+      "evidence": [
+        "tools/frontend/forwardings-resilience-playwright.cjs:34",
+        "tools/frontend/forwardings-resilience-playwright.cjs:19",
+        "tools/frontend/forwardings-resilience-playwright.cjs:60"
+      ],
+      "validation": "Leitura de fonte atual, comparação com ocorrência original e definição instalada; nenhum harness completo repetido nesta rodada.",
+      "limitations": "Conclusão restrita à ocorrência e ao hash revisado; não homologa execução completa, segurança de todo harness ou transição no Sonar. Reanálise final precisa confirmar assinatura/range."
+    },
+    {
+      "id": "SQ-0339",
+      "issueId": "f4923f5c-aa4d-43c1-8ae6-68d5249d1873",
+      "rule": "javascript:S1313",
+      "file": "tools/frontend/ha-playwright-smoke.cjs",
+      "sourceLine": 54,
+      "originalLine": 54,
+      "sourceSha256": "a3dd152587306652b8c298533b6279691011cc561eb6f15298ed2631409b31bc",
+      "exactOriginalLinePresent": true,
+      "classification": "technical_fp_supported",
+      "reason": "Literal representa endpoint standby da simulação HA. Não é endereço de infraestrutura configurado pelo produto: o consumidor recebe dado sintético através da fronteira de simulação verificada.",
+      "evidence": [
+        "tools/frontend/ha-playwright-smoke.cjs:54",
+        "tools/frontend/ha-playwright-smoke.cjs:154",
+        "tools/frontend/ha-playwright-smoke.cjs:321"
+      ],
+      "validation": "Leitura de fonte atual, comparação com ocorrência original e definição instalada; nenhum harness completo repetido nesta rodada.",
+      "limitations": "Conclusão restrita à ocorrência e ao hash revisado; não homologa execução completa, segurança de todo harness ou transição no Sonar. Reanálise final precisa confirmar assinatura/range."
+    },
+    {
+      "id": "SQ-0340",
+      "issueId": "91a4e737-4e9d-4366-aa82-d768c2dc6c4b",
+      "rule": "javascript:S1313",
+      "file": "tools/frontend/ha-playwright-smoke.cjs",
+      "sourceLine": 58,
+      "originalLine": 58,
+      "sourceSha256": "a3dd152587306652b8c298533b6279691011cc561eb6f15298ed2631409b31bc",
+      "exactOriginalLinePresent": true,
+      "classification": "technical_fp_supported",
+      "reason": "Literal representa VIP standby da simulação HA. Não é endereço de infraestrutura configurado pelo produto: o consumidor recebe dado sintético através da fronteira de simulação verificada.",
+      "evidence": [
+        "tools/frontend/ha-playwright-smoke.cjs:58",
+        "tools/frontend/ha-playwright-smoke.cjs:154",
+        "tools/frontend/ha-playwright-smoke.cjs:321"
+      ],
+      "validation": "Leitura de fonte atual, comparação com ocorrência original e definição instalada; nenhum harness completo repetido nesta rodada.",
+      "limitations": "Conclusão restrita à ocorrência e ao hash revisado; não homologa execução completa, segurança de todo harness ou transição no Sonar. Reanálise final precisa confirmar assinatura/range."
+    },
+    {
+      "id": "SQ-0341",
+      "issueId": "4ef58e07-6dfc-4244-ba84-baed4cee4b64",
+      "rule": "javascript:S1313",
+      "file": "tools/frontend/ha-playwright-smoke.cjs",
+      "sourceLine": 93,
+      "originalLine": 93,
+      "sourceSha256": "a3dd152587306652b8c298533b6279691011cc561eb6f15298ed2631409b31bc",
+      "exactOriginalLinePresent": true,
+      "classification": "technical_fp_supported",
+      "reason": "Literal representa endpoint primary da simulação HA. Não é endereço de infraestrutura configurado pelo produto: o consumidor recebe dado sintético através da fronteira de simulação verificada.",
+      "evidence": [
+        "tools/frontend/ha-playwright-smoke.cjs:93",
+        "tools/frontend/ha-playwright-smoke.cjs:154",
+        "tools/frontend/ha-playwright-smoke.cjs:321"
+      ],
+      "validation": "Leitura de fonte atual, comparação com ocorrência original e definição instalada; nenhum harness completo repetido nesta rodada.",
+      "limitations": "Conclusão restrita à ocorrência e ao hash revisado; não homologa execução completa, segurança de todo harness ou transição no Sonar. Reanálise final precisa confirmar assinatura/range."
+    },
+    {
+      "id": "SQ-0342",
+      "issueId": "606380be-50cd-482b-8b48-a398f4317ccd",
+      "rule": "javascript:S1313",
+      "file": "tools/frontend/ha-playwright-smoke.cjs",
+      "sourceLine": 97,
+      "originalLine": 97,
+      "sourceSha256": "a3dd152587306652b8c298533b6279691011cc561eb6f15298ed2631409b31bc",
+      "exactOriginalLinePresent": true,
+      "classification": "technical_fp_supported",
+      "reason": "Literal representa VIP primary da simulação HA. Não é endereço de infraestrutura configurado pelo produto: o consumidor recebe dado sintético através da fronteira de simulação verificada.",
+      "evidence": [
+        "tools/frontend/ha-playwright-smoke.cjs:97",
+        "tools/frontend/ha-playwright-smoke.cjs:154",
+        "tools/frontend/ha-playwright-smoke.cjs:321"
+      ],
+      "validation": "Leitura de fonte atual, comparação com ocorrência original e definição instalada; nenhum harness completo repetido nesta rodada.",
+      "limitations": "Conclusão restrita à ocorrência e ao hash revisado; não homologa execução completa, segurança de todo harness ou transição no Sonar. Reanálise final precisa confirmar assinatura/range."
+    },
+    {
+      "id": "SQ-0344",
+      "issueId": "3b53cdef-0356-4c70-8bc4-61d32753c04f",
+      "rule": "javascript:S1313",
+      "file": "tools/frontend/host-backed-bastions-playwright.cjs",
+      "sourceLine": 14,
+      "originalLine": 14,
+      "sourceSha256": "8051986d817a02908ae09f7a636501bfb411b7deed15420ecefa3652c12be902",
+      "exactOriginalLinePresent": true,
+      "classification": "technical_fp_supported",
+      "reason": "Literal representa host elegível usado na seleção mock de bastion. Não é endereço de infraestrutura configurado pelo produto: o consumidor recebe dado sintético através da fronteira de simulação verificada.",
+      "evidence": [
+        "tools/frontend/host-backed-bastions-playwright.cjs:14",
+        "tools/frontend/host-backed-bastions-playwright.cjs:31",
+        "tools/frontend/host-backed-bastions-playwright.cjs:56"
+      ],
+      "validation": "Leitura de fonte atual, comparação com ocorrência original e definição instalada; nenhum harness completo repetido nesta rodada.",
+      "limitations": "Conclusão restrita à ocorrência e ao hash revisado; não homologa execução completa, segurança de todo harness ou transição no Sonar. Reanálise final precisa confirmar assinatura/range."
+    },
+    {
+      "id": "SQ-0347",
+      "issueId": "3e4d5302-3e32-47f5-b618-022860f4617d",
+      "rule": "javascript:S3403",
+      "file": "tools/frontend/host-duplicate-playwright.cjs",
+      "sourceLine": 67,
+      "originalLine": 66,
+      "sourceSha256": "a8d6b208c5bd75757433d21df20fe66784ce0c5567a7bd004fcb87462204b075",
+      "exactOriginalLinePresent": true,
+      "classification": "technical_fp_supported",
+      "reason": "failSave começa boolean mas recebe número403 explicitamente no cenário de permissão. Comparação strict com403 é alcançável e intencional; conversão para == reduziria precisão.",
+      "evidence": [
+        "tools/frontend/host-duplicate-playwright.cjs:67",
+        "tools/frontend/host-duplicate-playwright.cjs:141",
+        "tools/frontend/host-duplicate-playwright.cjs:145"
+      ],
+      "validation": "Leitura de fonte atual, comparação com ocorrência original e definição instalada; nenhum harness completo repetido nesta rodada.",
+      "limitations": "Conclusão restrita à ocorrência e ao hash revisado; não homologa execução completa, segurança de todo harness ou transição no Sonar. Reanálise final precisa confirmar assinatura/range."
+    },
+    {
+      "id": "SQ-0356",
+      "issueId": "9025d17b-b87d-4e31-a583-87aa048c6186",
+      "rule": "javascript:S1313",
+      "file": "tools/frontend/host-secret-credentials-playwright.cjs",
+      "sourceLine": 6,
+      "originalLine": 6,
+      "sourceSha256": "256ddf48c593bbcfae71f022b7425e8a9e09ae78240dbeb78c2dc14eff9a9468",
+      "exactOriginalLinePresent": true,
+      "classification": "technical_fp_supported",
+      "reason": "Literal representa host de cenário de credencial mock. Não é endereço de infraestrutura configurado pelo produto: o consumidor recebe dado sintético através da fronteira de simulação verificada.",
+      "evidence": [
+        "tools/frontend/host-secret-credentials-playwright.cjs:6",
+        "tools/frontend/host-secret-credentials-playwright.cjs:38",
+        "tools/frontend/host-secret-credentials-playwright.cjs:53"
+      ],
+      "validation": "Leitura de fonte atual, comparação com ocorrência original e definição instalada; nenhum harness completo repetido nesta rodada.",
+      "limitations": "Conclusão restrita à ocorrência e ao hash revisado; não homologa execução completa, segurança de todo harness ou transição no Sonar. Reanálise final precisa confirmar assinatura/range."
+    },
+    {
+      "id": "SQ-0357",
+      "issueId": "60d30f9d-b75a-4693-9359-0b7ff041ad60",
+      "rule": "javascript:S1313",
+      "file": "tools/frontend/host-shortcut-navigation-playwright.cjs",
+      "sourceLine": 4,
+      "originalLine": 4,
+      "sourceSha256": "6f1ed8d55106a5c6c624965743aac1272349997b369dee6c53301cbdeb8c1c50",
+      "exactOriginalLinePresent": true,
+      "classification": "technical_fp_supported",
+      "reason": "Literal representa host fora da primeira página para navegação mock. Não é endereço de infraestrutura configurado pelo produto: o consumidor recebe dado sintético através da fronteira de simulação verificada.",
+      "evidence": [
+        "tools/frontend/host-shortcut-navigation-playwright.cjs:4",
+        "tools/frontend/host-shortcut-navigation-playwright.cjs:15",
+        "tools/frontend/host-shortcut-navigation-playwright.cjs:26"
+      ],
+      "validation": "Leitura de fonte atual, comparação com ocorrência original e definição instalada; nenhum harness completo repetido nesta rodada.",
+      "limitations": "Conclusão restrita à ocorrência e ao hash revisado; não homologa execução completa, segurança de todo harness ou transição no Sonar. Reanálise final precisa confirmar assinatura/range."
+    },
+    {
+      "id": "SQ-0358",
+      "issueId": "036cba68-c9a9-440e-a1cb-a269870dfe11",
+      "rule": "javascript:S1313",
+      "file": "tools/frontend/hosts-acl-resilience-playwright.cjs",
+      "sourceLine": 16,
+      "originalLine": 16,
+      "sourceSha256": "76b33f7bed7680f161317137d0599ba0d766b4373bef7c847b34e0f9d6229179",
+      "exactOriginalLinePresent": true,
+      "classification": "technical_fp_supported",
+      "reason": "Literal representa host de cenário de ACL mock. Não é endereço de infraestrutura configurado pelo produto: o consumidor recebe dado sintético através da fronteira de simulação verificada.",
+      "evidence": [
+        "tools/frontend/hosts-acl-resilience-playwright.cjs:16",
+        "tools/frontend/hosts-acl-resilience-playwright.cjs:68",
+        "tools/frontend/hosts-acl-resilience-playwright.cjs:71",
+        "tools/frontend/hosts-acl-resilience-playwright.cjs:72",
+        "tools/frontend/hosts-acl-resilience-playwright.cjs:77"
+      ],
+      "validation": "Leitura de fonte atual, comparação com ocorrência original e definição instalada; nenhum harness completo repetido nesta rodada.",
+      "limitations": "Conclusão restrita à ocorrência e ao hash revisado; não homologa execução completa, segurança de todo harness ou transição no Sonar. Reanálise final precisa confirmar assinatura/range."
+    },
+    {
+      "id": "SQ-0359",
+      "issueId": "8dd768a6-c4e4-4c94-bec2-96d6a88a60a4",
+      "rule": "javascript:S2189",
+      "file": "tools/frontend/hosts-acl-resilience-playwright.cjs",
+      "sourceLine": 168,
+      "originalLine": 168,
+      "sourceSha256": "76b33f7bed7680f161317137d0599ba0d766b4373bef7c847b34e0f9d6229179",
+      "exactOriginalLinePresent": true,
+      "classification": "technical_fp_supported",
+      "reason": "Laço tem contador local crescente e condição i<100 além do estado assíncrono. Encerra em até100 iterações mesmo sem resposta; regra de loop infinito não se aplica.",
+      "evidence": [
+        "tools/frontend/hosts-acl-resilience-playwright.cjs:168",
+        "/tmp/NA0093-tooling-fp-probes.json"
+      ],
+      "validation": "Leitura de fonte atual, comparação com ocorrência original e definição instalada; nenhum harness completo repetido nesta rodada. AST real extraída confirmou guarda e incremento; não executado browser.",
+      "limitations": "Conclusão restrita à ocorrência e ao hash revisado; não homologa execução completa, segurança de todo harness ou transição no Sonar. Reanálise final precisa confirmar assinatura/range."
+    },
+    {
+      "id": "SQ-0360",
+      "issueId": "af78b9f8-314d-499b-ad11-708e2b371d43",
+      "rule": "javascript:S2189",
+      "file": "tools/frontend/hosts-acl-resilience-playwright.cjs",
+      "sourceLine": 204,
+      "originalLine": 204,
+      "sourceSha256": "76b33f7bed7680f161317137d0599ba0d766b4373bef7c847b34e0f9d6229179",
+      "exactOriginalLinePresent": true,
+      "classification": "technical_fp_supported",
+      "reason": "Laço tem contador local crescente e condição i<100 além do estado assíncrono. Encerra em até100 iterações mesmo sem resposta; regra de loop infinito não se aplica.",
+      "evidence": [
+        "tools/frontend/hosts-acl-resilience-playwright.cjs:204",
+        "/tmp/NA0093-tooling-fp-probes.json"
+      ],
+      "validation": "Leitura de fonte atual, comparação com ocorrência original e definição instalada; nenhum harness completo repetido nesta rodada. AST real extraída confirmou guarda e incremento; não executado browser.",
+      "limitations": "Conclusão restrita à ocorrência e ao hash revisado; não homologa execução completa, segurança de todo harness ou transição no Sonar. Reanálise final precisa confirmar assinatura/range."
+    },
+    {
+      "id": "SQ-0361",
+      "issueId": "7c22b1be-1abf-4c0f-a454-9f0c1e1434c1",
+      "rule": "javascript:S2189",
+      "file": "tools/frontend/hosts-acl-resilience-playwright.cjs",
+      "sourceLine": 245,
+      "originalLine": 245,
+      "sourceSha256": "76b33f7bed7680f161317137d0599ba0d766b4373bef7c847b34e0f9d6229179",
+      "exactOriginalLinePresent": true,
+      "classification": "technical_fp_supported",
+      "reason": "Laço tem contador local crescente e condição i<100 além do estado assíncrono. Encerra em até100 iterações mesmo sem resposta; regra de loop infinito não se aplica.",
+      "evidence": [
+        "tools/frontend/hosts-acl-resilience-playwright.cjs:245",
+        "/tmp/NA0093-tooling-fp-probes.json"
+      ],
+      "validation": "Leitura de fonte atual, comparação com ocorrência original e definição instalada; nenhum harness completo repetido nesta rodada. AST real extraída confirmou guarda e incremento; não executado browser.",
+      "limitations": "Conclusão restrita à ocorrência e ao hash revisado; não homologa execução completa, segurança de todo harness ou transição no Sonar. Reanálise final precisa confirmar assinatura/range."
+    },
+    {
+      "id": "SQ-0363",
+      "issueId": "940ba870-d37b-4db7-868c-9592e7244794",
+      "rule": "javascript:S1313",
+      "file": "tools/frontend/hosts-corporate-folders-playwright.cjs",
+      "sourceLine": 13,
+      "originalLine": 13,
+      "sourceSha256": "fe6c4108dce39456a0f870dc54f5ba087adf54c55df840d506cc050e7cea23fc",
+      "exactOriginalLinePresent": true,
+      "classification": "technical_fp_supported",
+      "reason": "Literal representa host de pastas corporativas mock. Não é endereço de infraestrutura configurado pelo produto: o consumidor recebe dado sintético através da fronteira de simulação verificada.",
+      "evidence": [
+        "tools/frontend/hosts-corporate-folders-playwright.cjs:13",
+        "tools/frontend/hosts-corporate-folders-playwright.cjs:39",
+        "tools/frontend/hosts-corporate-folders-playwright.cjs:73"
+      ],
+      "validation": "Leitura de fonte atual, comparação com ocorrência original e definição instalada; nenhum harness completo repetido nesta rodada.",
+      "limitations": "Conclusão restrita à ocorrência e ao hash revisado; não homologa execução completa, segurança de todo harness ou transição no Sonar. Reanálise final precisa confirmar assinatura/range."
+    },
+    {
+      "id": "SQ-0364",
+      "issueId": "f4fdded7-0d76-47fc-af00-957569f7cdc8",
+      "rule": "javascript:S3403",
+      "file": "tools/frontend/hosts-feedback-ux-playwright.cjs",
+      "sourceLine": 34,
+      "originalLine": 34,
+      "sourceSha256": "19ea7807a595bb4f3c299fe9a92cd1ff431e9ef9c2add8c9d9475405229d28b5",
+      "exactOriginalLinePresent": true,
+      "classification": "technical_fp_supported",
+      "reason": "sftpFailure recebe cada item de array com númerosHTTP e string network; ramo de abort distingue erro de rede real do mockHTTP, comparação pode ser verdadeira.",
+      "evidence": [
+        "tools/frontend/hosts-feedback-ux-playwright.cjs:34",
+        "tools/frontend/hosts-feedback-ux-playwright.cjs:87",
+        "tools/frontend/hosts-feedback-ux-playwright.cjs:88"
+      ],
+      "validation": "Leitura de fonte atual, comparação com ocorrência original e definição instalada; nenhum harness completo repetido nesta rodada.",
+      "limitations": "Conclusão restrita à ocorrência e ao hash revisado; não homologa execução completa, segurança de todo harness ou transição no Sonar. Reanálise final precisa confirmar assinatura/range."
+    },
+    {
+      "id": "SQ-0370",
+      "issueId": "4acf4719-f4e6-4ffa-9206-2a61e54a1614",
+      "rule": "javascript:S1313",
+      "file": "tools/frontend/hosts-personal-folders-playwright.cjs",
+      "sourceLine": 26,
+      "originalLine": 26,
+      "sourceSha256": "eb565827ce3e27d4da0012dd9b46db2d041b3ea4d82d507d193b97293745ee4d",
+      "exactOriginalLinePresent": true,
+      "classification": "technical_fp_supported",
+      "reason": "Literal representa host de pastas pessoais mock. Não é endereço de infraestrutura configurado pelo produto: o consumidor recebe dado sintético através da fronteira de simulação verificada.",
+      "evidence": [
+        "tools/frontend/hosts-personal-folders-playwright.cjs:26",
+        "tools/frontend/hosts-personal-folders-playwright.cjs:56",
+        "tools/frontend/hosts-personal-folders-playwright.cjs:93"
+      ],
+      "validation": "Leitura de fonte atual, comparação com ocorrência original e definição instalada; nenhum harness completo repetido nesta rodada.",
+      "limitations": "Conclusão restrita à ocorrência e ao hash revisado; não homologa execução completa, segurança de todo harness ou transição no Sonar. Reanálise final precisa confirmar assinatura/range."
+    },
+    {
+      "id": "SQ-0372",
+      "issueId": "b700f81d-8c59-491f-b31f-f4b8f505acc5",
+      "rule": "javascript:S1313",
+      "file": "tools/frontend/hosts-presence-resilience-playwright.cjs",
+      "sourceLine": 15,
+      "originalLine": 15,
+      "sourceSha256": "d184fe5565261fda790ebda513fbeb1b02088fb58f56e44adefffd60b67a4f84",
+      "exactOriginalLinePresent": true,
+      "classification": "technical_fp_supported",
+      "reason": "Literal representa host de presença mock. Não é endereço de infraestrutura configurado pelo produto: o consumidor recebe dado sintético através da fronteira de simulação verificada.",
+      "evidence": [
+        "tools/frontend/hosts-presence-resilience-playwright.cjs:15",
+        "tools/frontend/hosts-presence-resilience-playwright.cjs:57",
+        "tools/frontend/hosts-presence-resilience-playwright.cjs:88",
+        "tools/frontend/hosts-presence-resilience-playwright.cjs:92"
+      ],
+      "validation": "Leitura de fonte atual, comparação com ocorrência original e definição instalada; nenhum harness completo repetido nesta rodada.",
+      "limitations": "Conclusão restrita à ocorrência e ao hash revisado; não homologa execução completa, segurança de todo harness ou transição no Sonar. Reanálise final precisa confirmar assinatura/range."
+    },
+    {
+      "id": "SQ-0375",
+      "issueId": "ae699274-627f-4b55-a6b3-ea098376df23",
+      "rule": "javascript:S1313",
+      "file": "tools/frontend/jira-integration-playwright.cjs",
+      "sourceLine": 23,
+      "originalLine": 23,
+      "sourceSha256": "80d9320046c8c7934f8f67647ff3cd63b08158f31bc8aa926277b4c7641c81c9",
+      "exactOriginalLinePresent": true,
+      "classification": "technical_fp_supported",
+      "reason": "Literal representa host de terminal salvo em sessionStorage com WebSocket substituído. Não é endereço de infraestrutura configurado pelo produto: o consumidor recebe dado sintético através da fronteira de simulação verificada.",
+      "evidence": [
+        "tools/frontend/jira-integration-playwright.cjs:23",
+        "tools/frontend/jira-integration-playwright.cjs:22",
+        "tools/frontend/jira-integration-playwright.cjs:36",
+        "tools/frontend/jira-integration-playwright.cjs:54"
+      ],
+      "validation": "Leitura de fonte atual, comparação com ocorrência original e definição instalada; nenhum harness completo repetido nesta rodada.",
+      "limitations": "Conclusão restrita à ocorrência e ao hash revisado; não homologa execução completa, segurança de todo harness ou transição no Sonar. Reanálise final precisa confirmar assinatura/range."
+    },
+    {
+      "id": "SQ-0376",
+      "issueId": "f6f05851-95ac-4c25-ad27-a364edc0ccfb",
+      "rule": "javascript:S1313",
+      "file": "tools/frontend/jira-integration-playwright.cjs",
+      "sourceLine": 83,
+      "originalLine": 83,
+      "sourceSha256": "80d9320046c8c7934f8f67647ff3cd63b08158f31bc8aa926277b4c7641c81c9",
+      "exactOriginalLinePresent": true,
+      "classification": "technical_fp_supported",
+      "reason": "Literal representa host reinjetado após reload em terminal com WebSocket substituído. Não é endereço de infraestrutura configurado pelo produto: o consumidor recebe dado sintético através da fronteira de simulação verificada.",
+      "evidence": [
+        "tools/frontend/jira-integration-playwright.cjs:83",
+        "tools/frontend/jira-integration-playwright.cjs:22",
+        "tools/frontend/jira-integration-playwright.cjs:36",
+        "tools/frontend/jira-integration-playwright.cjs:54"
+      ],
+      "validation": "Leitura de fonte atual, comparação com ocorrência original e definição instalada; nenhum harness completo repetido nesta rodada.",
+      "limitations": "Conclusão restrita à ocorrência e ao hash revisado; não homologa execução completa, segurança de todo harness ou transição no Sonar. Reanálise final precisa confirmar assinatura/range."
+    },
+    {
+      "id": "SQ-0378",
+      "issueId": "724edb5d-4d06-4b91-ae3b-e5c36e7a741f",
+      "rule": "javascript:S1313",
+      "file": "tools/frontend/local-ai-playwright.cjs",
+      "sourceLine": 87,
+      "originalLine": 87,
+      "sourceSha256": "13d3a82b13b12c31beb3523dcbc29aebe1bc677cd6887bc1addb936d6901f348",
+      "exactOriginalLinePresent": true,
+      "classification": "technical_fp_supported",
+      "reason": "Literal representa host da lista localAI mock. Não é endereço de infraestrutura configurado pelo produto: o consumidor recebe dado sintético através da fronteira de simulação verificada.",
+      "evidence": [
+        "tools/frontend/local-ai-playwright.cjs:87",
+        "tools/frontend/local-ai-playwright.cjs:46",
+        "tools/frontend/local-ai-playwright.cjs:97"
+      ],
+      "validation": "Leitura de fonte atual, comparação com ocorrência original e definição instalada; nenhum harness completo repetido nesta rodada.",
+      "limitations": "Conclusão restrita à ocorrência e ao hash revisado; não homologa execução completa, segurança de todo harness ou transição no Sonar. Reanálise final precisa confirmar assinatura/range."
+    },
+    {
+      "id": "SQ-0379",
+      "issueId": "9c872ea7-4c22-4411-b9dd-e7410f5331db",
+      "rule": "javascript:S1313",
+      "file": "tools/frontend/local-ai-playwright.cjs",
+      "sourceLine": 94,
+      "originalLine": 94,
+      "sourceSha256": "13d3a82b13b12c31beb3523dcbc29aebe1bc677cd6887bc1addb936d6901f348",
+      "exactOriginalLinePresent": true,
+      "classification": "technical_fp_supported",
+      "reason": "Literal representa bastion da lista localAI mock. Não é endereço de infraestrutura configurado pelo produto: o consumidor recebe dado sintético através da fronteira de simulação verificada.",
+      "evidence": [
+        "tools/frontend/local-ai-playwright.cjs:94",
+        "tools/frontend/local-ai-playwright.cjs:46",
+        "tools/frontend/local-ai-playwright.cjs:97"
+      ],
+      "validation": "Leitura de fonte atual, comparação com ocorrência original e definição instalada; nenhum harness completo repetido nesta rodada.",
+      "limitations": "Conclusão restrita à ocorrência e ao hash revisado; não homologa execução completa, segurança de todo harness ou transição no Sonar. Reanálise final precisa confirmar assinatura/range."
+    },
+    {
+      "id": "SQ-0385",
+      "issueId": "b3788cef-4925-49dd-8c2b-7f64092bad01",
+      "rule": "javascript:S1313",
+      "file": "tools/frontend/mobaxterm-import-playwright.cjs",
+      "sourceLine": 53,
+      "originalLine": 53,
+      "sourceSha256": "8d085cffcdc4bcbe63d5d51dd76d636b057d62a82d31f537e156be0bbd837cfc",
+      "exactOriginalLinePresent": true,
+      "classification": "technical_fp_supported",
+      "reason": "Literal representa host bastion para resolução de importação mock. Não é endereço de infraestrutura configurado pelo produto: o consumidor recebe dado sintético através da fronteira de simulação verificada.",
+      "evidence": [
+        "tools/frontend/mobaxterm-import-playwright.cjs:53",
+        "tools/frontend/mobaxterm-import-playwright.cjs:45",
+        "tools/frontend/mobaxterm-import-playwright.cjs:102"
+      ],
+      "validation": "Leitura de fonte atual, comparação com ocorrência original e definição instalada; nenhum harness completo repetido nesta rodada.",
+      "limitations": "Conclusão restrita à ocorrência e ao hash revisado; não homologa execução completa, segurança de todo harness ou transição no Sonar. Reanálise final precisa confirmar assinatura/range."
+    },
+    {
+      "id": "SQ-0386",
+      "issueId": "605ae85f-d5dd-49ca-b4d3-0300e83e49a6",
+      "rule": "javascript:S1313",
+      "file": "tools/frontend/mobaxterm-import-playwright.cjs",
+      "sourceLine": 70,
+      "originalLine": 70,
+      "sourceSha256": "8d085cffcdc4bcbe63d5d51dd76d636b057d62a82d31f537e156be0bbd837cfc",
+      "exactOriginalLinePresent": true,
+      "classification": "technical_fp_supported",
+      "reason": "Literal representa registro bastion legado para importação mock. Não é endereço de infraestrutura configurado pelo produto: o consumidor recebe dado sintético através da fronteira de simulação verificada.",
+      "evidence": [
+        "tools/frontend/mobaxterm-import-playwright.cjs:70",
+        "tools/frontend/mobaxterm-import-playwright.cjs:45",
+        "tools/frontend/mobaxterm-import-playwright.cjs:102"
+      ],
+      "validation": "Leitura de fonte atual, comparação com ocorrência original e definição instalada; nenhum harness completo repetido nesta rodada.",
+      "limitations": "Conclusão restrita à ocorrência e ao hash revisado; não homologa execução completa, segurança de todo harness ou transição no Sonar. Reanálise final precisa confirmar assinatura/range."
+    },
+    {
+      "id": "SQ-0388",
+      "issueId": "1cd97ee3-703b-4ddd-b89c-fbc707b36b91",
+      "rule": "javascript:S3403",
+      "file": "tools/frontend/observability-cdp-harness.cjs",
+      "sourceLine": 627,
+      "originalLine": 627,
+      "sourceSha256": "78e1a5f9be36acabdec83cdd8e92975f22164a628eb100094a2507e737c4cb45",
+      "exactOriginalLinePresent": true,
+      "classification": "technical_fp_supported",
+      "reason": "require.main e module são ambos objetos Module; execução CLI é igual e importação por resilience/shared viewer é distinta. Guarda evita iniciar browser ao importar helpers.",
+      "evidence": [
+        "tools/frontend/observability-cdp-harness.cjs:627",
+        "tools/frontend/observability-resilience-playwright.cjs:6",
+        "tools/frontend/shared-viewer-geometry-playwright.cjs:5"
+      ],
+      "validation": "Leitura de fonte atual, comparação com ocorrência original e definição instalada; nenhum harness completo repetido nesta rodada.",
+      "limitations": "Conclusão restrita à ocorrência e ao hash revisado; não homologa execução completa, segurança de todo harness ou transição no Sonar. Reanálise final precisa confirmar assinatura/range."
+    },
+    {
+      "id": "SQ-0390",
+      "issueId": "30a33c4b-1e10-4f3e-8e7e-e88572bf3c8e",
+      "rule": "javascript:S3403",
+      "file": "tools/frontend/observability-resilience-playwright.cjs",
+      "sourceLine": 26,
+      "originalLine": 26,
+      "sourceSha256": "aa73ef2b02becf688bbf273ca3729b96caa4d995c0e1deab1b738f9f4efb38f0",
+      "exactOriginalLinePresent": true,
+      "classification": "technical_fp_supported",
+      "reason": "failure recebe número503 e string offline no laço explícito; igualdade com offline é ramo real, não comparação impossível inferida do inicializador.",
+      "evidence": [
+        "tools/frontend/observability-resilience-playwright.cjs:26",
+        "tools/frontend/observability-resilience-playwright.cjs:48",
+        "tools/frontend/observability-resilience-playwright.cjs:49"
+      ],
+      "validation": "Leitura de fonte atual, comparação com ocorrência original e definição instalada; nenhum harness completo repetido nesta rodada.",
+      "limitations": "Conclusão restrita à ocorrência e ao hash revisado; não homologa execução completa, segurança de todo harness ou transição no Sonar. Reanálise final precisa confirmar assinatura/range."
+    },
+    {
+      "id": "SQ-0396",
+      "issueId": "61b58233-50b1-4da6-9492-85d5ba8b43f7",
+      "rule": "javascript:S1313",
+      "file": "tools/frontend/recent-host-access-playwright.cjs",
+      "sourceLine": 14,
+      "originalLine": 13,
+      "sourceSha256": "f2fe968ea1ceba3d8a7f000da8b039e53ee7cfed3437b4a6860762bee5531d82",
+      "exactOriginalLinePresent": true,
+      "classification": "technical_fp_supported",
+      "reason": "Literal representa host recente de cenário de nome extenso mock. Não é endereço de infraestrutura configurado pelo produto: o consumidor recebe dado sintético através da fronteira de simulação verificada.",
+      "evidence": [
+        "tools/frontend/recent-host-access-playwright.cjs:13",
+        "tools/frontend/recent-host-access-playwright.cjs:38",
+        "tools/frontend/recent-host-access-playwright.cjs:64"
+      ],
+      "validation": "Leitura de fonte atual, comparação com ocorrência original e definição instalada; nenhum harness completo repetido nesta rodada.",
+      "limitations": "Conclusão restrita à ocorrência e ao hash revisado; não homologa execução completa, segurança de todo harness ou transição no Sonar. Reanálise final precisa confirmar assinatura/range.",
+      "previousReviewedSourceSha256": "1007f34ddc458efd663b6c0cdce4ffa592b736a86188953b665647886ad2d116",
+      "originalAnchorLinePreserved": true,
+      "finalSourceRevalidation": {
+        "id": "SQ-0396",
+        "issueId": "61b58233-50b1-4da6-9492-85d5ba8b43f7",
+        "rule": "javascript:S1313",
+        "file": "tools/frontend/recent-host-access-playwright.cjs",
+        "decision": "technical_fp_supported",
+        "proposedUpdates": {
+          "sourceSha256": "f2fe968ea1ceba3d8a7f000da8b039e53ee7cfed3437b4a6860762bee5531d82",
+          "sourceLine": 14,
+          "originalAnchorLinePreserved": true
+        },
+        "previousSourceSha256": "1007f34ddc458efd663b6c0cdce4ffa592b736a86188953b665647886ad2d116",
+        "previousReviewedRef": "ee436402db8bcce7fab4378d6ba28c1673b282b5",
+        "previousReviewedLine": 13,
+        "originalAuditRef": "ee436402db8bcce7fab4378d6ba28c1673b282b5",
+        "originalAuditLine": 13,
+        "anchorSha256": "947a12c0836ca9c2bafd570b6c2cbb79d9765b9887646106f55b470f528ccc74",
+        "reason": "Literal representa host recente de cenário de nome extenso mock. Não é endereço de infraestrutura configurado pelo produto: o consumidor recebe dado sintético através da fronteira de simulação verificada. NA0153 adds containsYearAndTime import and replaces only tooltip assertion. Hosts fixture declarations, mock route.fulfill responses and consumers remain unchanged except line shift.",
+        "evidence": [
+          "tools/frontend/recent-host-access-playwright.cjs:14",
+          "git show ee436402db8bcce7fab4378d6ba28c1673b282b5:tools/frontend/recent-host-access-playwright.cjs:13",
+          "git show ee436402db8bcce7fab4378d6ba28c1673b282b5:tools/frontend/recent-host-access-playwright.cjs:13",
+          "tools/frontend/recent-host-access-playwright.cjs:39",
+          "tools/frontend/recent-host-access-playwright.cjs:46",
+          "tools/frontend/recent-host-access-playwright.cjs:53",
+          "tools/frontend/recent-host-access-playwright.cjs:65",
+          "/tmp/NA0093-tooling-fp-rule-definitions.json — javascript:S1313 infrastructure configuration scope"
+        ],
+        "validation": "Independent read-only comparison of original audit, exact prior-reviewed hash snapshot and current integrated working tree; diff and consumer inspected. Both fixture rows and route.fulfill consumer chains compared; no browser rerun.",
+        "limitations": "These IPs are fixture response data, not the browser frontend endpoint or production SSH destinations. Private ranges alone are not an exception. No full browser harness rerun or assertion of whole-harness network isolation; no server transition.",
+        "serverTransitionPerformed": false
+      }
+    },
+    {
+      "id": "SQ-0397",
+      "issueId": "e03ddebb-7fff-4a4f-9d7d-83285910c051",
+      "rule": "javascript:S1313",
+      "file": "tools/frontend/recent-host-access-playwright.cjs",
+      "sourceLine": 15,
+      "originalLine": 14,
+      "sourceSha256": "f2fe968ea1ceba3d8a7f000da8b039e53ee7cfed3437b4a6860762bee5531d82",
+      "exactOriginalLinePresent": true,
+      "classification": "technical_fp_supported",
+      "reason": "Literal representa host recente sem permissão connect mock. Não é endereço de infraestrutura configurado pelo produto: o consumidor recebe dado sintético através da fronteira de simulação verificada.",
+      "evidence": [
+        "tools/frontend/recent-host-access-playwright.cjs:14",
+        "tools/frontend/recent-host-access-playwright.cjs:38",
+        "tools/frontend/recent-host-access-playwright.cjs:64"
+      ],
+      "validation": "Leitura de fonte atual, comparação com ocorrência original e definição instalada; nenhum harness completo repetido nesta rodada.",
+      "limitations": "Conclusão restrita à ocorrência e ao hash revisado; não homologa execução completa, segurança de todo harness ou transição no Sonar. Reanálise final precisa confirmar assinatura/range.",
+      "previousReviewedSourceSha256": "1007f34ddc458efd663b6c0cdce4ffa592b736a86188953b665647886ad2d116",
+      "originalAnchorLinePreserved": true,
+      "finalSourceRevalidation": {
+        "id": "SQ-0397",
+        "issueId": "e03ddebb-7fff-4a4f-9d7d-83285910c051",
+        "rule": "javascript:S1313",
+        "file": "tools/frontend/recent-host-access-playwright.cjs",
+        "decision": "technical_fp_supported",
+        "proposedUpdates": {
+          "sourceSha256": "f2fe968ea1ceba3d8a7f000da8b039e53ee7cfed3437b4a6860762bee5531d82",
+          "sourceLine": 15,
+          "originalAnchorLinePreserved": true
+        },
+        "previousSourceSha256": "1007f34ddc458efd663b6c0cdce4ffa592b736a86188953b665647886ad2d116",
+        "previousReviewedRef": "ee436402db8bcce7fab4378d6ba28c1673b282b5",
+        "previousReviewedLine": 14,
+        "originalAuditRef": "ee436402db8bcce7fab4378d6ba28c1673b282b5",
+        "originalAuditLine": 14,
+        "anchorSha256": "e127a853a6c65dd5b941558343c065bf4120440813d59b3aa8cad6be1c999d28",
+        "reason": "Literal representa host recente sem permissão connect mock. Não é endereço de infraestrutura configurado pelo produto: o consumidor recebe dado sintético através da fronteira de simulação verificada. NA0153 adds containsYearAndTime import and replaces only tooltip assertion. Hosts fixture declarations, mock route.fulfill responses and consumers remain unchanged except line shift.",
+        "evidence": [
+          "tools/frontend/recent-host-access-playwright.cjs:15",
+          "git show ee436402db8bcce7fab4378d6ba28c1673b282b5:tools/frontend/recent-host-access-playwright.cjs:14",
+          "git show ee436402db8bcce7fab4378d6ba28c1673b282b5:tools/frontend/recent-host-access-playwright.cjs:14",
+          "tools/frontend/recent-host-access-playwright.cjs:39",
+          "tools/frontend/recent-host-access-playwright.cjs:46",
+          "tools/frontend/recent-host-access-playwright.cjs:53",
+          "tools/frontend/recent-host-access-playwright.cjs:65",
+          "/tmp/NA0093-tooling-fp-rule-definitions.json — javascript:S1313 infrastructure configuration scope"
+        ],
+        "validation": "Independent read-only comparison of original audit, exact prior-reviewed hash snapshot and current integrated working tree; diff and consumer inspected. Both fixture rows and route.fulfill consumer chains compared; no browser rerun.",
+        "limitations": "These IPs are fixture response data, not the browser frontend endpoint or production SSH destinations. Private ranges alone are not an exception. No full browser harness rerun or assertion of whole-harness network isolation; no server transition.",
+        "serverTransitionPerformed": false
+      }
+    },
+    {
+      "id": "SQ-0398",
+      "issueId": "71b49306-2ce3-4b18-b0c1-aee0cb2e0029",
+      "rule": "javascript:S8786",
+      "file": "tools/frontend/recent-host-access-playwright.cjs",
+      "sourceLine": 98,
+      "originalLine": 98,
+      "sourceSha256": "1007f34ddc458efd663b6c0cdce4ffa592b736a86188953b665647886ad2d116",
+      "exactOriginalLinePresent": true,
+      "classification": "needs_reassessment",
+      "reason": "Regex não ancorada com dígitos e .* tem repetição quadrática no negativo de dígitos longos. Tooltip formatado é pequeno e controlado, portanto não há DoS demonstrado no produto, mas regra de complexidade continua aplicável; buscar expressão limitada/contrato explícito.",
+      "evidence": [
+        "tools/frontend/recent-host-access-playwright.cjs:98",
+        "/tmp/NA0093-tooling-fp-probes.json"
+      ],
+      "validation": "Leitura de fonte atual, comparação com ocorrência original e definição instalada; nenhum harness completo repetido nesta rodada. Probe em subprocesso timeout3s: tamanhos1000/2000/4000, crescimento compatível com backtracking; não prova alcance por inputexterno.",
+      "limitations": "Conclusão restrita à ocorrência e ao hash revisado; não homologa execução completa, segurança de todo harness ou transição no Sonar. Reanálise final precisa confirmar assinatura/range."
+    },
+    {
+      "id": "SQ-0403",
+      "issueId": "1c51e782-d898-419f-ab0a-b32911bfcba5",
+      "rule": "javascript:S1313",
+      "file": "tools/frontend/session-command-policies-playwright.cjs",
+      "sourceLine": 29,
+      "originalLine": 29,
+      "sourceSha256": "9e05830dc5a2f6a91a6d56d86d934166a4c772d74ac5ca98b4e355351bdcece9",
+      "exactOriginalLinePresent": true,
+      "classification": "technical_fp_supported",
+      "reason": "Literal representa host da política de comandos mock. Não é endereço de infraestrutura configurado pelo produto: o consumidor recebe dado sintético através da fronteira de simulação verificada.",
+      "evidence": [
+        "tools/frontend/session-command-policies-playwright.cjs:29",
+        "tools/frontend/session-command-policies-playwright.cjs:37",
+        "tools/frontend/session-command-policies-playwright.cjs:65"
+      ],
+      "validation": "Leitura de fonte atual, comparação com ocorrência original e definição instalada; nenhum harness completo repetido nesta rodada.",
+      "limitations": "Conclusão restrita à ocorrência e ao hash revisado; não homologa execução completa, segurança de todo harness ou transição no Sonar. Reanálise final precisa confirmar assinatura/range."
+    },
+    {
+      "id": "SQ-0408",
+      "issueId": "1936579c-7b50-4e05-941c-1db18b833672",
+      "rule": "javascript:S1313",
+      "file": "tools/frontend/session-playback-playwright.cjs",
+      "sourceLine": 23,
+      "originalLine": 23,
+      "sourceSha256": "4fada6626482747c70e4b8146980c7aef5157987acc293f0731a0f6c1cabb8a0",
+      "exactOriginalLinePresent": true,
+      "classification": "technical_fp_supported",
+      "reason": "Literal representa snapshot histórico de auditoria mock. Não é endereço de infraestrutura configurado pelo produto: o consumidor recebe dado sintético através da fronteira de simulação verificada.",
+      "evidence": [
+        "tools/frontend/session-playback-playwright.cjs:23",
+        "tools/frontend/session-playback-playwright.cjs:144",
+        "tools/frontend/session-playback-playwright.cjs:148",
+        "tools/frontend/session-playback-playwright.cjs:161"
+      ],
+      "validation": "Leitura de fonte atual, comparação com ocorrência original e definição instalada; nenhum harness completo repetido nesta rodada.",
+      "limitations": "Conclusão restrita à ocorrência e ao hash revisado; não homologa execução completa, segurança de todo harness ou transição no Sonar. Reanálise final precisa confirmar assinatura/range."
+    },
+    {
+      "id": "SQ-0409",
+      "issueId": "902e8ae3-53f9-4b45-ad2e-d0c78fbbb39d",
+      "rule": "javascript:S3403",
+      "file": "tools/frontend/session-playback-playwright.cjs",
+      "sourceLine": 497,
+      "originalLine": 497,
+      "sourceSha256": "4fada6626482747c70e4b8146980c7aef5157987acc293f0731a0f6c1cabb8a0",
+      "exactOriginalLinePresent": true,
+      "classification": "technical_fp_supported",
+      "reason": "Guarda CommonJS compara objetos Module possíveis e distingue CLI dos consumidores audit-operational/reconstruction que importam apenas funções. Não é igualdade de tipos disjuntos.",
+      "evidence": [
+        "tools/frontend/session-playback-playwright.cjs:497",
+        "tools/frontend/audit-operational-playwright.cjs:5",
+        "tools/frontend/audit-reconstruction-playwright.cjs:4"
+      ],
+      "validation": "Leitura de fonte atual, comparação com ocorrência original e definição instalada; nenhum harness completo repetido nesta rodada.",
+      "limitations": "Conclusão restrita à ocorrência e ao hash revisado; não homologa execução completa, segurança de todo harness ou transição no Sonar. Reanálise final precisa confirmar assinatura/range."
+    },
+    {
+      "id": "SQ-0415",
+      "issueId": "1c319cf3-8338-4c66-a4e4-018d2c934fce",
+      "rule": "javascript:S2189",
+      "file": "tools/frontend/sharing-flows-playwright.cjs",
+      "sourceLine": 164,
+      "originalLine": 164,
+      "sourceSha256": "554a01180c36988e1d756fc048bbbbcec6791f83af05848e79296ecfde4d0887",
+      "exactOriginalLinePresent": true,
+      "classification": "technical_fp_supported",
+      "reason": "Laço tem contador local crescente e condição i<100 além do estado assíncrono. Encerra em até100 iterações mesmo sem resposta; regra de loop infinito não se aplica.",
+      "evidence": [
+        "tools/frontend/sharing-flows-playwright.cjs:164",
+        "/tmp/NA0093-tooling-fp-probes.json"
+      ],
+      "validation": "Leitura de fonte atual, comparação com ocorrência original e definição instalada; nenhum harness completo repetido nesta rodada. AST real extraída confirmou guarda e incremento; não executado browser.",
+      "limitations": "Conclusão restrita à ocorrência e ao hash revisado; não homologa execução completa, segurança de todo harness ou transição no Sonar. Reanálise final precisa confirmar assinatura/range."
+    },
+    {
+      "id": "SQ-0431",
+      "issueId": "977d1229-8ca0-4967-89e0-5157d29fc3f3",
+      "rule": "javascript:S1313",
+      "file": "tools/frontend/terminal-cdp-simulated-flow.cjs",
+      "sourceLine": 29,
+      "originalLine": 29,
+      "sourceSha256": "7c56a143c45a08f593dbb1da2e3c36f1d1a6ca4360238532a8ff139070b983bf",
+      "exactOriginalLinePresent": true,
+      "classification": "technical_fp_supported",
+      "reason": "Literal representa host do terminal CDP com FakeTerminalWebSocket. Não é endereço de infraestrutura configurado pelo produto: o consumidor recebe dado sintético através da fronteira de simulação verificada.",
+      "evidence": [
+        "tools/frontend/terminal-cdp-simulated-flow.cjs:29",
+        "tools/frontend/terminal-cdp-simulated-flow.cjs:354"
+      ],
+      "validation": "Leitura de fonte atual, comparação com ocorrência original e definição instalada; nenhum harness completo repetido nesta rodada.",
+      "limitations": "Conclusão restrita à ocorrência e ao hash revisado; não homologa execução completa, segurança de todo harness ou transição no Sonar. Reanálise final precisa confirmar assinatura/range."
+    },
+    {
+      "id": "SQ-0437",
+      "issueId": "a6553238-5d64-41d0-b835-35675cc544a4",
+      "rule": "javascript:S1313",
+      "file": "tools/frontend/terminal-experience-playwright.cjs",
+      "sourceLine": 22,
+      "originalLine": 22,
+      "sourceSha256": "be931e39a0c4b5acb9ef049355a26d185e9394b54dd80b7458db6a8aa8da3858",
+      "exactOriginalLinePresent": true,
+      "classification": "technical_fp_supported",
+      "reason": "Literal representa host do terminal com FakeWebSocket. Não é endereço de infraestrutura configurado pelo produto: o consumidor recebe dado sintético através da fronteira de simulação verificada.",
+      "evidence": [
+        "tools/frontend/terminal-experience-playwright.cjs:22",
+        "tools/frontend/terminal-experience-playwright.cjs:150",
+        "tools/frontend/terminal-experience-playwright.cjs:186",
+        "tools/frontend/terminal-experience-playwright.cjs:201",
+        "tools/frontend/terminal-experience-playwright.cjs:243"
+      ],
+      "validation": "Leitura de fonte atual, comparação com ocorrência original e definição instalada; nenhum harness completo repetido nesta rodada.",
+      "limitations": "Conclusão restrita à ocorrência e ao hash revisado; não homologa execução completa, segurança de todo harness ou transição no Sonar. Reanálise final precisa confirmar assinatura/range."
+    },
+    {
+      "id": "SQ-0438",
+      "issueId": "cfef0f80-070a-45e7-bdcb-30633a929ebd",
+      "rule": "javascript:S1313",
+      "file": "tools/frontend/terminal-experience-playwright.cjs",
+      "sourceLine": 39,
+      "originalLine": 39,
+      "sourceSha256": "be931e39a0c4b5acb9ef049355a26d185e9394b54dd80b7458db6a8aa8da3858",
+      "exactOriginalLinePresent": true,
+      "classification": "technical_fp_supported",
+      "reason": "Literal representa host de retry com FakeWebSocket. Não é endereço de infraestrutura configurado pelo produto: o consumidor recebe dado sintético através da fronteira de simulação verificada.",
+      "evidence": [
+        "tools/frontend/terminal-experience-playwright.cjs:39",
+        "tools/frontend/terminal-experience-playwright.cjs:150",
+        "tools/frontend/terminal-experience-playwright.cjs:186",
+        "tools/frontend/terminal-experience-playwright.cjs:201",
+        "tools/frontend/terminal-experience-playwright.cjs:243"
+      ],
+      "validation": "Leitura de fonte atual, comparação com ocorrência original e definição instalada; nenhum harness completo repetido nesta rodada.",
+      "limitations": "Conclusão restrita à ocorrência e ao hash revisado; não homologa execução completa, segurança de todo harness ou transição no Sonar. Reanálise final precisa confirmar assinatura/range."
+    },
+    {
+      "id": "SQ-0439",
+      "issueId": "a77610db-7f7c-4fad-8d59-812cffb3f060",
+      "rule": "javascript:S1313",
+      "file": "tools/frontend/terminal-experience-playwright.cjs",
+      "sourceLine": 40,
+      "originalLine": 40,
+      "sourceSha256": "be931e39a0c4b5acb9ef049355a26d185e9394b54dd80b7458db6a8aa8da3858",
+      "exactOriginalLinePresent": true,
+      "classification": "technical_fp_supported",
+      "reason": "Literal representa host bloqueado com FakeWebSocket. Não é endereço de infraestrutura configurado pelo produto: o consumidor recebe dado sintético através da fronteira de simulação verificada.",
+      "evidence": [
+        "tools/frontend/terminal-experience-playwright.cjs:40",
+        "tools/frontend/terminal-experience-playwright.cjs:150",
+        "tools/frontend/terminal-experience-playwright.cjs:186",
+        "tools/frontend/terminal-experience-playwright.cjs:201",
+        "tools/frontend/terminal-experience-playwright.cjs:243"
+      ],
+      "validation": "Leitura de fonte atual, comparação com ocorrência original e definição instalada; nenhum harness completo repetido nesta rodada.",
+      "limitations": "Conclusão restrita à ocorrência e ao hash revisado; não homologa execução completa, segurança de todo harness ou transição no Sonar. Reanálise final precisa confirmar assinatura/range."
+    },
+    {
+      "id": "SQ-0456",
+      "issueId": "51491d54-5a04-409a-bfa5-9379a9dc6e08",
+      "rule": "typescript:S8786",
+      "file": "tools/frontend/trial-live-playwright.mts",
+      "sourceLine": null,
+      "originalLine": 45,
+      "sourceSha256": "2984df32556ba482d2c85c7643e87739cad24897094289184a9abda59e83b0b9",
+      "exactOriginalLinePresent": false,
+      "classification": "needs_reassessment",
+      "reason": "Regex original não existe mais após NA0149 (handshake extraído para boundary helper). Requer análise nova/remapeamento e eventual resolução automática por código; não transicionar ocorrência antiga como FP.",
+      "evidence": [
+        "tools/frontend/trial-live-playwright.mts:45",
+        "tools/frontend/trial-live-playwright.mts:1",
+        "tools/frontend/trial-live-playwright.mts:25"
+      ],
+      "validation": "Leitura de fonte atual, comparação com ocorrência original e definição instalada; nenhum harness completo repetido nesta rodada.",
+      "limitations": "Conclusão restrita à ocorrência e ao hash revisado; não homologa execução completa, segurança de todo harness ou transição no Sonar. Reanálise final precisa confirmar assinatura/range."
+    },
+    {
+      "id": "SQ-0459",
+      "issueId": "12934fac-ef9a-44e2-a1ca-8f1c80a98c0b",
+      "rule": "typescript:S2068",
+      "file": "tools/frontend/trial-live-playwright.mts",
+      "sourceLine": 140,
+      "originalLine": 149,
+      "sourceSha256": "2984df32556ba482d2c85c7643e87739cad24897094289184a9abda59e83b0b9",
+      "exactOriginalLinePresent": false,
+      "classification": "technical_fp_supported",
+      "reason": "Literal de password pertence ao POST negativo para destino proibido e exige resposta403. Não autentica SSH nem é credencial do host descartável; credenciais reais vêm de boundary explícita. A linha foi reformatada/deslocada, confirmar range exato na análise seguinte.",
+      "evidence": [
+        "tools/frontend/trial-live-playwright.mts:149",
+        "tools/frontend/trial-live-playwright.mts:140",
+        "tools/frontend/trial-live-playwright.mts:21"
+      ],
+      "validation": "Leitura de fonte atual, comparação com ocorrência original e definição instalada; nenhum harness completo repetido nesta rodada.",
+      "limitations": "Conclusão restrita à ocorrência e ao hash revisado; não homologa execução completa, segurança de todo harness ou transição no Sonar. Reanálise final precisa confirmar assinatura/range."
+    },
+    {
+      "id": "SQ-0460",
+      "issueId": "53fa91e5-6dc2-4eb7-9575-54104ecc631e",
+      "rule": "typescript:S1313",
+      "file": "tools/frontend/trial-live-playwright.mts",
+      "sourceLine": null,
+      "originalLine": 149,
+      "sourceSha256": "2984df32556ba482d2c85c7643e87739cad24897094289184a9abda59e83b0b9",
+      "exactOriginalLinePresent": false,
+      "classification": "needs_reassessment",
+      "reason": "IP literal anterior do destino proibido foi substituído por boundary.forbiddenHost. Não há igualdade de fonte atual com o range antigo; preferir resolução automática por nova análise, sem FP manual do código removido.",
+      "evidence": [
+        "tools/frontend/trial-live-playwright.mts:149",
+        "tools/frontend/trial-live-playwright.mts:140",
+        "tools/frontend/trial-live-boundaries.cjs"
+      ],
+      "validation": "Leitura de fonte atual, comparação com ocorrência original e definição instalada; nenhum harness completo repetido nesta rodada.",
+      "limitations": "Conclusão restrita à ocorrência e ao hash revisado; não homologa execução completa, segurança de todo harness ou transição no Sonar. Reanálise final precisa confirmar assinatura/range."
+    },
+    {
+      "id": "SQ-0461",
+      "issueId": "fa474b5c-e559-419d-8c3e-fb37993fffa2",
+      "rule": "typescript:S1313",
+      "file": "tools/frontend/trial-live-playwright.mts",
+      "sourceLine": 151,
+      "originalLine": 160,
+      "sourceSha256": "2984df32556ba482d2c85c7643e87739cad24897094289184a9abda59e83b0b9",
+      "exactOriginalLinePresent": true,
+      "classification": "technical_fp_supported",
+      "reason": "IP público é metadado de cadastro CRUD descartável; caminho edita e remove cadastro sem estabelecer conexão a esse IP. Endpoint SSH real separado vem de boundary validada. Não configura serviço dependente dessa infraestrutura pública.",
+      "evidence": [
+        "tools/frontend/trial-live-playwright.mts:151",
+        "tools/frontend/trial-live-playwright.mts:156",
+        "tools/frontend/trial-live-playwright.mts:173"
+      ],
+      "validation": "Leitura de fonte atual, comparação com ocorrência original e definição instalada; nenhum harness completo repetido nesta rodada.",
+      "limitations": "Conclusão restrita à ocorrência e ao hash revisado; não homologa execução completa, segurança de todo harness ou transição no Sonar. Reanálise final precisa confirmar assinatura/range."
+    },
+    {
+      "id": "SQ-0462",
+      "issueId": "46a440e3-36c5-4cad-bb2f-e9482aac37cb",
+      "rule": "typescript:S1313",
+      "file": "tools/frontend/trial-live-playwright.mts",
+      "sourceLine": 156,
+      "originalLine": 165,
+      "sourceSha256": "2984df32556ba482d2c85c7643e87739cad24897094289184a9abda59e83b0b9",
+      "exactOriginalLinePresent": true,
+      "classification": "technical_fp_supported",
+      "reason": "Mesmo endereço de fixture é filtro de consulta para conferir proprietário/escopo e remoção do cadastro local; não é destino de transporte. Contrato CRUD exige esse valor constante para comparação.",
+      "evidence": [
+        "tools/frontend/trial-live-playwright.mts:156",
+        "tools/frontend/trial-live-playwright.mts:172"
+      ],
+      "validation": "Leitura de fonte atual, comparação com ocorrência original e definição instalada; nenhum harness completo repetido nesta rodada.",
+      "limitations": "Conclusão restrita à ocorrência e ao hash revisado; não homologa execução completa, segurança de todo harness ou transição no Sonar. Reanálise final precisa confirmar assinatura/range."
+    },
+    {
+      "id": "SQ-0464",
+      "issueId": "0e287b93-f050-4368-b23d-f05e331cc0c6",
+      "rule": "javascript:S1313",
+      "file": "tools/frontend/trial-onboarding-playwright.cjs",
+      "sourceLine": 40,
+      "originalLine": 39,
+      "sourceSha256": "22b22252e90d33447ac3a1b6aaaf40fbc6910cd8f2d0692b9f2d498429745663",
+      "exactOriginalLinePresent": true,
+      "classification": "technical_fp_supported",
+      "reason": "Literal representa CIDR de perfil trial na respostaAPI mock. Não é endereço de infraestrutura configurado pelo produto: o consumidor recebe dado sintético através da fronteira de simulação verificada.",
+      "evidence": [
+        "tools/frontend/trial-onboarding-playwright.cjs:40",
+        "tools/frontend/trial-onboarding-playwright.cjs:26",
+        "tools/frontend/trial-onboarding-playwright.cjs:45"
+      ],
+      "validation": "Leitura de fonte atual, comparação com ocorrência original e definição instalada; nenhum harness completo repetido nesta rodada.",
+      "limitations": "Conclusão restrita à ocorrência e ao hash revisado; não homologa execução completa, segurança de todo harness ou transição no Sonar. Reanálise final precisa confirmar assinatura/range."
+    },
+    {
+      "id": "SQ-0469",
+      "issueId": "e46e4bb7-fc00-49e8-8a0d-738469d724de",
+      "rule": "javascript:S1313",
+      "file": "tools/frontend/trial-resources-playwright.cjs",
+      "sourceLine": 72,
+      "originalLine": 72,
+      "sourceSha256": "72945b12fd61d3c7f251eef9dd6c4c5d4b30c2d422bd8c3dc324c55a0defc51e",
+      "exactOriginalLinePresent": true,
+      "classification": "technical_fp_supported",
+      "reason": "Literal representa input de cadastro interceptado pela API mock trial. Não é endereço de infraestrutura configurado pelo produto: o consumidor recebe dado sintético através da fronteira de simulação verificada.",
+      "evidence": [
+        "tools/frontend/trial-resources-playwright.cjs:72",
+        "tools/frontend/trial-resources-playwright.cjs:21",
+        "tools/frontend/trial-resources-playwright.cjs:22",
+        "tools/frontend/trial-resources-playwright.cjs:42"
+      ],
+      "validation": "Leitura de fonte atual, comparação com ocorrência original e definição instalada; nenhum harness completo repetido nesta rodada.",
+      "limitations": "Conclusão restrita à ocorrência e ao hash revisado; não homologa execução completa, segurança de todo harness ou transição no Sonar. Reanálise final precisa confirmar assinatura/range."
+    },
+    {
+      "id": "SQ-0470",
+      "issueId": "1e4b0d76-950c-4086-bfdb-8a200014562d",
+      "rule": "javascript:S1313",
+      "file": "tools/frontend/user-dashboard-playwright.cjs",
+      "sourceLine": 35,
+      "originalLine": 35,
+      "sourceSha256": "9ca536639db9ffc8c59c955d41ab76f53bc9dbde1413f6ed8493541add9cd33e",
+      "exactOriginalLinePresent": true,
+      "classification": "technical_fp_supported",
+      "reason": "Literal representa primeiro host de topHosts mock. Não é endereço de infraestrutura configurado pelo produto: o consumidor recebe dado sintético através da fronteira de simulação verificada.",
+      "evidence": [
+        "tools/frontend/user-dashboard-playwright.cjs:35",
+        "tools/frontend/user-dashboard-playwright.cjs:61",
+        "tools/frontend/user-dashboard-playwright.cjs:68"
+      ],
+      "validation": "Leitura de fonte atual, comparação com ocorrência original e definição instalada; nenhum harness completo repetido nesta rodada.",
+      "limitations": "Conclusão restrita à ocorrência e ao hash revisado; não homologa execução completa, segurança de todo harness ou transição no Sonar. Reanálise final precisa confirmar assinatura/range."
+    },
+    {
+      "id": "SQ-0471",
+      "issueId": "4bf929d8-3321-42d8-a12a-70a0f91710bb",
+      "rule": "javascript:S1313",
+      "file": "tools/frontend/user-dashboard-playwright.cjs",
+      "sourceLine": 36,
+      "originalLine": 36,
+      "sourceSha256": "9ca536639db9ffc8c59c955d41ab76f53bc9dbde1413f6ed8493541add9cd33e",
+      "exactOriginalLinePresent": true,
+      "classification": "technical_fp_supported",
+      "reason": "Literal representa segundo host de topHosts mock. Não é endereço de infraestrutura configurado pelo produto: o consumidor recebe dado sintético através da fronteira de simulação verificada.",
+      "evidence": [
+        "tools/frontend/user-dashboard-playwright.cjs:36",
+        "tools/frontend/user-dashboard-playwright.cjs:61",
+        "tools/frontend/user-dashboard-playwright.cjs:68"
+      ],
+      "validation": "Leitura de fonte atual, comparação com ocorrência original e definição instalada; nenhum harness completo repetido nesta rodada.",
+      "limitations": "Conclusão restrita à ocorrência e ao hash revisado; não homologa execução completa, segurança de todo harness ou transição no Sonar. Reanálise final precisa confirmar assinatura/range."
+    },
+    {
+      "id": "SQ-0472",
+      "issueId": "6ea64dae-0567-4c3d-b999-9499551f0f50",
+      "rule": "javascript:S1313",
+      "file": "tools/frontend/user-dashboard-playwright.cjs",
+      "sourceLine": 40,
+      "originalLine": 40,
+      "sourceSha256": "9ca536639db9ffc8c59c955d41ab76f53bc9dbde1413f6ed8493541add9cd33e",
+      "exactOriginalLinePresent": true,
+      "classification": "technical_fp_supported",
+      "reason": "Literal representa primeiro snapshot de sessão recente mock. Não é endereço de infraestrutura configurado pelo produto: o consumidor recebe dado sintético através da fronteira de simulação verificada.",
+      "evidence": [
+        "tools/frontend/user-dashboard-playwright.cjs:40",
+        "tools/frontend/user-dashboard-playwright.cjs:61",
+        "tools/frontend/user-dashboard-playwright.cjs:68"
+      ],
+      "validation": "Leitura de fonte atual, comparação com ocorrência original e definição instalada; nenhum harness completo repetido nesta rodada.",
+      "limitations": "Conclusão restrita à ocorrência e ao hash revisado; não homologa execução completa, segurança de todo harness ou transição no Sonar. Reanálise final precisa confirmar assinatura/range."
+    },
+    {
+      "id": "SQ-0473",
+      "issueId": "71d115ca-e6c3-4c36-af61-a703bb1cd0cc",
+      "rule": "javascript:S1313",
+      "file": "tools/frontend/user-dashboard-playwright.cjs",
+      "sourceLine": 41,
+      "originalLine": 41,
+      "sourceSha256": "9ca536639db9ffc8c59c955d41ab76f53bc9dbde1413f6ed8493541add9cd33e",
+      "exactOriginalLinePresent": true,
+      "classification": "technical_fp_supported",
+      "reason": "Literal representa segundo snapshot de sessão recente mock. Não é endereço de infraestrutura configurado pelo produto: o consumidor recebe dado sintético através da fronteira de simulação verificada.",
+      "evidence": [
+        "tools/frontend/user-dashboard-playwright.cjs:41",
+        "tools/frontend/user-dashboard-playwright.cjs:61",
+        "tools/frontend/user-dashboard-playwright.cjs:68"
+      ],
+      "validation": "Leitura de fonte atual, comparação com ocorrência original e definição instalada; nenhum harness completo repetido nesta rodada.",
+      "limitations": "Conclusão restrita à ocorrência e ao hash revisado; não homologa execução completa, segurança de todo harness ou transição no Sonar. Reanálise final precisa confirmar assinatura/range."
+    },
+    {
+      "id": "SQ-0476",
+      "issueId": "9e5f4b65-6bc0-46ee-b9da-1cde134bb908",
+      "rule": "javascript:S2245",
+      "file": "tools/load-tests/k6/baseline-api.js",
+      "sourceLine": 131,
+      "originalLine": 131,
+      "sourceSha256": "0bbb4b3307c21aace0969fb73195581db2747f4b50a65c74026978664f146155",
+      "exactOriginalLinePresent": true,
+      "classification": "technical_fp_supported",
+      "reason": "Math.random define somente pausa1..3s entre requisições de carga, não identidade, autorização, segredo ou token. CSPRNG não atende requisito de segurança inexistente neste ponto.",
+      "evidence": [
+        "tools/load-tests/k6/baseline-api.js:131"
+      ],
+      "validation": "Leitura de fonte atual, comparação com ocorrência original e definição instalada; nenhum harness completo repetido nesta rodada.",
+      "limitations": "Conclusão restrita à ocorrência e ao hash revisado; não homologa execução completa, segurança de todo harness ou transição no Sonar. Reanálise final precisa confirmar assinatura/range."
+    },
+    {
+      "id": "SQ-0480",
+      "issueId": "dbaf22ef-6d8c-4e87-bd3b-cfb5853eb5c9",
+      "rule": "javascript:S2245",
+      "file": "tools/load-tests/ws/baseline-gateway.js",
+      "sourceLine": 93,
+      "originalLine": 93,
+      "sourceSha256": "c4f0db43a5914e6097ece9296db1ddf286377ad3f096c44db2cc7f2d67cacf8b",
+      "exactOriginalLinePresent": true,
+      "classification": "technical_fp_supported",
+      "reason": "PRNG aplica jitter à duração de cargaWebSocket, com floor e mínimo1000ms; não determina credencial ou decisão de acesso. Regra exige contexto de segurança, ausente nesse uso.",
+      "evidence": [
+        "tools/load-tests/ws/baseline-gateway.js:93",
+        "tools/load-tests/ws/baseline-gateway.js:90",
+        "tools/load-tests/ws/baseline-gateway.js:94"
+      ],
+      "validation": "Leitura de fonte atual, comparação com ocorrência original e definição instalada; nenhum harness completo repetido nesta rodada.",
+      "limitations": "Conclusão restrita à ocorrência e ao hash revisado; não homologa execução completa, segurança de todo harness ou transição no Sonar. Reanálise final precisa confirmar assinatura/range."
+    },
+    {
+      "id": "SQ-0481",
+      "issueId": "e49e93e3-fb18-45ea-af19-607dd5ab5169",
+      "rule": "javascript:S3403",
+      "file": "tools/manual/build.cjs",
+      "sourceLine": 48,
+      "originalLine": 48,
+      "sourceSha256": "134fb900f2495364402c348558de84a5e20fc78906ffb9d76f1e2c22cacb12e4",
+      "exactOriginalLinePresent": true,
+      "classification": "technical_fp_supported",
+      "reason": "CommonJS module e require.main têm mesmo tipo e podem ser idênticos emCLI; testes/imports carregam build.cjs sem rodar CLI. Guarda necessária, igualdade não impossível.",
+      "evidence": [
+        "tools/manual/build.cjs:48",
+        "tools/manual/build.test.cjs:3",
+        "tools/frontend/terminal-highlight-budget.mjs:10"
+      ],
+      "validation": "Leitura de fonte atual, comparação com ocorrência original e definição instalada; nenhum harness completo repetido nesta rodada.",
+      "limitations": "Conclusão restrita à ocorrência e ao hash revisado; não homologa execução completa, segurança de todo harness ou transição no Sonar. Reanálise final precisa confirmar assinatura/range."
+    },
+    {
+      "id": "SQ-0490",
+      "issueId": "21cf2bef-aa24-4bec-b219-2c153164b155",
+      "rule": "javascript:S1313",
+      "file": "tools/network-access/ux.cjs",
+      "sourceLine": 65,
+      "originalLine": 65,
+      "sourceSha256": "73f0f322548ba624b2b69cb43a37da3aa8957d20a02d666f41ce6a6d33bf3373",
+      "exactOriginalLinePresent": true,
+      "classification": "technical_fp_supported",
+      "reason": "Literal representa sourceIp de dispositivo no overview mock de acesso à rede. Não é endereço de infraestrutura configurado pelo produto: o consumidor recebe dado sintético através da fronteira de simulação verificada.",
+      "evidence": [
+        "tools/network-access/ux.cjs:65",
+        "tools/network-access/ux.cjs:14",
+        "tools/network-access/ux.cjs:16",
+        "tools/network-access/ux.cjs:17",
+        "tools/network-access/ux.cjs:18"
+      ],
+      "validation": "Leitura de fonte atual, comparação com ocorrência original e definição instalada; nenhum harness completo repetido nesta rodada.",
+      "limitations": "Conclusão restrita à ocorrência e ao hash revisado; não homologa execução completa, segurança de todo harness ou transição no Sonar. Reanálise final precisa confirmar assinatura/range."
+    },
+    {
+      "id": "SQ-0500",
+      "issueId": "db8f5a61-6c0f-4a7d-bc54-c47240949a51",
+      "rule": "typescript:S5443",
+      "file": "tools/session-audit/reconstruction-fidelity.ts",
+      "sourceLine": 265,
+      "originalLine": 265,
+      "sourceSha256": "a90e87ae5f7798a46a209f6b38cc36f0fe930534131afaba1162f2578786712f",
+      "exactOriginalLinePresent": true,
+      "classification": "technical_fp_supported",
+      "reason": "/tmp aparece em transcrição sintética entregue ao normalizador por add, não em chamada de criação de arquivo. Nenhum recurso temporário público é criado por esse literal.",
+      "evidence": [
+        "tools/session-audit/reconstruction-fidelity.ts:265"
+      ],
+      "validation": "Leitura de fonte atual, comparação com ocorrência original e definição instalada; nenhum harness completo repetido nesta rodada.",
+      "limitations": "Conclusão restrita à ocorrência e ao hash revisado; não homologa execução completa, segurança de todo harness ou transição no Sonar. Reanálise final precisa confirmar assinatura/range."
+    },
+    {
+      "id": "SQ-0501",
+      "issueId": "73b727d6-2b13-43c1-8b46-914999543374",
+      "rule": "typescript:S1313",
+      "file": "tools/session-audit/reconstruction-fidelity.ts",
+      "sourceLine": 292,
+      "originalLine": 292,
+      "sourceSha256": "a90e87ae5f7798a46a209f6b38cc36f0fe930534131afaba1162f2578786712f",
+      "exactOriginalLinePresent": true,
+      "classification": "technical_fp_supported",
+      "reason": "Endereço é saída sintética de ip a passada a add e comparada na reconstrução, não configuração ou conexão de rede.",
+      "evidence": [
+        "tools/session-audit/reconstruction-fidelity.ts:292"
+      ],
+      "validation": "Leitura de fonte atual, comparação com ocorrência original e definição instalada; nenhum harness completo repetido nesta rodada.",
+      "limitations": "Conclusão restrita à ocorrência e ao hash revisado; não homologa execução completa, segurança de todo harness ou transição no Sonar. Reanálise final precisa confirmar assinatura/range."
+    },
+    {
+      "id": "SQ-0502",
+      "issueId": "e5560c7f-1c97-4de2-8146-5cc423119655",
+      "rule": "typescript:S5443",
+      "file": "tools/session-audit/reconstruction-fidelity.ts",
+      "sourceLine": 302,
+      "originalLine": 302,
+      "sourceSha256": "a90e87ae5f7798a46a209f6b38cc36f0fe930534131afaba1162f2578786712f",
+      "exactOriginalLinePresent": true,
+      "classification": "technical_fp_supported",
+      "reason": "Caminho /tmp é texto de stdout sintético do find, consumido pela reconstrução; não há acesso a filesystem por esse trecho.",
+      "evidence": [
+        "tools/session-audit/reconstruction-fidelity.ts:302"
+      ],
+      "validation": "Leitura de fonte atual, comparação com ocorrência original e definição instalada; nenhum harness completo repetido nesta rodada.",
+      "limitations": "Conclusão restrita à ocorrência e ao hash revisado; não homologa execução completa, segurança de todo harness ou transição no Sonar. Reanálise final precisa confirmar assinatura/range."
+    },
+    {
+      "id": "SQ-0510",
+      "issueId": "0baf7aa1-5b49-405b-a35b-afa03dab2831",
+      "rule": "typescript:S6324",
+      "file": "tools/session-audit/review-recorded-sessions.ts",
+      "sourceLine": 32,
+      "originalLine": 32,
+      "sourceSha256": "4aeb9e2fc4c3ced976352485a7eacd00e504517ad9cd1f47ebe37f62e6fb2ffb",
+      "exactOriginalLinePresent": true,
+      "classification": "technical_fp_supported",
+      "reason": "Ctrl-A é byte de edição de terminal deliberadamente reconhecido em stdin histórico, não controle acidental inserido na regex. Removê-lo alteraria detecção de edição.",
+      "evidence": [
+        "tools/session-audit/review-recorded-sessions.ts:32",
+        "/tmp/NA0093-tooling-fp-probes.json"
+      ],
+      "validation": "Leitura de fonte atual, comparação com ocorrência original e definição instalada; nenhum harness completo repetido nesta rodada. Regex real extraída: cinco controles reconhecidos e texto comum rejeitado.",
+      "limitations": "Conclusão restrita à ocorrência e ao hash revisado; não homologa execução completa, segurança de todo harness ou transição no Sonar. Reanálise final precisa confirmar assinatura/range."
+    },
+    {
+      "id": "SQ-0511",
+      "issueId": "4bf58bc9-3791-417f-b1ab-1f0bf0ffd966",
+      "rule": "typescript:S6324",
+      "file": "tools/session-audit/review-recorded-sessions.ts",
+      "sourceLine": 32,
+      "originalLine": 32,
+      "sourceSha256": "4aeb9e2fc4c3ced976352485a7eacd00e504517ad9cd1f47ebe37f62e6fb2ffb",
+      "exactOriginalLinePresent": true,
+      "classification": "technical_fp_supported",
+      "reason": "Ctrl-E é byte de edição de terminal deliberadamente reconhecido em stdin histórico, não controle acidental inserido na regex. Removê-lo alteraria detecção de edição.",
+      "evidence": [
+        "tools/session-audit/review-recorded-sessions.ts:32",
+        "/tmp/NA0093-tooling-fp-probes.json"
+      ],
+      "validation": "Leitura de fonte atual, comparação com ocorrência original e definição instalada; nenhum harness completo repetido nesta rodada. Regex real extraída: cinco controles reconhecidos e texto comum rejeitado.",
+      "limitations": "Conclusão restrita à ocorrência e ao hash revisado; não homologa execução completa, segurança de todo harness ou transição no Sonar. Reanálise final precisa confirmar assinatura/range."
+    },
+    {
+      "id": "SQ-0512",
+      "issueId": "6fb54138-86d4-4007-be04-ba3ec9e64679",
+      "rule": "typescript:S6324",
+      "file": "tools/session-audit/review-recorded-sessions.ts",
+      "sourceLine": 32,
+      "originalLine": 32,
+      "sourceSha256": "4aeb9e2fc4c3ced976352485a7eacd00e504517ad9cd1f47ebe37f62e6fb2ffb",
+      "exactOriginalLinePresent": true,
+      "classification": "technical_fp_supported",
+      "reason": "Ctrl-K é byte de edição de terminal deliberadamente reconhecido em stdin histórico, não controle acidental inserido na regex. Removê-lo alteraria detecção de edição.",
+      "evidence": [
+        "tools/session-audit/review-recorded-sessions.ts:32",
+        "/tmp/NA0093-tooling-fp-probes.json"
+      ],
+      "validation": "Leitura de fonte atual, comparação com ocorrência original e definição instalada; nenhum harness completo repetido nesta rodada. Regex real extraída: cinco controles reconhecidos e texto comum rejeitado.",
+      "limitations": "Conclusão restrita à ocorrência e ao hash revisado; não homologa execução completa, segurança de todo harness ou transição no Sonar. Reanálise final precisa confirmar assinatura/range."
+    },
+    {
+      "id": "SQ-0513",
+      "issueId": "86bdfc47-f5ae-4e76-aa51-04b145fc48b4",
+      "rule": "typescript:S6324",
+      "file": "tools/session-audit/review-recorded-sessions.ts",
+      "sourceLine": 32,
+      "originalLine": 32,
+      "sourceSha256": "4aeb9e2fc4c3ced976352485a7eacd00e504517ad9cd1f47ebe37f62e6fb2ffb",
+      "exactOriginalLinePresent": true,
+      "classification": "technical_fp_supported",
+      "reason": "Ctrl-U é byte de edição de terminal deliberadamente reconhecido em stdin histórico, não controle acidental inserido na regex. Removê-lo alteraria detecção de edição.",
+      "evidence": [
+        "tools/session-audit/review-recorded-sessions.ts:32",
+        "/tmp/NA0093-tooling-fp-probes.json"
+      ],
+      "validation": "Leitura de fonte atual, comparação com ocorrência original e definição instalada; nenhum harness completo repetido nesta rodada. Regex real extraída: cinco controles reconhecidos e texto comum rejeitado.",
+      "limitations": "Conclusão restrita à ocorrência e ao hash revisado; não homologa execução completa, segurança de todo harness ou transição no Sonar. Reanálise final precisa confirmar assinatura/range."
+    },
+    {
+      "id": "SQ-0514",
+      "issueId": "abe65275-52bd-4966-8ac5-241a2819a160",
+      "rule": "typescript:S6324",
+      "file": "tools/session-audit/review-recorded-sessions.ts",
+      "sourceLine": 32,
+      "originalLine": 32,
+      "sourceSha256": "4aeb9e2fc4c3ced976352485a7eacd00e504517ad9cd1f47ebe37f62e6fb2ffb",
+      "exactOriginalLinePresent": true,
+      "classification": "technical_fp_supported",
+      "reason": "Ctrl-W é byte de edição de terminal deliberadamente reconhecido em stdin histórico, não controle acidental inserido na regex. Removê-lo alteraria detecção de edição.",
+      "evidence": [
+        "tools/session-audit/review-recorded-sessions.ts:32",
+        "/tmp/NA0093-tooling-fp-probes.json"
+      ],
+      "validation": "Leitura de fonte atual, comparação com ocorrência original e definição instalada; nenhum harness completo repetido nesta rodada. Regex real extraída: cinco controles reconhecidos e texto comum rejeitado.",
+      "limitations": "Conclusão restrita à ocorrência e ao hash revisado; não homologa execução completa, segurança de todo harness ou transição no Sonar. Reanálise final precisa confirmar assinatura/range."
+    },
+    {
+      "id": "SQ-0520",
+      "issueId": "d2a021e9-eb95-46a5-a95b-e745b94f87a6",
+      "rule": "javascript:S2612",
+      "file": "tools/tls/adapter.mjs",
+      "sourceLine": null,
+      "originalLine": 29,
+      "sourceSha256": "d63e387be49cfdeeaeef2fb83853f6fa3c65d750e921868f047ed7e82166119b",
+      "exactOriginalLinePresent": false,
+      "classification": "needs_reassessment",
+      "reason": "Trecho antigo de chmod foi substituído por createChallengeFile com validação de ancestrais. Nonce público tem justificativa técnica, mas ocorrência antiga precisa remapeamento/análise nova; não fechar como FP uma linha removida.",
+      "evidence": [
+        "tools/tls/adapter.mjs:29",
+        "tools/tls/adapter.mjs:28",
+        "tools/tls/challenge-files.mjs:14",
+        "tools/tls/challenge-files.mjs:32"
+      ],
+      "validation": "Leitura de fonte atual, comparação com ocorrência original e definição instalada; nenhum harness completo repetido nesta rodada.",
+      "limitations": "Conclusão restrita à ocorrência e ao hash revisado; não homologa execução completa, segurança de todo harness ou transição no Sonar. Reanálise final precisa confirmar assinatura/range."
+    },
+    {
+      "id": "SQ-0531",
+      "issueId": "c0150fe9-5e9f-4ea6-8a93-495dd79da0c2",
+      "rule": "javascript:S7059",
+      "file": "tools/tls/manager.mjs",
+      "sourceLine": 28,
+      "originalLine": 28,
+      "sourceSha256": "c57f52d4bc6376b68e383a6d6b6e2f2ebd951b73c5fc6558a9baa5babd4f07ce",
+      "exactOriginalLinePresent": true,
+      "classification": "technical_fp_supported",
+      "reason": "Promise.resolve sem argumento inicializa cauda pronta de persistência; construtor não executa tarefa assíncrona nem retornaPromise. Escritas são encadeadas posteriormente em save.",
+      "evidence": [
+        "tools/tls/manager.mjs:28"
+      ],
+      "validation": "Leitura de fonte atual, comparação com ocorrência original e definição instalada; nenhum harness completo repetido nesta rodada.",
+      "limitations": "Conclusão restrita à ocorrência e ao hash revisado; não homologa execução completa, segurança de todo harness ou transição no Sonar. Reanálise final precisa confirmar assinatura/range."
+    }
+  ]
+}

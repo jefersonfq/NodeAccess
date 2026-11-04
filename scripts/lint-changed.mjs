@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { resolveExecutable } from '../tools/shared/trusted-executable.cjs'
 import { execFileSync, spawnSync } from 'node:child_process'
 import { existsSync } from 'node:fs'
 import { resolve } from 'node:path'
@@ -18,7 +19,7 @@ const files = [...candidates]
   .filter((file) => /^apps\/(backend|frontend)\/src\/.+\.(ts|vue)$/.test(file))
   .filter((file) => !file.includes('-NOTE-JEFF.'))
   .filter((file) => existsSync(resolve(root, file)))
-  .sort()
+  .sort(compareCodeUnits)
 
 if (files.length === 0) {
   console.log('Nenhum arquivo TypeScript/Vue alterado para validar.')
@@ -39,7 +40,7 @@ process.exit(result.status ?? 1)
 
 function git(args) {
   try {
-    return execFileSync('git', args, { cwd: root, encoding: 'utf8' })
+    return execFileSync(resolveExecutable('git'), args, { cwd: root, encoding: 'utf8' })
   } catch (error) {
     console.error(`Não foi possível comparar a alteração com ${baseRef}.`)
     throw error
@@ -48,4 +49,11 @@ function git(args) {
 
 function lines(output) {
   return output.split('\n').map((line) => line.trim()).filter(Boolean)
+}
+
+// Preserve the native string sort order used by canonical output and digests.
+function compareCodeUnits(left, right) {
+  if (left < right) return -1
+  if (left > right) return 1
+  return 0
 }

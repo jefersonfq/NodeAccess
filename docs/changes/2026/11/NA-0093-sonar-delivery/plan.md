@@ -84,3 +84,11 @@ Classificação NECESSARY_CORRECTION, dentro da autorização de concluir a entr
 Riscos adicionais: npm e majors transitivos podem afetar ferramentas de documentação, matching de caminhos e publicação estática. Build/typecheck isolados não bastam; usar CLI e servidores reais, negativos e revisão independente. Nenhuma alteração em produção ou deploy está autorizada por esta ampliação técnica.
 
 Correções necessárias adicionais: NA-0144 reconhece frames reais de erros Node sem ampliar dados públicos; NA-0143 registra investigação controlada da falha frontend hospedada, sem alterar produto/asserções nem atribuir causa não demonstrada. Reexecutar gates no candidato integrado.
+
+Ampliação autorizada em 2026-11-04T09:55:52-03:00: tratar as correções e riscos mitigáveis identificados pela reavaliaçãoNA0145, com branchesNA0146–0149, testes/simulações, revisão e nova análise integral. Sem dispensar gates, nenhuma classificação em lote sem evidência individual. Protocolo legado e demais riscos operacionais não resolvidos seguem sujeitos a decisão humana.
+
+## Ampliação autorizada — reavaliação das 294 ocorrências
+
+A continuidade solicitada pelo usuário abrange as correções comprovadas da reavaliação NA0145, com branches recuperáveis NA0146–0154 e testes adversariais/diferenciais quando aplicáveis. Inclui correções necessárias de lint legado já autorizadas em branches separadas. A integração aplica patches, preservando a origem de cada frente e os limites existentes. Reclassificar falso positivo exige evidência individual; remover ocorrência na fonte exige confirmação pelo scanner. Não aceitar automaticamente riscos operacionais nem alterar baseline para fazer o gate passar.
+
+Aceitação complementar: evidências vinculadas às 294 ocorrências; correções de padrões lineares, isolamento de highlights, acessibilidade/entrada, fronteiras dos harnesses, credenciais efêmeras de laboratório e contratos explícitos validadas em conjunto. Manter alertas visíveis, teclado do terminal e geometria. Não afirmar interrupção de CPU em50ms: Chromium pode demorar aproximadamente2s para encerrar regex nativa, mitigado pela suspensão do pool até recarregar a página. Recorte interno mobile preexistente em HA fica registrado como evolução UX, sem refatoração visual neste lote.

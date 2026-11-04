@@ -196,3 +196,33 @@ test('completion and events are not exposed before the final durable commit',asy
  release();await manager.completion
  assert.equal((await manager.status()).job.status,'succeeded');assert.equal(manager.events().length,1)
 })
+
+test('apply and rollback failure retain primary code when final persistence also fails', async()=>{
+ const {manager,adapter,perform}=await fixture();await perform({action:'validate',...second})
+ adapter.test=async()=>{throw Error('private adapter output')}
+ const originalSave=manager.save.bind(manager);let calls=0
+ manager.save=async()=>{if(++calls>=2)throw Object.assign(Error('secret path password'),{code:'ENOSPC'});await originalSave()}
+ await assert.rejects(manager.activate(manager.state.candidate),error=>{
+  assert.equal(error.code,'ROLLBACK_FAILED');assert.equal(error.persistenceFailure.code,'STORAGE_FULL');assert.ok(!JSON.stringify(error).includes('secret path'));return true
+ })
+ assert.equal(manager.state.recoveryRequired,true);assert.ok(manager.state.pending)
+})
+test('job completion keeps rollback diagnosis even when final journal save fails repeatedly', async()=>{
+ const {manager,adapter,perform}=await fixture();await perform({action:'validate',...second})
+ adapter.test=async()=>{throw Error('private adapter output')}
+ const originalSave=manager.save.bind(manager);let pendingSaves=0
+ manager.save=async()=>{if(manager.state.pending && ++pendingSaves>=2)throw Object.assign(Error('secret disk output'),{code:'ENOSPC'});await originalSave()}
+ const job=await perform({action:'apply',candidateId:manager.state.candidate.id})
+ assert.equal(job.error.code,'ROLLBACK_FAILED');assert.equal(job.error.persistenceFailure.code,'STORAGE_FULL')
+ assert.equal(manager.state.recoveryRequired,true);assert.ok(manager.state.pending);assert.ok(!JSON.stringify(await manager.status()).includes('secret disk'))
+})
+test('verified rollback remains distinguishable from disk failure and keeps recovery journal', async()=>{
+ const {manager,adapter,perform}=await fixture();await perform({action:'validate',...second})
+ let checks=0;adapter.test=async()=>{if(++checks===1)throw Error('private nginx failure')}
+ const originalSave=manager.save.bind(manager);let calls=0
+ manager.save=async()=>{if(++calls>=3)throw Object.assign(Error('private disk failure'),{code:'EROFS'});await originalSave()}
+ await assert.rejects(manager.activate(manager.state.candidate),error=>{
+  assert.equal(error.code,'APPLY_ROLLED_BACK');assert.equal(error.persistenceFailure.code,'STORAGE_READ_ONLY');return true
+ })
+ assert.equal(checks,2);assert.equal((await manager.active()).fingerprint,metadata(certificate).fingerprint);assert.ok(manager.state.pending)
+})

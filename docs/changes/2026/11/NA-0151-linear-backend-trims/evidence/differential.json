@@ -1,0 +1,10 @@
+{
+  "base": "02e7521cbe69e72cb5c8c3f5f951dcdc6e1c5fec",
+  "equivalenceChecks": 10080,
+  "result": "passed",
+  "large": {
+    "adversarialCases": 12,
+    "result": "passed"
+  },
+  "limits": "Source-extracted normalization expressions only; padding equivalence limited to validated zero/one suffix. No DB, transport or exploit assertion."
+}

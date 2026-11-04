@@ -171,6 +171,7 @@ mkdir -p \
   "${RELEASE_DIR}/docker/nfs" \
   "${RELEASE_DIR}/systemd" \
   "${RELEASE_DIR}/tools/deploy" \
+  "${RELEASE_DIR}/tools/shared" \
   "${RELEASE_DIR}/tools/ha-witness" \
   "${RELEASE_DIR}/docs"
 cp "${PROJECT_ROOT}/docs/OPERATIONS-compose-nonroot.md" "${RELEASE_DIR}/docs/OPERATIONS-compose-nonroot.md"
@@ -252,6 +253,7 @@ cp "${PROJECT_ROOT}/systemd/nodeaccess-ha-auto-failover.service" "${RELEASE_DIR}
 cp "${PROJECT_ROOT}/systemd/nodeaccess-ha-auto-failover.timer" "${RELEASE_DIR}/systemd/nodeaccess-ha-auto-failover.timer"
 cp "${PROJECT_ROOT}/docker/nginx.http.conf" "${RELEASE_DIR}/docker/nginx.http.conf"
 cp "${PROJECT_ROOT}/docker/nginx.https.conf" "${RELEASE_DIR}/docker/nginx.https.conf"
+cp "${PROJECT_ROOT}/tools/shared/trusted-executable.cjs" "${RELEASE_DIR}/tools/shared/trusted-executable.cjs"
 cp "${PROJECT_ROOT}/tools/deploy/dr-validation-harness.sh" "${RELEASE_DIR}/tools/deploy/dr-validation-harness.sh"
 cp "${PROJECT_ROOT}/tools/deploy/restore-mysql-isolated-harness.sh" "${RELEASE_DIR}/tools/deploy/restore-mysql-isolated-harness.sh"
 cp "${PROJECT_ROOT}/tools/deploy/restore-session-audit-isolated-harness.sh" "${RELEASE_DIR}/tools/deploy/restore-session-audit-isolated-harness.sh"

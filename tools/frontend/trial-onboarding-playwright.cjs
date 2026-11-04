@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+const { resolveExecutable } = require('../shared/trusted-executable.cjs')
 const { artifactPath } = require('../shared/private-artifacts.cjs')
 // Browser UX simulation only. All APIs mocked; no emails, VMs or production hosts.
 const assert = require('node:assert/strict')
@@ -242,7 +243,7 @@ async function main() {
       results.push({ theme, width, result: 'PASS', scope: 'Mocked browser UX; does not certify SMTP/VM/network isolation', cases: ['terms disabled and Enter no POST', 'full name inline focus and correction', 'BR progressive mask typing/paste/backspace', 'international phone preserved', '422 field recovery without global stale error', '503 alert focused', 'existing logo loaded', 'optional phone and explicit purpose', 'invalid phone blocked and focused', 'blank phone omitted', 'formatted phone preserved across 503', 'phone absent from browser storage', 'admin phone visible', 'keyboard focus', 'invalid email rejected locally', 'optional marketing refused', '503 retains form', 'verification fragment scrubbed', 'provisioning-to-active', 'password mismatch', 'activation', 'invitation and quota', 'participant accepts own terms and optional consent', 'participant cancellation scope and cannot invite', 'preferences', 'cancel confirmation', 'expired link', 'registration disabled', 'normal session preserved', 'admin profile', 'trial audit enabled empty state', 'trial audit disabled denial', 'responsive'] })
       await context.close()
     }
-    await fs.writeFile(`${output}/results.json`, JSON.stringify({ at: new Date().toISOString(), headSha: execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim(), workingTreeDirty: Boolean(execFileSync('git', ['status', '--porcelain'], { encoding: 'utf8' }).trim()), results }, null, 2))
+    await fs.writeFile(`${output}/results.json`, JSON.stringify({ at: new Date().toISOString(), headSha: execFileSync(resolveExecutable('git'), ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim(), workingTreeDirty: Boolean(execFileSync(resolveExecutable('git'), ['status', '--porcelain'], { encoding: 'utf8' }).trim()), results }, null, 2))
     console.log(JSON.stringify(results, null, 2))
   } finally { await browser.close() }
 }

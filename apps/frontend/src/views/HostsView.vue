@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { validateIPv6Input } from '@/services/host-ipv6-validation.service'
 import { isGuidedTrial } from '@/services/trial-experience'
 
 import TrialResourcesPanel from '@/components/TrialResourcesPanel.vue'
@@ -3254,6 +3255,7 @@ function normalizeHostNameField(): void {
 }
 
 const ipValidationError = ref<string | null>(null)
+const ipValidationHint = ref<string | null>(null)
 const ipFieldBlurred = ref(false)
 
 function validateAsIPv4(val: string): string | null {
@@ -3283,19 +3285,6 @@ function validateAsIPv4(val: string): string | null {
   return null
 }
 
-function validateAsIPv6(val: string): string | null {
-  const [addrPart, maskPart, ...extra] = val.split('/')
-  if (extra.length > 0) return 'IPv6 inválido'
-  if (maskPart !== undefined && maskPart !== '' && (!/^\d+$/.test(maskPart) || Number(maskPart) > 128)) {
-    return 'Máscara IPv6 inválida — deve ser 0–128'
-  }
-  // Basic structural check: only hex digits and colons, with at most one "::"
-  const clean = addrPart.replace('::', '\x00')
-  if ((clean.match(/\x00/g) ?? []).length > 1) return 'IPv6 inválido'
-  if (!/^[\da-fA-F:]*$/.test(addrPart)) return 'IPv6 inválido — use apenas hex e ":"'
-  return null
-}
-
 function validateAsHostname(val: string): string | null {
   if (val.length > 253) return 'Hostname inválido — máximo 253 caracteres'
   const normalized = val.endsWith('.') ? val.slice(0, -1) : val
@@ -3309,7 +3298,8 @@ function validateAsHostname(val: string): string | null {
   return valid ? null : 'Hostname inválido — use letras, dígitos e hífens; cada parte não pode começar ou terminar com hífen'
 }
 
-function normalizeHostIpField(): void {
+function normalizeHostIpField(final = false): void {
+  ipValidationHint.value = null
   // Commas are never valid in IPs or hostnames
   form.value.ip = form.value.ip.replace(/,/g, '.')
 
@@ -3328,7 +3318,9 @@ function normalizeHostIpField(): void {
 
   // Has colon → IPv6
   if (val.includes(':')) {
-    ipValidationError.value = validateAsIPv6(val)
+    const result = validateIPv6Input(val)
+    ipValidationError.value = result.status === 'invalid' || (final && result.status === 'incomplete') ? result.message : null
+    ipValidationHint.value = result.status === 'incomplete' && !final ? result.message : null
     return
   }
 
@@ -3610,6 +3602,7 @@ function openCreate(inventoryParentId?: number): void {
   passwordCredentialSource.value = 'password'
   testResult.value = null
   ipValidationError.value = null
+  ipValidationHint.value = null
   ipFieldBlurred.value = false
   form.value.inventoryParentId = inventoryParentId ?? defaultInventoryParentId()
   // Pré-seleciona apenas organização visual/pessoal conforme nó ativo na árvore.
@@ -3788,6 +3781,7 @@ async function openEdit(host: HostPublic): Promise<void> {
   hostFormError.value = ''
   hostFormErrorTab.value = null
   ipValidationError.value = null
+  ipValidationHint.value = null
   ipFieldBlurred.value = false
   testResult.value = null
   if (!bastions.value.length || !pemKeys.value.length) void loadSidebarDeferred()
@@ -4064,7 +4058,10 @@ async function submitHost(): Promise<void> {
   hostModalLoading.value = true
   try {
     normalizeHostNameField()
-    normalizeHostIpField()
+    normalizeHostIpField(true)
+    if (form.value.ip.includes(':') && ipValidationError.value) {
+      return await focusHostFormError('connection', '#host-form-ip', ipValidationError.value)
+    }
     if (!form.value.name.trim()) await focusHostFormError('connection', '#host-form-name', t('hosts.form.tabs.nameRequired'))
     if (!form.value.ip.trim()) await focusHostFormError('connection', '#host-form-ip', t('hosts.form.tabs.addressRequired'))
     const payload: HostForm = { ...form.value }
@@ -7277,7 +7274,7 @@ const showImport = ref(false)
               </NFormItem>
               <NFormItem
                 :label="`${$t('hosts.form.ip')} *`"
-                :feedback="ipValidationError ?? hostEndpointResolutionHint ?? undefined"
+                :feedback="ipValidationError ?? ipValidationHint ?? hostEndpointResolutionHint ?? undefined"
                 :validation-status="ipValidationError ? 'error' : undefined"
               >
                 <NInput
@@ -7285,7 +7282,7 @@ const showImport = ref(false)
                   :input-props="{ id: 'host-form-ip', 'aria-label': $t('hosts.form.ip') }"
                   :placeholder="$t('hosts.form.ipPlaceholder')"
                   @input="() => { resetTestResult(); normalizeHostIpField() }"
-                  @blur="() => { ipFieldBlurred = true; normalizeHostIpField() }"
+                  @blur="() => { ipFieldBlurred = true; normalizeHostIpField(true) }"
                 />
               </NFormItem>
               <NFormItem :label="$t('hosts.form.port')">

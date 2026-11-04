@@ -134,7 +134,7 @@ async function main() {
   await db.$executeRaw`UPDATE session_audit_reconstructions SET created_at='2026-09-29 12:00:00.000' WHERE session_id=1008`
   const history = await repo.history(1, 1008)
   assert.equal(history.length, 20)
-  assert.deepEqual(history.map(r => r.id), Array.from({ length: 25 }, (_, v) => hash(`1008:${v}`)).sort().reverse().slice(0, 20))
+  assert.deepEqual(history.map(r => r.id), Array.from({ length: 25 }, (_, v) => hash(`1008:${v}`)).sort(compareCodeUnits).reverse().slice(0, 20))
   checks.push('history bounded to 20 with deterministic order for equal timestamps')
 
   await db.$queryRawUnsafe('ANALYZE TABLE session_audit_reconstructions, session_audit_derived_commands')
@@ -176,3 +176,10 @@ async function main() {
   console.log(JSON.stringify({ ...result, plans: 'saved in report' }))
 }
 main().finally(() => db.$disconnect()).catch(error => { console.error(error); process.exitCode = 1 })
+
+// Preserve the native string sort order used by canonical output and digests.
+function compareCodeUnits(left: string, right: string): number {
+  if (left < right) return -1
+  if (left > right) return 1
+  return 0
+}

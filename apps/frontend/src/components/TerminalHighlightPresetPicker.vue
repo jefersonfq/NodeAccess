@@ -2,16 +2,16 @@
 import { computed, ref } from 'vue'
 import { NButton } from 'naive-ui'
 import { createHighlightPreset, highlightPresets } from '@/services/terminal-highlight-presets'
-import { compileHighlightRules, matchTerminalLine } from '@/terminal/terminal-highlighter'
+import { useHighlightPreview } from '@/composables/useHighlightPreview'
 const props = defineProps<{ disabled?: boolean }>()
 const emit = defineEmits<{ choose: [id: string] }>()
 const selected = ref(highlightPresets[0].id)
 const preset = computed(() => highlightPresets.find(item => item.id === selected.value)!)
+const draft = computed(() => createHighlightPreset(selected.value))
+const { rows: previewRows, warning: previewWarning } = useHighlightPreview(() => ({ rows: preset.value.rules.map(({ sample }, index) => ({ key: String(index), text: sample, rules: draft.value.rules })) }))
 const preview = computed(() => {
-  const draft = createHighlightPreset(selected.value)
-  const compiled = compileHighlightRules(draft.rules)
-  return preset.value.rules.map(({ sample }) => {
-    const ranges = matchTerminalLine(sample, compiled).sort((a, b) => a.x - b.x)
+  return preset.value.rules.map(({ sample }, index) => {
+    const ranges = [...(previewRows.value.find(row => row.key === String(index))?.ranges ?? [])].sort((a, b) => a.x - b.x)
     const parts: Array<{ text: string; color?: string; bold?: boolean }> = []
     let cursor = 0
     for (const range of ranges) {
@@ -30,6 +30,13 @@ const preview = computed(() => {
     data-highlight-preset-picker
     aria-label="Biblioteca de modelos de destaques"
   >
+    <p
+      v-if="previewWarning"
+      role="status"
+      class="text-xs text-amber-300"
+    >
+      {{ previewWarning }}
+    </p>
     <p class="mb-3 text-sm">
       Escolha um ponto de partida. Você poderá editar as regras antes de salvar e atribuir.
     </p>

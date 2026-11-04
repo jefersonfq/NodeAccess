@@ -1,0 +1,37 @@
+[
+  {
+    "source": "tools/deploy/container-stack-real.mjs",
+    "algorithm": "SHA-256",
+    "digest": "a46c86dbb276c0ceb8ae187c6a1dcf79ac1db513ffcdd1b37874d1a21b012e4a"
+  },
+  {
+    "source": "tools/deploy/restore-mysql-isolated-harness.sh",
+    "algorithm": "SHA-256",
+    "digest": "a397b835441c7c918d35dcc50362acc431acd9b7fa35ebca6fa2be0449432ac0"
+  },
+  {
+    "source": "tools/frontend/recent-host-access-playwright.cjs",
+    "algorithm": "SHA-256",
+    "digest": "f2fe968ea1ceba3d8a7f000da8b039e53ee7cfed3437b4a6860762bee5531d82"
+  },
+  {
+    "source": "tools/deploy/restore-mysql-env.cjs",
+    "algorithm": "SHA-256",
+    "digest": "9f1288176658589fac86e86ce4c38b35d9e0075e153b776a5157b2244c50bb2d"
+  },
+  {
+    "source": "tools/deploy/restore-mysql-env.test.mjs",
+    "algorithm": "SHA-256",
+    "digest": "06da69b90fc7cdf71a1c713675208fc64cff04dfbfaaa456402f5c22bcb3daa6"
+  },
+  {
+    "source": "tools/shared/linear-harness-text.cjs",
+    "algorithm": "SHA-256",
+    "digest": "d3245d992ab7e9dcde34d684b5becce7c3ae2a407533ae5e18da409bd08dca17"
+  },
+  {
+    "source": "tools/shared/linear-harness-text.test.mjs",
+    "algorithm": "SHA-256",
+    "digest": "91273a246e19d0939f6e82f1c55a43705aa60c09655f298b7d9053eb1bf640d4"
+  }
+]

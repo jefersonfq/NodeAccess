@@ -69,5 +69,6 @@ ENV PATH="/opt/certbot/bin:${PATH}"
 COPY --from=node-runtime /usr/local/bin/node /usr/local/bin/node
 COPY docker/nginx.https.conf /etc/nginx/nginx.conf
 COPY tools/tls /opt/nodeaccess-tls
+COPY tools/shared/trusted-executable.cjs /opt/shared/trusted-executable.cjs
 STOPSIGNAL SIGTERM
 ENTRYPOINT ["sh", "/opt/nodeaccess-tls/entrypoint.sh"]

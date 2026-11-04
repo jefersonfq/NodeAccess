@@ -391,7 +391,7 @@ function realisticSession4177Events(): { events: SessionAuditPreviewEvent[]; exp
   events.push(event(seq++, 'stdout', '\r\n-bash: ifocnfig: comando não encontrado\r\n' + homePrompt, offset += 3))
 
   events.push(event(seq++, 'stdin', 'ifconfig\r', offset += 2))
-  events.push(event(seq++, 'stdout', 'ifconfig\r\nens18: flags=4163<UP,BROADCAST,RUNNING,MULTICAST>\r\n        inet 168.227.132.19\r\n' + homePrompt, offset += 3))
+  events.push(event(seq++, 'stdout', 'ifconfig\r\nens18: flags=4163<UP,BROADCAST,RUNNING,MULTICAST>\r\n        inet 192.0.2.42\r\n' + homePrompt, offset += 3))
 
   events.push(event(seq++, 'stdin', 'cd /va\tr/log\r', offset += 2))
   events.push(event(seq++, 'stdout', `\r\n\x1b]0;suporte@Dinamico-132-19:/var/log\x07${logPrompt}`, offset += 2))
@@ -410,7 +410,7 @@ function realisticSession4177Events(): { events: SessionAuditPreviewEvent[]; exp
       { command: 'ls -lha', outputIncludes: ['total 44K', '.bash_history'] },
       { command: 'htop', outputIncludes: 'Saída interativa contínua detectada', outputExcludes: ['mysqld', 'PrePaidEngine'], interactive: true },
       { command: 'ifocnfig', outputIncludes: 'ifocnfig: comando não encontrado' },
-      { command: 'ifconfig', outputIncludes: ['ens18', '168.227.132.19'] },
+      { command: 'ifconfig', outputIncludes: ['ens18', '192.0.2.42'] },
       { command: 'cd /var/log' },
       { command: 'ls', outputIncludes: ['dnf.log', 'mysqld.log', 'zabbix'] },
       { command: 'vim dnf.log', outputIncludes: 'Saída interativa contínua detectada', outputExcludes: ['DEBUG DNF version', 'makecache'], interactive: true },

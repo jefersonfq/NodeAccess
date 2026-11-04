@@ -1581,3 +1581,17 @@ it('matches legacy bracket extraction across bounded separator and delimiter com
     }
   }
 })
+
+
+describe('inline first-prompt anchored contract', () => {
+  it('preserves leading whitespace and first separator across valid repeated prompts', () => {
+    const prompts = ['root@host:~$', '[user@host /srv]#', '[中😀]>', 'router%', 'db#']
+    const whitespace = ['', ' ', '\t', '\r', '\u00a0', '\u2028', '\u2029', '\ufeff']
+    for (const first of prompts) for (const second of prompts) for (const leading of whitespace) for (const separator of whitespace) {
+      expect(collapseConsecutivePrompts(leading + first + separator + second)).toBe(first + separator)
+    }
+  })
+  it.each(['prompt$ ordinary output', '[unterminated'.repeat(10000), 'a'.repeat(100000), '  root$ text root$  '])('leaves non-repeated-prompt lines untouched %#', line => {
+    expect(collapseConsecutivePrompts(line)).toBe(line)
+  })
+})

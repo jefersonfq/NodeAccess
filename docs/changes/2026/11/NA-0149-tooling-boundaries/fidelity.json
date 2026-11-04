@@ -1,0 +1,138 @@
+{
+  "ok": true,
+  "scenarios": [
+    {
+      "name": "bulk-100-linear-commands",
+      "ok": true,
+      "expectedCommands": 100,
+      "actualCommands": 100,
+      "exactCommandMatches": 100,
+      "fidelityScore": 1,
+      "interactiveCommands": 0,
+      "durationMs": 13,
+      "findings": []
+    },
+    {
+      "name": "bulk-200-linear-commands",
+      "ok": true,
+      "expectedCommands": 200,
+      "actualCommands": 200,
+      "exactCommandMatches": 200,
+      "fidelityScore": 1,
+      "interactiveCommands": 0,
+      "durationMs": 25,
+      "findings": []
+    },
+    {
+      "name": "bulk-300-linear-commands",
+      "ok": true,
+      "expectedCommands": 300,
+      "actualCommands": 300,
+      "exactCommandMatches": 300,
+      "fidelityScore": 1,
+      "interactiveCommands": 0,
+      "durationMs": 50,
+      "findings": []
+    },
+    {
+      "name": "combined-stdout-100-commands",
+      "ok": true,
+      "expectedCommands": 100,
+      "actualCommands": 100,
+      "exactCommandMatches": 100,
+      "fidelityScore": 1,
+      "interactiveCommands": 0,
+      "durationMs": 12,
+      "findings": []
+    },
+    {
+      "name": "editor-backspace-pager-control",
+      "ok": true,
+      "expectedCommands": 3,
+      "actualCommands": 3,
+      "exactCommandMatches": 3,
+      "fidelityScore": 1,
+      "interactiveCommands": 2,
+      "durationMs": 2,
+      "findings": []
+    },
+    {
+      "name": "tui-exit-key-does-not-prefix-next-command",
+      "ok": true,
+      "expectedCommands": 3,
+      "actualCommands": 3,
+      "exactCommandMatches": 3,
+      "fidelityScore": 1,
+      "interactiveCommands": 1,
+      "durationMs": 1,
+      "findings": []
+    },
+    {
+      "name": "shell-fidelity-edge-cases",
+      "ok": true,
+      "expectedCommands": 5,
+      "actualCommands": 5,
+      "exactCommandMatches": 5,
+      "fidelityScore": 1,
+      "interactiveCommands": 0,
+      "durationMs": 1,
+      "findings": []
+    },
+    {
+      "name": "comprehensive-audit-plan-terminal-behaviors",
+      "ok": true,
+      "expectedCommands": 76,
+      "actualCommands": 76,
+      "exactCommandMatches": 76,
+      "fidelityScore": 1,
+      "interactiveCommands": 4,
+      "durationMs": 18,
+      "findings": []
+    },
+    {
+      "name": "realistic-session-4177-playback-command-crosscheck",
+      "ok": true,
+      "expectedCommands": 7,
+      "actualCommands": 7,
+      "exactCommandMatches": 7,
+      "fidelityScore": 1,
+      "interactiveCommands": 2,
+      "durationMs": 1,
+      "findings": []
+    },
+    {
+      "name": "mixed-randomized-100-commands",
+      "ok": true,
+      "expectedCommands": 100,
+      "actualCommands": 100,
+      "exactCommandMatches": 100,
+      "fidelityScore": 1,
+      "interactiveCommands": 0,
+      "durationMs": 38,
+      "findings": []
+    },
+    {
+      "name": "mixed-randomized-200-commands",
+      "ok": true,
+      "expectedCommands": 200,
+      "actualCommands": 200,
+      "exactCommandMatches": 200,
+      "fidelityScore": 1,
+      "interactiveCommands": 0,
+      "durationMs": 86,
+      "findings": []
+    },
+    {
+      "name": "mixed-randomized-300-commands",
+      "ok": true,
+      "expectedCommands": 300,
+      "actualCommands": 300,
+      "exactCommandMatches": 300,
+      "fidelityScore": 1,
+      "interactiveCommands": 0,
+      "durationMs": 173,
+      "findings": []
+    }
+  ],
+  "extraFindings": []
+}

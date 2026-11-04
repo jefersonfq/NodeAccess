@@ -167,7 +167,7 @@
       "path": "apps/backend/src/modules/network-access/tacacs-resilience.test.ts",
       "rule": "generic-api-key",
       "line": 6,
-      "fileSha256": "784e221c538002cb9bbf102a215c28475087f83981072a6a1c68b5cc3885dc47",
+      "fileSha256": "38a4067922a1573dbf506eaf67d4c4284bbb1810c0a96006e89ae51a109b274b",
       "reason": "Material público e descartável de teste/CI; não usar em produção; revalidado na NA-0069 após integração."
     },
     {
@@ -202,14 +202,14 @@
       "path": "apps/frontend/src/locales/en.json",
       "rule": "private-key",
       "line": 1050,
-      "fileSha256": "8362de8c0b7694a52dea37a1b44c27211d1898114d80fa2557248b3b9159d437",
+      "fileSha256": "35ad1e23a15bcc0556d2a7c73b7f4f39cb6caa3bcfa1bc1a916c4ac2fd4f8bd7",
       "reason": "Placeholder textual PEM com reticências, idêntico à base; revalidado na NA-0079 após mudança de traduções de conexão. Não contém chave privada."
     },
     {
       "path": "apps/frontend/src/locales/pt-BR.json",
       "rule": "private-key",
       "line": 1053,
-      "fileSha256": "f0dabf2975f8ebd83d5643e3456f4195a0aff629fdec5203ae0bd603ff4d8caf",
+      "fileSha256": "f678eadced312ab69f5762762595d2a715d1a81f9299ffa659db48c0748d5a24",
       "reason": "Placeholder textual PEM com reticências, idêntico à base; revalidado na NA-0079 após mudança de traduções de conexão. Não contém chave privada."
     },
     {
@@ -229,8 +229,8 @@
     {
       "path": "tools/deploy/doctor-nodeaccess-harness.cjs",
       "rule": "generic-api-key",
-      "line": 29,
-      "fileSha256": "531080e37d32e0a9506f629038942c53e8e2358db5ab8316d348ccc95427e2fc",
+      "line": 30,
+      "fileSha256": "bd99d6f21328dc4f5d279f231edf1050f8c68307f0437e2596cc8b89445f1766",
       "reason": "Material público e descartável de teste/CI; não usar em produção; revalidado na NA-0069 após integração."
     },
     {
@@ -241,18 +241,11 @@
       "reason": "Material público e descartável de teste/CI; não usar em produção; revalidado na NA-0069 após integração."
     },
     {
-      "path": "tools/deploy/restore-mysql-isolated-harness.sh",
-      "rule": "generic-api-key",
-      "line": 62,
-      "fileSha256": "f85f86c85ba2aa4edd78a6d3cacb0b796bf4a8500bdc9c9743548a1503a6f62b",
-      "reason": "Material público e descartável de teste/CI; não usar em produção; revalidado na NA-0069 após integração."
-    },
-    {
       "path": "tools/deploy/helm-ollama-kind-certification.sh",
       "rule": "generic-api-key",
-      "line": 25,
-      "fileSha256": "fbd1decf15c4d82eb759399301e541de8f7246f9945c43f7e33647788e4b0a8e",
-      "reason": "Material público e descartável de teste/CI; não usar em produção; revalidado na NA-0069 após integração."
+      "line": 29,
+      "fileSha256": "b613f46164f6f06afaa7e5a205985f7c103bbf1de76f0f27caac77265ddb1280",
+      "reason": "Material público e descartável de teste/CI; não usar em produção; revalidado na NA-0149 após diff limitado a contexto Kubernetes explícito e cleanup do cluster criado, sem alterar literais."
     },
     {
       "path": "tools/deploy/helm-kind-certification-harness.sh",

@@ -1,3 +1,4 @@
+import { resolveExecutable } from '../../tools/shared/trusted-executable.cjs'
 import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
@@ -15,7 +16,7 @@ try {
     if (!/^[\w.-]+\/[\w.-]+$/.test(repository)) throw new Error('AGENT_WINDOWS_RELEASE_REPO deve usar owner/repo')
     const version = JSON.parse(readFileSync(resolve(projectRoot, 'apps/agent/package.json'), 'utf8')).version
     temporary = mkdtempSync(join(tmpdir(), 'nodeaccess-agent-'))
-    const result = spawnSync('gh', ['release', 'download', `agent-v${version}`, '--repo', repository,
+    const result = spawnSync(resolveExecutable('gh'), ['release', 'download', `agent-v${version}`, '--repo', repository,
       '--dir', temporary, ...distributionNames.flatMap(name => ['--pattern', name])], { stdio: 'inherit' })
     if (result.error || result.status !== 0) throw new Error('Falha ao obter release Windows. Verifique gh, acesso ao repositorio e a tag do agente')
     directory = temporary

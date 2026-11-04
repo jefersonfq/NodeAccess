@@ -1,3 +1,4 @@
+import { resolveExecutable } from '../tools/shared/trusted-executable.cjs'
 import { execFileSync } from 'node:child_process'
 import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import { join, relative, dirname } from 'node:path'
@@ -60,7 +61,7 @@ export function findPlanFiles(root = process.cwd()) {
     }
   }
   walk(base)
-  return files.sort()
+  return files.sort(compareCodeUnits)
 }
 
 export function validatePlan(content, { branch, changeId, path }) {
@@ -137,7 +138,7 @@ export function validateImplementationRecord(content, changeId) {
 }
 
 export function gitCommits(baseSha, headSha, cwd = process.cwd()) {
-  const output = execFileSync('git', [
+  const output = execFileSync(resolveExecutable('git'), [
     'log', '--format=%H%x1f%s%x1f%b%x1e', `${baseSha}..${headSha}`,
   ], { cwd, encoding: 'utf8' })
   return output.split('\x1e').map(row => row.trim()).filter(Boolean).map((row) => {
@@ -178,4 +179,11 @@ export function validateLifecycle({ root = process.cwd(), branch, baseSha, headS
 
 function escapeRegExp(value) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+}
+
+// Preserve the native string sort order used by canonical output and digests.
+function compareCodeUnits(left, right) {
+  if (left < right) return -1
+  if (left > right) return 1
+  return 0
 }

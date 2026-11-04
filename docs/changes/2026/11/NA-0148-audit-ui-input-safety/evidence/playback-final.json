@@ -1,0 +1,99 @@
+{
+  "ok": true,
+  "runner": "playwright",
+  "durationMs": 50887,
+  "fixtures": {
+    "events": 7,
+    "commands": 3
+  },
+  "viewports": [
+    {
+      "name": "1440x1000",
+      "playedCursor": 1,
+      "commandRows": 3,
+      "timelineMarkers": 4,
+      "modes": [
+        "clean",
+        "raw"
+      ],
+      "csvExport": true,
+      "highlightExport": true,
+      "horizontalOverflow": false
+    },
+    {
+      "name": "390x844",
+      "playedCursor": 1,
+      "commandRows": 3,
+      "timelineMarkers": 4,
+      "modes": [
+        "clean",
+        "raw"
+      ],
+      "csvExport": true,
+      "highlightExport": true,
+      "horizontalOverflow": false
+    }
+  ],
+  "errorState": {
+    "publicError": true,
+    "internalDetailExposed": false
+  },
+  "emptyState": {
+    "playbackActionsDisabled": true,
+    "commandRows": 0
+  },
+  "truncatedState": {
+    "warningVisible": true,
+    "eventLimit": 5000
+  },
+  "longSession": {
+    "logicalDurationMs": 300000,
+    "events": 105,
+    "commands": 29,
+    "timelineLength": 58,
+    "markerCount": 30,
+    "selectedMetrics": {
+      "Nodes": 4916,
+      "LayoutCount": 70,
+      "RecalcStyleCount": 301,
+      "TaskDuration": 3.237,
+      "JSHeapUsedSize": 58005024
+    },
+    "artifacts": {
+      "playbackScreenshot": "/tmp/nodeaccess-harness-0-4c073eedfc82/nodeaccess-session-playback-artifacts/long-session-playback.png",
+      "commandsScreenshot": "/tmp/nodeaccess-harness-0-4c073eedfc82/nodeaccess-session-playback-artifacts/long-session-commands.png",
+      "video": null,
+      "trace": null
+    }
+  },
+  "scaleSession": {
+    "logicalDurationMs": 300000,
+    "events": 1787,
+    "commands": 600,
+    "timelineLength": 1155,
+    "displayedMarkers": 121,
+    "renderedCommandRows": 100,
+    "failures": {
+      "connectionDrops": 6,
+      "timeouts": 11,
+      "permissionDenied": 14,
+      "stderr": 16
+    },
+    "openMs": 2603,
+    "renderEndMs": 140,
+    "commandListRenderMs": 1138,
+    "pageTurnMs": 4047,
+    "longTasks": 13,
+    "longTaskTotalMs": 5606,
+    "longTaskMaxMs": 977,
+    "liveDomNodes": 993,
+    "selectedMetrics": {
+      "Nodes": 2515,
+      "LayoutCount": 0,
+      "RecalcStyleCount": 1,
+      "TaskDuration": 0.26,
+      "JSHeapUsedSize": 48862616
+    },
+    "screenshot": "/tmp/nodeaccess-harness-0-4c073eedfc82/nodeaccess-session-playback-artifacts/scale-600-commands.png"
+  }
+}

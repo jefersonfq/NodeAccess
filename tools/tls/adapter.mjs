@@ -1,8 +1,9 @@
+import { resolveExecutable } from '../shared/trusted-executable.cjs'
 import fs from 'node:fs/promises'
 import tls from 'node:tls'
 import http from 'node:http'
 import { lookup } from 'node:dns/promises'
-import { randomUUID } from 'node:crypto'
+import { createChallengeFile } from './challenge-files.mjs'
 import { spawn } from 'node:child_process'
 import path from 'node:path'
 import { run, metadata, TlsError } from './certificates.mjs'
@@ -22,11 +23,10 @@ export function createAdapter({domain,external=false,certbotDir='/var/lib/nodeac
       catch { throw new TlsError('ACME_DNS','O domínio não resolve neste servidor. Confira o DNS antes da emissão.') }
     },
     checkChallenge:async()=>{
-      const directory=path.join(webroot,'.well-known/acme-challenge'),name='nodeaccess-'+randomUUID(),file=path.join(directory,name)
+      let challenge
       try {
-        await fs.mkdir(directory,{recursive:true,mode:0o755})
-        await fs.chmod(path.dirname(directory),0o755);await fs.chmod(directory,0o755)
-        await fs.writeFile(file,name,{mode:0o644});await fs.chmod(file,0o644)
+        challenge=await createChallengeFile(webroot)
+        const { name }=challenge
         await new Promise((resolve,reject)=>{
           const request=http.get({host:connectHost,port:80,path:'/.well-known/acme-challenge/'+name,headers:{Host:domain}},response=>{
             let data='';response.on('data',chunk=>{data+=chunk;if(data.length>1000)request.destroy(new Error('oversized'))})
@@ -35,12 +35,12 @@ export function createAdapter({domain,external=false,certbotDir='/var/lib/nodeac
           request.setTimeout(5000,()=>request.destroy(new Error('timeout')));request.on('error',reject)
         })
       }catch{throw new TlsError('HTTP01_LOCAL_FAILED','O desafio HTTP-01 não está acessível no Nginx local. Confira o volume e a rota do desafio. A acessibilidade pela internet será validada pela autoridade.')}
-      finally{await fs.unlink(file).catch(()=>{})}
+      finally{await challenge?.remove()}
     },
     // Nginx opens /dev/stdout and /dev/stderr. Node execFile uses socket-backed pipes
     // which cannot be reopened there; discard validation output, keep a safe error code.
     test:()=>new Promise((resolve,reject)=>{
-      const child=spawn('nginx',['-t'],{stdio:'ignore'}), timer=setTimeout(()=>child.kill('SIGKILL'),10000)
+      const child=spawn(resolveExecutable('nginx'),['-t'],{stdio:'ignore'}), timer=setTimeout(()=>child.kill('SIGKILL'),10000)
       const failure=()=>new TlsError('NGINX_CONFIG_FAILED','A configuração do Nginx não passou na validação. Verifique nginx -t no serviço.')
       child.once('error',()=>{clearTimeout(timer);reject(failure())});child.once('exit',code=>{clearTimeout(timer);code===0?resolve():reject(failure())})
     }),

@@ -2071,6 +2071,8 @@
     }
   },
   "graphicalSession": {
+    "keyboardExitHint": "Ctrl + Alt + Shift libera o teclado remoto. Depois, use Tab para navegar pelos controles.",
+    "keyboardReturn": "Retomar teclado remoto",
     "title": "Sessão gráfica",
     "subtitle": "Área reservada para protocolos gráficos do host.",
     "displayLabel": "Área de exibição da sessão gráfica",

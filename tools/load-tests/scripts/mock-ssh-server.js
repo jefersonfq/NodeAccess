@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+const { resolveExecutable } = require('../../shared/trusted-executable.cjs')
 
 const fs = require('node:fs')
 const path = require('node:path')
@@ -22,7 +23,7 @@ const keyPath = path.resolve(process.cwd(), argValue('--key', 'tools/load-tests/
 function ensureHostKey() {
   if (fs.existsSync(keyPath)) return
   fs.mkdirSync(path.dirname(keyPath), { recursive: true })
-  const result = spawnSync('ssh-keygen', ['-t', 'rsa', '-b', '2048', '-N', '', '-f', keyPath], {
+  const result = spawnSync(resolveExecutable('ssh-keygen'), ['-t', 'rsa', '-b', '2048', '-N', '', '-f', keyPath], {
     stdio: 'ignore',
   })
   if (result.status !== 0) {

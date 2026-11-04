@@ -1,0 +1,7 @@
+{
+  "node": "v24.22.1",
+  "sourceBase": "ee436402db8bcce7fab4378d6ba28c1673b282b5",
+  "contracts": 14,
+  "result": "PASS",
+  "limitations": "Transpiled original helpers; no DB/network/VPS calls; no concurrent malicious filesystem actor"
+}

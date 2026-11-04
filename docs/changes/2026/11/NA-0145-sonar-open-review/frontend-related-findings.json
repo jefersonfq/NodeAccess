@@ -1,0 +1,75 @@
+[
+  {
+    "id": "NA0145-F01",
+    "linkedSonarIds": [
+      "SQ-0208"
+    ],
+    "file": "apps/frontend/src/views/admin/SessionAuditDetailView.vue",
+    "sourceLine": 2396,
+    "classification": "fix_required",
+    "priority": "P2",
+    "title": "Playback cancela todas as teclas na região focável",
+    "reason": "tabindex=0 permite entrada por Tab, mas @keydown.prevent sem tratamento alternativo cancela a navegação padrão inteira. Não é necessário bloquear teclado para um div de leitura sem contenteditable.",
+    "evidence": [
+      "apps/frontend/src/views/admin/SessionAuditDetailView.vue:2395",
+      "apps/frontend/src/views/admin/SessionAuditDetailView.vue:2396",
+      "docs/changes/2026/11/NA-0145-sonar-open-review/frontend-probes.cjs",
+      "docs/changes/2026/11/NA-0145-sonar-open-review/frontend-probes.json"
+    ],
+    "reproduction": "Executar frontend-probes.cjs com raiz de checkout e dependências instaladas. Usa withModifiers real do Vue sobre eventos canceláveis Tab, ArrowDown, PageDown e Ctrl+C; todos defaultPrevented=true.",
+    "impact": "Pode impedir saída do painel por Tab, rolagem e cópia pelo teclado; prejudica uso sem mouse.",
+    "mitigation": "Restringir prevenção às ações realmente necessárias e manter Tab/rolagem/cópia; validar foco antes/depois e comandos do player em browser real e com tecnologia assistiva. Não transformar o painel em editor.",
+    "limitations": "Prova do modificador Vue e fonte, não teste E2E da rota ou leitor de tela. Nenhuma alteração aplicada."
+  },
+  {
+    "id": "NA0145-F02",
+    "linkedSonarIds": [
+      "SQ-0245"
+    ],
+    "file": "apps/frontend/src/views/HostsView.vue",
+    "sourceLine": 3293,
+    "classification": "fix_required",
+    "priority": "P2",
+    "title": "Validador IPv6 não detecta múltiplas compressões",
+    "reason": "replace de string troca apenas a primeira ocorrência de ::. A contagem de NUL seguinte nunca excede1 para entradas hex/colon normais; a checagem descrita no comentário fica ineficaz. O NUL intencional é falso positivo da regra S6324, distinto deste defeito.",
+    "evidence": [
+      "apps/frontend/src/views/HostsView.vue:3286",
+      "apps/frontend/src/views/HostsView.vue:3293",
+      "apps/frontend/src/views/HostsView.vue:3294",
+      "apps/frontend/src/views/HostsView.vue:3331",
+      "docs/changes/2026/11/NA-0145-sonar-open-review/frontend-probes.json"
+    ],
+    "reproduction": "Função atual extraída e transpilada por TypeScript retorna null para 1::2::3 e abcd::def::123; node:net.isIP retorna0. Controle 2001:db8::1 retorna null e isIP6; máscara129 é rejeitada.",
+    "impact": "Feedback da tela aceita endereço IPv6 malformado nesse caminho; pode levar a configuração inválida/erro posterior.",
+    "mitigation": "Corrigir validação estrutural mantendo a distinção entre digitação parcial e validação final; cobrir múltiplas compressões, segmentos, máscaras e endereços válidos. Preferir validador existente confiável quando disponível.",
+    "limitations": "Não prova aceitação pelo backend, conexão SSH ou bypass de segurança. Nenhuma alteração aplicada; sentinela pode continuar sendo byte deliberado mesmo após correção."
+  },
+  {
+    "id": "NA0145-F03",
+    "linkedSonarIds": [
+      "SQ-0191",
+      "SQ-0192",
+      "SQ-0193",
+      "SQ-0204",
+      "SQ-0205"
+    ],
+    "file": "apps/frontend/src/views/admin/SessionAuditDetailView.vue",
+    "sourceLine": 803,
+    "classification": "fix_required",
+    "priority": "P2",
+    "title": "Busca DCS incompleta reexamina sufixos na auditoria",
+    "reason": "Ramo não ancorado ESC P seguido de [\\s\\S]*? procura terminador inexistente e reinicia no próximo prefixo. Mesma estrutura aparece na heurística de redraw. Bytes de controle são intencionais (S6324 falso positivo), mas algoritmo pode crescer quadraticamente.",
+    "evidence": [
+      "apps/frontend/src/views/admin/SessionAuditDetailView.vue:800",
+      "apps/frontend/src/views/admin/SessionAuditDetailView.vue:803",
+      "apps/frontend/src/views/admin/SessionAuditDetailView.vue:933",
+      "apps/frontend/src/views/admin/SessionAuditDetailView.vue:939",
+      "docs/changes/2026/11/NA-0145-sonar-open-review/frontend-probes.cjs",
+      "docs/changes/2026/11/NA-0145-sonar-open-review/frontend-probes.json"
+    ],
+    "reproduction": "stripTerminalControlSequences atual extraída/transpilada, subprocessos limitados a2500ms. Entrada sintética ESC P repetida: 1000prefixos~1,42ms;4000~16,58ms;12000~124,20ms, máximo24000caracteres ASCII de controle. Raiz repetiu e observou crescimento semelhante.",
+    "impact": "Texto terminal incompleto pode aumentar custo de processamento síncrono da visualização. Há potencial de perda de responsividade ao combinar eventos grandes; não demonstrado exploit E2E.",
+    "mitigation": "Usar parser/varredura com limite linear e contrato explícito para sequências incompletas, reutilizando lógica existente se possível; testar preservação de saída, OSC/DCS válidos e limites upstream antes de impor truncamento.",
+    "limitations": "Medição Node24.22.1 sobre função real, não FPS do browser ou ataque remoto. Não foi demonstrado limite efetivo por event.text ao chegar à view; confirmar fronteira backend/storage. Não multiplicar este mesmo defeito por cada byte Sonar."
+  }
+]

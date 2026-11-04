@@ -4,7 +4,7 @@ on:
   push:
     tags: ['agent-v*']
   pull_request:
-    paths: ['package.json', 'tools/frontend/sharing-flows-playwright.cjs', 'tools/frontend/terminal-experience-playwright.cjs', 'apps/frontend/src/services/api*.ts', 'apps/frontend/src/components/ActionTooltip.ts', 'apps/frontend/src/views/JitAccessView.vue', 'tools/agent/**', 'apps/agent/**', 'package-lock.json', 'scripts/release/**', 'docker/backend.Dockerfile', '.dockerignore', 'apps/backend/src/modules/agents/**', 'apps/frontend/src/views/AgentsView.vue', 'apps/frontend/src/services/agent.service.ts', 'tools/frontend/agents-experience-playwright.cjs', '.github/workflows/agent-native-smoke.yml']
+    paths: ['tools/shared/**', 'package.json', 'tools/frontend/sharing-flows-playwright.cjs', 'tools/frontend/terminal-experience-playwright.cjs', 'apps/frontend/src/services/api*.ts', 'apps/frontend/src/components/ActionTooltip.ts', 'apps/frontend/src/views/JitAccessView.vue', 'tools/agent/**', 'apps/agent/**', 'package-lock.json', 'scripts/release/**', 'docker/backend.Dockerfile', '.dockerignore', 'apps/backend/src/modules/agents/**', 'apps/frontend/src/views/AgentsView.vue', 'apps/frontend/src/services/agent.service.ts', 'tools/frontend/agents-experience-playwright.cjs', '.github/workflows/agent-native-smoke.yml']
 jobs:
   native-agent:
     strategy:
@@ -18,6 +18,8 @@ jobs:
         with:
           node-version: 24.22.1
           cache: npm
+      - name: Validate executable boundaries on the native platform
+        run: node --test tools/shared/trusted-executable.test.mjs
       - name: Use npm with workspace override support
         run: npm install --global npm@12.2.1
       - run: npm ci

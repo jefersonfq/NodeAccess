@@ -1,0 +1,27 @@
+[
+  {
+    "source": "apps/backend/src/modules/diagnostic-playbooks/diagnostic-run.controller.ts",
+    "algorithm": "SHA-256",
+    "digest": "d2e6b60c5e52d43d876b242ef6031fec3b995447a0f1679afba5496a24c1c29f"
+  },
+  {
+    "source": "apps/backend/src/modules/native-ssh-gateway/native-ssh-gateway.host-key.ts",
+    "algorithm": "SHA-256",
+    "digest": "592871297fef80f14dcfafd5e165a232972d8226b1333ed7b20ef12572fa0e72"
+  },
+  {
+    "source": "apps/backend/src/modules/session-audit/session-audit-normalizer.ts",
+    "algorithm": "SHA-256",
+    "digest": "8fd645186e8a7b5a0aa5446fd37d2c29363d554bf31fdc498584573c4c1dd29e"
+  },
+  {
+    "source": "apps/backend/src/modules/trials/trial-machines.ts",
+    "algorithm": "SHA-256",
+    "digest": "1ee5d4411945f27deae9b7daa44a27baebc48d1cd0b3206d5479fe8ad060e8a6"
+  },
+  {
+    "source": "apps/backend/src/modules/trials/trial.service.ts",
+    "algorithm": "SHA-256",
+    "digest": "380f8ee8fba42918f5102dac37d5d47f7943ab8c4be5b70a002e89c08928e2b3"
+  }
+]

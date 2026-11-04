@@ -1,11 +1,12 @@
 #!/usr/bin/env node
+import { resolveExecutable } from '../tools/shared/trusted-executable.cjs'
 import { execFileSync } from 'node:child_process'
 import { existsSync, realpathSync } from 'node:fs'
 import { dirname, basename, resolve, relative, isAbsolute, sep } from 'node:path'
 import { pathToFileURL } from 'node:url'
 
 export function recovery(args, cwd = process.cwd()) {
-  const git = (...values) => execFileSync('git', values, { cwd, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).trim()
+  const git = (...values) => execFileSync(resolveExecutable('git'), values, { cwd, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).trim()
   const root = git('rev-parse', '--show-toplevel')
   const commit = ref => git('rev-parse', '--verify', '--end-of-options', `${ref}^{commit}`)
   const tree = sha => git('rev-parse', `${sha}^{tree}`)

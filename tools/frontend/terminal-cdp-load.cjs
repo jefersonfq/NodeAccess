@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+const { resolveExecutable } = require('../shared/trusted-executable.cjs')
 const { artifactPath } = require('../shared/private-artifacts.cjs')
 /*
  * Terminal browser load harness via Chromium CDP.
@@ -147,7 +148,7 @@ function shouldIncludeContainer(row) {
 }
 
 function readContainerStats() {
-  const result = spawnSync('docker', ['stats', '--no-stream', '--format', '{{json .}}'], {
+  const result = spawnSync(resolveExecutable('docker'), ['stats', '--no-stream', '--format', '{{json .}}'], {
     encoding: 'utf8',
     timeout: 5000,
   })

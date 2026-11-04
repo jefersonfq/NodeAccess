@@ -10,7 +10,7 @@ const commands = [
 ]
 const detail = {
   sessionId: SESSION_ID, tenantId: 1, userId: 1, userNameSnapshot: 'Audit Admin', userEmailSnapshot: 'admin@example.test',
-  hostId: 7026, hostNameSnapshot: 'VPN KING HOST', hostIpSnapshot: '177.153.202.21', hostDeleted: false,
+  hostId: 7026, hostNameSnapshot: 'Lab Firewall', hostIpSnapshot: '192.0.2.21', hostDeleted: false,
   connectionMethod: 'mcp_action_run', routeSnapshot: { auditKind: 'ai_action_run', actionRunId: 8, channel: 'mcp', mode: 'approval_required', mcpTokenId: 33, mcpTokenName: 'full_governado', approvedById: 1, hasPty: false },
   clientIp: null, userAgent: 'NodeAccess ActionRun/8', agentRemoteIp: null, ticketProvider: null, ticketKey: null, ticketUrl: null,
   startedAt, endedAt: '2026-08-16T21:42:44.000Z', status: 'FAILED', chunkCount: 1, commandCount: 2,
@@ -30,6 +30,8 @@ async function mock(context) {
     let body = []
     if (p === '/api/v1/session-audit') body = { data: [detail], total: 1, page: 1, limit: 20 }
     else if (p === `/api/v1/session-audit/${SESSION_ID}`) body = detail
+    else if (p.endsWith('/reconstruction')) body = { id: 'fixture-reconstruction', processorVersion: 'fixture-v1', sourceFingerprint: 'fixture-only', createdAt: startedAt, state: 'complete', eventCount: 4, commandCount: 2, persisted: true, issues: [] }
+    else if (p.endsWith('/reconstructions')) body = []
     else if (p.endsWith('/commands')) body = commands
     else if (p.endsWith('/command-stats')) body = { total: 2, participants: [{ key: 'owner:1', userId: 1, name: 'Audit Admin', role: 'owner', count: 2 }] }
     else if (p.endsWith('/preview')) body = []
@@ -43,16 +45,21 @@ async function mock(context) {
 async function validate(browser, viewport) {
   const context = await browser.newContext({ viewport })
   await mock(context)
-  await context.addInitScript((value) => localStorage.setItem('na_access_token', value), token())
+  await context.addInitScript((value) => {
+    localStorage.setItem('na_access_token', value)
+    window.__naAuditUiErrors = 0
+    window.addEventListener('nodeaccess:ui-error', () => { window.__naAuditUiErrors += 1 })
+  }, token())
   const page = await context.newPage()
   const errors = []
   page.on('pageerror', (error) => errors.push(error.message))
   await page.goto(`${FRONTEND}/admin/session-audit`, { waitUntil: 'domcontentloaded' })
   await page.getByText('Automação IA/MCP', { exact: true }).waitFor()
   if (await page.getByRole('button', { name: /Playback/i }).count()) throw new Error('Automation row exposed terminal playback')
-  await page.getByText('VPN KING HOST', { exact: true }).click()
+  await page.getByText('Lab Firewall', { exact: true }).click()
   await page.getByTestId('automation-audit-banner').waitFor()
   await page.getByTestId('open-action-run').waitFor()
+  await page.getByTestId('audit-reconstruction').getByText('Sem lacunas detectadas', { exact: true }).waitFor()
   if (!(await page.getByTestId('automation-audit-banner').innerText()).includes('full_governado')) throw new Error('MCP token trace is missing')
   if (await page.getByTestId('session-playback-panel').count()) throw new Error('Automation detail rendered fake terminal playback')
   const rows = page.locator('[data-audit-command-row="true"]')
@@ -61,9 +68,10 @@ async function validate(browser, viewport) {
   const failedRow = page.locator('[data-audit-command-row="true"][data-command-index="2"]')
   if (!(await failedRow.getByTestId('automation-exit-code').innerText()).includes('exit 4')) throw new Error('Exit evidence is missing')
   if (errors.length) throw new Error(`Browser errors: ${errors.join(' | ')}`)
+  if (await page.evaluate(() => window.__naAuditUiErrors) !== 0) throw new Error('Audit fixture triggered a Vue UI error')
   const commandCount = await rows.count()
   await context.close()
-  return { viewport, commands: commandCount, tokenVisible: true, playbackHidden: true }
+  return { viewport, commands: commandCount, tokenVisible: true, playbackHidden: true, reconstructionReady: true, uiErrors: 0 }
 }
 
 async function main() {

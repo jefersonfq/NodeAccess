@@ -69,7 +69,7 @@ const MULTI_PROMPT_LINE = /^((?:\[[^\]\r\n]+\]|[\w.@:/~-]+)[#$>%]\s?){2,}$/
 
 function collapseInlinePrompts(line: string): string {
   if (!MULTI_PROMPT_LINE.test(line.trim())) return line
-  const first = line.match(/(?:\[[^\]\r\n]+\]|[\w.@:/~-]+)[#$>%]\s?/)
+  const first = line.trimStart().match(/^(?:\[[^\]\r\n]+\]|[\w.@:/~-]+)[#$>%]\s?/)
   return first ? (first[0] ?? line) : line
 }
 
@@ -142,7 +142,9 @@ export function isLikelyInteractiveCommand(command: string): boolean {
   return false
 }
 
-const PAGER_STATUS_LINE = /^(?:lines?\s+\d+-\d+\/\d+.*|\(END\).*|--[Mm]ore--|END of file)$/
+// One mandatory digit is sufficient: the tail also matches remaining digits.
+// Avoid overlapping repetitions when a Unicode line separator makes the tail fail.
+const PAGER_STATUS_LINE = /^(?:lines?\s+\d+-\d+\/\d.*|\(END\).*|--[Mm]ore--|END of file)$/
 const INTERACTIVE_ERROR_LINE = /\b(permiss[aã]o negada|permission denied|error|erro|failed|falhou|not found|não encontrado)\b/i
 
 function isLikelyFullscreenCommand(command: string): boolean {

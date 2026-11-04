@@ -1,0 +1,39 @@
+[
+  {
+    "id": "SQ-0293",
+    "issueId": "ca3c7e88-3dd1-4223-a139-ad509f031e53",
+    "rule": "javascript:S8786",
+    "file": "tools/deploy/container-stack-real.mjs",
+    "sourceLine": 206,
+    "status": "implemented_pending_integrated_analysis",
+    "evidence": [
+      "tools/shared/linear-harness-text.test.mjs"
+    ],
+    "rationale": "Varredura linear preserva semântica anterior, sem reduzir asserções ou truncar input."
+  },
+  {
+    "id": "SQ-0306",
+    "issueId": "c580abfd-2d2c-494d-bc3a-859a9d7a32cc",
+    "rule": "secrets:S6697",
+    "file": "tools/deploy/restore-mysql-isolated-harness.sh",
+    "sourceLine": 66,
+    "status": "implemented_pending_integrated_analysis",
+    "evidence": [
+      "tools/deploy/restore-mysql-env.test.mjs",
+      "docs/changes/2026/11/NA-0153-harness-regex-restore/evidence/restore-real.json"
+    ],
+    "rationale": "Segredos distintos256bits por execução em env0600; restore sintético real e rejeição da senha antiga comprovados."
+  },
+  {
+    "id": "SQ-0398",
+    "issueId": "71b49306-2ce3-4b18-b0c1-aee0cb2e0029",
+    "rule": "javascript:S8786",
+    "file": "tools/frontend/recent-host-access-playwright.cjs",
+    "sourceLine": 98,
+    "status": "implemented_pending_integrated_analysis",
+    "evidence": [
+      "tools/shared/linear-harness-text.test.mjs"
+    ],
+    "rationale": "Varredura linear preserva semântica anterior, sem reduzir asserções ou truncar input."
+  }
+]

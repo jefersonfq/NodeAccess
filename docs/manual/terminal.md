@@ -20,10 +20,15 @@ Os modos de exibição ajudam a organizar abas, ferramentas e painéis. A ação
 
 Ao usar um painel de arquivos, confirme que ele pertence à sessão desejada. No painel **Arquivos**, o menu **Utilitários** facilita cópia entre suas sessões e edição no aplicativo local com agente pessoal Windows. O caminho selecionado e a conexão autenticada são reaproveitados; o comando direto é preparado para revisão e não executado automaticamente. O procedimento de edição e transferência está em [Arquivos e SFTP](/manual/sftp).
 
+## Seleção em modo texto
+Abra **Texto** para selecionar e copiar o conteúdo já recebido. A área permanece somente leitura e indica o foco de teclado. Use **Shift+Tab** para voltar ao botão **Fechar** e **Enter** para retornar ao terminal. Abrir e fechar esse modo não altera as dimensões da sessão.
+
 ## Destaques de mensagens
 Quando houver regras ativas, abra **Destaques** na barra superior do terminal. Se a barra estiver oculta, use **Mostrar barra de ferramentas**. Selecione uma regra para focar seus destaques ou **Mostrar todos** para remover esse foco. **Buscar próxima** localiza a próxima ocorrência da primeira regra da lista.
 
 **Somente ocorrências** mostra novas linhas correspondentes recebidas após ativar o filtro, até 200 registros. Use **Voltar ao terminal** para retornar à sessão. O painel de controles abre sobre a tela, sem reservar outra faixa de espaço. Feche com Escape ou clicando fora; ocultar a barra também oculta os controles, mantendo as cores das regras ativas no terminal.
+
+Se uma regra exceder o tempo de cálculo, o botão da barra passa a mostrar **Destaques · pausados**, mesmo com o menu fechado. Abra-o para ler o motivo. A sessão continua disponível para digitar, selecionar e copiar. Revise a regra em **Destaques do terminal**, salve a configuração e recarregue a página para permitir uma nova tentativa. A pausa vale para os destaques de toda a página, incluindo outras abas do terminal e testes de exemplo; editar uma regra não reinicia automaticamente o cálculo. Os testes de exemplo também mostram o aviso, sem bloquear a edição. Se o navegador não conseguir iniciar o cálculo isolado, recarregue a página após salvar seu trabalho.
 
 Se o botão não aparecer mesmo com a barra visível, confira se há regras habilitadas em **Destaques do terminal** no perfil ou atribuídas pelo administrador. Abrir os controles não cria outra conexão nem envia comandos ao host.
 

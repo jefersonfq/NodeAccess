@@ -1,0 +1,13 @@
+{
+  "id": "SQ-0052",
+  "issueId": "516c475a-b608-40f0-a09a-b1f6b6d4db22",
+  "rule": "typescript:S8786",
+  "state": "code_remediated",
+  "scannerConfirmation": "pending integration scan",
+  "reason": "Remove redundant digit repetition before a tail that already matches digits; preserves accepted language and removes overlapping backtracking.",
+  "evidence": [
+    "session-audit-pager-limits.test.ts",
+    "test-results.json",
+    "differential.cjs"
+  ]
+}

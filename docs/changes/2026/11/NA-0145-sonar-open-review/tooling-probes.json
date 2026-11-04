@@ -1,0 +1,9 @@
+{
+  "temporaryDirectory": {
+    "executed": true,
+    "mode": "0700",
+    "ownerIsCurrent": true,
+    "cleanup": "context manager completed"
+  },
+  "scope": "stdlib only; no remote access or product changes"
+}

@@ -1,0 +1,1156 @@
+[
+  {
+    "id": "SQ-0001",
+    "issueId": "6f08bb36-06ce-43b6-ac45-3544ce696b80",
+    "rule": "javascript:S7737",
+    "file": "apps/agent/src/local-listeners.js",
+    "sourceLine": 8,
+    "classification": "false_positive",
+    "priority": "P3",
+    "reason": "O objeto tem uma única capacidade obrigatória (allowLocalPort), cujo default nega todas as portas. Não há opções parciais múltiplas sendo substituídas; construtor não compartilha o objeto entre instâncias. O caso de risco descrito pela regra não está presente.",
+    "evidence": [
+      "apps/agent/src/local-listeners.js:8",
+      "apps/agent/src/local-listeners.js:15"
+    ],
+    "validation": "Contrato real do LocalListeners sem política rejeitou abertura e manteve zero listeners (runtime-probes.json).",
+    "limitations": "Não testado socket real; política fornecida explicitamente continua responsabilidade do chamador."
+  },
+  {
+    "id": "SQ-0002",
+    "issueId": "fd531dd3-db54-4b67-95e7-00758d2d00a0",
+    "rule": "typescript:S5443",
+    "file": "apps/backend/src/config/env.ts",
+    "sourceLine": 171,
+    "classification": "risk_acceptance_required",
+    "priority": "P2",
+    "reason": "O default de auditoria permanece em /tmp. A gravação usa diretório dedicado, proprietário do serviço, 0700, validação de symlinks e arquivo exclusivo 0600; não reproduzi escrita insegura. Persistência após limpeza/reboot, mesmo UID entre componentes e proteção do diretório em produção requerem decisão operacional explícita.",
+    "evidence": [
+      "apps/backend/src/config/env.ts:171",
+      "apps/backend/src/shared/private-storage.ts:7",
+      "apps/backend/src/modules/session-audit/session-audit.storage.ts:28"
+    ],
+    "validation": "Helper original transpílado: escrita/modo privado, travessia e raiz symlink verificados (runtime-probes.json).",
+    "limitations": "Não inspecionada VPS, montagem persistente ou política de limpeza; checks de filesystem não são isolamento contra processo concorrente do mesmo UID."
+  },
+  {
+    "id": "SQ-0003",
+    "issueId": "c2ee4394-aa20-4ba7-b15b-74616258fe5d",
+    "rule": "typescript:S5443",
+    "file": "apps/backend/src/config/env.ts",
+    "sourceLine": 172,
+    "classification": "risk_acceptance_required",
+    "priority": "P2",
+    "reason": "O default de avatares permanece em /tmp. O consumidor escreve via helper privado com owner/mode/symlink checks, mas retenção e compartilhamento seguro entre réplicas não decorrem desse default; precisam configuração e aceite operacional.",
+    "evidence": [
+      "apps/backend/src/config/env.ts:172",
+      "apps/backend/src/modules/users/user.service.ts:482",
+      "apps/backend/src/shared/private-storage.ts:18"
+    ],
+    "validation": "Helper original passou contratos locais de modo, travessia e symlink; consumidor inspecionado.",
+    "limitations": "Sem inspeção da implantação, volume persistente ou concorrência hostil; não afirmar perda de avatares observada."
+  },
+  {
+    "id": "SQ-0005",
+    "issueId": "12d93f64-f9d7-4eb4-8440-c085092416bd",
+    "rule": "typescript:S7059",
+    "file": "apps/backend/src/modules/agents/agent.service.ts",
+    "sourceLine": 207,
+    "classification": "false_positive",
+    "priority": "P3",
+    "reason": "O parâmetro inicializa uma função, não inicia a operação assíncrona no construtor. disconnectById/Promise.resolve só executam quando invalidateAgent é chamado, e os três consumidores aguardam a Promise.",
+    "evidence": [
+      "apps/backend/src/modules/agents/agent.service.ts:207",
+      "apps/backend/src/modules/agents/agent.service.ts:503",
+      "apps/backend/src/modules/agents/agent.service.ts:530",
+      "apps/backend/src/modules/agents/agent.service.ts:594"
+    ],
+    "validation": "Inspeção estática do construtor e dos três call sites atuais.",
+    "limitations": "Sem execução de sessão real; classificação restrita à operação falsamente atribuída ao construtor."
+  },
+  {
+    "id": "SQ-0007",
+    "issueId": "ec011108-1e25-45d4-9a43-eb2b5aca2676",
+    "rule": "typescript:S2068",
+    "file": "apps/backend/src/modules/auth/auth.routes.ts",
+    "sourceLine": 19,
+    "classification": "false_positive",
+    "priority": "P3",
+    "reason": "O literal está exclusivamente em loginBodySchema.examples para documentação OpenAPI. Não é default do schema nem credencial usada pelo autenticador; retirar ou rotacionar como segredo de produção confundiria exemplo com autenticação.",
+    "evidence": [
+      "apps/backend/src/modules/auth/auth.routes.ts:19",
+      "apps/backend/src/modules/auth/auth.routes.ts:16"
+    ],
+    "validation": "Inspecionada atribuição examples e origem LoginSchema, sem divulgar o literal.",
+    "limitations": "Não é auditoria de todas as credenciais do repositório nem prova de configuração de contas na VPS."
+  },
+  {
+    "id": "SQ-0008",
+    "issueId": "788b0121-b72c-4a93-9c48-a4d6bd618e15",
+    "rule": "typescript:S6324",
+    "file": "apps/backend/src/modules/auth/ldap-identity.provider.ts",
+    "sourceLine": 137,
+    "classification": "false_positive",
+    "priority": "P3",
+    "reason": "NUL deve ser escapado como sequência LDAP \\00 junto aos metacaracteres de filtro, impedindo interpretação de entrada como sintaxe. A ocorrência '\\\\u0000' na coluna 26 faz parte deliberada do protocolo/sanitização; removê-la muda o comportamento.",
+    "evidence": [
+      "apps/backend/src/modules/auth/ldap-identity.provider.ts:137"
+    ],
+    "validation": "Inspeção da ocorrência exata no export atual e do fluxo consumidor no arquivo; sem execução ponta a ponta deste parser nesta revisão.",
+    "limitations": "A classificação cobre apenas o controle intencional S6324, não garante ausência de outros problemas de regex ou reconstrução de terminal."
+  },
+  {
+    "id": "SQ-0012",
+    "issueId": "aeae7543-2978-4208-81e2-eb4099b55129",
+    "rule": "typescript:S8786",
+    "file": "apps/backend/src/modules/diagnostic-playbooks/diagnostic-run.controller.ts",
+    "sourceLine": 82,
+    "classification": "false_positive",
+    "priority": "P3",
+    "reason": "Antes do trim de hífens, replace(/[^a-z0-9]+/g, ...) colapsa toda sequência não alfanumérica em um único hífen. Portanto o regex apontado nunca recebe longas sequências contíguas de hífens; buscas repetidas que causariam comportamento quadrático não são alcançáveis nesse fluxo.",
+    "evidence": [
+      "apps/backend/src/modules/diagnostic-playbooks/diagnostic-run.controller.ts:82",
+      "apps/backend/src/modules/diagnostic-playbooks/diagnostic-run.controller.ts:81"
+    ],
+    "validation": "Inspeção da composição; probe com slug normalizado de 100001 caracteres completou em menos de 1 ms nesta máquina (regex-probes.json).",
+    "limitations": "Timing é uma amostra, não SLA; depende de preservar a normalização anterior."
+  },
+  {
+    "id": "SQ-0013",
+    "issueId": "3ee9e363-2ddc-4073-9296-55afbefa849c",
+    "rule": "typescript:S9383",
+    "file": "apps/backend/src/modules/ha/ha.service.ts",
+    "sourceLine": 1432,
+    "classification": "false_positive",
+    "priority": "P3",
+    "reason": "splice insere um PrismaPromise na lista transacional; a lista é explicitamente aguardada por db.$transaction(statements). Não há Promise esquecida. Promise.all aqui alteraria a atomicidade e a ordem do fluxo de promoção.",
+    "evidence": [
+      "apps/backend/src/modules/ha/ha.service.ts:1432",
+      "apps/backend/src/modules/ha/ha.service.ts:1411",
+      "apps/backend/src/modules/ha/ha.service.ts:1442"
+    ],
+    "validation": "Leitura completa da criação, inserção condicional e consumo transacional da lista.",
+    "limitations": "Não reproduzido failover nem rollback de banco real nesta revisão."
+  },
+  {
+    "id": "SQ-0014",
+    "issueId": "40822519-fa60-4e2e-abc6-503d70faa38c",
+    "rule": "typescript:S6959",
+    "file": "apps/backend/src/modules/hosts/host.repository.ts",
+    "sourceLine": 266,
+    "classification": "false_positive",
+    "priority": "P3",
+    "reason": "reduce só executa quando idFilters.length > 0. O primeiro conjunto é o acumulador correto da interseção; iniciar com [] apagaria todos os hosts autorizados. A alternativa vazia retorna null e conjuntos vazios produzem [].",
+    "evidence": [
+      "apps/backend/src/modules/hosts/host.repository.ts:266",
+      "apps/backend/src/modules/hosts/host.repository.ts:264"
+    ],
+    "validation": "Quatro simulações de fronteira: zero conjuntos, um conjunto, interseção e conjunto vazio passaram (regex-probes.json).",
+    "limitations": "Simulação da expressão, não consulta Prisma/ACL ponta a ponta."
+  },
+  {
+    "id": "SQ-0015",
+    "issueId": "2f9bc285-572a-444d-b770-50d2f6ba4d8f",
+    "rule": "typescript:S1313",
+    "file": "apps/backend/src/modules/hosts/host.routes.ts",
+    "sourceLine": 15,
+    "classification": "false_positive",
+    "priority": "P3",
+    "reason": "O endereço '10.0.10.15' (coluna 9) está em schema.examples de OpenAPI, não em configuração de conexão ou fallback de produção.",
+    "evidence": [
+      "apps/backend/src/modules/hosts/host.routes.ts:15"
+    ],
+    "validation": "Inspeção do objeto examples e do schema de entrada correspondente.",
+    "limitations": "Não representa inventário real nem valida rede da VPS."
+  },
+  {
+    "id": "SQ-0016",
+    "issueId": "e5c6eb8d-afdf-41b5-96d6-695d954777e2",
+    "rule": "typescript:S1313",
+    "file": "apps/backend/src/modules/hosts/host.routes.ts",
+    "sourceLine": 33,
+    "classification": "false_positive",
+    "priority": "P3",
+    "reason": "O endereço '10.0.10.15' (coluna 9) está em schema.examples de OpenAPI, não em configuração de conexão ou fallback de produção.",
+    "evidence": [
+      "apps/backend/src/modules/hosts/host.routes.ts:33"
+    ],
+    "validation": "Inspeção do objeto examples e do schema de entrada correspondente.",
+    "limitations": "Não representa inventário real nem valida rede da VPS."
+  },
+  {
+    "id": "SQ-0017",
+    "issueId": "a7b29bad-5cea-494d-a4b5-f613c8c94561",
+    "rule": "typescript:S1313",
+    "file": "apps/backend/src/modules/hosts/host.routes.ts",
+    "sourceLine": 41,
+    "classification": "false_positive",
+    "priority": "P3",
+    "reason": "O endereço '10.0.20.25' (coluna 9) está em schema.examples de OpenAPI, não em configuração de conexão ou fallback de produção.",
+    "evidence": [
+      "apps/backend/src/modules/hosts/host.routes.ts:41"
+    ],
+    "validation": "Inspeção do objeto examples e do schema de entrada correspondente.",
+    "limitations": "Não representa inventário real nem valida rede da VPS."
+  },
+  {
+    "id": "SQ-0018",
+    "issueId": "d4809b65-03d2-4b2d-b954-aab3a203cf8b",
+    "rule": "typescript:S2068",
+    "file": "apps/backend/src/modules/hosts/host.routes.ts",
+    "sourceLine": 46,
+    "classification": "false_positive",
+    "priority": "P3",
+    "reason": "Literal de senha somente em testConnectionBodySchema.examples para OpenAPI; não preenche payload ausente e não é segredo do transporte SSH.",
+    "evidence": [
+      "apps/backend/src/modules/hosts/host.routes.ts:46",
+      "apps/backend/src/modules/hosts/host.routes.ts:31"
+    ],
+    "validation": "Inspecionada estrutura examples; nenhum literal de senha reproduzido no relatório.",
+    "limitations": "Não valida credenciais reais de hosts ou ambientes."
+  },
+  {
+    "id": "SQ-0021",
+    "issueId": "2894d177-b76a-40d9-9152-9752b53d15ca",
+    "rule": "typescript:S2245",
+    "file": "apps/backend/src/modules/integrations/jira-interaction.repository.ts",
+    "sourceLine": 80,
+    "classification": "false_positive",
+    "priority": "P3",
+    "reason": "Math.random somente distribui jitter do prazo de retry; não autentica nem cria claimToken. O token vem de crypto.randomUUID no worker e as transições conferem token e lease. Previsibilidade do atraso não permite reivindicar evento.",
+    "evidence": [
+      "apps/backend/src/modules/integrations/jira-interaction.repository.ts:80",
+      "apps/backend/src/modules/integrations/jira-outbox.worker.ts:43",
+      "apps/backend/src/modules/integrations/jira-interaction.repository.ts:81"
+    ],
+    "validation": "Inspeção do produtor do token e condições de updateMany.",
+    "limitations": "Sem simulação concorrente de outbox nesta revisão; não é aprovação de todos os mecanismos de retry."
+  },
+  {
+    "id": "SQ-0026",
+    "issueId": "9507ac72-b5b8-4115-86a9-a859b95dfa4d",
+    "rule": "typescript:S6324",
+    "file": "apps/backend/src/modules/local-ai/local-ai-terminal-context.ts",
+    "sourceLine": 4,
+    "classification": "false_positive",
+    "priority": "P3",
+    "reason": "ESC identifica códigos ANSI removidos do contexto enviado à IA; não é caractere acidental. A ocorrência '\\\\x1B' na coluna 15 faz parte deliberada do protocolo/sanitização; removê-la muda o comportamento.",
+    "evidence": [
+      "apps/backend/src/modules/local-ai/local-ai-terminal-context.ts:4"
+    ],
+    "validation": "Inspeção da ocorrência exata no export atual e do fluxo consumidor no arquivo; sem execução ponta a ponta deste parser nesta revisão.",
+    "limitations": "A classificação cobre apenas o controle intencional S6324, não garante ausência de outros problemas de regex ou reconstrução de terminal."
+  },
+  {
+    "id": "SQ-0028",
+    "issueId": "c1484cd2-7b4a-40a7-bb38-8ece5b7f93c1",
+    "rule": "typescript:S8786",
+    "file": "apps/backend/src/modules/native-ssh-gateway/native-ssh-gateway.host-key.ts",
+    "sourceLine": 39,
+    "classification": "false_positive",
+    "priority": "P3",
+    "reason": "A entrada é exclusivamente o digest SHA-256 de 32 bytes codificado em base64 (44 caracteres, no máximo um padding). O trim de padding não recebe entrada arbitrária, impossibilitando o crescimento necessário para ReDoS.",
+    "evidence": [
+      "apps/backend/src/modules/native-ssh-gateway/native-ssh-gateway.host-key.ts:39",
+      "apps/backend/src/modules/native-ssh-gateway/native-ssh-gateway.host-key.ts:39"
+    ],
+    "validation": "Inspeção da cadeia createHash/update/digest/base64/replace na mesma expressão.",
+    "limitations": "Não executado handshake SSH nesta revisão; mudar algoritmo/fonte de entrada exige nova análise."
+  },
+  {
+    "id": "SQ-0030",
+    "issueId": "52b546bb-6169-4d21-8a4c-95b3a290df12",
+    "rule": "typescript:S4790",
+    "file": "apps/backend/src/modules/network-access/tacacs-protocol.ts",
+    "sourceLine": 17,
+    "classification": "risk_acceptance_required",
+    "priority": "P2",
+    "reason": "MD5 é exigido pelo pad XOR do TACACS+ legado, mas isso é obfuscação com fraquezas conhecidas, não criptografia moderna. Troca local por SHA quebraria interoperabilidade. Uso exige aceite humano condicionado a rede de gestão protegida, dispositivos autorizados e gestão dos segredos; origem/IP e limites de socket não substituem proteção do canal.",
+    "evidence": [
+      "apps/backend/src/modules/network-access/tacacs-protocol.ts:17",
+      "https://www.rfc-editor.org/rfc/rfc8907.html#section-4.5",
+      "https://www.rfc-editor.org/rfc/rfc8907.html#section-10",
+      "apps/backend/src/modules/network-access/tacacs-server.ts:45"
+    ],
+    "validation": "Revisão do pad e da seleção de dispositivo a cada requisição; RFC primária confirmada pelo revisor principal.",
+    "limitations": "Não validada topologia/VPN/ACL de produção nem proteção efetiva contra captura; não há aceite humano registrado por esta classificação."
+  },
+  {
+    "id": "SQ-0031",
+    "issueId": "6bc86845-9e6f-473f-a781-6445af489247",
+    "rule": "typescript:S7737",
+    "file": "apps/backend/src/modules/network-access/tacacs-server.ts",
+    "sourceLine": 7,
+    "classification": "risk_acceptance_required",
+    "priority": "P3",
+    "reason": "O default completo limita conexões, origem, operações e timeout; o único consumidor de produção omite o parâmetro e recebe todos os limites. A regra aponta corretamente fragilidade futura: passar objeto parcial em JS elimina outros defaults. Hoje TypeScript exige campos completos, mas eventual manutenção deve preservar isso ou adotar defaults por campo.",
+    "evidence": [
+      "apps/backend/src/modules/network-access/tacacs-server.ts:7",
+      "apps/backend/src/modules/network-access/tacacs-main.ts:21",
+      "apps/backend/src/modules/network-access/tacacs-server.ts:14",
+      "https://raw.githubusercontent.com/sindresorhus/eslint-plugin-unicorn/main/docs/rules/no-object-as-default-parameter.md"
+    ],
+    "validation": "Inspeção da assinatura inferida e de todos os call sites não teste (um consumidor).",
+    "limitations": "Sem payload remoto controlando limits identificado; risco de manutenção, não bypass remoto demonstrado."
+  },
+  {
+    "id": "SQ-0032",
+    "issueId": "5c450adf-ed23-48d4-90d4-94c19be488f7",
+    "rule": "typescript:S6324",
+    "file": "apps/backend/src/modules/session-audit/session-audit-ai.worker.ts",
+    "sourceLine": 295,
+    "classification": "false_positive",
+    "priority": "P3",
+    "reason": "BEL é substituído por espaço na normalização de comando para resumo. A ocorrência '\\\\u0007' na coluna 15 faz parte deliberada do protocolo/sanitização; removê-la muda o comportamento.",
+    "evidence": [
+      "apps/backend/src/modules/session-audit/session-audit-ai.worker.ts:295"
+    ],
+    "validation": "Inspeção da ocorrência exata no export atual e do fluxo consumidor no arquivo; sem execução ponta a ponta deste parser nesta revisão.",
+    "limitations": "A classificação cobre apenas o controle intencional S6324, não garante ausência de outros problemas de regex ou reconstrução de terminal."
+  },
+  {
+    "id": "SQ-0033",
+    "issueId": "6fb3b772-5c8b-485c-b390-8e617394a273",
+    "rule": "typescript:S6324",
+    "file": "apps/backend/src/modules/session-audit/session-audit-ai.worker.ts",
+    "sourceLine": 297,
+    "classification": "false_positive",
+    "priority": "P3",
+    "reason": "Backspace é removido do texto de comando preparado para resumo; não é literal acidental. A ocorrência '\\\\u0008' na coluna 15 faz parte deliberada do protocolo/sanitização; removê-la muda o comportamento.",
+    "evidence": [
+      "apps/backend/src/modules/session-audit/session-audit-ai.worker.ts:297"
+    ],
+    "validation": "Inspeção da ocorrência exata no export atual e do fluxo consumidor no arquivo; sem execução ponta a ponta deste parser nesta revisão.",
+    "limitations": "A classificação cobre apenas o controle intencional S6324, não garante ausência de outros problemas de regex ou reconstrução de terminal."
+  },
+  {
+    "id": "SQ-0034",
+    "issueId": "c047f3d5-0661-42cf-9a5e-2b79d955cdc9",
+    "rule": "typescript:S6324",
+    "file": "apps/backend/src/modules/session-audit/session-audit-ai.worker.ts",
+    "sourceLine": 305,
+    "classification": "false_positive",
+    "priority": "P3",
+    "reason": "BEL é removido da saída preparada para resumo. A ocorrência '\\\\u0007' na coluna 15 faz parte deliberada do protocolo/sanitização; removê-la muda o comportamento.",
+    "evidence": [
+      "apps/backend/src/modules/session-audit/session-audit-ai.worker.ts:305"
+    ],
+    "validation": "Inspeção da ocorrência exata no export atual e do fluxo consumidor no arquivo; sem execução ponta a ponta deste parser nesta revisão.",
+    "limitations": "A classificação cobre apenas o controle intencional S6324, não garante ausência de outros problemas de regex ou reconstrução de terminal."
+  },
+  {
+    "id": "SQ-0035",
+    "issueId": "1d322c3b-1a8a-4689-b46c-aa7e4570f1de",
+    "rule": "typescript:S6324",
+    "file": "apps/backend/src/modules/session-audit/session-audit-history.ts",
+    "sourceLine": 4,
+    "classification": "false_positive",
+    "priority": "P3",
+    "reason": "ESC identifica toggles de bracketed paste e BEL é descartado antes de reconstruir histórico observado. A ocorrência '\\\\x07' na coluna 62 faz parte deliberada do protocolo/sanitização; removê-la muda o comportamento.",
+    "evidence": [
+      "apps/backend/src/modules/session-audit/session-audit-history.ts:4"
+    ],
+    "validation": "Inspeção da ocorrência exata no export atual e do fluxo consumidor no arquivo; sem execução ponta a ponta deste parser nesta revisão.",
+    "limitations": "A classificação cobre apenas o controle intencional S6324, não garante ausência de outros problemas de regex ou reconstrução de terminal."
+  },
+  {
+    "id": "SQ-0036",
+    "issueId": "7113a98b-5138-47ee-9a6f-8e943882cebf",
+    "rule": "typescript:S6324",
+    "file": "apps/backend/src/modules/session-audit/session-audit-input.ts",
+    "sourceLine": 79,
+    "classification": "false_positive",
+    "priority": "P3",
+    "reason": "BEL repetido identifica rejeição de tecla pelo readline e restaura estado de incerteza anterior. A ocorrência '\\\\x07' na coluna 11 faz parte deliberada do protocolo/sanitização; removê-la muda o comportamento.",
+    "evidence": [
+      "apps/backend/src/modules/session-audit/session-audit-input.ts:79"
+    ],
+    "validation": "Inspeção da ocorrência exata no export atual e do fluxo consumidor no arquivo; sem execução ponta a ponta deste parser nesta revisão.",
+    "limitations": "A classificação cobre apenas o controle intencional S6324, não garante ausência de outros problemas de regex ou reconstrução de terminal."
+  },
+  {
+    "id": "SQ-0037",
+    "issueId": "9e7ea99f-3934-44f2-ade9-efaa84fda725",
+    "rule": "typescript:S6324",
+    "file": "apps/backend/src/modules/session-audit/session-audit-input.ts",
+    "sourceLine": 83,
+    "classification": "false_positive",
+    "priority": "P3",
+    "reason": "BEL/ESC e intervalo de controles distinguem eco explícito de inserção de caractere; evita inferir comando sem evidência. A ocorrência '\\\\x07' na coluna 42 faz parte deliberada do protocolo/sanitização; removê-la muda o comportamento.",
+    "evidence": [
+      "apps/backend/src/modules/session-audit/session-audit-input.ts:83"
+    ],
+    "validation": "Inspeção da ocorrência exata no export atual e do fluxo consumidor no arquivo; sem execução ponta a ponta deste parser nesta revisão.",
+    "limitations": "A classificação cobre apenas o controle intencional S6324, não garante ausência de outros problemas de regex ou reconstrução de terminal."
+  },
+  {
+    "id": "SQ-0038",
+    "issueId": "329e3968-3674-4e1c-9373-551eaaf8d1a6",
+    "rule": "typescript:S6324",
+    "file": "apps/backend/src/modules/session-audit/session-audit-input.ts",
+    "sourceLine": 104,
+    "classification": "false_positive",
+    "priority": "P3",
+    "reason": "ESC inicia as sequências CSI/SS3 reconhecidas pelo reconstrutor de entrada. A ocorrência '\\\\x1b' na coluna 36 faz parte deliberada do protocolo/sanitização; removê-la muda o comportamento.",
+    "evidence": [
+      "apps/backend/src/modules/session-audit/session-audit-input.ts:104"
+    ],
+    "validation": "Inspeção da ocorrência exata no export atual e do fluxo consumidor no arquivo; sem execução ponta a ponta deste parser nesta revisão.",
+    "limitations": "A classificação cobre apenas o controle intencional S6324, não garante ausência de outros problemas de regex ou reconstrução de terminal."
+  },
+  {
+    "id": "SQ-0039",
+    "issueId": "7a85f7dc-f9ae-43cb-a52f-3f102323bd20",
+    "rule": "typescript:S6324",
+    "file": "apps/backend/src/modules/session-audit/session-audit-normalizer.ts",
+    "sourceLine": 14,
+    "classification": "false_positive",
+    "priority": "P3",
+    "reason": "OSC exige delimitadores ESC e terminador BEL ou ST para retirar títulos ANSI. A ocorrência '\\\\x07' na coluna 23 faz parte deliberada do protocolo/sanitização; removê-la muda o comportamento.",
+    "evidence": [
+      "apps/backend/src/modules/session-audit/session-audit-normalizer.ts:14"
+    ],
+    "validation": "Inspeção da ocorrência exata no export atual e do fluxo consumidor no arquivo; sem execução ponta a ponta deste parser nesta revisão.",
+    "limitations": "A classificação cobre apenas o controle intencional S6324, não garante ausência de outros problemas de regex ou reconstrução de terminal."
+  },
+  {
+    "id": "SQ-0040",
+    "issueId": "927516dd-ba45-4ab0-acb0-4a7aa0f7710f",
+    "rule": "typescript:S6324",
+    "file": "apps/backend/src/modules/session-audit/session-audit-normalizer.ts",
+    "sourceLine": 14,
+    "classification": "false_positive",
+    "priority": "P3",
+    "reason": "OSC exige delimitadores ESC e terminador BEL ou ST para retirar títulos ANSI. A ocorrência '\\\\x1b' na coluna 27 faz parte deliberada do protocolo/sanitização; removê-la muda o comportamento.",
+    "evidence": [
+      "apps/backend/src/modules/session-audit/session-audit-normalizer.ts:14"
+    ],
+    "validation": "Inspeção da ocorrência exata no export atual e do fluxo consumidor no arquivo; sem execução ponta a ponta deste parser nesta revisão.",
+    "limitations": "A classificação cobre apenas o controle intencional S6324, não garante ausência de outros problemas de regex ou reconstrução de terminal."
+  },
+  {
+    "id": "SQ-0041",
+    "issueId": "a12d62f1-0eb4-4cb9-8747-0ee10edcafbe",
+    "rule": "typescript:S6324",
+    "file": "apps/backend/src/modules/session-audit/session-audit-normalizer.ts",
+    "sourceLine": 14,
+    "classification": "false_positive",
+    "priority": "P3",
+    "reason": "OSC exige delimitadores ESC e terminador BEL ou ST para retirar títulos ANSI. A ocorrência '\\\\x07' na coluna 36 faz parte deliberada do protocolo/sanitização; removê-la muda o comportamento.",
+    "evidence": [
+      "apps/backend/src/modules/session-audit/session-audit-normalizer.ts:14"
+    ],
+    "validation": "Inspeção da ocorrência exata no export atual e do fluxo consumidor no arquivo; sem execução ponta a ponta deste parser nesta revisão.",
+    "limitations": "A classificação cobre apenas o controle intencional S6324, não garante ausência de outros problemas de regex ou reconstrução de terminal."
+  },
+  {
+    "id": "SQ-0042",
+    "issueId": "e7f23b6a-59f3-4165-b5b4-b81f13cefc91",
+    "rule": "typescript:S6324",
+    "file": "apps/backend/src/modules/session-audit/session-audit-normalizer.ts",
+    "sourceLine": 14,
+    "classification": "false_positive",
+    "priority": "P3",
+    "reason": "OSC exige delimitadores ESC e terminador BEL ou ST para retirar títulos ANSI. A ocorrência '\\\\x1b' na coluna 41 faz parte deliberada do protocolo/sanitização; removê-la muda o comportamento.",
+    "evidence": [
+      "apps/backend/src/modules/session-audit/session-audit-normalizer.ts:14"
+    ],
+    "validation": "Inspeção da ocorrência exata no export atual e do fluxo consumidor no arquivo; sem execução ponta a ponta deste parser nesta revisão.",
+    "limitations": "A classificação cobre apenas o controle intencional S6324, não garante ausência de outros problemas de regex ou reconstrução de terminal."
+  },
+  {
+    "id": "SQ-0043",
+    "issueId": "fe3621db-2fe1-465a-9cc0-50358532e3ff",
+    "rule": "typescript:S6324",
+    "file": "apps/backend/src/modules/session-audit/session-audit-normalizer.ts",
+    "sourceLine": 16,
+    "classification": "false_positive",
+    "priority": "P3",
+    "reason": "ESC identifica seleção de charset ANSI removida do texto normalizado. A ocorrência '\\\\x1b' na coluna 15 faz parte deliberada do protocolo/sanitização; removê-la muda o comportamento.",
+    "evidence": [
+      "apps/backend/src/modules/session-audit/session-audit-normalizer.ts:16"
+    ],
+    "validation": "Inspeção da ocorrência exata no export atual e do fluxo consumidor no arquivo; sem execução ponta a ponta deste parser nesta revisão.",
+    "limitations": "A classificação cobre apenas o controle intencional S6324, não garante ausência de outros problemas de regex ou reconstrução de terminal."
+  },
+  {
+    "id": "SQ-0044",
+    "issueId": "2b24edc7-0f08-40c7-bea0-ff87d150e6d6",
+    "rule": "typescript:S6324",
+    "file": "apps/backend/src/modules/session-audit/session-audit-normalizer.ts",
+    "sourceLine": 17,
+    "classification": "false_positive",
+    "priority": "P3",
+    "reason": "ESC identifica controle ANSI adicional removido do texto normalizado. A ocorrência '\\\\x1b' na coluna 15 faz parte deliberada do protocolo/sanitização; removê-la muda o comportamento.",
+    "evidence": [
+      "apps/backend/src/modules/session-audit/session-audit-normalizer.ts:17"
+    ],
+    "validation": "Inspeção da ocorrência exata no export atual e do fluxo consumidor no arquivo; sem execução ponta a ponta deste parser nesta revisão.",
+    "limitations": "A classificação cobre apenas o controle intencional S6324, não garante ausência de outros problemas de regex ou reconstrução de terminal."
+  },
+  {
+    "id": "SQ-0045",
+    "issueId": "96334ff4-494b-4eb1-a94f-4289001d3445",
+    "rule": "typescript:S6324",
+    "file": "apps/backend/src/modules/session-audit/session-audit-normalizer.ts",
+    "sourceLine": 18,
+    "classification": "false_positive",
+    "priority": "P3",
+    "reason": "ESC identifica sequência curta ANSI removida do texto normalizado. A ocorrência '\\\\x1b' na coluna 15 faz parte deliberada do protocolo/sanitização; removê-la muda o comportamento.",
+    "evidence": [
+      "apps/backend/src/modules/session-audit/session-audit-normalizer.ts:18"
+    ],
+    "validation": "Inspeção da ocorrência exata no export atual e do fluxo consumidor no arquivo; sem execução ponta a ponta deste parser nesta revisão.",
+    "limitations": "A classificação cobre apenas o controle intencional S6324, não garante ausência de outros problemas de regex ou reconstrução de terminal."
+  },
+  {
+    "id": "SQ-0046",
+    "issueId": "1e5e63e5-6cac-4288-8559-4fe8a4bd4d64",
+    "rule": "typescript:S6324",
+    "file": "apps/backend/src/modules/session-audit/session-audit-normalizer.ts",
+    "sourceLine": 37,
+    "classification": "false_positive",
+    "priority": "P3",
+    "reason": "NUL/BEL são excluídos explicitamente da entrada normalizada. A ocorrência '\\\\u0000' na coluna 37 faz parte deliberada do protocolo/sanitização; removê-la muda o comportamento.",
+    "evidence": [
+      "apps/backend/src/modules/session-audit/session-audit-normalizer.ts:37"
+    ],
+    "validation": "Inspeção da ocorrência exata no export atual e do fluxo consumidor no arquivo; sem execução ponta a ponta deste parser nesta revisão.",
+    "limitations": "A classificação cobre apenas o controle intencional S6324, não garante ausência de outros problemas de regex ou reconstrução de terminal."
+  },
+  {
+    "id": "SQ-0047",
+    "issueId": "7fa5b04f-9b1f-4045-8848-d3d4129d2a36",
+    "rule": "typescript:S6324",
+    "file": "apps/backend/src/modules/session-audit/session-audit-normalizer.ts",
+    "sourceLine": 37,
+    "classification": "false_positive",
+    "priority": "P3",
+    "reason": "NUL/BEL são excluídos explicitamente da entrada normalizada. A ocorrência '\\\\u0007' na coluna 43 faz parte deliberada do protocolo/sanitização; removê-la muda o comportamento.",
+    "evidence": [
+      "apps/backend/src/modules/session-audit/session-audit-normalizer.ts:37"
+    ],
+    "validation": "Inspeção da ocorrência exata no export atual e do fluxo consumidor no arquivo; sem execução ponta a ponta deste parser nesta revisão.",
+    "limitations": "A classificação cobre apenas o controle intencional S6324, não garante ausência de outros problemas de regex ou reconstrução de terminal."
+  },
+  {
+    "id": "SQ-0048",
+    "issueId": "c4144b19-7e57-4d6e-89fc-8d1df30ef8ec",
+    "rule": "typescript:S6324",
+    "file": "apps/backend/src/modules/session-audit/session-audit-normalizer.ts",
+    "sourceLine": 41,
+    "classification": "false_positive",
+    "priority": "P3",
+    "reason": "NUL/BEL são excluídos após reconstrução de backspaces da saída. A ocorrência '\\\\u0000' na coluna 61 faz parte deliberada do protocolo/sanitização; removê-la muda o comportamento.",
+    "evidence": [
+      "apps/backend/src/modules/session-audit/session-audit-normalizer.ts:41"
+    ],
+    "validation": "Inspeção da ocorrência exata no export atual e do fluxo consumidor no arquivo; sem execução ponta a ponta deste parser nesta revisão.",
+    "limitations": "A classificação cobre apenas o controle intencional S6324, não garante ausência de outros problemas de regex ou reconstrução de terminal."
+  },
+  {
+    "id": "SQ-0049",
+    "issueId": "e2282065-360b-44ad-bf41-615d93948604",
+    "rule": "typescript:S6324",
+    "file": "apps/backend/src/modules/session-audit/session-audit-normalizer.ts",
+    "sourceLine": 41,
+    "classification": "false_positive",
+    "priority": "P3",
+    "reason": "NUL/BEL são excluídos após reconstrução de backspaces da saída. A ocorrência '\\\\u0007' na coluna 67 faz parte deliberada do protocolo/sanitização; removê-la muda o comportamento.",
+    "evidence": [
+      "apps/backend/src/modules/session-audit/session-audit-normalizer.ts:41"
+    ],
+    "validation": "Inspeção da ocorrência exata no export atual e do fluxo consumidor no arquivo; sem execução ponta a ponta deste parser nesta revisão.",
+    "limitations": "A classificação cobre apenas o controle intencional S6324, não garante ausência de outros problemas de regex ou reconstrução de terminal."
+  },
+  {
+    "id": "SQ-0050",
+    "issueId": "d15a994c-d963-4e30-96cd-26acdf21d66f",
+    "rule": "typescript:S8786",
+    "file": "apps/backend/src/modules/session-audit/session-audit-normalizer.ts",
+    "sourceLine": 72,
+    "classification": "false_positive",
+    "priority": "P3",
+    "reason": "match não ancorado só roda depois de MULTI_PROMPT_LINE validar a linha inteira normalizada. Uma linha aprovada contém imediatamente um prompt após whitespace inicial; a busca não precisa recomeçar em muitos prefixos inválidos. Entradas sem prompt retornam antes do match.",
+    "evidence": [
+      "apps/backend/src/modules/session-audit/session-audit-normalizer.ts:72",
+      "apps/backend/src/modules/session-audit/session-audit-normalizer.ts:68",
+      "apps/backend/src/modules/session-audit/session-audit-normalizer.ts:71"
+    ],
+    "validation": "Inspeção da pré-condição e probe de quatro strings adversariais/positivas de até 100k caracteres com regex original (regex-probes.json).",
+    "limitations": "Não é prova formal de todas as regex de auditoria; remover a pré-condição muda a conclusão."
+  },
+  {
+    "id": "SQ-0052",
+    "issueId": "516c475a-b608-40f0-a09a-b1f6b6d4db22",
+    "rule": "typescript:S8786",
+    "file": "apps/backend/src/modules/session-audit/session-audit-normalizer.ts",
+    "sourceLine": 145,
+    "classification": "fix_required",
+    "priority": "P1",
+    "reason": "PAGER_STATUS_LINE contém sobreposição entre o último \\d+ e .*; um separador U+2028 interno faz o sufixo falhar e provoca retrocesso superlinear. O consumidor divide por LF e normaliza CR, mas preserva U+2028. A seleção das últimas oito linhas ocorre só depois do regex, sem limite prévio de linha. Stdout controlado por host acessado pode bloquear processamento síncrono de auditoria; priorizar correção linear.",
+    "evidence": [
+      "apps/backend/src/modules/session-audit/session-audit-normalizer.ts:145",
+      "apps/backend/src/modules/session-audit/session-audit-normalizer.ts:153",
+      "apps/backend/src/modules/session-audit/session-audit-normalizer.ts:180",
+      "apps/backend/src/modules/session-audit/session-audit-reconstruction.service.ts:18",
+      "docs/changes/2026/11/NA-0145-sonar-open-review/pager-probes.cjs",
+      "docs/changes/2026/11/NA-0145-sonar-open-review/pager-probes.json"
+    ],
+    "validation": "Quatro módulos originais transpílados, summarizeInteractiveOutput chamado com less e U+2028: 10k dígitos=143 ms,30k=691 ms,60k atingiram deadline1500 ms. Probe inicial sem separador Unicode não revelou o problema e foi superado por esta evidência.",
+    "limitations": "Reprodução do normalizador real em subprocesso, não ataque SSH/HTTP ponta a ponta. Limite global padrão de reconstrução128MiB não impede este caso de cerca de60KB; efeitos sobre concorrência/serviço em produção não medidos."
+  },
+  {
+    "id": "SQ-0053",
+    "issueId": "2082229e-822b-4bf7-800b-db37b6f22414",
+    "rule": "typescript:S6324",
+    "file": "apps/backend/src/modules/session-audit/session-audit-normalizer.ts",
+    "sourceLine": 158,
+    "classification": "false_positive",
+    "priority": "P3",
+    "reason": "ESC residual é removido da representação resumida de saída interativa. A ocorrência '\\\\u001b' na coluna 15 faz parte deliberada do protocolo/sanitização; removê-la muda o comportamento.",
+    "evidence": [
+      "apps/backend/src/modules/session-audit/session-audit-normalizer.ts:158"
+    ],
+    "validation": "Inspeção da ocorrência exata no export atual e do fluxo consumidor no arquivo; sem execução ponta a ponta deste parser nesta revisão.",
+    "limitations": "A classificação cobre apenas o controle intencional S6324, não garante ausência de outros problemas de regex ou reconstrução de terminal."
+  },
+  {
+    "id": "SQ-0054",
+    "issueId": "2dffd5d8-4e91-4273-86a8-4cc1541053b4",
+    "rule": "typescript:S6324",
+    "file": "apps/backend/src/modules/session-audit/session-audit-normalizer.ts",
+    "sourceLine": 223,
+    "classification": "false_positive",
+    "priority": "P3",
+    "reason": "ESC/BEL delimitam OSC de título para extrair cwd observado. A ocorrência '\\\\x07' na coluna 53 faz parte deliberada do protocolo/sanitização; removê-la muda o comportamento.",
+    "evidence": [
+      "apps/backend/src/modules/session-audit/session-audit-normalizer.ts:223"
+    ],
+    "validation": "Inspeção da ocorrência exata no export atual e do fluxo consumidor no arquivo; sem execução ponta a ponta deste parser nesta revisão.",
+    "limitations": "A classificação cobre apenas o controle intencional S6324, não garante ausência de outros problemas de regex ou reconstrução de terminal."
+  },
+  {
+    "id": "SQ-0055",
+    "issueId": "67c269bc-a669-452d-b279-b491b3dd5147",
+    "rule": "typescript:S6324",
+    "file": "apps/backend/src/modules/session-audit/session-audit-normalizer.ts",
+    "sourceLine": 223,
+    "classification": "false_positive",
+    "priority": "P3",
+    "reason": "ESC/BEL delimitam OSC de título para extrair cwd observado. A ocorrência '\\\\x07' na coluna 68 faz parte deliberada do protocolo/sanitização; removê-la muda o comportamento.",
+    "evidence": [
+      "apps/backend/src/modules/session-audit/session-audit-normalizer.ts:223"
+    ],
+    "validation": "Inspeção da ocorrência exata no export atual e do fluxo consumidor no arquivo; sem execução ponta a ponta deste parser nesta revisão.",
+    "limitations": "A classificação cobre apenas o controle intencional S6324, não garante ausência de outros problemas de regex ou reconstrução de terminal."
+  },
+  {
+    "id": "SQ-0056",
+    "issueId": "b2426cd7-bc4a-4826-aa50-573e69de3412",
+    "rule": "typescript:S6324",
+    "file": "apps/backend/src/modules/session-audit/session-audit-normalizer.ts",
+    "sourceLine": 223,
+    "classification": "false_positive",
+    "priority": "P3",
+    "reason": "ESC/BEL delimitam OSC de título para extrair cwd observado. A ocorrência '\\\\x1b' na coluna 73 faz parte deliberada do protocolo/sanitização; removê-la muda o comportamento.",
+    "evidence": [
+      "apps/backend/src/modules/session-audit/session-audit-normalizer.ts:223"
+    ],
+    "validation": "Inspeção da ocorrência exata no export atual e do fluxo consumidor no arquivo; sem execução ponta a ponta deste parser nesta revisão.",
+    "limitations": "A classificação cobre apenas o controle intencional S6324, não garante ausência de outros problemas de regex ou reconstrução de terminal."
+  },
+  {
+    "id": "SQ-0060",
+    "issueId": "5330fd0a-3eda-4807-9381-666d10f49446",
+    "rule": "typescript:S6324",
+    "file": "apps/backend/src/modules/session-audit/session-audit-normalizer.ts",
+    "sourceLine": 475,
+    "classification": "false_positive",
+    "priority": "P3",
+    "reason": "NUL/BEL são retirados do tail limitado a 4096 caracteres antes de reconhecer prompt. A ocorrência '\\\\u0000' na coluna 59 faz parte deliberada do protocolo/sanitização; removê-la muda o comportamento.",
+    "evidence": [
+      "apps/backend/src/modules/session-audit/session-audit-normalizer.ts:475"
+    ],
+    "validation": "Inspeção da ocorrência exata no export atual e do fluxo consumidor no arquivo; sem execução ponta a ponta deste parser nesta revisão.",
+    "limitations": "A classificação cobre apenas o controle intencional S6324, não garante ausência de outros problemas de regex ou reconstrução de terminal."
+  },
+  {
+    "id": "SQ-0061",
+    "issueId": "bcaf109e-9efa-4bda-b884-305da244f5a9",
+    "rule": "typescript:S6324",
+    "file": "apps/backend/src/modules/session-audit/session-audit-normalizer.ts",
+    "sourceLine": 475,
+    "classification": "false_positive",
+    "priority": "P3",
+    "reason": "NUL/BEL são retirados do tail limitado a 4096 caracteres antes de reconhecer prompt. A ocorrência '\\\\u0007' na coluna 65 faz parte deliberada do protocolo/sanitização; removê-la muda o comportamento.",
+    "evidence": [
+      "apps/backend/src/modules/session-audit/session-audit-normalizer.ts:475"
+    ],
+    "validation": "Inspeção da ocorrência exata no export atual e do fluxo consumidor no arquivo; sem execução ponta a ponta deste parser nesta revisão.",
+    "limitations": "A classificação cobre apenas o controle intencional S6324, não garante ausência de outros problemas de regex ou reconstrução de terminal."
+  },
+  {
+    "id": "SQ-0062",
+    "issueId": "0c4c9794-c6bd-477d-b35d-2ae56af5bf21",
+    "rule": "typescript:S1848",
+    "file": "apps/backend/src/modules/settings/settings.service.ts",
+    "sourceLine": 253,
+    "classification": "false_positive",
+    "priority": "P3",
+    "reason": "A construção de RegExp é usada pelo efeito de validação sintática: padrão inválido lança antes da persistência. Não é alocação sem finalidade. Isso não prova segurança computacional de regex customizada de senha; validação sintática isolada não detecta ReDoS.",
+    "evidence": [
+      "apps/backend/src/modules/settings/settings.service.ts:253",
+      "apps/backend/src/modules/settings/settings.service.ts:254",
+      "packages/shared/src/schemas/user.schema.ts:8"
+    ],
+    "validation": "Inspecionada ordem de construção e persistência e consumidor compartilhado.",
+    "limitations": "Risco adjacente: regex de política é executada por Zod sem garantia de complexidade; não ensaiado fluxo de senha nem atribuída exploração à regra S1848."
+  },
+  {
+    "id": "SQ-0069",
+    "issueId": "3f86540b-6f80-4ea5-a65c-bdd9d3d710fd",
+    "rule": "typescript:S8786",
+    "file": "apps/backend/src/modules/terminal-highlights/terminal-highlight.service.ts",
+    "sourceLine": 24,
+    "classification": "fix_required",
+    "priority": "P2",
+    "reason": "O detector possui quantificadores sobrepostos e pode ser tornado linear. O limite atual de 160 caracteres/40 regras reduz a exposição do detector backend (lote adversarial ~18 ms local), sem demonstrar DoS backend. Risco adjacente confirmado: aceita (a|aa)+$, que bloqueia exec síncrono no browser antes da verificação de budget. Corrigir a estratégia de validação/execução das regex, não apenas trocar a expressão para silenciar Sonar.",
+    "evidence": [
+      "apps/backend/src/modules/terminal-highlights/terminal-highlight.service.ts:24",
+      "packages/shared/src/schemas/terminal-highlight.schema.ts:9",
+      "packages/shared/src/schemas/terminal-highlight.schema.ts:20",
+      "apps/frontend/src/terminal/terminal-highlighter.ts:27",
+      "apps/frontend/src/terminal/terminal-highlighter.ts:78",
+      "docs/changes/2026/11/NA-0145-sonar-open-review/regex-probes.json"
+    ],
+    "validation": "Subprocesso Node24.22.1 com padrão aceito e 61 caracteres atingiu deadline 1500 ms; probe não abriu browser nem alterou preferências. Detector foi medido separadamente (regex-probes.json).",
+    "limitations": "Sem exploração de tenant real; impacto browser inferido da chamada síncrona equivalente no código. Priorizar correção com testes reais de UI/isolamento antes de homologar."
+  },
+  {
+    "id": "SQ-0070",
+    "issueId": "14421ceb-0773-4872-b86e-453766845625",
+    "rule": "typescript:S1313",
+    "file": "apps/backend/src/modules/trials/trial-address-policy.ts",
+    "sourceLine": 6,
+    "classification": "false_positive",
+    "priority": "P3",
+    "reason": "A constante '10.0.0.0' (coluna 19) define faixa restrita na política de IPv4 de trial; é dado normativo de bloqueio, não destino fixo. A comparação numérica por prefixo rejeita essa faixa.",
+    "evidence": [
+      "apps/backend/src/modules/trials/trial-address-policy.ts:6"
+    ],
+    "validation": "Inspeção da lista e de validateTrialCustomAddress (isIPv4/canonicalização/comparação por prefixo).",
+    "limitations": "Não foram reenviados requests de trial ou testadas todas as bordas de CIDR nesta revisão."
+  },
+  {
+    "id": "SQ-0071",
+    "issueId": "1d1925e1-6f0f-4805-affb-a4e83beabad9",
+    "rule": "typescript:S1313",
+    "file": "apps/backend/src/modules/trials/trial-address-policy.ts",
+    "sourceLine": 6,
+    "classification": "false_positive",
+    "priority": "P3",
+    "reason": "A constante '169.254.0.0' (coluna 71) define faixa restrita na política de IPv4 de trial; é dado normativo de bloqueio, não destino fixo. A comparação numérica por prefixo rejeita essa faixa.",
+    "evidence": [
+      "apps/backend/src/modules/trials/trial-address-policy.ts:6"
+    ],
+    "validation": "Inspeção da lista e de validateTrialCustomAddress (isIPv4/canonicalização/comparação por prefixo).",
+    "limitations": "Não foram reenviados requests de trial ou testadas todas as bordas de CIDR nesta revisão."
+  },
+  {
+    "id": "SQ-0072",
+    "issueId": "45d9981d-0b91-416f-bdca-13a6240d1a40",
+    "rule": "typescript:S1313",
+    "file": "apps/backend/src/modules/trials/trial-address-policy.ts",
+    "sourceLine": 6,
+    "classification": "false_positive",
+    "priority": "P3",
+    "reason": "A constante '172.16.0.0' (coluna 91) define faixa restrita na política de IPv4 de trial; é dado normativo de bloqueio, não destino fixo. A comparação numérica por prefixo rejeita essa faixa.",
+    "evidence": [
+      "apps/backend/src/modules/trials/trial-address-policy.ts:6"
+    ],
+    "validation": "Inspeção da lista e de validateTrialCustomAddress (isIPv4/canonicalização/comparação por prefixo).",
+    "limitations": "Não foram reenviados requests de trial ou testadas todas as bordas de CIDR nesta revisão."
+  },
+  {
+    "id": "SQ-0073",
+    "issueId": "4c43875f-ee98-4882-99f8-d295d081dfa0",
+    "rule": "typescript:S1313",
+    "file": "apps/backend/src/modules/trials/trial-address-policy.ts",
+    "sourceLine": 6,
+    "classification": "false_positive",
+    "priority": "P3",
+    "reason": "A constante '100.64.0.0' (coluna 35) define faixa restrita na política de IPv4 de trial; é dado normativo de bloqueio, não destino fixo. A comparação numérica por prefixo rejeita essa faixa.",
+    "evidence": [
+      "apps/backend/src/modules/trials/trial-address-policy.ts:6"
+    ],
+    "validation": "Inspeção da lista e de validateTrialCustomAddress (isIPv4/canonicalização/comparação por prefixo).",
+    "limitations": "Não foram reenviados requests de trial ou testadas todas as bordas de CIDR nesta revisão."
+  },
+  {
+    "id": "SQ-0074",
+    "issueId": "06f14c75-d6a4-4b43-911b-ad454436ff56",
+    "rule": "typescript:S1313",
+    "file": "apps/backend/src/modules/trials/trial-address-policy.ts",
+    "sourceLine": 7,
+    "classification": "false_positive",
+    "priority": "P3",
+    "reason": "A constante '224.0.0.0' (coluna 140) define faixa restrita na política de IPv4 de trial; é dado normativo de bloqueio, não destino fixo. A comparação numérica por prefixo rejeita essa faixa.",
+    "evidence": [
+      "apps/backend/src/modules/trials/trial-address-policy.ts:7"
+    ],
+    "validation": "Inspeção da lista e de validateTrialCustomAddress (isIPv4/canonicalização/comparação por prefixo).",
+    "limitations": "Não foram reenviados requests de trial ou testadas todas as bordas de CIDR nesta revisão."
+  },
+  {
+    "id": "SQ-0075",
+    "issueId": "20741df4-375b-40e9-a539-97b8dc562a88",
+    "rule": "typescript:S1313",
+    "file": "apps/backend/src/modules/trials/trial-address-policy.ts",
+    "sourceLine": 7,
+    "classification": "false_positive",
+    "priority": "P3",
+    "reason": "A constante '192.0.0.0' (coluna 4) define faixa restrita na política de IPv4 de trial; é dado normativo de bloqueio, não destino fixo. A comparação numérica por prefixo rejeita essa faixa.",
+    "evidence": [
+      "apps/backend/src/modules/trials/trial-address-policy.ts:7"
+    ],
+    "validation": "Inspeção da lista e de validateTrialCustomAddress (isIPv4/canonicalização/comparação por prefixo).",
+    "limitations": "Não foram reenviados requests de trial ou testadas todas as bordas de CIDR nesta revisão."
+  },
+  {
+    "id": "SQ-0076",
+    "issueId": "bced2a1b-fce1-4e38-a3b6-23fa0272eb7b",
+    "rule": "typescript:S1313",
+    "file": "apps/backend/src/modules/trials/trial-address-policy.ts",
+    "sourceLine": 7,
+    "classification": "false_positive",
+    "priority": "P3",
+    "reason": "A constante '192.88.99.0' (coluna 40) define faixa restrita na política de IPv4 de trial; é dado normativo de bloqueio, não destino fixo. A comparação numérica por prefixo rejeita essa faixa.",
+    "evidence": [
+      "apps/backend/src/modules/trials/trial-address-policy.ts:7"
+    ],
+    "validation": "Inspeção da lista e de validateTrialCustomAddress (isIPv4/canonicalização/comparação por prefixo).",
+    "limitations": "Não foram reenviados requests de trial ou testadas todas as bordas de CIDR nesta revisão."
+  },
+  {
+    "id": "SQ-0077",
+    "issueId": "ec102774-f282-4408-8ccf-2dfc37fc7a76",
+    "rule": "typescript:S1313",
+    "file": "apps/backend/src/modules/trials/trial-address-policy.ts",
+    "sourceLine": 7,
+    "classification": "false_positive",
+    "priority": "P3",
+    "reason": "A constante '192.168.0.0' (coluna 60) define faixa restrita na política de IPv4 de trial; é dado normativo de bloqueio, não destino fixo. A comparação numérica por prefixo rejeita essa faixa.",
+    "evidence": [
+      "apps/backend/src/modules/trials/trial-address-policy.ts:7"
+    ],
+    "validation": "Inspeção da lista e de validateTrialCustomAddress (isIPv4/canonicalização/comparação por prefixo).",
+    "limitations": "Não foram reenviados requests de trial ou testadas todas as bordas de CIDR nesta revisão."
+  },
+  {
+    "id": "SQ-0078",
+    "issueId": "ffa5a33d-c24f-47aa-ae44-7ef1bc1a58e9",
+    "rule": "typescript:S1313",
+    "file": "apps/backend/src/modules/trials/trial-address-policy.ts",
+    "sourceLine": 7,
+    "classification": "false_positive",
+    "priority": "P3",
+    "reason": "A constante '198.18.0.0' (coluna 80) define faixa restrita na política de IPv4 de trial; é dado normativo de bloqueio, não destino fixo. A comparação numérica por prefixo rejeita essa faixa.",
+    "evidence": [
+      "apps/backend/src/modules/trials/trial-address-policy.ts:7"
+    ],
+    "validation": "Inspeção da lista e de validateTrialCustomAddress (isIPv4/canonicalização/comparação por prefixo).",
+    "limitations": "Não foram reenviados requests de trial ou testadas todas as bordas de CIDR nesta revisão."
+  },
+  {
+    "id": "SQ-0079",
+    "issueId": "25702922-b8ea-47a6-a8bd-e814faa9d7cc",
+    "rule": "typescript:S8786",
+    "file": "apps/backend/src/modules/trials/trial-machines.ts",
+    "sourceLine": 103,
+    "classification": "false_positive",
+    "priority": "P3",
+    "reason": "O fingerprint de lab é validado por labSchema.parse antes da comparação de máquinas. Schema só permite SHA256 seguido de 43 caracteres base64 e padding opcional único; o trim de = não recebe sequência arbitrária.",
+    "evidence": [
+      "apps/backend/src/modules/trials/trial-machines.ts:103",
+      "apps/backend/src/modules/trials/trial-machines.ts:82",
+      "apps/backend/src/modules/trials/trial-contract.ts:87"
+    ],
+    "validation": "Rastreada entrada ensure → labSchema.parse → comparação do estado existente.",
+    "limitations": "Não exercitado provisionador real; a garantia depende de manter schema antes da comparação."
+  },
+  {
+    "id": "SQ-0080",
+    "issueId": "b1bded3c-7381-47c6-a49c-e11cf1fc1c57",
+    "rule": "typescript:S8786",
+    "file": "apps/backend/src/modules/trials/trial-machines.ts",
+    "sourceLine": 119,
+    "classification": "false_positive",
+    "priority": "P3",
+    "reason": "A criação de hosts usa o mesmo lab validado na linha 82; o fingerprint tem comprimento e padding limitados pelo schema. Remover padding e acrescentar um = canônico não gera busca superlinear alcançável.",
+    "evidence": [
+      "apps/backend/src/modules/trials/trial-machines.ts:119",
+      "apps/backend/src/modules/trials/trial-machines.ts:82",
+      "apps/backend/src/modules/trials/trial-contract.ts:87"
+    ],
+    "validation": "Rastreado lab validado até persistência do host.",
+    "limitations": "Sem provisionamento/DB real nesta revisão."
+  },
+  {
+    "id": "SQ-0081",
+    "issueId": "0c5cfe0e-6f7a-4244-a413-22e37508cbc6",
+    "rule": "typescript:S1313",
+    "file": "apps/backend/src/modules/trials/trial-policy.ts",
+    "sourceLine": 99,
+    "classification": "false_positive",
+    "priority": "P3",
+    "reason": "A constante '172.16.0.0/12' (coluna 55) identifica espaço privado para política de roteamento trial. A exceção ainda exige perfil completo, rota agent-only, allowCustomHosts e exclusão de endereços protegidos/rede do lab.",
+    "evidence": [
+      "apps/backend/src/modules/trials/trial-policy.ts:99"
+    ],
+    "validation": "Inspeção de validateTrialRoutedDestination e de todas as condições da exceção.",
+    "limitations": "Não prova isolamento efetivo da rede/agent em implantação; classificação restrita ao literal CIDR."
+  },
+  {
+    "id": "SQ-0082",
+    "issueId": "70c71381-d984-41d0-bd21-3c12d7287a04",
+    "rule": "typescript:S1313",
+    "file": "apps/backend/src/modules/trials/trial-policy.ts",
+    "sourceLine": 99,
+    "classification": "false_positive",
+    "priority": "P3",
+    "reason": "A constante '192.168.0.0/16' (coluna 72) identifica espaço privado para política de roteamento trial. A exceção ainda exige perfil completo, rota agent-only, allowCustomHosts e exclusão de endereços protegidos/rede do lab.",
+    "evidence": [
+      "apps/backend/src/modules/trials/trial-policy.ts:99"
+    ],
+    "validation": "Inspeção de validateTrialRoutedDestination e de todas as condições da exceção.",
+    "limitations": "Não prova isolamento efetivo da rede/agent em implantação; classificação restrita ao literal CIDR."
+  },
+  {
+    "id": "SQ-0083",
+    "issueId": "eb6736bf-e1bd-4a8e-93b4-da2ab4502dfa",
+    "rule": "typescript:S1313",
+    "file": "apps/backend/src/modules/trials/trial-policy.ts",
+    "sourceLine": 99,
+    "classification": "false_positive",
+    "priority": "P3",
+    "reason": "A constante '10.0.0.0/8' (coluna 41) identifica espaço privado para política de roteamento trial. A exceção ainda exige perfil completo, rota agent-only, allowCustomHosts e exclusão de endereços protegidos/rede do lab.",
+    "evidence": [
+      "apps/backend/src/modules/trials/trial-policy.ts:99"
+    ],
+    "validation": "Inspeção de validateTrialRoutedDestination e de todas as condições da exceção.",
+    "limitations": "Não prova isolamento efetivo da rede/agent em implantação; classificação restrita ao literal CIDR."
+  },
+  {
+    "id": "SQ-0084",
+    "issueId": "3377b223-d97d-4932-a99a-5bf0d10eb9c9",
+    "rule": "typescript:S8786",
+    "file": "apps/backend/src/modules/trials/trial.service.ts",
+    "sourceLine": 346,
+    "classification": "false_positive",
+    "priority": "P3",
+    "reason": "Na composição de produção, TrialService recebe HttpTrialProvisioner; ensure valida labSchema antes de retornar. O fingerprint retornado tem exatamente 43 caracteres base64 e padding opcional. A interface permite doubles, mas não foi identificado consumidor remoto que contorne esse schema.",
+    "evidence": [
+      "apps/backend/src/modules/trials/trial.service.ts:346",
+      "apps/backend/src/modules/trials/trial-runtime.ts:38",
+      "apps/backend/src/modules/trials/trial-provisioner.ts:38",
+      "apps/backend/src/modules/trials/trial-contract.ts:87"
+    ],
+    "validation": "Rastreado consumidor de produção e validação no adaptador HTTP.",
+    "limitations": "TrialService não revalida o objeto nessa linha: novos provisionadores precisam cumprir o mesmo contrato; não houve ensaio remoto."
+  },
+  {
+    "id": "SQ-0085",
+    "issueId": "31a66372-8f8f-4821-b1d4-e97e8fb5f55f",
+    "rule": "typescript:S1313",
+    "file": "apps/backend/src/shared/ssrf-guard.ts",
+    "sourceLine": 11,
+    "classification": "false_positive",
+    "priority": "P3",
+    "reason": "A constante '10.0.0.0' (coluna 20) integra BlockList de SSRF ou a classificação de IPv6 público/mapeado. É limite de endereçamento, não um endpoint de aplicação. Removê-la ou torná-la configuração livre enfraqueceria a política.",
+    "evidence": [
+      "apps/backend/src/shared/ssrf-guard.ts:11"
+    ],
+    "validation": "Inspeção da classificação e publicLookup; helper original passou 8 rejeições e 2 endereços públicos em contratos locais (runtime-probes.json).",
+    "limitations": "Não realizado DNS rebinding real nem cobertura exaustiva de todas as faixas; nenhum lookup/conexão externa nos probes."
+  },
+  {
+    "id": "SQ-0086",
+    "issueId": "6eac06ec-58b7-4960-bbd3-e0da9722449a",
+    "rule": "typescript:S1313",
+    "file": "apps/backend/src/shared/ssrf-guard.ts",
+    "sourceLine": 11,
+    "classification": "false_positive",
+    "priority": "P3",
+    "reason": "A constante '100.64.0.0' (coluna 37) integra BlockList de SSRF ou a classificação de IPv6 público/mapeado. É limite de endereçamento, não um endpoint de aplicação. Removê-la ou torná-la configuração livre enfraqueceria a política.",
+    "evidence": [
+      "apps/backend/src/shared/ssrf-guard.ts:11"
+    ],
+    "validation": "Inspeção da classificação e publicLookup; helper original passou 8 rejeições e 2 endereços públicos em contratos locais (runtime-probes.json).",
+    "limitations": "Não realizado DNS rebinding real nem cobertura exaustiva de todas as faixas; nenhum lookup/conexão externa nos probes."
+  },
+  {
+    "id": "SQ-0087",
+    "issueId": "5483fed1-911a-4b50-8abd-b3c18775b584",
+    "rule": "typescript:S1313",
+    "file": "apps/backend/src/shared/ssrf-guard.ts",
+    "sourceLine": 12,
+    "classification": "false_positive",
+    "priority": "P3",
+    "reason": "A constante '192.0.0.0' (coluna 45) integra BlockList de SSRF ou a classificação de IPv6 público/mapeado. É limite de endereçamento, não um endpoint de aplicação. Removê-la ou torná-la configuração livre enfraqueceria a política.",
+    "evidence": [
+      "apps/backend/src/shared/ssrf-guard.ts:12"
+    ],
+    "validation": "Inspeção da classificação e publicLookup; helper original passou 8 rejeições e 2 endereços públicos em contratos locais (runtime-probes.json).",
+    "limitations": "Não realizado DNS rebinding real nem cobertura exaustiva de todas as faixas; nenhum lookup/conexão externa nos probes."
+  },
+  {
+    "id": "SQ-0088",
+    "issueId": "6dc68b07-0d2b-4410-a18d-2eab9726dab6",
+    "rule": "typescript:S1313",
+    "file": "apps/backend/src/shared/ssrf-guard.ts",
+    "sourceLine": 12,
+    "classification": "false_positive",
+    "priority": "P3",
+    "reason": "A constante '169.254.0.0' (coluna 4) integra BlockList de SSRF ou a classificação de IPv6 público/mapeado. É limite de endereçamento, não um endpoint de aplicação. Removê-la ou torná-la configuração livre enfraqueceria a política.",
+    "evidence": [
+      "apps/backend/src/shared/ssrf-guard.ts:12"
+    ],
+    "validation": "Inspeção da classificação e publicLookup; helper original passou 8 rejeições e 2 endereços públicos em contratos locais (runtime-probes.json).",
+    "limitations": "Não realizado DNS rebinding real nem cobertura exaustiva de todas as faixas; nenhum lookup/conexão externa nos probes."
+  },
+  {
+    "id": "SQ-0089",
+    "issueId": "b7fbbc64-d861-4644-9edc-86622ea1b04f",
+    "rule": "typescript:S1313",
+    "file": "apps/backend/src/shared/ssrf-guard.ts",
+    "sourceLine": 12,
+    "classification": "false_positive",
+    "priority": "P3",
+    "reason": "A constante '172.16.0.0' (coluna 25) integra BlockList de SSRF ou a classificação de IPv6 público/mapeado. É limite de endereçamento, não um endpoint de aplicação. Removê-la ou torná-la configuração livre enfraqueceria a política.",
+    "evidence": [
+      "apps/backend/src/shared/ssrf-guard.ts:12"
+    ],
+    "validation": "Inspeção da classificação e publicLookup; helper original passou 8 rejeições e 2 endereços públicos em contratos locais (runtime-probes.json).",
+    "limitations": "Não realizado DNS rebinding real nem cobertura exaustiva de todas as faixas; nenhum lookup/conexão externa nos probes."
+  },
+  {
+    "id": "SQ-0090",
+    "issueId": "33d02c02-d09c-450a-bb63-f63b61b29922",
+    "rule": "typescript:S1313",
+    "file": "apps/backend/src/shared/ssrf-guard.ts",
+    "sourceLine": 13,
+    "classification": "false_positive",
+    "priority": "P3",
+    "reason": "A constante '192.168.0.0' (coluna 4) integra BlockList de SSRF ou a classificação de IPv6 público/mapeado. É limite de endereçamento, não um endpoint de aplicação. Removê-la ou torná-la configuração livre enfraqueceria a política.",
+    "evidence": [
+      "apps/backend/src/shared/ssrf-guard.ts:13"
+    ],
+    "validation": "Inspeção da classificação e publicLookup; helper original passou 8 rejeições e 2 endereços públicos em contratos locais (runtime-probes.json).",
+    "limitations": "Não realizado DNS rebinding real nem cobertura exaustiva de todas as faixas; nenhum lookup/conexão externa nos probes."
+  },
+  {
+    "id": "SQ-0091",
+    "issueId": "b387e874-3b8d-4db9-85c9-c39f098b9167",
+    "rule": "typescript:S1313",
+    "file": "apps/backend/src/shared/ssrf-guard.ts",
+    "sourceLine": 13,
+    "classification": "false_positive",
+    "priority": "P3",
+    "reason": "A constante '198.18.0.0' (coluna 25) integra BlockList de SSRF ou a classificação de IPv6 público/mapeado. É limite de endereçamento, não um endpoint de aplicação. Removê-la ou torná-la configuração livre enfraqueceria a política.",
+    "evidence": [
+      "apps/backend/src/shared/ssrf-guard.ts:13"
+    ],
+    "validation": "Inspeção da classificação e publicLookup; helper original passou 8 rejeições e 2 endereços públicos em contratos locais (runtime-probes.json).",
+    "limitations": "Não realizado DNS rebinding real nem cobertura exaustiva de todas as faixas; nenhum lookup/conexão externa nos probes."
+  },
+  {
+    "id": "SQ-0092",
+    "issueId": "d544c375-1c1f-4b49-977e-2c5c88d17bd8",
+    "rule": "typescript:S1313",
+    "file": "apps/backend/src/shared/ssrf-guard.ts",
+    "sourceLine": 14,
+    "classification": "false_positive",
+    "priority": "P3",
+    "reason": "A constante '224.0.0.0' (coluna 4) integra BlockList de SSRF ou a classificação de IPv6 público/mapeado. É limite de endereçamento, não um endpoint de aplicação. Removê-la ou torná-la configuração livre enfraqueceria a política.",
+    "evidence": [
+      "apps/backend/src/shared/ssrf-guard.ts:14"
+    ],
+    "validation": "Inspeção da classificação e publicLookup; helper original passou 8 rejeições e 2 endereços públicos em contratos locais (runtime-probes.json).",
+    "limitations": "Não realizado DNS rebinding real nem cobertura exaustiva de todas as faixas; nenhum lookup/conexão externa nos probes."
+  },
+  {
+    "id": "SQ-0093",
+    "issueId": "5fa1ef6e-cef6-43cd-9f2c-920d8fadbe5e",
+    "rule": "typescript:S1313",
+    "file": "apps/backend/src/shared/ssrf-guard.ts",
+    "sourceLine": 18,
+    "classification": "false_positive",
+    "priority": "P3",
+    "reason": "A constante '2000::' (coluna 20) integra BlockList de SSRF ou a classificação de IPv6 público/mapeado. É limite de endereçamento, não um endpoint de aplicação. Removê-la ou torná-la configuração livre enfraqueceria a política.",
+    "evidence": [
+      "apps/backend/src/shared/ssrf-guard.ts:18"
+    ],
+    "validation": "Inspeção da classificação e publicLookup; helper original passou 8 rejeições e 2 endereços públicos em contratos locais (runtime-probes.json).",
+    "limitations": "Não realizado DNS rebinding real nem cobertura exaustiva de todas as faixas; nenhum lookup/conexão externa nos probes."
+  },
+  {
+    "id": "SQ-0094",
+    "issueId": "30451ab3-b8ae-4901-8c3b-bf8c62680c10",
+    "rule": "typescript:S1313",
+    "file": "apps/backend/src/shared/ssrf-guard.ts",
+    "sourceLine": 20,
+    "classification": "false_positive",
+    "priority": "P3",
+    "reason": "A constante '::ffff:0:0' (coluna 20) integra BlockList de SSRF ou a classificação de IPv6 público/mapeado. É limite de endereçamento, não um endpoint de aplicação. Removê-la ou torná-la configuração livre enfraqueceria a política.",
+    "evidence": [
+      "apps/backend/src/shared/ssrf-guard.ts:20"
+    ],
+    "validation": "Inspeção da classificação e publicLookup; helper original passou 8 rejeições e 2 endereços públicos em contratos locais (runtime-probes.json).",
+    "limitations": "Não realizado DNS rebinding real nem cobertura exaustiva de todas as faixas; nenhum lookup/conexão externa nos probes."
+  },
+  {
+    "id": "SQ-0095",
+    "issueId": "46abbbed-2951-4129-a4fa-bf491804b000",
+    "rule": "typescript:S1313",
+    "file": "apps/backend/src/shared/ssrf-guard.ts",
+    "sourceLine": 21,
+    "classification": "false_positive",
+    "priority": "P3",
+    "reason": "A constante '2001::' (coluna 30) integra BlockList de SSRF ou a classificação de IPv6 público/mapeado. É limite de endereçamento, não um endpoint de aplicação. Removê-la ou torná-la configuração livre enfraqueceria a política.",
+    "evidence": [
+      "apps/backend/src/shared/ssrf-guard.ts:21"
+    ],
+    "validation": "Inspeção da classificação e publicLookup; helper original passou 8 rejeições e 2 endereços públicos em contratos locais (runtime-probes.json).",
+    "limitations": "Não realizado DNS rebinding real nem cobertura exaustiva de todas as faixas; nenhum lookup/conexão externa nos probes."
+  },
+  {
+    "id": "SQ-0096",
+    "issueId": "87d9ad28-6eac-45a6-85ce-0aee1861ad0f",
+    "rule": "typescript:S1313",
+    "file": "apps/backend/src/shared/ssrf-guard.ts",
+    "sourceLine": 21,
+    "classification": "false_positive",
+    "priority": "P3",
+    "reason": "A constante '2002::' (coluna 66) integra BlockList de SSRF ou a classificação de IPv6 público/mapeado. É limite de endereçamento, não um endpoint de aplicação. Removê-la ou torná-la configuração livre enfraqueceria a política.",
+    "evidence": [
+      "apps/backend/src/shared/ssrf-guard.ts:21"
+    ],
+    "validation": "Inspeção da classificação e publicLookup; helper original passou 8 rejeições e 2 endereços públicos em contratos locais (runtime-probes.json).",
+    "limitations": "Não realizado DNS rebinding real nem cobertura exaustiva de todas as faixas; nenhum lookup/conexão externa nos probes."
+  },
+  {
+    "id": "SQ-0097",
+    "issueId": "9aca2f59-4760-4aab-b1c4-638896efe306",
+    "rule": "typescript:S1313",
+    "file": "apps/backend/src/shared/ssrf-guard.ts",
+    "sourceLine": 21,
+    "classification": "false_positive",
+    "priority": "P3",
+    "reason": "A constante '3fff::' (coluna 82) integra BlockList de SSRF ou a classificação de IPv6 público/mapeado. É limite de endereçamento, não um endpoint de aplicação. Removê-la ou torná-la configuração livre enfraqueceria a política.",
+    "evidence": [
+      "apps/backend/src/shared/ssrf-guard.ts:21"
+    ],
+    "validation": "Inspeção da classificação e publicLookup; helper original passou 8 rejeições e 2 endereços públicos em contratos locais (runtime-probes.json).",
+    "limitations": "Não realizado DNS rebinding real nem cobertura exaustiva de todas as faixas; nenhum lookup/conexão externa nos probes."
+  }
+]

@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+const { resolveExecutable } = require('../shared/trusted-executable.cjs')
 const { spawnSync } = require('node:child_process')
 const path = require('node:path')
 
@@ -7,7 +8,7 @@ const chart = path.join(root, 'charts/nodeaccess')
 const helmImage = process.env.HELM_IMAGE || 'alpine/helm:3.17.3'
 
 function helm(args, expectedStatus = 0) {
-  const result = spawnSync('docker', [
+  const result = spawnSync(resolveExecutable('docker'), [
     'run', '--rm', '-v', `${root}:/workspace`, '-w', '/workspace', helmImage, ...args,
   ], { encoding: 'utf8' })
   if (result.status !== expectedStatus) {

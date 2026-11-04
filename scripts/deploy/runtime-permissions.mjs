@@ -29,7 +29,7 @@ function inspectTree(root) {
     if (stat.isFile() && stat.nlink !== 1) throw new Error('Hard-linked files require manual review')
     if (stat.mode & 0o7000) throw new Error('Special permission bits require manual review')
     entries.push({ path: relative(root, path), uid: stat.uid, gid: stat.gid, mode: stat.mode & 0o777, ino: stat.ino, dev: stat.dev })
-    if (stat.isDirectory()) for (const child of readdirSync(path).sort()) visit(join(path, child))
+    if (stat.isDirectory()) for (const child of readdirSync(path).sort(compareCodeUnits)) visit(join(path, child))
   }
   visit(root)
   return entries
@@ -103,4 +103,11 @@ if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1]
     if (process.getuid?.() !== 0 || process.argv.length !== 3) throw new Error('Run as root in the isolated maintenance container with prepare or restore')
     console.log(JSON.stringify(migratePermissions({ root: '/migration', manifest: '/state/permissions.json', mode: process.argv[2] })))
   } catch (error) { console.error(error.message); process.exitCode = 1 }
+}
+
+// Preserve the native string sort order used by canonical output and digests.
+function compareCodeUnits(left, right) {
+  if (left < right) return -1
+  if (left > right) return 1
+  return 0
 }

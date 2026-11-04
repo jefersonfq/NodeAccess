@@ -1,0 +1,7 @@
+# Backend: reconciliação das propostas de falso positivo
+
+67 ocorrências reavaliadas:60 sustentadas tecnicamente e7 recomendações válidas encaminhadas para correção (seisS8786/NA0151 e S6959/NA0150). SQ0001 já foi encaminhado àNA0150 e não integra estes67. Definições consultadas porGET na instância instalada, sem transições.
+
+A classificação distingue manutenção válida de ausência de exploração. Não se propõe substituir interseção autorizada por array vazio nem alterar fingerprints aceitos. S1848 possui exceção explícita para RegExp usado na validação sintática; S7059 não se aplica à mera criação de uma função default, sem iniciar operação. A lista Prisma é consumida por transação e splice remove zero elementos. Os bytes de controle pertencem deliberadamente ao protocolo/normalização, os CIDRs são limites normativos de bloqueio/roteamento e os exemplos OpenAPI não preenchem payloads nem autenticam. O jitter não é token nem capacidade de acesso.
+
+Evidências individuais daNA0145 foram reusadas, sem inventar novos testes. O JSON registra igualdade de bytes com a fonte auditada, preservação da linha âncora, hashes de regras instaladas e limites originais. Alterações recentes do normalizador são a correção localizada do pager, já coberta por testes focais anteriores; o scanner e os gates conjuntos ainda estão pendentes. Antes de qualquer transição, remapear issueId/regra/componente/textRange na análise final. Nenhuma certificação de credenciais ou configuração da VPS está implícita.

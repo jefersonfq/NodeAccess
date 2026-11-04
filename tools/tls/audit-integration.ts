@@ -1,3 +1,4 @@
+import { resolveExecutable } from '../shared/trusted-executable.cjs'
 import { artifactPath } from '../shared/private-artifacts.cjs'
 // Opt-in disposable MySQL: never uses DATABASE_URL from the developer or production environment.
 import {execFileSync} from 'node:child_process'
@@ -7,7 +8,7 @@ import assert from 'node:assert/strict'
 import {PrismaClient} from '@prisma/client'
 import {TlsMonitor} from '../../apps/backend/src/modules/tls/tls.monitor.js'
 const name='na-tls-audit-'+randomBytes(4).toString('hex'),password=randomBytes(24).toString('hex')
-const docker=(...args:string[])=>execFileSync('docker',args,{encoding:'utf8',stdio:['ignore','pipe','pipe']}).trim()
+const docker=(...args:string[])=>execFileSync(resolveExecutable('docker'),args,{encoding:'utf8',stdio:['ignore','pipe','pipe']}).trim()
 let db:PrismaClient|undefined
 async function main(){
  docker('run','-d','--name',name,'-e','MYSQL_ROOT_PASSWORD='+password,'-e','MYSQL_DATABASE=tls_test','--tmpfs','/var/lib/mysql','-p','127.0.0.1::3306','mysql:8.0')

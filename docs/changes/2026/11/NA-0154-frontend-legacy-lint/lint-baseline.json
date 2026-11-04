@@ -1,0 +1,76 @@
+[
+  {
+    "file": "apps/frontend/src/services/terminal-path-autocomplete.service.ts",
+    "errors": 10,
+    "warnings": 17,
+    "rules": [
+      {
+        "severity": 2,
+        "rule": "prefer-const",
+        "count": 1
+      },
+      {
+        "severity": 1,
+        "rule": "@typescript-eslint/explicit-function-return-type",
+        "count": 17
+      },
+      {
+        "severity": 2,
+        "rule": "@typescript-eslint/no-unnecessary-type-assertion",
+        "count": 9
+      }
+    ]
+  },
+  {
+    "file": "apps/frontend/src/views/admin/HighAvailabilityView.vue",
+    "errors": 47,
+    "warnings": 551,
+    "rules": [
+      {
+        "severity": 2,
+        "rule": "@typescript-eslint/no-unused-vars",
+        "count": 1
+      },
+      {
+        "severity": 1,
+        "rule": "@typescript-eslint/explicit-function-return-type",
+        "count": 32
+      },
+      {
+        "severity": 2,
+        "rule": "@typescript-eslint/no-explicit-any",
+        "count": 15
+      },
+      {
+        "severity": 2,
+        "rule": "@typescript-eslint/no-unsafe-member-access",
+        "count": 16
+      },
+      {
+        "severity": 2,
+        "rule": "@typescript-eslint/no-unsafe-assignment",
+        "count": 1
+      },
+      {
+        "severity": 2,
+        "rule": "@typescript-eslint/no-unsafe-argument",
+        "count": 14
+      },
+      {
+        "severity": 1,
+        "rule": "vue/max-attributes-per-line",
+        "count": 110
+      },
+      {
+        "severity": 1,
+        "rule": "vue/singleline-html-element-content-newline",
+        "count": 40
+      },
+      {
+        "severity": 1,
+        "rule": "vue/html-indent",
+        "count": 369
+      }
+    ]
+  }
+]

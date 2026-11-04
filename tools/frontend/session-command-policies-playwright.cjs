@@ -66,8 +66,8 @@ async function installMocks(page, scenario, requests) {
   })
 }
 
-async function newPage(browser, scenario, viewport = { width: 1440, height: 900 }) {
-  const context = await browser.newContext({ viewport })
+async function newPage(browser, scenario, { width = 1440, height = 900 } = {}) {
+  const context = await browser.newContext({ viewport: { width, height } })
   await context.addInitScript((token) => localStorage.setItem('na_access_token', token), fakeJwt())
   const page = await context.newPage()
   const requests = []
