@@ -2,7 +2,7 @@
 change_id: NA-0093
 title: Entrega integrada das quatro pendencias SonarQube
 type: chore
-status: ready-for-tests
+status: in-development
 created_at: 2026-11-03T15:52:18-03:00
 base_branch: master
 base_sha: f4a44b4b7ae87a8f688b1246d9e52a31f9a104bc
@@ -75,6 +75,7 @@ Classificação NECESSARY_CORRECTION, dentro da autorização de concluir a entr
 - NA-0135: propagar o Chromium gerenciado pelo Playwright aos cinco harnesses quando não houver override explícito, evitando fallback divergente para navegador de sistema.
 - NA-0136: corrigir vulnerabilidades Node identificadas no scanner das imagens, atualizando bases por digest e validando TLS, stack descartável e scanner reais.
 - NA-0140: reproduzir falha de cabeçalho HTOP após zoom no harness, distinguir corrida de teste de defeito de produto e manter validações de terminal aplicáveis.
+- NA-0142: remover backtracking do parser de diagnóstico apontado por S8786, preservando classificação, privacidade e gates, com contratos e nova análise.
 - NA-0141: investigar falha intermitente do primeiro harness frontend hospedado, corrigir causa comprovada e reter apenas diagnóstico sanitizado.
 - NA-0139: corrigir contratos das fixtures de navegação, aguardar destinos renderizados e preservar diagnóstico sanitizado após reproduzir TypeError em hosts; sem relaxar gates.
 - NA-0138: eliminar referência a commit local ausente no clone hospedado, usando baseline publicada com Vue idêntico, e preservar diagnóstico estruturado por etapas/códigos allowlist, sem exportar erros livres ou relaxar gates.

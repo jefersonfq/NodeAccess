@@ -1,0 +1,17 @@
+[
+  {
+    "issueId": "f695f260-eb67-4017-b773-cf39ce03b045",
+    "rule": "javascript:S8786",
+    "file": "tools/coverage/harness-diagnostics.cjs",
+    "baselineLine": 19,
+    "status": "fixed",
+    "rationale": "Regex com início multiline e classe que atravessa CR foi substituído por prefixos e busca progressiva de marcadores/dígitos/sufixo. Cada trecho é percorrido um número constante de vezes; múltiplos marcadores e precedência ASSERTION preservados.",
+    "evidence": [
+      "tools/coverage/harness-diagnostics.test.mjs",
+      "tests.txt",
+      "adversarial-before.json"
+    ],
+    "sourceEvidence": "2026-11-04T00-54-37.150Z-e32ea64a-caed-4d3d-9d73-76cb00e5f30b/issues.json",
+    "risk": "Baixo; sem alteração do leitor64KiB, baseline ou gates; ausência no novo scanner ainda pendente."
+  }
+]

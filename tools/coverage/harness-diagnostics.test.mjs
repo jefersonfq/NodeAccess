@@ -43,3 +43,30 @@ test('real failed child assertion stays failed while its stack is safely project
   assert.equal(result.category, 'ASSERTION'); assert.equal(result.line, 1); assert.ok(result.column > 0)
   assert.doesNotMatch(JSON.stringify(result), /PRIVATE|tmp|assert|\.cjs/)
 })
+
+test('timeout headers preserve positive and negative cases across log lines', () => {
+  const cases = [
+    ['TimeoutError: PRIVATE', 'TIMEOUT'], ['xTimeoutError: PRIVATE', 'OTHER'],
+    ['x\rTimeoutError: PRIVATE', 'TIMEOUT'], ['x\u2028TimeoutError: PRIVATE', 'TIMEOUT'],
+    ['locator.click: Timeout 5000ms exceeded.', 'TIMEOUT'], ['locator.fill: Timeout 0ms exceeded.PRIVATE', 'TIMEOUT'],
+    [': Timeout 1ms exceeded.', 'OTHER'], ['x: Timeout ms exceeded.', 'OTHER'],
+    ['x: Timeout -1ms exceeded.', 'OTHER'], ['x: Timeout 1.5ms exceeded.', 'OTHER'],
+    ['x: Timeout  1ms exceeded.', 'OTHER'], ['x: Timeout １ms exceeded.', 'OTHER'],
+    ['x: Timeout 123xms exceeded.', 'OTHER'], ['x: Timeout 1ms exceeded', 'OTHER'],
+    ['x: Timeout 1ms  exceeded.', 'OTHER'], ['x: Timeout 1ms exceeded. x: Timeout broken', 'TIMEOUT'],
+    ['x: Timeout broken x: Timeout 5ms exceeded.', 'TIMEOUT'], ['x\r: Timeout 1ms exceeded.', 'TIMEOUT'],
+    ['\n: Timeout 1ms exceeded.', 'OTHER'], ['x\nlocator.fill: Timeout 1ms exceeded.', 'TIMEOUT'],
+  ]
+  for (const [header, category] of cases) {
+    const result = parseHarnessDiagnostic(`${header}\n    at main (/private/table-review.cjs:8:2)`, 'table-review.cjs')
+    assert.deepEqual(result, { category, line: 8, column: 2 })
+  }
+  assert.deepEqual(parseHarnessDiagnostic('AssertionError: PRIVATE\nTimeoutError: PRIVATE\n    at /private/table-review.cjs:8:2', 'table-review.cjs'), { category: 'ASSERTION', line: 8, column: 2 })
+})
+test('long failed markers and digit runs finish within a bounded real child process', () => {
+  const helper = new URL('./harness-diagnostics.cjs', import.meta.url).pathname
+  const script = `const {parseHarnessDiagnostic}=require(process.argv[1]); const frame='\\n    at /private/table-review.cjs:8:2'; const texts=['\\r'.repeat(60000),'x'.repeat(1000000)+': Timeout '+'9'.repeat(1000000)+'ms wrong', 'x: Timeout wrong '.repeat(60000), 'x: Timeout wrong '.repeat(60000)+'x: Timeout 5000ms exceeded.']; process.stdout.write(JSON.stringify(texts.map(text=>parseHarnessDiagnostic(text+frame,'table-review.cjs').category)));`
+  const child = spawnSync(process.execPath, ['-e', script, helper], { encoding: 'utf8', timeout: 3000 })
+  assert.equal(child.error, undefined); assert.equal(child.status, 0)
+  assert.deepEqual(JSON.parse(child.stdout), ['OTHER', 'OTHER', 'OTHER', 'TIMEOUT'])
+})

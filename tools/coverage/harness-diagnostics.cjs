@@ -8,6 +8,22 @@ function sanitizeHarnessDiagnostic(value) {
   if (!Number.isSafeInteger(value.column) || value.column < 1 || value.column > 100000) return undefined
   return { category: value.category, line: value.line, column: value.column }
 }
+function locatorTimeout(line) {
+  const marker = ': Timeout '
+  let offset = line.indexOf(marker)
+  while (offset !== -1) {
+    const start = offset + marker.length
+    let end = start
+    while (end < line.length && line[end] >= '0' && line[end] <= '9') end++
+    if (offset > 0 && end > start && line.startsWith('ms exceeded.', end)) return true
+    offset = line.indexOf(marker, start)
+  }
+  return false
+}
+function timeoutMessage(text) {
+  if (text.split(/[\n\r\u2028\u2029]/u).some(line => line.startsWith('TimeoutError:'))) return true
+  return text.split('\n').some(line => locatorTimeout(line))
+}
 function parseHarnessDiagnostic(text, script) {
   const name = basename(script)
   if (!scripts.has(name) || typeof text !== 'string') return undefined
@@ -16,7 +32,7 @@ function parseHarnessDiagnostic(text, script) {
   if (!frame) return undefined
   let category = 'OTHER'
   if (/^AssertionError(?: \[ERR_ASSERTION\])?:/m.test(text)) category = 'ASSERTION'
-  else if (/^(?:TimeoutError:|[^\n]+: Timeout \d+ms exceeded\.)/m.test(text)) category = 'TIMEOUT'
+  else if (timeoutMessage(text)) category = 'TIMEOUT'
   return sanitizeHarnessDiagnostic({ category, line: Number(frame[1]), column: Number(frame[2]) })
 }
 function readHarnessDiagnostic(file, script) {

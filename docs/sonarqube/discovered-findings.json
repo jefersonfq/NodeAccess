@@ -225,6 +225,15 @@
       "hash": "58ae610dd0b65bf971b73f76579b7702",
       "severity": "MAJOR",
       "type": "BUG"
+    },
+    {
+      "issueId": "f695f260-eb67-4017-b773-cf39ce03b045",
+      "rule": "javascript:S8786",
+      "component": "nodeaccess:tools/coverage/harness-diagnostics.cjs",
+      "line": 19,
+      "hash": "0d98abeb5b7fc3e3e432844d7f0f0c21",
+      "severity": "MAJOR",
+      "type": "CODE_SMELL"
     }
   ]
 }

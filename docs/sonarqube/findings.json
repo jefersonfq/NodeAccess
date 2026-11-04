@@ -10863,6 +10863,28 @@
       "branch": "fix/NA-0133-20261103-sonar-callback-contracts",
       "risk": "Baixo; sem mudança de política ou baseline. Ausência no próximo scanner ainda pendente.",
       "url": "http://localhost:9000/project/issues?id=nodeaccess&issues=77db9af1-009d-4922-abcf-ac54be868728"
+    },
+    {
+      "issueId": "f695f260-eb67-4017-b773-cf39ce03b045",
+      "id": "SQ-0559",
+      "rule": "javascript:S8786",
+      "type": "CODE_SMELL",
+      "severity": "MAJOR",
+      "file": "tools/coverage/harness-diagnostics.cjs",
+      "baselineLine": 19,
+      "domain": "Ferramentas",
+      "signature": "b20935d1235e499a461c4b4f2922efd5ff722f34a4732c354e5066b62c403801",
+      "status": "fixed",
+      "observed": "present",
+      "rationale": "Regex com início multiline e classe que atravessa CR foi substituído por prefixos e busca progressiva de marcadores/dígitos/sufixo. Cada trecho é percorrido um número constante de vezes; múltiplos marcadores e precedência ASSERTION preservados.",
+      "evidence": [
+        "tools/coverage/harness-diagnostics.test.mjs",
+        "tests.txt",
+        "adversarial-before.json"
+      ],
+      "branch": "fix/NA-0142-20261103-linear-timeout-diagnostic",
+      "risk": "Baixo; sem alteração do leitor64KiB, baseline ou gates; ausência no novo scanner ainda pendente.",
+      "url": "http://localhost:9000/project/issues?id=nodeaccess&issues=f695f260-eb67-4017-b773-cf39ce03b045"
     }
   ]
 }
