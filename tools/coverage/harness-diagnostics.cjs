@@ -1,6 +1,6 @@
 const { openSync, closeSync, fstatSync, readSync, constants } = require('node:fs')
 const { basename } = require('node:path')
-const scripts = new Set(['sonar-frontend-review.cjs', 'table-review.cjs', 'terminal-experience-playwright.cjs', 'platform-settings-playwright.cjs', 'sonar-flow-coverage.cjs'])
+const scripts = new Set(['sonar-frontend-review.cjs', 'table-review.cjs', 'terminal-experience-playwright.cjs', 'platform-settings-playwright.cjs', 'sonar-flow-coverage.cjs', 'ha-playwright-smoke.cjs', 'audit-input-safety-playwright.cjs', 'terminal-highlight-budget.mjs'])
 const categories = new Set(['ASSERTION', 'TIMEOUT', 'OTHER'])
 function sanitizeHarnessDiagnostic(value) {
   if (!value || !categories.has(value.category)) return undefined

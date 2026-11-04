@@ -5,10 +5,12 @@ const { tmpdir } = require('node:os')
 const { join } = require('node:path')
 const { chromium } = require('playwright')
 const { installRoutes, authenticate, SESSION_ID } = require('./session-playback-playwright.cjs')
+const { artifactPath } = require('../shared/private-artifacts.cjs')
 const { navigationFixture } = require('./sonar-flow-fixtures.cjs')
 
 async function main() {
-  const output = mkdtempSync(join(tmpdir(), 'nodeaccess-audit-input-safety-'))
+  const output = process.env.AUDIT_INPUT_OUTPUT || mkdtempSync(join(tmpdir(), 'nodeaccess-audit-input-safety-'))
+  artifactPath('report.json', output)
   const browser = await chromium.launch({ headless: true, executablePath: process.env.PLAYWRIGHT_EXECUTABLE_PATH || undefined })
   const report = { output, startedAt: new Date().toISOString(), checks: [], transport: 'intercepted API/WebSocket; actual Vue and keyboard events' }
   try {
@@ -20,6 +22,7 @@ async function main() {
     ] })
     await context.addInitScript(() => localStorage.setItem('nodeaccess_locale', 'pt-BR'))
     const page = await context.newPage()
+    if (process.env.BROWSER_COVERAGE_DIR) await require('../coverage/playwright-coverage.cjs').attachBrowserCoverage(page, browser)
     const errors = []
     page.on('pageerror', error => errors.push(error.message))
     await authenticate(page)

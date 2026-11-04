@@ -1,0 +1,188 @@
+{
+  "project": "nodeaccess-review-lab-fea77588-80cc-4b87-ab95-9dd16de95d0b",
+  "root": "/tmp/na0157-sonar-lab-UkAXsq",
+  "startedAt": "2026-11-04T15:44:41.935Z",
+  "checks": [
+    "real paginated inventory, installed rule definition, revision and capability verified",
+    "partial real batch fails; first transition and second comment remain auditable",
+    "retry skips existing decision and comment; no other issue modified",
+    "live project gate changes ERROR to OK after exact false-positive review, without rescanning; historical analysis result retained separately",
+    "changed analysis response blocks writes against real inventory",
+    "actual second scanner analysis invalidates original batch before any further mutation"
+  ],
+  "passed": true,
+  "beforeGate": {
+    "projectStatus": {
+      "status": "ERROR",
+      "conditions": [
+        {
+          "status": "OK",
+          "metricKey": "new_coverage",
+          "comparator": "LT",
+          "errorThreshold": "80",
+          "actualValue": "0.0"
+        },
+        {
+          "status": "OK",
+          "metricKey": "new_duplicated_lines_density",
+          "comparator": "GT",
+          "errorThreshold": "3",
+          "actualValue": "0.0"
+        },
+        {
+          "status": "ERROR",
+          "metricKey": "new_violations",
+          "comparator": "GT",
+          "errorThreshold": "0",
+          "actualValue": "2"
+        }
+      ],
+      "ignoredConditions": true,
+      "period": {
+        "mode": "SPECIFIC_ANALYSIS",
+        "date": "2026-11-04T15:44:46+0000",
+        "parameter": "29ac6fac-a764-49a1-9165-82ef83d525cc"
+      },
+      "caycStatus": "compliant"
+    }
+  },
+  "observedRules": [
+    "javascript:S6324",
+    "javascript:S6324"
+  ],
+  "dryRun": {
+    "status": "dry_run",
+    "proposed": 2,
+    "changed": 0,
+    "absent": 0,
+    "unchanged": 0
+  },
+  "recovered": {
+    "status": "applied",
+    "proposed": 1,
+    "changed": 1,
+    "absent": 0,
+    "unchanged": 1
+  },
+  "idempotent": {
+    "status": "applied",
+    "proposed": 0,
+    "changed": 0,
+    "absent": 0,
+    "unchanged": 2
+  },
+  "afterReviewHistoricalGate": {
+    "projectStatus": {
+      "status": "ERROR",
+      "conditions": [
+        {
+          "status": "OK",
+          "metricKey": "new_coverage",
+          "comparator": "LT",
+          "errorThreshold": "80",
+          "actualValue": "0.0"
+        },
+        {
+          "status": "OK",
+          "metricKey": "new_duplicated_lines_density",
+          "comparator": "GT",
+          "errorThreshold": "3",
+          "actualValue": "0.0"
+        },
+        {
+          "status": "ERROR",
+          "metricKey": "new_violations",
+          "comparator": "GT",
+          "errorThreshold": "0",
+          "actualValue": "2"
+        }
+      ],
+      "ignoredConditions": true,
+      "period": {
+        "mode": "SPECIFIC_ANALYSIS",
+        "date": "2026-11-04T15:44:46+0000",
+        "parameter": "29ac6fac-a764-49a1-9165-82ef83d525cc"
+      },
+      "caycStatus": "compliant"
+    }
+  },
+  "afterReviewGate": {
+    "projectStatus": {
+      "status": "OK",
+      "conditions": [
+        {
+          "status": "OK",
+          "metricKey": "new_coverage",
+          "comparator": "LT",
+          "errorThreshold": "80",
+          "actualValue": "0.0"
+        },
+        {
+          "status": "OK",
+          "metricKey": "new_duplicated_lines_density",
+          "comparator": "GT",
+          "errorThreshold": "3",
+          "actualValue": "0.0"
+        },
+        {
+          "status": "OK",
+          "metricKey": "new_security_hotspots_reviewed",
+          "comparator": "LT",
+          "errorThreshold": "100"
+        },
+        {
+          "status": "OK",
+          "metricKey": "new_violations",
+          "comparator": "GT",
+          "errorThreshold": "0",
+          "actualValue": "0"
+        }
+      ],
+      "ignoredConditions": true,
+      "period": {
+        "mode": "SPECIFIC_ANALYSIS",
+        "date": "2026-11-04T15:44:46+0000",
+        "parameter": "29ac6fac-a764-49a1-9165-82ef83d525cc"
+      },
+      "caycStatus": "compliant"
+    }
+  },
+  "gate": {
+    "projectStatus": {
+      "status": "OK",
+      "conditions": [
+        {
+          "status": "OK",
+          "metricKey": "new_coverage",
+          "comparator": "LT",
+          "errorThreshold": "80",
+          "actualValue": "0.0"
+        },
+        {
+          "status": "OK",
+          "metricKey": "new_duplicated_lines_density",
+          "comparator": "GT",
+          "errorThreshold": "3",
+          "actualValue": "0.0"
+        },
+        {
+          "status": "OK",
+          "metricKey": "new_violations",
+          "comparator": "GT",
+          "errorThreshold": "0",
+          "actualValue": "0"
+        }
+      ],
+      "ignoredConditions": true,
+      "period": {
+        "mode": "SPECIFIC_ANALYSIS",
+        "date": "2026-11-04T15:44:46+0000",
+        "parameter": "29ac6fac-a764-49a1-9165-82ef83d525cc"
+      },
+      "caycStatus": "compliant"
+    }
+  },
+  "actorCleaned": true,
+  "projectCleaned": true,
+  "finishedAt": "2026-11-04T15:45:47.920Z"
+}

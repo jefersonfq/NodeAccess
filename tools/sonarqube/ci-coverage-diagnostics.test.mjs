@@ -95,3 +95,18 @@ test('CI revalidates generic stack coordinates and keeps structured flow failure
     { name: 'flows', failure: { stage: 'jira', category: 'TIMEOUT' }, diagnostic: { category: 'TIMEOUT', line: 4, column: 3 } },
   ])
 })
+
+test('three additional harness diagnostics preserve exact names and capture modes only', t => {
+  const f = fixture(t)
+  for (const name of ['ha', 'audit-input', 'highlight-budget']) {
+    f.write({ collectors: { browser: { error: `Browser coverage harness failed: ${name}`, harnesses: [
+      { name, exitCode: 7, timedOut: false, coverageMode: 'node-only', diagnostic: { category: 'ASSERTION', line: 2, column: 3, raw: 'PRIVATE' } },
+      { name: `${name}-PRIVATE`, coverageMode: 'PRIVATE' },
+    ] } } })
+    assert.deepEqual(coverageDiagnostics(f.root).collectors.browser, { errorCategory: 'BROWSER_HARNESS_FAILED', harnesses: [
+      { name, exitCode: 7, coverageMode: 'node-only', timedOut: false, diagnostic: { category: 'ASSERTION', line: 2, column: 3 } },
+    ] })
+  }
+  f.write({ collectors: { browser: { harnesses: [{ name: 'ha', coverageMode: 'PRIVATE' }, { name: 'audit-input', coverageMode: 'node-and-browser' }] } } })
+  assert.deepEqual(coverageDiagnostics(f.root).collectors.browser.harnesses, [{ name: 'ha' }, { name: 'audit-input', coverageMode: 'node-and-browser' }])
+})

@@ -22,6 +22,8 @@ test('all kubectl and Helm operations bind to the newly created kind context',t=
  const {result,calls}=run(t);assert.equal(result.status,0,result.stderr);assert.equal(JSON.parse(result.stdout).rollback,true)
  const kube=calls.filter(call=>call.name==='kubectl'),helm=calls.filter(call=>call.name==='helm')
  assert.ok(kube.length>=10);assert.equal(helm.length,3)
+ assert.equal(kube.some(call=>call.args.includes('secret')),false)
+ for(const call of helm)assert.equal(call.args.some(arg=>arg.includes('existingSecret')),false)
  for(const call of kube)assert.deepEqual(call.args.slice(0,2),['--context','kind-na0149-fixture'])
  for(const call of helm)assert.deepEqual(call.args.slice(0,2),['--kube-context','kind-na0149-fixture'])
  assert.deepEqual(calls.at(-1),{name:'kind',args:['delete','cluster','--name','na0149-fixture']})

@@ -1,0 +1,91 @@
+{
+  "baseSha": "28a77996deb4c004690e828c4a3a1f6dd292d198",
+  "installedRuleDefinitionsSha256": "d6f6222e30cb5d9b7393009d8cd68d14387322fd4030688f3a7243089c0db775",
+  "findings": [
+    {
+      "issueId": "b6bc4250-7710-485f-bc2d-50664e1d42e2",
+      "rule": "javascript:S3403",
+      "file": "tools/deploy/restore-mysql-env.cjs",
+      "baselineLine": 48,
+      "textRange": {
+        "startLine": 48,
+        "endLine": 48,
+        "startOffset": 17,
+        "endOffset": 20
+      },
+      "issueHash": "57e6e72f93939a99933807d8b51a7ad3",
+      "sourceSha256": "9f1288176658589fac86e86ce4c38b35d9e0075e153b776a5157b2244c50bb2d",
+      "status": "technical_false_positive",
+      "reason": "CJS compara objetos NodeModule compatíveis: import não executa CLI; execução direta cria env privado e erro preserva diagnóstico.",
+      "serverTransitionPerformed": false
+    },
+    {
+      "issueId": "5ddc4e91-e7af-4762-976e-17ece1124723",
+      "rule": "typescript:S2068",
+      "file": "tools/frontend/trial-live-playwright.mts",
+      "baselineLine": 140,
+      "textRange": {
+        "startLine": 140,
+        "endLine": 140,
+        "startOffset": 208,
+        "endOffset": 233
+      },
+      "issueHash": "029a41a65ddcb09b39ff677e5d598762",
+      "sourceSha256": "49338eefddf7a46fd663874e90424cea6e46a07dac876c79e2213c71bc3b8862",
+      "status": "implemented_pending_analysis",
+      "reason": "Senha sintética do payload negativo403 passa a ser randomBytes32 hex por execução. Não altera destino, autorização ou assertion403.",
+      "serverTransitionPerformed": false
+    },
+    {
+      "issueId": "ffe9aafb-c316-43ca-8184-608aed467c4a",
+      "rule": "javascript:S2612",
+      "file": "tools/tls/challenge-files.mjs",
+      "baselineLine": 27,
+      "textRange": {
+        "startLine": 27,
+        "endLine": 27,
+        "startOffset": 41,
+        "endOffset": 46
+      },
+      "issueHash": "41967976382ccc2bb31bbe8bed8d5045",
+      "sourceSha256": "99e7aa68b5b055faa4da81f6213e58fcc0b1ad867064108e0e916fd908ddbf1a",
+      "status": "technical_false_positive",
+      "reason": "Diretório de nonce público exige travessia pelo HTTP reader de outro UID. 0755 não concede escrita a outros.",
+      "serverTransitionPerformed": false
+    },
+    {
+      "issueId": "9db2139f-246d-4122-890c-37141d038405",
+      "rule": "javascript:S2612",
+      "file": "tools/tls/challenge-files.mjs",
+      "baselineLine": 32,
+      "textRange": {
+        "startLine": 32,
+        "endLine": 32,
+        "startOffset": 27,
+        "endOffset": 32
+      },
+      "issueHash": "0d560d84fcb906dc6e6ec0bbbcb521da",
+      "sourceSha256": "99e7aa68b5b055faa4da81f6213e58fcc0b1ad867064108e0e916fd908ddbf1a",
+      "status": "technical_false_positive",
+      "reason": "Arquivo contém apenas nonce público aleatório. UID65534 lê conteúdo e recebe EACCES ao escrever; 0644 é deliberado.",
+      "serverTransitionPerformed": false
+    },
+    {
+      "issueId": "4abb2a68-195b-4a2e-a5e4-2185ea88969a",
+      "rule": "secrets:S6697",
+      "file": "tools/deploy/helm-ollama-kind-certification.sh",
+      "baselineLine": 26,
+      "textRange": {
+        "startLine": 26,
+        "endLine": 26,
+        "startOffset": 45,
+        "endOffset": 51
+      },
+      "issueHash": "3dc5a3d524867bd9b6d6a4e5e1c14f80",
+      "sourceSha256": "2c2d8f5d1129fa5504d794b7cf4aea25ed8dfb86765300b9f7f714bd60f5055a",
+      "status": "implemented_pending_analysis",
+      "reason": "SQ0304: removido Secret sem consumidores do harness Ollama-only e argumento existingSecret. Render Helm byteidêntico. Complementa NA0149 sem reescrever evidência histórica.",
+      "serverTransitionPerformed": false
+    }
+  ]
+}

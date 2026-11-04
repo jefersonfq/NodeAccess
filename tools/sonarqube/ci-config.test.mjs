@@ -41,13 +41,14 @@ test('settings location, mutation, unsupported syntax and duplicate keys fail cl
 test('effective context proves configured scope and discards every non-allowlisted field', t => {
   const f = fixture(t), config = readConfiguration(f.settings), runtime = { root: f.root, revision: 'a'.repeat(40) }
   const context = ['Project scanner properties:', ...Object.entries(config.properties).map(([key,value]) => `  - ${key}=${value}`),
-    `sonar.projectBaseDir=${f.root}`, `sonar.projectVersion=${runtime.revision}`, 'sonar.scm.disabled=true', 'sonar.qualitygate.wait=false', 'sonar.token=private', 'ENV_SECRET=private'].join('\n')
+    `sonar.projectBaseDir=${f.root}`, `sonar.projectVersion=${runtime.revision}`, 'sonar.scm.disabled=true', `sonar.scm.revision=${runtime.revision}`, 'sonar.qualitygate.wait=false', 'sonar.token=private', 'ENV_SECRET=private'].join('\n')
   const result = verifyScannerContext(context, config, runtime)
   assert.equal(result.contextVerified, true); assert.deepEqual(result.effectiveProperties, config.properties)
   assert.ok(!JSON.stringify(result).includes('private'))
   assert.throws(() => verifyScannerContext(undefined, config, runtime), /CI_SCANNER_CONTEXT_MISSING/)
   assert.throws(() => verifyScannerContext('', config, runtime), /CI_SCANNER_CONTEXT_MISSING/)
   assert.throws(() => verifyScannerContext(context.replace('sonar.tests=tests', 'sonar.tests=default'), config, runtime), /CI_SCANNER_CONTEXT_MISMATCH/)
+  assert.throws(() => verifyScannerContext(context.replace(`sonar.scm.revision=${runtime.revision}`, 'sonar.scm.revision=wrong'), config, runtime), /CI_SCANNER_CONTEXT_MISMATCH/)
   for (const key of ['sonar.inclusions', 'sonar.test.exclusions', 'sonar.coverage.exclusions', 'sonar.cpd.exclusions', 'sonar.global.exclusions', 'sonar.global.test.exclusions']) {
     assert.throws(() => verifyScannerContext(context + `\n${key}=**/private/**`, config, runtime), /CI_SCANNER_SCOPE_OVERRIDE/)
     assert.equal(verifyScannerContext(context + `\n${key}=`, config, runtime).contextVerified, true)

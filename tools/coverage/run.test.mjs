@@ -45,7 +45,7 @@ function fixture(t, options = {}) {
       const capture = { captureRunId: '00000000-0000-4000-8000-000000000001', origin: 'http://127.0.0.1:1234', startedAt: new Date(Date.now() - 1000).toISOString(), finishedAt: new Date(Date.now() + 1000).toISOString() }
       writeFileSync(join(root, 'coverage/browser/chromium-v8/chromium-a.json'), JSON.stringify({ ...capture, root, schemaVersion: 1, fingerprint: sourceFingerprint(root, sourceInventory(root)), capturedAt: new Date().toISOString(), excluded: {}, scripts: [{ url: capture.origin + '/src/example.ts', source: code, codeSha256: createHash('sha256').update(code).digest('hex'), functions: [{ functionName: '', isBlockCoverage: true, ranges: [{ startOffset: 0, endOffset: code.length, count: 1 }] }] }] }))
       writeFileSync(join(root, 'coverage/browser/summary.json'), JSON.stringify({ ...capture, status: options.browserFailure ? 'failed' : 'passed',
-        harnesses: options.invalidBrowser ? [] : requiredBrowserHarnesses.map(([name]) => ({ name, exitCode: 0, timedOut: false })) }))
+        harnesses: options.invalidBrowser ? [] : requiredBrowserHarnesses.filter(([name]) => name !== options.missingHarness).map(([name]) => ({ name, exitCode: 0, timedOut: false })) }))
       return options.browserFailure ? 1 : 0
     }
     writeFileSync(join(root, 'coverage/node-v8/coverage-fixture.json'), JSON.stringify({ result: [] }))
@@ -140,3 +140,11 @@ test('aggregate rejects a symlinked coverage root before cleanup or collector ex
   assert.equal(statSync(outside).mode & 0o777, 0o755)
   assert.equal(readFileSync(join(outside, 'vitest/preserve'), 'utf8'), 'synthetic fixture')
 })
+
+for (const missingHarness of ['ha', 'audit-input', 'highlight-budget']) {
+  test(`aggregate rejects a passed browser report missing ${missingHarness}`, async t => {
+    const f = fixture(t, { missingHarness }), result = await runCoverage(f)
+    assert.equal(result.status, 'failed')
+    assert.ok(result.failures.includes('BROWSER_RESULT_NOT_VERIFIED'))
+  })
+}

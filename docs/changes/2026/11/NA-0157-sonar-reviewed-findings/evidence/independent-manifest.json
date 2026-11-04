@@ -1,0 +1,18 @@
+{
+  "count": 206,
+  "rulesVerified": 21,
+  "errors": [],
+  "liveInventory": 569,
+  "missingExactFromCurrentAnalysis": [
+    "SQ-0339",
+    "SQ-0340",
+    "SQ-0341",
+    "SQ-0342",
+    "NA0157-DOCUMENTATION-IP"
+  ],
+  "duplicateLiveMatches": [],
+  "priorMatched": 194,
+  "priorNonSupported": [],
+  "excludedRisks": true,
+  "serverMutations": 0
+}

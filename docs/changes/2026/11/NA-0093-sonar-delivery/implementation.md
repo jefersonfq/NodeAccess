@@ -306,3 +306,14 @@ Revisão independente da tabela:82correções+195propostasFP+14removidas+3riscos
 Ran: nova varredura integrada PASS — Gitleaks46 fixtures exatas/zero pendentes, Semgrep892 alvos/zero achados/erros; saída em evidence/integration-prechecks/security.json. Resultado pertence ao WIP testado; candidato final ainda requer gates no SHA.
 
 Revalidação independente19/19FP concluída com anchors preservados e16 verificações PASS; proveniência atual/histórica mantida. Preparado checkpoint integrado após lint/types/build/segurança PASS. Cobertura/Sonar/CI do novo SHA permanecem Planned; não há homologação nem merge.
+
+
+### 2026-11-04T13:24:06-03:00 — Cobertura ampliada e revisão reproduzível
+
+Integradas as frentes NA0155 (7990cf5b), NA0156 (905f73a86) e NA0157 (fee7cf564), preservando branches de origem. O checkpoint28a passou3.565 testes Vitest e531 Node, mas falhou cobertura nova73,00%/Sonar74,4% e dez achados novos. A tabela agora distingue observação real de proposta:211 abertos nesse scanner,93 das294 originais ausentes do export aberto; nenhuma transição manual executada.
+
+Ran: diagnóstico integrado ampliado3.609 Vitest PASS,125 opt-in ignorados, oito harnesses reais PASS e cobertura diff80,0289%; serviços97 mantêm73,18/70,30/64,43. Esse diagnóstico pertence ao WIP anterior ao replay, não ao próximo SHA. NA0157:222 contratos PASS e laboratório Sonar com Git real PASS para falha parcial, retomada, idempotência, gate vivo ERROR→OK e invalidação após nova análise; projeto descartável removido e usuário desativado. NA0156 remove segredo desnecessário do harness Ollama e randomiza senha negativa; demais três ocorrências têm provas específicas de falso positivo.
+
+Segurança integrada PASS:45 fixtures exatas, zero pendentes, Semgrep894 alvos/zero achados; removida allowance Helm obsoleta, sem adicionar exceções. Manifesto contém206 propostas individuais verificadas contra fontes/regras; cinco ranges dependem de confirmação pelo scanner novo. Baseline aceito preservado. Não houve concessão de issueadmin nem alterações no projeto Sonar principal. Ativação local exige autorização específica para revisor temporário; token de leitura permanece somente leitura.
+
+Documentos e tabela em docs do projeto atual. Governança da frente0157 corrigida e validada. Próximo passo: checkpoint, gates e scanner no novo SHA, CI do PR draft e decisão explícita sobre aplicação local das revisões. Sem merge, homologação humana ou implantação na VPS.

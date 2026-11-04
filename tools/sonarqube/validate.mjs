@@ -9,13 +9,15 @@ import { compareFindings } from './ledger.mjs'
 import { validateCoverageMetadata } from './ci-policy.mjs'
 import { sourceInventory, sourceFingerprint } from '../coverage/inventory.mjs'
 import { parseLcov } from '../coverage/lcov.mjs'
+import { reconcile } from './reconcile.mjs'
 
-export function validationOutcome({ toolingExit, coverageExit, scannerExit, comparison, gate, analysisVerified, hotspotsToReview }) {
+export function validationOutcome({ toolingExit, coverageExit, scannerExit, comparison, gate, analysisVerified, hotspotsToReview, reviewsVerified = true }) {
   const failures = []
   if (toolingExit !== 0) failures.push('SONAR_TOOLING_TESTS_FAILED')
   if (coverageExit !== 0) failures.push('TESTS_OR_COVERAGE_FAILED')
   if (scannerExit !== 0) failures.push('SCANNER_OR_GATE_FAILED')
   if (!analysisVerified) failures.push('ANALYSIS_NOT_VERIFIED')
+  if (!reviewsVerified) failures.push('REVIEWED_FINDINGS_NOT_VERIFIED')
   if (!Number.isSafeInteger(hotspotsToReview) || hotspotsToReview !== 0) failures.push('UNREVIEWED_HOTSPOTS')
   if (!comparison?.passed) failures.push('UNREVIEWED_FINDINGS')
   if (gate?.status !== 'OK') failures.push('QUALITY_GATE_NOT_OK')
@@ -84,6 +86,7 @@ export async function validate({ root = projectRoot, env = process.env, execute 
     }
     const scannerExit = execute(root, { ...childEnv, SONAR_TOKEN: env.SONAR_TOKEN, SONAR_HOST_URL: server }, [join(root, 'tools/sonarqube/analyze.mjs')], join(output, 'scanner.log'))
     let analysisVerified = false, comparison = null, gate = null, analysisId = null, error = null, exported = null, hotspotsToReview = null
+    let reviewsVerified = true, reviewedFalsePositives = null
     try {
       const task = Object.fromEntries(readFileSync(taskFile, 'utf8').trim().split('\n').map(line => { const i = line.indexOf('='); return [line.slice(0, i), line.slice(i + 1)] }))
       const url = new URL(task.ceTaskUrl)
@@ -103,6 +106,18 @@ export async function validate({ root = projectRoot, env = process.env, execute 
       const hotspots = JSON.parse(readFileSync(join(exported.output, 'hotspots.json'), 'utf8')).hotspots
       hotspotsToReview = hotspots.filter(h => h.status !== 'REVIEWED' || !['SAFE', 'FIXED'].includes(h.resolution)).length
       comparison = compareFindings(issues, baseline)
+      try {
+        reviewedFalsePositives = await reconcile({ root, analysisId, revision: head, dryRun: true,
+          request: (path, params, method) => {
+            if (method !== 'GET') throw new Error('REVIEW_READ_ONLY')
+            return readApi(path, params)
+          } })
+        reviewsVerified = reviewedFalsePositives.proposed === 0
+        if (!reviewsVerified) error = 'REVIEW_DECISIONS_NOT_APPLIED'
+      } catch (reviewError) {
+        reviewsVerified = false
+        error = /^REVIEW_[A-Z_]+$/.test(reviewError.message) ? reviewError.message : 'REVIEW_VERIFICATION_FAILED'
+      }
       analysisVerified = true
     } catch { error = 'ANALYSIS_EXPORT_OR_BASELINE_NOT_VERIFIED' }
     try {
@@ -110,10 +125,10 @@ export async function validate({ root = projectRoot, env = process.env, execute 
         analysisVerified = false; error = 'SOURCE_OR_HEAD_CHANGED_DURING_SCAN'
       }
     } catch { analysisVerified = false; error = 'SOURCE_OR_HEAD_CHANGED_DURING_SCAN' }
-    const outcome = validationOutcome({ toolingExit, coverageExit, scannerExit, comparison, gate, analysisVerified, hotspotsToReview })
+    const outcome = validationOutcome({ toolingExit, coverageExit, scannerExit, comparison, gate, analysisVerified, hotspotsToReview, reviewsVerified })
     const result = { schemaVersion: 1, startedAt, finishedAt: new Date().toISOString(), ...outcome,
       base, head, toolingExit, coverageExit, scannerExit, analysisId, analysisVerified, comparison, gate, hotspotsToReview, error,
-      reports: exported?.output ?? null, output }
+      reviewedFalsePositives, reviewsVerified, reports: exported?.output ?? null, output }
     writePrivate(join(output, 'validation.json'), result)
     return result
   } finally {

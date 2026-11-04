@@ -63,6 +63,33 @@ test('orchestration collects before Docker, scans base/head, configures comparis
   assert.ok(!stored.includes('scan-fixture')); assert.ok(!stored.includes('review-fixture'))
   assert.equal(result.baseline.changed, false)
 })
+for (const mode of ['success', 'review-failure', 'cleanup-failure', 'gate-still-failed']) test(`review reconciliation ${mode} preserves final gates and cleanup`, async t => {
+  const f = fixture(t)
+  writeFileSync(join(f.root, 'docs/sonarqube/reviewed-false-positives.json'), JSON.stringify({ schemaVersion: 1, findings: [] }))
+  const git = args => execFileSync('/usr/bin/git', args, { cwd: f.root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).trim()
+  git(['add', '.']); git(['commit', '-m', 'review fixture']); f.head = git(['rev-parse', 'HEAD'])
+  const rt = runtime(f, mode === 'gate-still-failed' ? { gate: { status: 'ERROR', conditions: [] } } : {})
+  const request = async () => { throw new Error('Orchestration test must not call a real server') }
+  rt.reviewActor = async () => ({ request, cleanup: async () => {
+    rt.events.push('review-cleanup'); if (mode === 'cleanup-failure') throw new Error('failure')
+  } })
+  rt.review = async options => {
+    rt.events.push('review'); assert.equal(options.analysisId, 'analysis-head'); assert.equal(options.revision, f.head)
+    assert.equal(options.dryRun, false); assert.equal(options.request, request)
+    options.record({ action: 'transition_intent', id: 'SYNTHETIC-1', key: 'private-server-issue', previousState: 'OPEN' })
+    if (mode === 'review-failure') throw new Error('REVIEW_SOURCE_CHANGED')
+    return { status: 'applied', changed: 1, absent: 0, unchanged: 0 }
+  }
+  const result = await run({ ...f, runtime: rt })
+  assert.equal(result.passed, mode === 'success')
+  assert.deepEqual(result.reviewEvents, [{ action: 'transition_intent', id: 'SYNTHETIC-1', previousState: 'OPEN', changed: undefined }])
+  assert.ok(!readFileSync(join(f.root, 'coverage/sonar-ci-summary.json'), 'utf8').includes('private-server-issue'))
+  assert.ok(rt.events.indexOf('review') > rt.events.indexOf('head'))
+  assert.deepEqual(rt.events.slice(-2), ['review-cleanup', 'cleanup'])
+  if (mode === 'review-failure') assert.ok(result.failures.includes('REVIEW_SOURCE_CHANGED'))
+  if (mode === 'cleanup-failure') assert.ok(result.failures.includes('CI_REVIEW_ACTOR_CLEANUP_FAILED'))
+  if (mode === 'gate-still-failed') assert.ok(result.failures.includes('QUALITY_GATE_NOT_OK'))
+})
 for (const [name, options, code] of [
   ['coverage failure still scans but cannot pass', { coverageExit: 1 }, 'TESTS_OR_COVERAGE_FAILED'],
   ['low diff coverage fails independently', { lowCoverage: true }, 'GIT_DIFF_COVERAGE_NOT_VERIFIED'],

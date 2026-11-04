@@ -15,6 +15,9 @@ export const requiredBrowserHarnesses = [
   ['frontend', 'tools/frontend/sonar-frontend-review.cjs'], ['table', 'tools/sonarqube/table-review.cjs'],
   ['terminal', 'tools/frontend/terminal-experience-playwright.cjs'], ['platform', 'tools/frontend/platform-settings-playwright.cjs'],
   ['flows', 'tools/frontend/sonar-flow-coverage.cjs'],
+  ['ha', 'tools/frontend/ha-playwright-smoke.cjs'],
+  ['audit-input', 'tools/frontend/audit-input-safety-playwright.cjs'],
+  ['highlight-budget', 'tools/frontend/terminal-highlight-budget.mjs'],
 ]
 
 const projectRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../..')
@@ -100,13 +103,23 @@ export async function collectBrowserCoverage({ root = projectRoot, env = process
       delete childEnv.CHROMIUM_CDP_URL; delete childEnv.NETWORK_DEVICE_PROFILE
       for (const key of Object.keys(childEnv)) if (key.endsWith('_REVIEW') || key.endsWith('_SMOKE')) delete childEnv[key]
       for (const key of ['REPORT_PATH', 'SCREENSHOT_PATH', 'AUTOCOMPLETE_SCREENSHOT_PATH', 'AUTOCOMPLETE_MOBILE_SCREENSHOT_PATH', 'THEME_SCREENSHOT_PATH', 'HIGHLIGHT_SCREENSHOT_PATH']) childEnv[key] = join(directory, key === 'REPORT_PATH' ? 'report.json' : key.toLowerCase() + '.png')
+      childEnv.ARTIFACTS_DIR = directory
+      childEnv.AUDIT_INPUT_OUTPUT = directory
+      childEnv.HIGHLIGHT_BUDGET_OUTPUT = directory
+      // DOM-only frontend/table fixtures have no source capture hook; budget owns
+      // a separate Vite origin. Their real browser assertions still run with Node V8.
+      const coverageMode = ['frontend', 'table', 'highlight-budget'].includes(name) ? 'node-only' : 'node-and-browser'
+      if (coverageMode === 'node-only') {
+        delete childEnv.BROWSER_COVERAGE_DIR
+        delete childEnv.BROWSER_COVERAGE_RUN_ID
+      }
       childEnv.PLAYWRIGHT_EXECUTABLE_PATH = executablePath
       childEnv.CHROMIUM_PATH = executablePath
       if (name === 'flows') rmSync(join(directory, 'report.json'), { force: true })
       const run = await execute(root, script, childEnv, join(output, `${name}.log`))
       const failure = name === 'flows' && (run.exitCode !== 0 || run.timedOut) ? readFlowFailure(directory) : undefined
       const diagnostic = run.exitCode !== 0 || run.timedOut ? readHarnessDiagnostic(join(output, `${name}.log`), script) : undefined
-      result.harnesses.push({ name, ...run, ...(failure ? { failure } : {}), ...(diagnostic ? { diagnostic } : {}) })
+      result.harnesses.push({ name, coverageMode, ...run, ...(failure ? { failure } : {}), ...(diagnostic ? { diagnostic } : {}) })
       if (run.exitCode !== 0 || run.timedOut) throw new Error(`Browser coverage harness failed: ${name}`)
     }
     result.status = 'passed'

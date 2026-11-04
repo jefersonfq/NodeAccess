@@ -40,6 +40,14 @@ test('isolated browser orchestration uses loopback fixtures and private outputs 
       assert.equal(existsSync(join(root, 'coverage/browser/chromium-v8/stale.json')), false)
       assert.equal(env.SONAR_TOKEN, undefined); assert.equal(env.SONAR_REVIEW_TOKEN, undefined)
       assert.equal(env.SONAR_ASSIGNED, join(root, 'docs/changes/2026/11/NA-0087-sonar-frontend/dispositions.json'))
+      if (['sonar-frontend-review.cjs', 'table-review.cjs', 'terminal-highlight-budget.mjs'].some(name => script.endsWith('/' + name))) {
+        assert.equal(env.BROWSER_COVERAGE_DIR, undefined)
+        assert.equal(env.BROWSER_COVERAGE_RUN_ID, undefined)
+      } else {
+        assert.equal(env.BROWSER_COVERAGE_DIR, join(root, 'coverage/browser/chromium-v8'))
+        assert.match(env.BROWSER_COVERAGE_RUN_ID, /^[a-f0-9-]{36}$/)
+      }
+      for (const key of ['ARTIFACTS_DIR', 'AUDIT_INPUT_OUTPUT', 'HIGHLIGHT_BUDGET_OUTPUT']) assert.equal(env[key], env.SONAR_REVIEW_OUTPUT)
       assert.equal(env.NODE_V8_COVERAGE, '/synthetic/raw'); assert.equal(env.CHROMIUM_PATH, '/synthetic/chromium')
       assert.ok(env.SONAR_REVIEW_OUTPUT.startsWith(join(root, 'coverage/browser/')))
       const html = await (await fetch(env.FRONTEND_BASE)).text()
@@ -47,6 +55,8 @@ test('isolated browser orchestration uses loopback fixtures and private outputs 
       assert.equal((await fetch(env.FRONTEND_BASE + '/api/v1/user')).status, 404)
       return { exitCode: 0, timedOut: false }
     } })
+  assert.equal(requiredBrowserHarnesses.length, 8)
+  assert.equal(result.harnesses.at(-1).coverageMode, 'node-only')
   assert.equal(result.status, 'passed'); assert.equal(result.phase, 'complete'); assert.equal(vite.closed, true)
   assert.deepEqual(runs, requiredBrowserHarnesses.map(([, script]) => script))
   assert.equal(JSON.parse(readFileSync(join(root, 'coverage/browser/summary.json'))).status, 'passed')
@@ -142,7 +152,7 @@ for (const segment of ['coverage', 'coverage/browser']) test(`refuses symlinked 
   if (segment === 'coverage') assert.equal(existsSync(join(outside, 'browser')), false)
 })
 
-for (const override of [undefined, '', '/explicit/chromium']) test(`all five children share ${override ? 'explicit' : 'managed'} Chromium without a system fallback`, async t => {
+for (const override of [undefined, '', '/explicit/chromium']) test(`all eight children share ${override ? 'explicit' : 'managed'} Chromium without a system fallback`, async t => {
   const root = fixture(t), vite = fakeVite(), paths = []
   const expected = override || chromium.executablePath()
   const result = await collectBrowserCoverage({ root, env: { PLAYWRIGHT_EXECUTABLE_PATH: override, CHROMIUM_PATH: '/conflicting/system-browser' }, create: vite.create,
@@ -153,7 +163,7 @@ for (const override of [undefined, '', '/explicit/chromium']) test(`all five chi
       return { exitCode: 0, timedOut: false }
     } })
   assert.equal(result.status, 'passed', result.error)
-  assert.equal(paths.length, 5); assert.equal(vite.closed, true)
+  assert.equal(paths.length, 8); assert.equal(vite.closed, true)
 })
 
 test('missing explicit browser stays explicit and failure cannot fall back to another executable', async t => {
@@ -181,7 +191,7 @@ test('flow diagnostics are current, sanitized and never turn a failed run into s
     return { exitCode: 1, timedOut: false }
   } })
   assert.equal(result.status, 'failed'); assert.equal(vite.closed, true)
-  assert.deepEqual(result.harnesses.at(-1), { name: 'flows', exitCode: 1, timedOut: false, failure: { stage: 'hosts-destination', category: 'ASSERTION' } })
+  assert.deepEqual(result.harnesses.at(-1), { name: 'flows', coverageMode: 'node-and-browser', exitCode: 1, timedOut: false, failure: { stage: 'hosts-destination', category: 'ASSERTION' } })
   assert.doesNotMatch(JSON.stringify(result), /PRIVATE/)
 })
 
@@ -193,6 +203,20 @@ test('failed frontend retains bounded stack coordinates without private text or 
     return { exitCode: 1, timedOut: false }
   } })
   assert.equal(result.status, 'failed'); assert.equal(vite.closed, true)
-  assert.deepEqual(result.harnesses, [{ name: 'frontend', exitCode: 1, timedOut: false, diagnostic: { category: 'ASSERTION', line: 137, column: 5 } }])
+  assert.deepEqual(result.harnesses, [{ name: 'frontend', coverageMode: 'node-only', exitCode: 1, timedOut: false, diagnostic: { category: 'ASSERTION', line: 137, column: 5 } }])
   assert.doesNotMatch(JSON.stringify(result), /PRIVATE|selector/)
 })
+
+for (const name of ['ha', 'audit-input', 'highlight-budget']) {
+  test(`new required browser harness ${name} blocks completion on failure`, async t => {
+    const root = fixture(t), vite = fakeVite(), calls = []
+    const script = requiredBrowserHarnesses.find(([candidate]) => candidate === name)[1]
+    const result = await collectBrowserCoverage({ root, env: {}, create: vite.create,
+      execute: async (_root, current) => { calls.push(current); return { exitCode: current === script ? 7 : 0, timedOut: false } } })
+    assert.equal(result.status, 'failed')
+    assert.equal(vite.closed, true)
+    assert.equal(calls.at(-1), script)
+    assert.equal(result.harnesses.at(-1).name, name)
+    assert.equal(result.harnesses.at(-1).exitCode, 7)
+  })
+}

@@ -1,0 +1,62 @@
+{
+  "project": "nodeaccess-review-lab-9fa2c50b-36f5-41b0-a874-94bcf177a4e4",
+  "root": "/tmp/na0157-sonar-lab-Szew6D",
+  "startedAt": "2026-11-04T15:39:29.487Z",
+  "checks": [
+    "real paginated inventory, installed rule definition, revision and capability verified",
+    "partial real batch fails; first transition and second comment remain auditable",
+    "retry skips existing decision and comment; no other issue modified",
+    "changed analysis response blocks writes against real inventory",
+    "actual second scanner analysis invalidates original batch before any further mutation"
+  ],
+  "passed": true,
+  "observedRules": [
+    "javascript:S6324",
+    "javascript:S6324"
+  ],
+  "dryRun": {
+    "status": "dry_run",
+    "proposed": 2,
+    "changed": 0,
+    "absent": 0,
+    "unchanged": 0
+  },
+  "recovered": {
+    "status": "applied",
+    "proposed": 1,
+    "changed": 1,
+    "absent": 0,
+    "unchanged": 1
+  },
+  "idempotent": {
+    "status": "applied",
+    "proposed": 0,
+    "changed": 0,
+    "absent": 0,
+    "unchanged": 2
+  },
+  "gate": {
+    "projectStatus": {
+      "status": "OK",
+      "conditions": [
+        {
+          "status": "OK",
+          "metricKey": "new_violations",
+          "comparator": "GT",
+          "errorThreshold": "0",
+          "actualValue": "0"
+        }
+      ],
+      "ignoredConditions": false,
+      "period": {
+        "mode": "PREVIOUS_VERSION",
+        "date": "2026-11-04T15:39:34+0000",
+        "parameter": "28a77996deb4c004690e828c4a3a1f6dd292d198"
+      },
+      "caycStatus": "compliant"
+    }
+  },
+  "actorCleaned": true,
+  "projectCleaned": true,
+  "finishedAt": "2026-11-04T15:40:16.839Z"
+}

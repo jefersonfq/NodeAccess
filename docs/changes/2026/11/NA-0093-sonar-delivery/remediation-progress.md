@@ -13,6 +13,14 @@ Os dois defeitos adjacentes de IPv6 e controles DCS estão registrados separadam
 
 Consulte [tabela CSV](remediation-progress.csv), [registro completo JSON](remediation-progress.json) e [diário](implementation.md).
 
+## Resultado observado e correções adicionais
+
+A análise verificada do commit `28a77996d` encontrou **211 ocorrências abertas**: 201 das 294 reavaliadas e dez novas. Das ocorrências originais, 93 deixaram de aparecer no export de itens abertos; isso não significa que todas foram corrigidas pelo mesmo mecanismo.
+
+O manifesto propõe **206 revisões técnicas individuais** (194 anteriores, três de UI após corrigir teclado/foco e nove novas). Nenhuma foi aplicada ao projeto principal. NA0156 removeu um Secret sem consumidores e tornou efêmera a senha do teste negativo; ambos aguardam análise fresca. Os IDs antigos da [tabela completa](../../../../sonarqube/findings.html) foram preservados:569 ocorrências históricas acompanhadas.
+
+NA0155 acrescentou testes HA e três harnesses obrigatórios. A coleta integrada antes da rotina NA0157 passou com80,03% do código alterado,3.609 testes Vitest e oito fluxos Chromium; o candidato final ainda será validado. Os limites70/70/60 dos97 serviços continuam atendidos. Consulte os campos `latestObservedAnalysis`, `newFindings` e `followupResolutions` no JSON para distinguir observação, implementação e proposta de revisão.
+
 ## Pendências operacionais
 
 - SQ-0002: retenção e configuração persistente dos arquivos de auditoria; o default de desenvolvimento usa diretório temporário protegido.

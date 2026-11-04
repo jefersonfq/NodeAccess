@@ -234,6 +234,96 @@
       "hash": "0d98abeb5b7fc3e3e432844d7f0f0c21",
       "severity": "MAJOR",
       "type": "CODE_SMELL"
+    },
+    {
+      "issueId": "218e14d9-5eba-4907-af26-509994afe393",
+      "rule": "typescript:S6324",
+      "component": "nodeaccess:apps/frontend/src/services/terminal-audit-controls.service.ts",
+      "line": 31,
+      "hash": "c22bb37239ac8ddb8d624b8b79f778ca",
+      "severity": "MAJOR",
+      "type": "BUG"
+    },
+    {
+      "issueId": "57ea3afd-860c-411b-9cfe-87f7967397c0",
+      "rule": "typescript:S6324",
+      "component": "nodeaccess:apps/frontend/src/services/terminal-audit-controls.service.ts",
+      "line": 31,
+      "hash": "c22bb37239ac8ddb8d624b8b79f778ca",
+      "severity": "MAJOR",
+      "type": "BUG"
+    },
+    {
+      "issueId": "a9113693-139d-4665-bfc0-93c8c351cd99",
+      "rule": "typescript:S6324",
+      "component": "nodeaccess:apps/frontend/src/services/terminal-audit-controls.service.ts",
+      "line": 31,
+      "hash": "c22bb37239ac8ddb8d624b8b79f778ca",
+      "severity": "MAJOR",
+      "type": "BUG"
+    },
+    {
+      "issueId": "d30db800-5820-47e1-916c-ed74ec9df457",
+      "rule": "typescript:S6324",
+      "component": "nodeaccess:apps/frontend/src/services/terminal-audit-controls.service.ts",
+      "line": 31,
+      "hash": "c22bb37239ac8ddb8d624b8b79f778ca",
+      "severity": "MAJOR",
+      "type": "BUG"
+    },
+    {
+      "issueId": "fdfae5d6-21d1-4434-8d5f-94228779c6f8",
+      "rule": "typescript:S6324",
+      "component": "nodeaccess:apps/frontend/src/services/terminal-audit-controls.service.ts",
+      "line": 31,
+      "hash": "c22bb37239ac8ddb8d624b8b79f778ca",
+      "severity": "MAJOR",
+      "type": "BUG"
+    },
+    {
+      "issueId": "b6bc4250-7710-485f-bc2d-50664e1d42e2",
+      "rule": "javascript:S3403",
+      "component": "nodeaccess:tools/deploy/restore-mysql-env.cjs",
+      "line": 48,
+      "hash": "57e6e72f93939a99933807d8b51a7ad3",
+      "severity": "MAJOR",
+      "type": "BUG"
+    },
+    {
+      "issueId": "34c6e542-39f8-4476-b7da-50a538e41f0f",
+      "rule": "javascript:S1313",
+      "component": "nodeaccess:tools/frontend/audit-input-safety-playwright.cjs",
+      "line": 146,
+      "hash": "e05d824f39b7c67fe9fdc327ae2c249d",
+      "severity": "MINOR",
+      "type": "CODE_SMELL"
+    },
+    {
+      "issueId": "5ddc4e91-e7af-4762-976e-17ece1124723",
+      "rule": "typescript:S2068",
+      "component": "nodeaccess:tools/frontend/trial-live-playwright.mts",
+      "line": 140,
+      "hash": "029a41a65ddcb09b39ff677e5d598762",
+      "severity": "MAJOR",
+      "type": "VULNERABILITY"
+    },
+    {
+      "issueId": "ffe9aafb-c316-43ca-8184-608aed467c4a",
+      "rule": "javascript:S2612",
+      "component": "nodeaccess:tools/tls/challenge-files.mjs",
+      "line": 27,
+      "hash": "41967976382ccc2bb31bbe8bed8d5045",
+      "severity": "MAJOR",
+      "type": "VULNERABILITY"
+    },
+    {
+      "issueId": "9db2139f-246d-4122-890c-37141d038405",
+      "rule": "javascript:S2612",
+      "component": "nodeaccess:tools/tls/challenge-files.mjs",
+      "line": 32,
+      "hash": "0d560d84fcb906dc6e6ec0bbbcb521da",
+      "severity": "MAJOR",
+      "type": "VULNERABILITY"
     }
   ]
 }

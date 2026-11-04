@@ -1,9 +1,10 @@
 import { spawnSync } from 'node:child_process'
-import { mkdirSync, mkdtempSync, openSync, closeSync, readFileSync, writeFileSync, rmSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, openSync, closeSync, fsyncSync, existsSync, readFileSync, writeFileSync, rmSync } from 'node:fs'
 import { resolve, join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { fileURLToPath, pathToFileURL } from 'node:url'
-import { startServer, configureProject, pause } from './ci-server.mjs'
+import { startServer, configureProject, createReviewActor, pause } from './ci-server.mjs'
+import { reconcile } from './reconcile.mjs'
 import { baselineSummary, commitSha, scannerEnvironment, ciOutcome, validateCoverageMetadata } from './ci-policy.mjs'
 import { client, exportReport } from './export.mjs'
 import { compareFindings } from './ledger.mjs'
@@ -31,7 +32,7 @@ export async function scan({ root, settings, revision, instance, tokens, output,
   const npm = process.env.npm_execpath || npmCli
   const status = command(root, [npm, 'exec', '--yes', '--package=@sonar/scan@5.0.2', '--', 'sonar-scanner-npm',
     `-Dsonar.host.url=${instance.server}`, `-Dsonar.projectBaseDir=${root}`, `-Dsonar.projectVersion=${revision}`,
-    '-Dsonar.scm.disabled=true', '-Dsonar.qualitygate.wait=false', `-Dsonar.scanner.metadataFilePath=${taskFile}`],
+    '-Dsonar.scm.disabled=true', `-Dsonar.scm.revision=${revision}`, '-Dsonar.qualitygate.wait=false', `-Dsonar.scanner.metadataFilePath=${taskFile}`],
   scannerEnvironment(process.env, instance.server, tokens.scan), join(output, `${stage}-scanner.log`))
   if (status !== 0) throw new Error('CI_SCANNER_FAILED')
   assertConfiguration(root, settings, configuration.sha256)
@@ -57,7 +58,7 @@ export async function scan({ root, settings, revision, instance, tokens, output,
 }
 export async function run({ root = resolve(fileURLToPath(new URL('../..', import.meta.url))), base = process.env.SONAR_CI_BASE, runtime = {} } = {}) {
   const { execute = command, start = startServer, configure = configureProject, analyze = scan,
-    exportFindings = exportReport, readClient = client,
+    exportFindings = exportReport, readClient = client, review = reconcile, reviewActor = createReviewActor,
     fingerprint = async directory => {
       const { sourceFingerprint, sourceInventory } = await import(pathToFileURL(join(directory, 'tools/coverage/inventory.mjs')).href)
       return sourceFingerprint(directory, sourceInventory(directory))
@@ -77,7 +78,7 @@ export async function run({ root = resolve(fileURLToPath(new URL('../..', import
   const baseline = baselineSummary(baselineText, git(root, ['show', `${base}:${baselinePath}`], true))
   const output = mkdtempSync(join(tmpdir(), 'nodeaccess-sonar-ci-'))
   const publicOutput = join(root, 'coverage/sonar-ci-summary.json')
-  let instance, baseRoot
+  let instance, baseRoot, actor
   const summary = { schemaVersion: 1, base, head, baseline, startedAt: new Date().toISOString(), passed: false, failures: [], phase: 'coverage' }
   try {
     // Collect coverage before starting Elasticsearch. A failed coverage gate remains
@@ -128,6 +129,22 @@ export async function run({ root = resolve(fileURLToPath(new URL('../..', import
     const request = readClient({ server: instance.server, token: tokens.review })
     const latest = async () => (await request('/api/project_analyses/search', { project: 'nodeaccess', ps: 1 })).analyses?.[0]?.key
     if (await latest() !== summary.headAnalysisId || summary.headAnalysisId === summary.baseAnalysisId) throw new Error('CI_HEAD_ANALYSIS_NOT_CURRENT')
+    if (existsSync(join(root, 'docs/sonarqube/reviewed-false-positives.json'))) {
+      summary.phase = 'reviewed_findings'
+      actor = await reviewActor(instance)
+      summary.reviewEvents = []
+      const journal = openSync(join(output, 'review-events.jsonl'), 'wx', 0o600)
+      try {
+        summary.reviewedFalsePositives = await review({ root, analysisId: summary.headAnalysisId, revision: head,
+          request: actor.request, dryRun: false,
+          record: event => {
+            writeFileSync(journal, JSON.stringify(event) + '\n'); fsyncSync(journal)
+            const { id, action, previousState, changed } = event
+            summary.reviewEvents.push({ id, action, previousState, changed })
+          } })
+      } finally { closeSync(journal) }
+      if (await latest() !== summary.headAnalysisId) throw new Error('CI_HEAD_ANALYSIS_REPLACED')
+    }
     summary.phase = 'export'
     const exported = await exportFindings({ server: instance.server, token: tokens.review, outputRoot: output })
     const issues = JSON.parse(readFileSync(join(exported.output, 'issues.json'), 'utf8')).issues
@@ -146,8 +163,10 @@ export async function run({ root = resolve(fileURLToPath(new URL('../..', import
       gate: summary.gate, analysisVerified: true, hotspotsToReview: summary.hotspotsToReview }))
   } catch (error) {
     summary.passed = false
-    summary.failures.push(/^CI_[A-Z0-9_]+$/.test(error.message) ? error.message : 'CI_EXECUTION_FAILED')
+    summary.failures.push(/^(?:CI|REVIEW)_[A-Z0-9_]+$/.test(error.message) ? error.message : 'CI_EXECUTION_FAILED')
   } finally {
+    try { if (actor) await actor.cleanup() }
+    catch { summary.passed = false; summary.failures.push('CI_REVIEW_ACTOR_CLEANUP_FAILED') }
     try { if (baseRoot) git(root, ['worktree', 'remove', '--force', baseRoot]) }
     catch { summary.passed = false; summary.failures.push('CI_WORKTREE_CLEANUP_FAILED') }
     try { if (instance) await instance.cleanup(); summary.cleanup = 'complete' }

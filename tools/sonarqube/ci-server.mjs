@@ -137,3 +137,27 @@ export async function configureProject(instance, project = 'nodeaccess') {
   if (![401, 403].includes(anon.status)) throw new Error('CI_ANONYMOUS_ACCESS_REFUSED_REQUIRED')
   return tokens
 }
+
+/** Separate, disposable issue-review principal; existing scan/read roles stay unchanged. */
+export async function createReviewActor(instance, project = 'nodeaccess') {
+  if (!/^nodeaccess(?:-[a-z0-9-]+)?$/.test(project)) throw new Error('CI_REVIEW_PROJECT_INVALID')
+  const login = `ci-issue-review-${randomUUID()}`, password = secret()
+  let created = false
+  const cleanup = async () => {
+    if (created) {
+      await instance.admin('/api/users/deactivate', { login })
+      created = false
+    }
+  }
+  try {
+    await instance.admin('/api/users/create', { login, name: 'Ephemeral issue review', password, local: 'true' })
+    created = true
+    for (const permission of ['user', 'issueadmin']) {
+      await instance.admin('/api/permissions/add_user', { projectKey: project, login, permission })
+    }
+    return { request: api(instance.server, login, password), cleanup }
+  } catch (error) {
+    try { await cleanup() } catch { throw new Error('CI_REVIEW_ACTOR_CLEANUP_FAILED') }
+    throw error
+  }
+}

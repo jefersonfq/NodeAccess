@@ -30,14 +30,14 @@ function errorCategory(message) {
     ['Browser fixture must bind loopback', 'BROWSER_BIND_NOT_LOOPBACK'],
     ['Browser fixture cleanup failed', 'BROWSER_CLEANUP_FAILED'],
   ])
-  if (/^Browser coverage harness failed: (frontend|table|terminal|platform|flows)$/.test(message)) return 'BROWSER_HARNESS_FAILED'
+  if (/^Browser coverage harness failed: (frontend|table|terminal|platform|flows|ha|audit-input|highlight-budget)$/.test(message)) return 'BROWSER_HARNESS_FAILED'
   return browserErrors.get(message) ?? 'UNCLASSIFIED'
 }
 function browserDiagnostics(source) {
   const safe = { errorCategory: errorCategory(source.error), harnesses: [] }
   if (['setup', 'listen', 'readiness', 'harness', 'complete', 'cleanup'].includes(source.phase)) safe.phase = source.phase
   const runs = Array.isArray(source.harnesses) ? source.harnesses : []
-  for (const name of ['frontend', 'table', 'terminal', 'platform', 'flows']) {
+  for (const name of ['frontend', 'table', 'terminal', 'platform', 'flows', 'ha', 'audit-input', 'highlight-budget']) {
     const run = runs.find(item => item?.name === name)
     if (!run) continue
     const entry = harnessDiagnostics(name, run)
@@ -48,6 +48,7 @@ function browserDiagnostics(source) {
 function harnessDiagnostics(name, run) {
   const entry = { name }
   if (Number.isSafeInteger(run.exitCode) && run.exitCode >= 0 && run.exitCode <= 255) entry.exitCode = run.exitCode
+  if (['node-only', 'node-and-browser'].includes(run.coverageMode)) entry.coverageMode = run.coverageMode
   if (typeof run.timedOut === 'boolean') entry.timedOut = run.timedOut
   const failure = name === 'flows' ? sanitizeFlowFailure(run.failure) : undefined
   if (failure) entry.failure = failure

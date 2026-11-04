@@ -1,0 +1,42 @@
+[
+  {
+    "source": "tools/coverage/browser.mjs",
+    "algorithm": "SHA-256",
+    "digest": "ddb5f563bcf2550097af8c0c98b5d0219e9fbe5e6714322b6bdbb4a13b2ad774"
+  },
+  {
+    "source": "tools/coverage/browser.test.mjs",
+    "algorithm": "SHA-256",
+    "digest": "f0818f249a74d8a71abcde3fb7f39af8e72e0062803fb0071fd2b425d30382b1"
+  },
+  {
+    "source": "tools/coverage/harness-diagnostics.cjs",
+    "algorithm": "SHA-256",
+    "digest": "7d2541397054fd842df598699e0fe61f80b58a67651afe0c7bb2f0f7262d448e"
+  },
+  {
+    "source": "tools/coverage/harness-diagnostics.test.mjs",
+    "algorithm": "SHA-256",
+    "digest": "28ca99491dc0e46887a912b67b158a21bfd91dac4c112e70b8585de5404ba99c"
+  },
+  {
+    "source": "tools/coverage/run.test.mjs",
+    "algorithm": "SHA-256",
+    "digest": "d0d73fbe1255aa456fd7d326ee7cd71510b69ef4869fb4762ecdc47c282ba5cd"
+  },
+  {
+    "source": "tools/frontend/audit-input-safety-playwright.cjs",
+    "algorithm": "SHA-256",
+    "digest": "66cac649b949c67beb12d475486e1298a8a5b284c3c039b6f1d8a843be0f8c7e"
+  },
+  {
+    "source": "tools/sonarqube/ci-coverage-diagnostics.mjs",
+    "algorithm": "SHA-256",
+    "digest": "1cb17aa7eff214a04e12e9880d3eb85cd4fd4b6ca6611faae85b68a46a34b1be"
+  },
+  {
+    "source": "tools/sonarqube/ci-coverage-diagnostics.test.mjs",
+    "algorithm": "SHA-256",
+    "digest": "deba38ca2312f5fbfcd7eeacffff0be4732a5e661a955d72e1ad75152d92d298"
+  }
+]

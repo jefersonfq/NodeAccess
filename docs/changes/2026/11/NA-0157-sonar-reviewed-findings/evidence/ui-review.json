@@ -1,0 +1,65 @@
+[
+  {
+    "id": "SQ-0127",
+    "issueId": "a330cd3b-b4f9-4cd4-9b1a-1614d8f626ed",
+    "rule": "Web:S6845",
+    "file": "apps/frontend/src/components/TerminalPane.vue",
+    "sourceLine": 1779,
+    "sourceSha256": "a61b73f6f03ccb76bdf082390088db8b428ee2ac4ac78dfbda8cac79e054f923",
+    "decision": "technical_fp_supported",
+    "reason": "O tabindex está no buffer de texto com rolagem overflow-auto, limitado pela área absoluta do terminal. Receber foco permite seleção e rolagem por teclado; não acrescenta uma parada em texto estático sem ação. A indicação focus-visible foi acrescentada em NA0148. A restrição genérica de S6845 não distingue esse uso legítimo de região rolável.",
+    "evidence": [
+      "apps/frontend/src/components/TerminalPane.vue:1758",
+      "apps/frontend/src/components/TerminalPane.vue:1780",
+      "docs/changes/2026/11/NA-0148-audit-ui-input-safety/screenshots/copy-focus.png"
+    ],
+    "ruleDefinition": "/tmp/NA0157-ui-rule-definitions.json",
+    "references": [
+      "https://developer.mozilla.org/en-US/docs/Web/CSS/Reference/Properties/overflow#accessibility"
+    ],
+    "validation": "Leitura da ocorrência atual e GET somente leitura da definição instalada Sonar; leitura das evidências NA0148 já executadas. Não houve nova execução browser para esta revisão.",
+    "limitations": "Classificação técnica da ocorrência, não certificação geral de acessibilidade nem homologação humana. Leitor de tela/AT não executado; API/WebSocket dos ensaios anteriores simulados. Nas regiões roláveis, nome/role diretamente no viewport pode melhorar contexto de leitor de tela; isso não torna dispensável o foco para rolagem. Nenhuma transição Sonar realizada."
+  },
+  {
+    "id": "SQ-0208",
+    "issueId": "4549f072-ce30-4397-b815-19201f93ff3f",
+    "rule": "Web:S6845",
+    "file": "apps/frontend/src/views/admin/SessionAuditDetailView.vue",
+    "sourceLine": 2403,
+    "sourceSha256": "c2b90ac802b167ba29e832a5a9f2ac40e710963e19c631227290f06758dadc1f",
+    "decision": "technical_fp_supported",
+    "reason": "O tabindex pertence ao viewport de playback com altura máxima 560px e overflow-auto, cuja rolagem precisa permanecer acessível pelo teclado. NA0148 removeu o cancelamento global de keydown: Tab sai, Shift+Tab retorna e foco fica visível. O defeito anterior foi real e corrigido; o alerta residual sobre foco da região rolável é tecnicamente falso positivo, não uma autorização para voltar a interceptar Tab.",
+    "evidence": [
+      "apps/frontend/src/views/admin/SessionAuditDetailView.vue:2402",
+      "docs/changes/2026/11/NA-0148-audit-ui-input-safety/evidence/after-ui.json"
+    ],
+    "ruleDefinition": "/tmp/NA0157-ui-rule-definitions.json",
+    "references": [
+      "https://developer.mozilla.org/en-US/docs/Web/CSS/Reference/Properties/overflow#accessibility"
+    ],
+    "validation": "Leitura da ocorrência atual e GET somente leitura da definição instalada Sonar; leitura das evidências NA0148 já executadas. Não houve nova execução browser para esta revisão.",
+    "limitations": "Classificação técnica da ocorrência, não certificação geral de acessibilidade nem homologação humana. Leitor de tela/AT não executado; API/WebSocket dos ensaios anteriores simulados. Nas regiões roláveis, nome/role diretamente no viewport pode melhorar contexto de leitor de tela; isso não torna dispensável o foco para rolagem. Nenhuma transição Sonar realizada."
+  },
+  {
+    "id": "SQ-0240",
+    "issueId": "0087ae89-303e-45f7-9348-faf429a64cfc",
+    "rule": "Web:S6843",
+    "file": "apps/frontend/src/views/GraphicalSessionView.vue",
+    "sourceLine": 2009,
+    "sourceSha256": "0596e14fb850bdffb25fa147f546cee1d160070a0436ce785d87cb44f866200e",
+    "decision": "technical_fp_supported",
+    "reason": "S6843 proíbe atribuir semântica não interativa a elemento interativo. Aqui application descreve uma superfície de desktop remoto com teclado, ponteiro, roda e colagem, sem padrão de widget nativo equivalente. A definição normativa de application prevê entrada personalizada e não descreve conteúdo estático. O canvas não está sendo convertido semanticamente em artigo/imagem; a generalização do analisador é inadequada neste caso. NA0148 adicionou instrução de saída, liberação das teclas e retorno local, preservando Tab/Escape remotos.",
+    "evidence": [
+      "apps/frontend/src/views/GraphicalSessionView.vue:1283",
+      "apps/frontend/src/views/GraphicalSessionView.vue:2005",
+      "apps/frontend/src/views/GraphicalSessionView.vue:2025",
+      "docs/changes/2026/11/NA-0148-audit-ui-input-safety/evidence/after-ui.json"
+    ],
+    "ruleDefinition": "/tmp/NA0157-ui-rule-definitions.json",
+    "references": [
+      "https://www.w3.org/TR/wai-aria-1.2/#application"
+    ],
+    "validation": "Leitura da ocorrência atual e GET somente leitura da definição instalada Sonar; leitura das evidências NA0148 já executadas. Não houve nova execução browser para esta revisão.",
+    "limitations": "Classificação técnica da ocorrência, não certificação geral de acessibilidade nem homologação humana. Leitor de tela/AT não executado; API/WebSocket dos ensaios anteriores simulados. Nas regiões roláveis, nome/role diretamente no viewport pode melhorar contexto de leitor de tela; isso não torna dispensável o foco para rolagem. Nenhuma transição Sonar realizada."
+  }
+]

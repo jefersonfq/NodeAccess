@@ -12,3 +12,8 @@ test('ignored or empty gate conditions are explicit warnings, not proof of cover
   assert.equal(validationOutcome({ ...ready, gate, coverageExit: 1 }).passed, false)
  }
 })
+test('green gate does not override an obsolete or unapplied review manifest', () => {
+ const result = validationOutcome({ ...ready, reviewsVerified: false })
+ assert.equal(result.passed, false)
+ assert.ok(result.failures.includes('REVIEWED_FINDINGS_NOT_VERIFIED'))
+})

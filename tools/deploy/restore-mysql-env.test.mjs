@@ -130,3 +130,20 @@ test('foreign-owned ancestor cannot rename an owned private workspace', { skip: 
   assert.equal(fs.statSync(leaf).uid, 0)
   assert.deepEqual(fs.readdirSync(leaf), [])
 })
+
+
+test('CommonJS import does not execute CLI but direct execution creates a private environment', t => {
+  const importedDirectory = directory(t)
+  const modulePath = path.join(root, 'tools/deploy/restore-mysql-env.cjs')
+  const imported = spawnSync(process.execPath, ['-e', 'const mod = require(process.argv[1]); if (typeof mod.createRestoreEnvironment !== "function") process.exit(9)', modulePath, importedDirectory], { encoding: 'utf8', timeout: 3000 })
+  assert.equal(imported.status, 0, imported.stderr)
+  assert.deepEqual(fs.readdirSync(importedDirectory), [])
+  const directDirectory = directory(t)
+  const direct = spawnSync(process.execPath, [modulePath, directDirectory], { encoding: 'utf8', timeout: 3000 })
+  assert.equal(direct.status, 0, direct.stderr)
+  assert.equal(direct.stdout, '')
+  assert.equal(fs.statSync(path.join(directDirectory, '.env')).mode & 0o777, 0o600)
+  const missingArgument = spawnSync(process.execPath, [modulePath], { encoding: 'utf8', timeout: 3000 })
+  assert.equal(missingArgument.status, 1)
+  assert.equal(missingArgument.stderr.trim(), 'RESTORE_ENV_CREATION_FAILED')
+})

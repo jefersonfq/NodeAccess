@@ -18,9 +18,10 @@
     "file": "apps/frontend/src/components/ImportHostsModal.vue",
     "baselineLine": 1921,
     "status": "context_reviewed",
-    "rationale": "Input file oculto por display:none; é acionado por botão/dropzone nomeado do fluxo. Não integra árvore acessível nem navegação Tab. Revisada a marcação específica em ImportHostsModal.vue:1921; nenhum valor de credencial foi extraído.",
+    "rationale": "Proposta técnica de falso positivo, ainda sem transição no projeto principal. O input universalFileRef de entrada universal do importador, acionada também por Enter/Space no botão de drop usa class hidden (display:none) e não é o controle apresentado ao usuário. A seleção é aberta por acionador visível nomeado; adicionar label ao elemento oculto não corrige uma falta de nome na interface. A regra exige nome/associação para controles apresentados ao usuário; este controle com display:none não participa da árvore de acessibilidade. Não se usa tabindex=-1 isoladamente como justificativa.",
     "evidence": [
-      "apps/frontend/src/components/ImportHostsModal.vue:1921"
+      "apps/frontend/src/components/ImportHostsModal.vue:1921",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json"
     ],
     "risk": "low"
   },
@@ -42,10 +43,11 @@
     "rule": "Web:S6845",
     "file": "apps/frontend/src/components/mcp/McpAgentSetup.vue",
     "baselineLine": 133,
-    "status": "context_reviewed",
-    "rationale": "Bloco pre de comando/configuração (133) possui nome acessível e overflow horizontal; foco permite leitura/scroll e seleção do conteúdo sem converter texto em botão.",
+    "status": "fixed",
+    "rationale": "NA-0152: correção implementada e ocorrência ausente na análise 28a77996d. Correção e evidências na frente indicada.",
     "evidence": [
-      "apps/frontend/src/components/mcp/McpAgentSetup.vue:133"
+      "apps/frontend/src/components/mcp/McpAgentSetup.vue:133",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json"
     ],
     "risk": "low"
   },
@@ -54,10 +56,11 @@
     "rule": "Web:S6845",
     "file": "apps/frontend/src/components/mcp/McpAgentSetup.vue",
     "baselineLine": 150,
-    "status": "context_reviewed",
-    "rationale": "Bloco pre de comando/configuração (150) possui nome acessível e overflow horizontal; foco permite leitura/scroll e seleção do conteúdo sem converter texto em botão.",
+    "status": "fixed",
+    "rationale": "NA-0152: correção implementada e ocorrência ausente na análise 28a77996d. Correção e evidências na frente indicada.",
     "evidence": [
-      "apps/frontend/src/components/mcp/McpAgentSetup.vue:150"
+      "apps/frontend/src/components/mcp/McpAgentSetup.vue:150",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json"
     ],
     "risk": "low"
   },
@@ -66,10 +69,11 @@
     "rule": "Web:S6845",
     "file": "apps/frontend/src/components/mcp/McpAgentSetup.vue",
     "baselineLine": 166,
-    "status": "context_reviewed",
-    "rationale": "Bloco pre de comando/configuração (166) possui nome acessível e overflow horizontal; foco permite leitura/scroll e seleção do conteúdo sem converter texto em botão.",
+    "status": "fixed",
+    "rationale": "NA-0152: correção implementada e ocorrência ausente na análise 28a77996d. Correção e evidências na frente indicada.",
     "evidence": [
-      "apps/frontend/src/components/mcp/McpAgentSetup.vue:166"
+      "apps/frontend/src/components/mcp/McpAgentSetup.vue:166",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json"
     ],
     "risk": "low"
   },
@@ -78,10 +82,11 @@
     "rule": "Web:S6845",
     "file": "apps/frontend/src/components/mcp/McpAgentSetup.vue",
     "baselineLine": 195,
-    "status": "context_reviewed",
-    "rationale": "Bloco pre de comando/configuração (195) possui nome acessível e overflow horizontal; foco permite leitura/scroll e seleção do conteúdo sem converter texto em botão.",
+    "status": "fixed",
+    "rationale": "NA-0152: correção implementada e ocorrência ausente na análise 28a77996d. Correção e evidências na frente indicada.",
     "evidence": [
-      "apps/frontend/src/components/mcp/McpAgentSetup.vue:195"
+      "apps/frontend/src/components/mcp/McpAgentSetup.vue:195",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json"
     ],
     "risk": "low"
   },
@@ -91,10 +96,11 @@
     "file": "apps/frontend/src/components/snippets/MacroStepEditor.vue",
     "baselineLine": 161,
     "status": "context_reviewed",
-    "rationale": "Label desta ocorrência envolve textbox; o componente renderiza input/textarea nativo dentro do label. DOM confirmou nome \"snippets.macro.timeoutMs\" e foco. Não é campo sem associação apesar do scanner estático.",
+    "rationale": "Proposta técnica de falso positivo, ainda sem transição no projeto principal. O label envolve timeoutMs, usado para timeout da etapa wait, incluindo aria-label no input-props. Naive renderiza o controle nativo dentro desse ancestral; a evidência DOM desta ocorrência possui nome acessível e foco. O scanner estático não expande o componente Vue. A intenção é associação efetiva label-controle, não exigir que o analisador estático conheça a expansão do componente Vue. A evidência DOM individual anterior é reutilizada com o trecho preservado.",
     "evidence": [
       "docs/changes/2026/11/NA-0087-sonar-frontend/dom-label-evidence.json#6b3dbbd2-f165-49b8-8c08-6f2233a0f5b1",
-      "tools/frontend/sonar-frontend-review.cjs"
+      "tools/frontend/sonar-frontend-review.cjs",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json"
     ],
     "risk": "low"
   },
@@ -104,10 +110,11 @@
     "file": "apps/frontend/src/components/snippets/MacroStepEditor.vue",
     "baselineLine": 173,
     "status": "context_reviewed",
-    "rationale": "Label desta ocorrência envolve textbox; o componente renderiza input/textarea nativo dentro do label. DOM confirmou nome \"snippets.macro.durationMs\" e foco. Não é campo sem associação apesar do scanner estático.",
+    "rationale": "Proposta técnica de falso positivo, ainda sem transição no projeto principal. O label envolve durationMs, usado para duração da pausa, incluindo aria-label no input-props. Naive renderiza o controle nativo dentro desse ancestral; a evidência DOM desta ocorrência possui nome acessível e foco. O scanner estático não expande o componente Vue. A intenção é associação efetiva label-controle, não exigir que o analisador estático conheça a expansão do componente Vue. A evidência DOM individual anterior é reutilizada com o trecho preservado.",
     "evidence": [
       "docs/changes/2026/11/NA-0087-sonar-frontend/dom-label-evidence.json#ce693eb8-2ada-454c-a936-a1f0b0680fbd",
-      "tools/frontend/sonar-frontend-review.cjs"
+      "tools/frontend/sonar-frontend-review.cjs",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json"
     ],
     "risk": "low"
   },
@@ -117,10 +124,11 @@
     "file": "apps/frontend/src/components/snippets/SnippetCommandEditor.vue",
     "baselineLine": 74,
     "status": "context_reviewed",
-    "rationale": "Label desta ocorrência envolve textbox; o componente renderiza input/textarea nativo dentro do label. DOM confirmou nome \"Campo de demonstração Please Input\" e foco. Não é campo sem associação apesar do scanner estático.",
+    "rationale": "Proposta técnica de falso positivo, ainda sem transição no projeto principal. O label envolve modelValue[field], usado para editor textarea do comando com aria-label traduzido. Naive renderiza o controle nativo dentro desse ancestral; a evidência DOM desta ocorrência possui nome acessível e foco. O scanner estático não expande o componente Vue. A intenção é associação efetiva label-controle, não exigir que o analisador estático conheça a expansão do componente Vue. A evidência DOM individual anterior é reutilizada com o trecho preservado.",
     "evidence": [
       "docs/changes/2026/11/NA-0087-sonar-frontend/dom-label-evidence.json#eaa3c373-f07d-4d30-b489-0aee1d8b58b8",
-      "tools/frontend/sonar-frontend-review.cjs"
+      "tools/frontend/sonar-frontend-review.cjs",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json"
     ],
     "risk": "low"
   },
@@ -130,9 +138,10 @@
     "file": "apps/frontend/src/components/snippets/SnippetTransfer.vue",
     "baselineLine": 44,
     "status": "context_reviewed",
-    "rationale": "Input file oculto por display:none; é acionado por botão/dropzone nomeado do fluxo. Não integra árvore acessível nem navegação Tab. Revisada a marcação específica em SnippetTransfer.vue:44; nenhum valor de credencial foi extraído.",
+    "rationale": "Proposta técnica de falso positivo, ainda sem transição no projeto principal. O input file de importação JSON de snippets usa class hidden (display:none) e não é o controle apresentado ao usuário. A seleção é aberta por acionador visível nomeado; adicionar label ao elemento oculto não corrige uma falta de nome na interface. A regra exige nome/associação para controles apresentados ao usuário; este controle com display:none não participa da árvore de acessibilidade. Não se usa tabindex=-1 isoladamente como justificativa.",
     "evidence": [
-      "apps/frontend/src/components/snippets/SnippetTransfer.vue:44"
+      "apps/frontend/src/components/snippets/SnippetTransfer.vue:44",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json"
     ],
     "risk": "low"
   },
@@ -194,9 +203,10 @@
     "file": "apps/frontend/src/components/FileManager.vue",
     "baselineLine": 685,
     "status": "context_reviewed",
-    "rationale": "Input file oculto por display:none; é acionado por botão/dropzone nomeado do fluxo. Não integra árvore acessível nem navegação Tab. Revisada a marcação específica em FileManager.vue:685; nenhum valor de credencial foi extraído.",
+    "rationale": "Proposta técnica de falso positivo, ainda sem transição no projeto principal. O input uploadRef de seleção múltipla de arquivos do gerenciador usa class hidden (display:none) e não é o controle apresentado ao usuário. A seleção é aberta por acionador visível nomeado; adicionar label ao elemento oculto não corrige uma falta de nome na interface. A regra exige nome/associação para controles apresentados ao usuário; este controle com display:none não participa da árvore de acessibilidade. Não se usa tabindex=-1 isoladamente como justificativa.",
     "evidence": [
-      "apps/frontend/src/components/FileManager.vue:685"
+      "apps/frontend/src/components/FileManager.vue:685",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json"
     ],
     "risk": "low"
   },
@@ -206,9 +216,10 @@
     "file": "apps/frontend/src/components/ImportHostsModal.vue",
     "baselineLine": 2072,
     "status": "context_reviewed",
-    "rationale": "Input file oculto por display:none; é acionado por botão/dropzone nomeado do fluxo. Não integra árvore acessível nem navegação Tab. Revisada a marcação específica em ImportHostsModal.vue:2072; nenhum valor de credencial foi extraído.",
+    "rationale": "Proposta técnica de falso positivo, ainda sem transição no projeto principal. O input sshFileRef de carregamento de configuração SSH usa class hidden (display:none) e não é o controle apresentado ao usuário. A seleção é aberta por acionador visível nomeado; adicionar label ao elemento oculto não corrige uma falta de nome na interface. A regra exige nome/associação para controles apresentados ao usuário; este controle com display:none não participa da árvore de acessibilidade. Não se usa tabindex=-1 isoladamente como justificativa.",
     "evidence": [
-      "apps/frontend/src/components/ImportHostsModal.vue:2072"
+      "apps/frontend/src/components/ImportHostsModal.vue:2072",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json"
     ],
     "risk": "low"
   },
@@ -218,9 +229,10 @@
     "file": "apps/frontend/src/components/ImportHostsModal.vue",
     "baselineLine": 2105,
     "status": "context_reviewed",
-    "rationale": "Input file oculto por display:none; é acionado por botão/dropzone nomeado do fluxo. Não integra árvore acessível nem navegação Tab. Revisada a marcação específica em ImportHostsModal.vue:2105; nenhum valor de credencial foi extraído.",
+    "rationale": "Proposta técnica de falso positivo, ainda sem transição no projeto principal. O input csvFileRef de carregamento CSV usa class hidden (display:none) e não é o controle apresentado ao usuário. A seleção é aberta por acionador visível nomeado; adicionar label ao elemento oculto não corrige uma falta de nome na interface. A regra exige nome/associação para controles apresentados ao usuário; este controle com display:none não participa da árvore de acessibilidade. Não se usa tabindex=-1 isoladamente como justificativa.",
     "evidence": [
-      "apps/frontend/src/components/ImportHostsModal.vue:2105"
+      "apps/frontend/src/components/ImportHostsModal.vue:2105",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json"
     ],
     "risk": "low"
   },
@@ -230,9 +242,10 @@
     "file": "apps/frontend/src/components/ImportHostsModal.vue",
     "baselineLine": 2254,
     "status": "context_reviewed",
-    "rationale": "Input file oculto por display:none; é acionado por botão/dropzone nomeado do fluxo. Não integra árvore acessível nem navegação Tab. Revisada a marcação específica em ImportHostsModal.vue:2254; nenhum valor de credencial foi extraído.",
+    "rationale": "Proposta técnica de falso positivo, ainda sem transição no projeto principal. O input guacamoleFileRef de carregamento XML/JSON do Guacamole usa class hidden (display:none) e não é o controle apresentado ao usuário. A seleção é aberta por acionador visível nomeado; adicionar label ao elemento oculto não corrige uma falta de nome na interface. A regra exige nome/associação para controles apresentados ao usuário; este controle com display:none não participa da árvore de acessibilidade. Não se usa tabindex=-1 isoladamente como justificativa.",
     "evidence": [
-      "apps/frontend/src/components/ImportHostsModal.vue:2254"
+      "apps/frontend/src/components/ImportHostsModal.vue:2254",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json"
     ],
     "risk": "low"
   },
@@ -242,9 +255,10 @@
     "file": "apps/frontend/src/components/ImportHostsModal.vue",
     "baselineLine": 2395,
     "status": "context_reviewed",
-    "rationale": "Contêiner de dependências é região com rolagem limitada e nome acessível; tabindex permite rolar pelo teclado antes dos campos internos.",
+    "rationale": "Proposta técnica de falso positivo, ainda sem transição no projeto principal. tabindex=0 torna a lista de dependências com max-height e overflow-y:auto alcançável para rolagem por teclado. Há aria-label e estilo focus-visible explícito; retirar foco prejudicaria navegação da região rolável. Região com altura máxima e overflow-y:auto tem interação real de rolagem; difere dos quatro pre sem dimensão limitada.",
     "evidence": [
-      "apps/frontend/src/components/ImportHostsModal.vue:2395"
+      "apps/frontend/src/components/ImportHostsModal.vue:2395",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json"
     ],
     "risk": "low"
   },
@@ -319,9 +333,10 @@
     "file": "apps/frontend/src/views/HostsView.vue",
     "baselineLine": 7468,
     "status": "context_reviewed",
-    "rationale": "Input file oculto por display:none; é acionado por botão/dropzone nomeado do fluxo. Não integra árvore acessível nem navegação Tab. Revisada a marcação específica em HostsView.vue:7468; nenhum valor de credencial foi extraído.",
+    "rationale": "Proposta técnica de falso positivo, ainda sem transição no projeto principal. O input hostPemKeyFileInput de seleção da chave no formulário de host usa class hidden (display:none) e não é o controle apresentado ao usuário. A seleção é aberta por acionador visível nomeado; adicionar label ao elemento oculto não corrige uma falta de nome na interface. A regra exige nome/associação para controles apresentados ao usuário; este controle com display:none não participa da árvore de acessibilidade. Não se usa tabindex=-1 isoladamente como justificativa.",
     "evidence": [
-      "apps/frontend/src/views/HostsView.vue:7468"
+      "apps/frontend/src/views/HostsView.vue:7468",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json"
     ],
     "risk": "low"
   },
@@ -345,9 +360,10 @@
     "file": "apps/frontend/src/views/TerminalView.vue",
     "baselineLine": 6011,
     "status": "context_reviewed",
-    "rationale": "Input file oculto por display:none; é acionado por botão/dropzone nomeado do fluxo. Não integra árvore acessível nem navegação Tab. Revisada a marcação específica em TerminalView.vue:6011; nenhum valor de credencial foi extraído.",
+    "rationale": "Proposta técnica de falso positivo, ainda sem transição no projeto principal. O input pemFixFileInput de seleção de chave para corrigir a sessão do terminal usa class hidden (display:none) e não é o controle apresentado ao usuário. A seleção é aberta por acionador visível nomeado; adicionar label ao elemento oculto não corrige uma falta de nome na interface. A regra exige nome/associação para controles apresentados ao usuário; este controle com display:none não participa da árvore de acessibilidade. Não se usa tabindex=-1 isoladamente como justificativa.",
     "evidence": [
-      "apps/frontend/src/views/TerminalView.vue:6011"
+      "apps/frontend/src/views/TerminalView.vue:6011",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json"
     ],
     "risk": "low"
   },
@@ -357,9 +373,10 @@
     "file": "apps/frontend/src/views/admin/IntegrationsView.vue",
     "baselineLine": 3569,
     "status": "context_reviewed",
-    "rationale": "Input file oculto por display:none; é acionado por botão/dropzone nomeado do fluxo. Não integra árvore acessível nem navegação Tab. Revisada a marcação específica em IntegrationsView.vue:3569; nenhum valor de credencial foi extraído.",
+    "rationale": "Proposta técnica de falso positivo, ainda sem transição no projeto principal. O input localAiUploadRef de envio de arquivo para implantação de IA usa class hidden (display:none) e não é o controle apresentado ao usuário. A seleção é aberta por acionador visível nomeado; adicionar label ao elemento oculto não corrige uma falta de nome na interface. A regra exige nome/associação para controles apresentados ao usuário; este controle com display:none não participa da árvore de acessibilidade. Não se usa tabindex=-1 isoladamente como justificativa.",
     "evidence": [
-      "apps/frontend/src/views/admin/IntegrationsView.vue:3569"
+      "apps/frontend/src/views/admin/IntegrationsView.vue:3569",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json"
     ],
     "risk": "low"
   },
@@ -486,10 +503,11 @@
     "file": "apps/frontend/src/views/admin/SessionAuditDetailView.vue",
     "baselineLine": 2390,
     "status": "context_reviewed",
-    "rationale": "Viewport da reprodução xterm recebe foco para navegação e leitura do terminal gravado. Não deve ser convertido em botão ou removido da navegação.",
+    "rationale": "Proposta técnica de falso positivo, ainda sem transição no projeto principal. O tabindex pertence ao viewport de playback com altura máxima 560px e overflow-auto, cuja rolagem precisa permanecer acessível pelo teclado. NA0148 removeu o cancelamento global de keydown: Tab sai, Shift+Tab retorna e foco fica visível. O defeito anterior foi real e corrigido; o alerta residual sobre foco da região rolável é tecnicamente falso positivo, não uma autorização para voltar a interceptar Tab.",
     "evidence": [
       "tools/frontend/audit-reconstruction-playwright.cjs",
-      "apps/frontend/src/views/admin/SessionAuditDetailView.vue"
+      "apps/frontend/src/views/admin/SessionAuditDetailView.vue",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json"
     ],
     "risk": "low"
   },
@@ -499,11 +517,12 @@
     "file": "apps/frontend/src/views/GraphicalSessionView.vue",
     "baselineLine": 1977,
     "status": "context_reviewed",
-    "rationale": "Correção anterior img→application preservada: canvas é a superfície remota que recebe keydown/keyup, pointer, wheel e paste, não imagem estática ou botão. Handler conectado converte KeyboardEvent em keysym e instrução Guacamole. Role application descreve esta região interativa nomeada; scanner persiste pela regra genérica sobre elemento não interativo. Não trocar papel para satisfazer scanner. Revisão de contexto após correção, não alegação de ausência do alerta.",
+    "rationale": "Proposta técnica de falso positivo, ainda sem transição no projeto principal. S6843 proíbe atribuir semântica não interativa a elemento interativo. Aqui application descreve uma superfície de desktop remoto com teclado, ponteiro, roda e colagem, sem padrão de widget nativo equivalente. A definição normativa de application prevê entrada personalizada e não descreve conteúdo estático. O canvas não está sendo convertido semanticamente em artigo/imagem; a generalização do analisador é inadequada neste caso. NA0148 adicionou instrução de saída, liberação das teclas e retorno local, preservando Tab/Escape remotos.",
     "evidence": [
       "apps/frontend/src/views/GraphicalSessionView.vue:1270",
       "apps/frontend/src/services/graphical-guacd-client.test.ts",
-      "docs/changes/2026/11/NA-0087-sonar-frontend/followup-review.md"
+      "docs/changes/2026/11/NA-0087-sonar-frontend/followup-review.md",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json"
     ],
     "risk": "low",
     "history": [
@@ -538,9 +557,10 @@
     "file": "apps/frontend/src/services/service-cache.ts",
     "baselineLine": 94,
     "status": "context_reviewed",
-    "rationale": "Valor identifica origem de BroadcastChannel para não reaplicar invalidação local; não é token, permissão, segredo ou autenticação.",
+    "rationale": "Proposta técnica de falso positivo, ainda sem transição no projeto principal. O aleatório identifica a origem de mensagens BroadcastChannel para ignorar eco da própria aba, não cria token, senha ou decisão de autorização. A previsibilidade não fornece privilégio a outro origin. A definição se refere a valores aleatórios usados em contexto de segurança. A rastreabilidade deste identificador mostrou correlação, sem decisão de privilégio dependente de sua imprevisibilidade.",
     "evidence": [
-      "apps/frontend/src/services/service-cache.ts:94"
+      "apps/frontend/src/services/service-cache.ts:94",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json"
     ],
     "risk": "low"
   },
@@ -550,10 +570,11 @@
     "file": "apps/frontend/src/services/terminal-input-model.service.ts",
     "baselineLine": 43,
     "status": "context_reviewed",
-    "rationale": "ESC identifica atalhos de movimento de palavra e marca inferência de linha como não confiável; remover byte rompe protocolo terminal.",
+    "rationale": "Proposta técnica de falso positivo, ainda sem transição no projeto principal. ESC introduz a sequência Alt+b/Alt+f; o modelo marca edição por palavra como não confiável em vez de interpretar esse byte como texto digitado. A definição trata controles inesperados como provável engano. Nesta ocorrência o byte é parte expressa do protocolo terminal, e sua função específica está descrita acima; não se justifica apenas por ausência de exploração.",
     "evidence": [
       "apps/frontend/src/services/terminal-input-model.service.ts:43",
-      "docs/changes/2026/11/NA-0087-sonar-frontend/test-results.md"
+      "docs/changes/2026/11/NA-0087-sonar-frontend/test-results.md",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json"
     ],
     "risk": "low"
   },
@@ -577,10 +598,11 @@
     "file": "apps/frontend/src/components/platform/TenantLicenseEditor.vue",
     "baselineLine": 140,
     "status": "context_reviewed",
-    "rationale": "Label desta ocorrência envolve textbox; o componente renderiza input/textarea nativo dentro do label. DOM confirmou nome \"Quantidade máxima de usuários Please Input Não pode ser menor que os Campo de demonstração usuários atualmente ativos.\" e foco. Não é campo sem associação apesar do scanner estático.",
+    "rationale": "Proposta técnica de falso positivo, ainda sem transição no projeto principal. O label envolve maxUsers, usado para quantidade máxima de usuários e ajuda contextual. Naive renderiza o controle nativo dentro desse ancestral; a evidência DOM desta ocorrência possui nome acessível e foco. O scanner estático não expande o componente Vue. A intenção é associação efetiva label-controle, não exigir que o analisador estático conheça a expansão do componente Vue. A evidência DOM individual anterior é reutilizada com o trecho preservado.",
     "evidence": [
       "docs/changes/2026/11/NA-0087-sonar-frontend/dom-label-evidence.json#ae05e55c-7fdf-480b-8b31-7abf36b98ee2",
-      "tools/frontend/sonar-frontend-review.cjs"
+      "tools/frontend/sonar-frontend-review.cjs",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json"
     ],
     "risk": "low"
   },
@@ -616,11 +638,12 @@
     "rule": "typescript:S2871",
     "file": "apps/frontend/src/services/mobaxterm-import.service.ts",
     "baselineLine": 215,
-    "status": "context_reviewed",
-    "rationale": "Ordenação de identificadores técnicos de tipos/protocolos por UTF-16 é determinística e independente de locale; os valores são strings, não números.",
+    "status": "fixed",
+    "rationale": "NA-0150: correção implementada e ocorrência ausente na análise 28a77996d. Comparador UTF16 preserva ordem nativa e digest.",
     "evidence": [
       "apps/frontend/src/services/mobaxterm-import.service.ts:215",
-      "docs/changes/2026/11/NA-0087-sonar-frontend/test-results.md"
+      "docs/changes/2026/11/NA-0087-sonar-frontend/test-results.md",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json"
     ],
     "risk": "low"
   },
@@ -658,10 +681,11 @@
     "file": "apps/frontend/src/services/terminal-osc-command.service.ts",
     "baselineLine": 5,
     "status": "context_reviewed",
-    "rationale": "OSC 133;D extrai código de saída; ESC inicia sequência e BEL/ST a encerra. Bytes são delimitadores intencionais do protocolo.",
+    "rationale": "Proposta técnica de falso positivo, ainda sem transição no projeto principal. BEL é uma das duas terminações válidas da mensagem OSC133;D de status do comando; removê-lo altera o protocolo aceito. A definição trata controles inesperados como provável engano. Nesta ocorrência o byte é parte expressa do protocolo terminal, e sua função específica está descrita acima; não se justifica apenas por ausência de exploração.",
     "evidence": [
       "apps/frontend/src/services/terminal-osc-command.service.ts:5",
-      "docs/changes/2026/11/NA-0087-sonar-frontend/test-results.md"
+      "docs/changes/2026/11/NA-0087-sonar-frontend/test-results.md",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json"
     ],
     "risk": "low"
   },
@@ -671,10 +695,11 @@
     "file": "apps/frontend/src/services/terminal-osc-command.service.ts",
     "baselineLine": 5,
     "status": "context_reviewed",
-    "rationale": "OSC 133;D extrai código de saída; ESC inicia sequência e BEL/ST a encerra. Bytes são delimitadores intencionais do protocolo.",
+    "rationale": "Proposta técnica de falso positivo, ainda sem transição no projeto principal. ESC seguido de barra invertida compõe ST, a outra terminação de OSC133;D; o buffer está limitado a1024caracteres. A definição trata controles inesperados como provável engano. Nesta ocorrência o byte é parte expressa do protocolo terminal, e sua função específica está descrita acima; não se justifica apenas por ausência de exploração.",
     "evidence": [
       "apps/frontend/src/services/terminal-osc-command.service.ts:5",
-      "docs/changes/2026/11/NA-0087-sonar-frontend/test-results.md"
+      "docs/changes/2026/11/NA-0087-sonar-frontend/test-results.md",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json"
     ],
     "risk": "low"
   },
@@ -684,10 +709,11 @@
     "file": "apps/frontend/src/services/terminal-osc-directory.service.ts",
     "baselineLine": 5,
     "status": "context_reviewed",
-    "rationale": "OSC 7 file:// extrai diretório corrente. ESC e BEL/ST delimitam sequência e são excluídos do caminho; cada ocorrência é necessária ao parser.",
+    "rationale": "Proposta técnica de falso positivo, ainda sem transição no projeto principal. BEL é excluído do trecho de autoridade do URI OSC7 para impedir que a mensagem ultrapasse o terminador nessa região. A definição trata controles inesperados como provável engano. Nesta ocorrência o byte é parte expressa do protocolo terminal, e sua função específica está descrita acima; não se justifica apenas por ausência de exploração.",
     "evidence": [
       "apps/frontend/src/services/terminal-osc-directory.service.ts:5",
-      "docs/changes/2026/11/NA-0087-sonar-frontend/test-results.md"
+      "docs/changes/2026/11/NA-0087-sonar-frontend/test-results.md",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json"
     ],
     "risk": "low"
   },
@@ -697,10 +723,11 @@
     "file": "apps/frontend/src/services/terminal-osc-directory.service.ts",
     "baselineLine": 5,
     "status": "context_reviewed",
-    "rationale": "OSC 7 file:// extrai diretório corrente. ESC e BEL/ST delimitam sequência e são excluídos do caminho; cada ocorrência é necessária ao parser.",
+    "rationale": "Proposta técnica de falso positivo, ainda sem transição no projeto principal. ESC é excluído da autoridade OSC7 porque inicia ST; não é caractere acidental da expressão. A definição trata controles inesperados como provável engano. Nesta ocorrência o byte é parte expressa do protocolo terminal, e sua função específica está descrita acima; não se justifica apenas por ausência de exploração.",
     "evidence": [
       "apps/frontend/src/services/terminal-osc-directory.service.ts:5",
-      "docs/changes/2026/11/NA-0087-sonar-frontend/test-results.md"
+      "docs/changes/2026/11/NA-0087-sonar-frontend/test-results.md",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json"
     ],
     "risk": "low"
   },
@@ -710,10 +737,11 @@
     "file": "apps/frontend/src/services/terminal-osc-directory.service.ts",
     "baselineLine": 5,
     "status": "context_reviewed",
-    "rationale": "OSC 7 file:// extrai diretório corrente. ESC e BEL/ST delimitam sequência e são excluídos do caminho; cada ocorrência é necessária ao parser.",
+    "rationale": "Proposta técnica de falso positivo, ainda sem transição no projeto principal. BEL é excluído da captura do caminho OSC7, separando caminho de fim de mensagem. A definição trata controles inesperados como provável engano. Nesta ocorrência o byte é parte expressa do protocolo terminal, e sua função específica está descrita acima; não se justifica apenas por ausência de exploração.",
     "evidence": [
       "apps/frontend/src/services/terminal-osc-directory.service.ts:5",
-      "docs/changes/2026/11/NA-0087-sonar-frontend/test-results.md"
+      "docs/changes/2026/11/NA-0087-sonar-frontend/test-results.md",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json"
     ],
     "risk": "low"
   },
@@ -723,10 +751,11 @@
     "file": "apps/frontend/src/services/terminal-osc-directory.service.ts",
     "baselineLine": 5,
     "status": "context_reviewed",
-    "rationale": "OSC 7 file:// extrai diretório corrente. ESC e BEL/ST delimitam sequência e são excluídos do caminho; cada ocorrência é necessária ao parser.",
+    "rationale": "Proposta técnica de falso positivo, ainda sem transição no projeto principal. ESC é excluído da captura do caminho OSC7 para não incorporar ST ao diretório devolvido. A definição trata controles inesperados como provável engano. Nesta ocorrência o byte é parte expressa do protocolo terminal, e sua função específica está descrita acima; não se justifica apenas por ausência de exploração.",
     "evidence": [
       "apps/frontend/src/services/terminal-osc-directory.service.ts:5",
-      "docs/changes/2026/11/NA-0087-sonar-frontend/test-results.md"
+      "docs/changes/2026/11/NA-0087-sonar-frontend/test-results.md",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json"
     ],
     "risk": "low"
   },
@@ -736,10 +765,11 @@
     "file": "apps/frontend/src/services/terminal-osc-directory.service.ts",
     "baselineLine": 5,
     "status": "context_reviewed",
-    "rationale": "OSC 7 file:// extrai diretório corrente. ESC e BEL/ST delimitam sequência e são excluídos do caminho; cada ocorrência é necessária ao parser.",
+    "rationale": "Proposta técnica de falso positivo, ainda sem transição no projeto principal. BEL na alternativa final encerra OSC7; é delimitador protocolar explícito com buffer2048. A definição trata controles inesperados como provável engano. Nesta ocorrência o byte é parte expressa do protocolo terminal, e sua função específica está descrita acima; não se justifica apenas por ausência de exploração.",
     "evidence": [
       "apps/frontend/src/services/terminal-osc-directory.service.ts:5",
-      "docs/changes/2026/11/NA-0087-sonar-frontend/test-results.md"
+      "docs/changes/2026/11/NA-0087-sonar-frontend/test-results.md",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json"
     ],
     "risk": "low"
   },
@@ -749,10 +779,11 @@
     "file": "apps/frontend/src/services/terminal-osc-directory.service.ts",
     "baselineLine": 5,
     "status": "context_reviewed",
-    "rationale": "OSC 7 file:// extrai diretório corrente. ESC e BEL/ST delimitam sequência e são excluídos do caminho; cada ocorrência é necessária ao parser.",
+    "rationale": "Proposta técnica de falso positivo, ainda sem transição no projeto principal. ESC na alternativa final forma ST para encerrar OSC7, preservando a variante de terminal que não usa BEL. A definição trata controles inesperados como provável engano. Nesta ocorrência o byte é parte expressa do protocolo terminal, e sua função específica está descrita acima; não se justifica apenas por ausência de exploração.",
     "evidence": [
       "apps/frontend/src/services/terminal-osc-directory.service.ts:5",
-      "docs/changes/2026/11/NA-0087-sonar-frontend/test-results.md"
+      "docs/changes/2026/11/NA-0087-sonar-frontend/test-results.md",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json"
     ],
     "risk": "low"
   },
@@ -761,11 +792,12 @@
     "rule": "typescript:S2310",
     "file": "apps/frontend/src/services/terminal-path-autocomplete.service.ts",
     "baselineLine": 212,
-    "status": "context_reviewed",
-    "rationale": "Avanço explícito do índice pula separadores simples/duplos já consumidos (;, |, &&), preservando início do próximo comando. Não é atualização acidental de contador.",
+    "status": "fixed",
+    "rationale": "NA-0152: correção implementada e ocorrência ausente na análise 28a77996d. Correção e evidências na frente indicada.",
     "evidence": [
       "apps/frontend/src/services/terminal-path-autocomplete.service.ts",
-      "apps/frontend/src/services/terminal-path-autocomplete.service.test.ts"
+      "apps/frontend/src/services/terminal-path-autocomplete.service.test.ts",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json"
     ],
     "risk": "low"
   },
@@ -789,10 +821,11 @@
     "file": "apps/frontend/src/views/TerminalView.vue",
     "baselineLine": 4391,
     "status": "context_reviewed",
-    "rationale": "Separador ajustável real: role=separator, orientação, limites e valor ARIA; pointerdown e keydown manipulam divisão. tabindex é necessário ao redimensionamento por teclado.",
+    "rationale": "Proposta técnica de falso positivo, ainda sem transição no projeto principal. O elemento é um separador interativo de colunas/vertical, com role=separator, orientação, valor atual/mínimo/máximo e handler de teclado. Não é um div decorativo colocado indevidamente na ordem de Tab. O handler usa setas da orientação correspondente e ajusta a proporção; o papel separator é efetivamente interativo.",
     "evidence": [
       "tools/frontend/terminal-experience-playwright.cjs",
-      "apps/frontend/src/views/TerminalView.vue:4391"
+      "apps/frontend/src/views/TerminalView.vue:4391",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json"
     ],
     "risk": "low"
   },
@@ -802,10 +835,11 @@
     "file": "apps/frontend/src/views/TerminalView.vue",
     "baselineLine": 4408,
     "status": "context_reviewed",
-    "rationale": "Separador ajustável real: role=separator, orientação, limites e valor ARIA; pointerdown e keydown manipulam divisão. tabindex é necessário ao redimensionamento por teclado.",
+    "rationale": "Proposta técnica de falso positivo, ainda sem transição no projeto principal. O elemento é um separador interativo de linhas/horizontal, com role=separator, orientação, valor atual/mínimo/máximo e handler de teclado. Não é um div decorativo colocado indevidamente na ordem de Tab. O handler usa setas da orientação correspondente e ajusta a proporção; o papel separator é efetivamente interativo.",
     "evidence": [
       "tools/frontend/terminal-experience-playwright.cjs",
-      "apps/frontend/src/views/TerminalView.vue:4408"
+      "apps/frontend/src/views/TerminalView.vue:4408",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json"
     ],
     "risk": "low"
   },
@@ -933,10 +967,11 @@
     "file": "apps/frontend/src/components/integrations/TenantAuthPolicyCard.vue",
     "baselineLine": 310,
     "status": "context_reviewed",
-    "rationale": "Label desta ocorrência envolve textbox; o componente renderiza input/textarea nativo dentro do label. DOM confirmou nome \"admin.integrations.authPolicy.lockoutAttempts Please Input\" e foco. Não é campo sem associação apesar do scanner estático.",
+    "rationale": "Proposta técnica de falso positivo, ainda sem transição no projeto principal. O label envolve lockoutMaxAttempts, usado para limite de tentativas antes do bloqueio. Naive renderiza o controle nativo dentro desse ancestral; a evidência DOM desta ocorrência possui nome acessível e foco. O scanner estático não expande o componente Vue. A intenção é associação efetiva label-controle, não exigir que o analisador estático conheça a expansão do componente Vue. A evidência DOM individual anterior é reutilizada com o trecho preservado.",
     "evidence": [
       "docs/changes/2026/11/NA-0087-sonar-frontend/dom-label-evidence.json#837cb40c-e519-4569-a645-2fe22f255c74",
-      "tools/frontend/sonar-frontend-review.cjs"
+      "tools/frontend/sonar-frontend-review.cjs",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json"
     ],
     "risk": "low"
   },
@@ -946,10 +981,11 @@
     "file": "apps/frontend/src/components/integrations/TenantAuthPolicyCard.vue",
     "baselineLine": 315,
     "status": "context_reviewed",
-    "rationale": "Label desta ocorrência envolve textbox; o componente renderiza input/textarea nativo dentro do label. DOM confirmou nome \"admin.integrations.authPolicy.lockoutMinutes Please Input\" e foco. Não é campo sem associação apesar do scanner estático.",
+    "rationale": "Proposta técnica de falso positivo, ainda sem transição no projeto principal. O label envolve lockoutDurationMinutes, usado para duração do bloqueio em minutos. Naive renderiza o controle nativo dentro desse ancestral; a evidência DOM desta ocorrência possui nome acessível e foco. O scanner estático não expande o componente Vue. A intenção é associação efetiva label-controle, não exigir que o analisador estático conheça a expansão do componente Vue. A evidência DOM individual anterior é reutilizada com o trecho preservado.",
     "evidence": [
       "docs/changes/2026/11/NA-0087-sonar-frontend/dom-label-evidence.json#b11287e3-9121-4ef2-b1de-3f4e068123ed",
-      "tools/frontend/sonar-frontend-review.cjs"
+      "tools/frontend/sonar-frontend-review.cjs",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json"
     ],
     "risk": "low"
   },
@@ -959,10 +995,11 @@
     "file": "apps/frontend/src/components/integrations/TenantAuthPolicyCard.vue",
     "baselineLine": 320,
     "status": "context_reviewed",
-    "rationale": "Label desta ocorrência envolve textbox; o componente renderiza input/textarea nativo dentro do label. DOM confirmou nome \"admin.integrations.authPolicy.accessMinutes Please Input\" e foco. Não é campo sem associação apesar do scanner estático.",
+    "rationale": "Proposta técnica de falso positivo, ainda sem transição no projeto principal. O label envolve accessTokenMinutes, usado para validade do access token. Naive renderiza o controle nativo dentro desse ancestral; a evidência DOM desta ocorrência possui nome acessível e foco. O scanner estático não expande o componente Vue. A intenção é associação efetiva label-controle, não exigir que o analisador estático conheça a expansão do componente Vue. A evidência DOM individual anterior é reutilizada com o trecho preservado.",
     "evidence": [
       "docs/changes/2026/11/NA-0087-sonar-frontend/dom-label-evidence.json#87095c85-f631-4cbe-bc4c-a65ba78e4709",
-      "tools/frontend/sonar-frontend-review.cjs"
+      "tools/frontend/sonar-frontend-review.cjs",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json"
     ],
     "risk": "low"
   },
@@ -972,10 +1009,11 @@
     "file": "apps/frontend/src/components/integrations/TenantAuthPolicyCard.vue",
     "baselineLine": 325,
     "status": "context_reviewed",
-    "rationale": "Label desta ocorrência envolve textbox; o componente renderiza input/textarea nativo dentro do label. DOM confirmou nome \"admin.integrations.authPolicy.refreshDays Please Input\" e foco. Não é campo sem associação apesar do scanner estático.",
+    "rationale": "Proposta técnica de falso positivo, ainda sem transição no projeto principal. O label envolve refreshTokenDays, usado para validade do refresh token em dias. Naive renderiza o controle nativo dentro desse ancestral; a evidência DOM desta ocorrência possui nome acessível e foco. O scanner estático não expande o componente Vue. A intenção é associação efetiva label-controle, não exigir que o analisador estático conheça a expansão do componente Vue. A evidência DOM individual anterior é reutilizada com o trecho preservado.",
     "evidence": [
       "docs/changes/2026/11/NA-0087-sonar-frontend/dom-label-evidence.json#d5ec8fbb-fe40-4f34-926d-aeb1d94bf79f",
-      "tools/frontend/sonar-frontend-review.cjs"
+      "tools/frontend/sonar-frontend-review.cjs",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json"
     ],
     "risk": "low"
   },
@@ -999,9 +1037,10 @@
     "file": "apps/frontend/src/components/ImportHostsModal.vue",
     "baselineLine": 662,
     "status": "context_reviewed",
-    "rationale": "Endereço faz parte de exemplo Guacamole gerado no navegador; não é endpoint de serviço nem conexão automática.",
+    "rationale": "Proposta técnica de falso positivo, ainda sem transição no projeto principal. O IP pertence a GUACAMOLE_JDBC_TEMPLATE, exemplo exportável para o usuário preencher; não é endpoint operacional fixado nem conexão iniciada por esse literal. A regra evita acoplamento operacional a endpoints de infraestrutura. O literal aqui é dado demonstrativo editável/exportável, não endpoint fixo usado pelo transporte. Faixas privadas não são exceção automática da regra; RFC5737 seria uma melhoria editorial separada.",
     "evidence": [
-      "apps/frontend/src/components/ImportHostsModal.vue:662"
+      "apps/frontend/src/components/ImportHostsModal.vue:662",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json"
     ],
     "risk": "low"
   },
@@ -1011,9 +1050,10 @@
     "file": "apps/frontend/src/components/UserAvatar.vue",
     "baselineLine": 42,
     "status": "context_reviewed",
-    "rationale": "Coerção int32 é intencional no hash de cor de avatar; Math.trunc não reproduz overflow e mudaria cores estáveis dos usuários. Não é arredondamento numérico de negócio.",
+    "rationale": "Proposta técnica de falso positivo, ainda sem transição no projeto principal. A coerção hash |= 0 é deliberadamente um wrap signed-int32 no acumulador do hash, não um atalho para truncar parte fracionária (intenção de S7767). Comparação do corpo real com Math.trunc em três seeds sintéticos demonstrou hash e, em um seed, paleta diferentes; a substituição recomendada pela regra não preserva a operação pretendida.",
     "evidence": [
-      "apps/frontend/src/components/UserAvatar.vue:42"
+      "apps/frontend/src/components/UserAvatar.vue:42",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json"
     ],
     "risk": "low"
   },
@@ -1036,11 +1076,12 @@
     "rule": "typescript:S2871",
     "file": "apps/frontend/src/services/guacamole-import.service.ts",
     "baselineLine": 172,
-    "status": "context_reviewed",
-    "rationale": "Ordenação de identificadores técnicos de tipos/protocolos por UTF-16 é determinística e independente de locale; os valores são strings, não números.",
+    "status": "fixed",
+    "rationale": "NA-0150: correção implementada e ocorrência ausente na análise 28a77996d. Comparador UTF16 preserva ordem nativa e digest.",
     "evidence": [
       "apps/frontend/src/services/guacamole-import.service.ts:172",
-      "docs/changes/2026/11/NA-0087-sonar-frontend/test-results.md"
+      "docs/changes/2026/11/NA-0087-sonar-frontend/test-results.md",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json"
     ],
     "risk": "low"
   },
@@ -1049,11 +1090,12 @@
     "rule": "typescript:S2871",
     "file": "apps/frontend/src/services/guacamole-import.service.ts",
     "baselineLine": 174,
-    "status": "context_reviewed",
-    "rationale": "Ordenação de nomes de principals usa ordem de código determinística para importação/revisão; localeCompare mudaria ordenação entre ambientes. Não há número sendo ordenado lexicalmente.",
+    "status": "fixed",
+    "rationale": "NA-0150: correção implementada e ocorrência ausente na análise 28a77996d. Comparador UTF16 preserva ordem nativa e digest.",
     "evidence": [
       "apps/frontend/src/services/guacamole-import.service.ts:174",
-      "docs/changes/2026/11/NA-0087-sonar-frontend/test-results.md"
+      "docs/changes/2026/11/NA-0087-sonar-frontend/test-results.md",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json"
     ],
     "risk": "low"
   },
@@ -1062,11 +1104,12 @@
     "rule": "typescript:S2871",
     "file": "apps/frontend/src/services/guacamole-import.service.ts",
     "baselineLine": 301,
-    "status": "context_reviewed",
-    "rationale": "Ordenação de identificadores técnicos de tipos/protocolos por UTF-16 é determinística e independente de locale; os valores são strings, não números.",
+    "status": "fixed",
+    "rationale": "NA-0150: correção implementada e ocorrência ausente na análise 28a77996d. Comparador UTF16 preserva ordem nativa e digest.",
     "evidence": [
       "apps/frontend/src/services/guacamole-import.service.ts:301",
-      "docs/changes/2026/11/NA-0087-sonar-frontend/test-results.md"
+      "docs/changes/2026/11/NA-0087-sonar-frontend/test-results.md",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json"
     ],
     "risk": "low"
   },
@@ -1075,11 +1118,12 @@
     "rule": "typescript:S2871",
     "file": "apps/frontend/src/services/guacamole-import.service.ts",
     "baselineLine": 305,
-    "status": "context_reviewed",
-    "rationale": "Ordenação de nomes de principals usa ordem de código determinística para importação/revisão; localeCompare mudaria ordenação entre ambientes. Não há número sendo ordenado lexicalmente.",
+    "status": "fixed",
+    "rationale": "NA-0150: correção implementada e ocorrência ausente na análise 28a77996d. Comparador UTF16 preserva ordem nativa e digest.",
     "evidence": [
       "apps/frontend/src/services/guacamole-import.service.ts:305",
-      "docs/changes/2026/11/NA-0087-sonar-frontend/test-results.md"
+      "docs/changes/2026/11/NA-0087-sonar-frontend/test-results.md",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json"
     ],
     "risk": "low"
   },
@@ -1089,9 +1133,10 @@
     "file": "apps/frontend/src/views/ProfileView.vue",
     "baselineLine": 286,
     "status": "context_reviewed",
-    "rationale": "Input file oculto por display:none; é acionado por botão/dropzone nomeado do fluxo. Não integra árvore acessível nem navegação Tab. Revisada a marcação específica em ProfileView.vue:286; nenhum valor de credencial foi extraído.",
+    "rationale": "Proposta técnica de falso positivo, ainda sem transição no projeto principal. O input avatarInput de seleção de imagem do perfil usa class hidden (display:none) e não é o controle apresentado ao usuário. A seleção é aberta por acionador visível nomeado; adicionar label ao elemento oculto não corrige uma falta de nome na interface. A regra exige nome/associação para controles apresentados ao usuário; este controle com display:none não participa da árvore de acessibilidade. Não se usa tabindex=-1 isoladamente como justificativa.",
     "evidence": [
-      "apps/frontend/src/views/ProfileView.vue:286"
+      "apps/frontend/src/views/ProfileView.vue:286",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json"
     ],
     "risk": "low"
   },
@@ -1100,10 +1145,11 @@
     "rule": "typescript:S8786",
     "file": "apps/frontend/src/views/admin/HighAvailabilityView.vue",
     "baselineLine": 320,
-    "status": "context_reviewed",
-    "rationale": "Entrada é exclusivamente Date.toISOString(), de tamanho fixo produzido pela própria aplicação; sufixo fracionário limitado. Não recebe entrada adversarial nem justifica alteração cosmética.",
+    "status": "fixed",
+    "rationale": "NA-0152: correção implementada e ocorrência ausente na análise 28a77996d. Correção e evidências na frente indicada.",
     "evidence": [
-      "apps/frontend/src/views/admin/HighAvailabilityView.vue:320"
+      "apps/frontend/src/views/admin/HighAvailabilityView.vue:320",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json"
     ],
     "risk": "medium"
   },
@@ -1113,10 +1159,11 @@
     "file": "apps/frontend/src/views/admin/SessionAuditDetailView.vue",
     "baselineLine": 800,
     "status": "context_reviewed",
-    "rationale": "Limpeza/detecção de controle da auditoria em linha 800 trata ESC, BEL e terminadores de OSC/DCS/CSI de saída SSH. Remover controles invalidaria transcrição e classificação de conteúdo.",
+    "rationale": "Proposta técnica de falso positivo, ainda sem transição no projeto principal. BEL é excluído do corpo OSC no sanitizador de auditoria para parar no delimitador, não texto de usuário. A definição trata controles inesperados como provável engano. Nesta ocorrência o byte é parte expressa do protocolo terminal, e sua função específica está descrita acima; não se justifica apenas por ausência de exploração.",
     "evidence": [
       "apps/frontend/src/views/admin/SessionAuditDetailView.vue:800",
-      "docs/changes/2026/11/NA-0087-sonar-frontend/test-results.md"
+      "docs/changes/2026/11/NA-0087-sonar-frontend/test-results.md",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json"
     ],
     "risk": "low"
   },
@@ -1126,10 +1173,11 @@
     "file": "apps/frontend/src/views/admin/SessionAuditDetailView.vue",
     "baselineLine": 800,
     "status": "context_reviewed",
-    "rationale": "Limpeza/detecção de controle da auditoria em linha 800 trata ESC, BEL e terminadores de OSC/DCS/CSI de saída SSH. Remover controles invalidaria transcrição e classificação de conteúdo.",
+    "rationale": "Proposta técnica de falso positivo, ainda sem transição no projeto principal. ESC é excluído do corpo OSC para reconhecer ST sem consumir o início da terminação. A definição trata controles inesperados como provável engano. Nesta ocorrência o byte é parte expressa do protocolo terminal, e sua função específica está descrita acima; não se justifica apenas por ausência de exploração.",
     "evidence": [
       "apps/frontend/src/views/admin/SessionAuditDetailView.vue:800",
-      "docs/changes/2026/11/NA-0087-sonar-frontend/test-results.md"
+      "docs/changes/2026/11/NA-0087-sonar-frontend/test-results.md",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json"
     ],
     "risk": "low"
   },
@@ -1139,10 +1187,11 @@
     "file": "apps/frontend/src/views/admin/SessionAuditDetailView.vue",
     "baselineLine": 800,
     "status": "context_reviewed",
-    "rationale": "Limpeza/detecção de controle da auditoria em linha 800 trata ESC, BEL e terminadores de OSC/DCS/CSI de saída SSH. Remover controles invalidaria transcrição e classificação de conteúdo.",
+    "rationale": "Proposta técnica de falso positivo, ainda sem transição no projeto principal. BEL na alternativa final conclui a remoção de OSC; suporte necessário ao formato de saída terminal. A definição trata controles inesperados como provável engano. Nesta ocorrência o byte é parte expressa do protocolo terminal, e sua função específica está descrita acima; não se justifica apenas por ausência de exploração.",
     "evidence": [
       "apps/frontend/src/views/admin/SessionAuditDetailView.vue:800",
-      "docs/changes/2026/11/NA-0087-sonar-frontend/test-results.md"
+      "docs/changes/2026/11/NA-0087-sonar-frontend/test-results.md",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json"
     ],
     "risk": "low"
   },
@@ -1152,10 +1201,11 @@
     "file": "apps/frontend/src/views/admin/SessionAuditDetailView.vue",
     "baselineLine": 800,
     "status": "context_reviewed",
-    "rationale": "Limpeza/detecção de controle da auditoria em linha 800 trata ESC, BEL e terminadores de OSC/DCS/CSI de saída SSH. Remover controles invalidaria transcrição e classificação de conteúdo.",
+    "rationale": "Proposta técnica de falso positivo, ainda sem transição no projeto principal. ESC na alternativa final compõe ST na remoção de OSC; não pode ser eliminado como caractere de controle supérfluo. A definição trata controles inesperados como provável engano. Nesta ocorrência o byte é parte expressa do protocolo terminal, e sua função específica está descrita acima; não se justifica apenas por ausência de exploração.",
     "evidence": [
       "apps/frontend/src/views/admin/SessionAuditDetailView.vue:800",
-      "docs/changes/2026/11/NA-0087-sonar-frontend/test-results.md"
+      "docs/changes/2026/11/NA-0087-sonar-frontend/test-results.md",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json"
     ],
     "risk": "low"
   },
@@ -1165,10 +1215,11 @@
     "file": "apps/frontend/src/views/admin/SessionAuditDetailView.vue",
     "baselineLine": 801,
     "status": "context_reviewed",
-    "rationale": "Limpeza/detecção de controle da auditoria em linha 801 trata ESC, BEL e terminadores de OSC/DCS/CSI de saída SSH. Remover controles invalidaria transcrição e classificação de conteúdo.",
+    "rationale": "Ocorrência original ausente na análise 28a77996d; ausência isolada não comprova correção. A ocorrência histórica SQ-0191, na linha 803, deixou de existir após NA0148. Não é apropriado transicionar como falso positivo um trecho substituído: confirmar resolução/identidade no novo scanner. A intenção protocolar antiga não equivale a uma ocorrência atual.",
     "evidence": [
       "apps/frontend/src/views/admin/SessionAuditDetailView.vue:801",
-      "docs/changes/2026/11/NA-0087-sonar-frontend/test-results.md"
+      "docs/changes/2026/11/NA-0087-sonar-frontend/test-results.md",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json"
     ],
     "risk": "low"
   },
@@ -1178,10 +1229,11 @@
     "file": "apps/frontend/src/views/admin/SessionAuditDetailView.vue",
     "baselineLine": 801,
     "status": "context_reviewed",
-    "rationale": "Limpeza/detecção de controle da auditoria em linha 801 trata ESC, BEL e terminadores de OSC/DCS/CSI de saída SSH. Remover controles invalidaria transcrição e classificação de conteúdo.",
+    "rationale": "Ocorrência original ausente na análise 28a77996d; ausência isolada não comprova correção. A ocorrência histórica SQ-0192, na linha 803, deixou de existir após NA0148. Não é apropriado transicionar como falso positivo um trecho substituído: confirmar resolução/identidade no novo scanner. A intenção protocolar antiga não equivale a uma ocorrência atual.",
     "evidence": [
       "apps/frontend/src/views/admin/SessionAuditDetailView.vue:801",
-      "docs/changes/2026/11/NA-0087-sonar-frontend/test-results.md"
+      "docs/changes/2026/11/NA-0087-sonar-frontend/test-results.md",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json"
     ],
     "risk": "low"
   },
@@ -1191,10 +1243,11 @@
     "file": "apps/frontend/src/views/admin/SessionAuditDetailView.vue",
     "baselineLine": 801,
     "status": "context_reviewed",
-    "rationale": "Limpeza/detecção de controle da auditoria em linha 801 trata ESC, BEL e terminadores de OSC/DCS/CSI de saída SSH. Remover controles invalidaria transcrição e classificação de conteúdo.",
+    "rationale": "Ocorrência original ausente na análise 28a77996d; ausência isolada não comprova correção. A ocorrência histórica SQ-0193, na linha 803, deixou de existir após NA0148. Não é apropriado transicionar como falso positivo um trecho substituído: confirmar resolução/identidade no novo scanner. A intenção protocolar antiga não equivale a uma ocorrência atual.",
     "evidence": [
       "apps/frontend/src/views/admin/SessionAuditDetailView.vue:801",
-      "docs/changes/2026/11/NA-0087-sonar-frontend/test-results.md"
+      "docs/changes/2026/11/NA-0087-sonar-frontend/test-results.md",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json"
     ],
     "risk": "low"
   },
@@ -1204,10 +1257,11 @@
     "file": "apps/frontend/src/views/admin/SessionAuditDetailView.vue",
     "baselineLine": 803,
     "status": "context_reviewed",
-    "rationale": "Limpeza/detecção de controle da auditoria em linha 803 trata ESC, BEL e terminadores de OSC/DCS/CSI de saída SSH. Remover controles invalidaria transcrição e classificação de conteúdo.",
+    "rationale": "Proposta técnica de falso positivo, ainda sem transição no projeto principal. ESC inicia sequências de seleção de charset em stripTerminalControlSequences; retirada quebraria a limpeza de bytes ANSI. A definição trata controles inesperados como provável engano. Nesta ocorrência o byte é parte expressa do protocolo terminal, e sua função específica está descrita acima; não se justifica apenas por ausência de exploração.",
     "evidence": [
       "apps/frontend/src/views/admin/SessionAuditDetailView.vue:803",
-      "docs/changes/2026/11/NA-0087-sonar-frontend/test-results.md"
+      "docs/changes/2026/11/NA-0087-sonar-frontend/test-results.md",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json"
     ],
     "risk": "low"
   },
@@ -1217,10 +1271,11 @@
     "file": "apps/frontend/src/views/admin/SessionAuditDetailView.vue",
     "baselineLine": 804,
     "status": "context_reviewed",
-    "rationale": "Limpeza/detecção de controle da auditoria em linha 804 trata ESC, BEL e terminadores de OSC/DCS/CSI de saída SSH. Remover controles invalidaria transcrição e classificação de conteúdo.",
+    "rationale": "Proposta técnica de falso positivo, ainda sem transição no projeto principal. ESC introduz a família genérica de controles ANSI de um caractere no sanitizador; contexto é processamento explícito do terminal. A definição trata controles inesperados como provável engano. Nesta ocorrência o byte é parte expressa do protocolo terminal, e sua função específica está descrita acima; não se justifica apenas por ausência de exploração.",
     "evidence": [
       "apps/frontend/src/views/admin/SessionAuditDetailView.vue:804",
-      "docs/changes/2026/11/NA-0087-sonar-frontend/test-results.md"
+      "docs/changes/2026/11/NA-0087-sonar-frontend/test-results.md",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json"
     ],
     "risk": "low"
   },
@@ -1230,10 +1285,11 @@
     "file": "apps/frontend/src/views/admin/SessionAuditDetailView.vue",
     "baselineLine": 805,
     "status": "context_reviewed",
-    "rationale": "Limpeza/detecção de controle da auditoria em linha 805 trata ESC, BEL e terminadores de OSC/DCS/CSI de saída SSH. Remover controles invalidaria transcrição e classificação de conteúdo.",
+    "rationale": "Proposta técnica de falso positivo, ainda sem transição no projeto principal. ESC introduz comandos curtos como salvar/restaurar cursor e modos no sanitizador; não constitui texto de controle oculto acidental. A definição trata controles inesperados como provável engano. Nesta ocorrência o byte é parte expressa do protocolo terminal, e sua função específica está descrita acima; não se justifica apenas por ausência de exploração.",
     "evidence": [
       "apps/frontend/src/views/admin/SessionAuditDetailView.vue:805",
-      "docs/changes/2026/11/NA-0087-sonar-frontend/test-results.md"
+      "docs/changes/2026/11/NA-0087-sonar-frontend/test-results.md",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json"
     ],
     "risk": "low"
   },
@@ -1271,10 +1327,11 @@
     "file": "apps/frontend/src/views/admin/SessionAuditDetailView.vue",
     "baselineLine": 932,
     "status": "context_reviewed",
-    "rationale": "Limpeza/detecção de controle da auditoria em linha 932 trata ESC, BEL e terminadores de OSC/DCS/CSI de saída SSH. Remover controles invalidaria transcrição e classificação de conteúdo.",
+    "rationale": "Ocorrência original ausente na análise 28a77996d; ausência isolada não comprova correção. A ocorrência histórica SQ-0199, na linha 933, deixou de existir após NA0148. Não é apropriado transicionar como falso positivo um trecho substituído: confirmar resolução/identidade no novo scanner. A intenção protocolar antiga não equivale a uma ocorrência atual.",
     "evidence": [
       "apps/frontend/src/views/admin/SessionAuditDetailView.vue:932",
-      "docs/changes/2026/11/NA-0087-sonar-frontend/test-results.md"
+      "docs/changes/2026/11/NA-0087-sonar-frontend/test-results.md",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json"
     ],
     "risk": "low"
   },
@@ -1284,10 +1341,11 @@
     "file": "apps/frontend/src/views/admin/SessionAuditDetailView.vue",
     "baselineLine": 932,
     "status": "context_reviewed",
-    "rationale": "Limpeza/detecção de controle da auditoria em linha 932 trata ESC, BEL e terminadores de OSC/DCS/CSI de saída SSH. Remover controles invalidaria transcrição e classificação de conteúdo.",
+    "rationale": "Ocorrência original ausente na análise 28a77996d; ausência isolada não comprova correção. A ocorrência histórica SQ-0200, na linha 933, deixou de existir após NA0148. Não é apropriado transicionar como falso positivo um trecho substituído: confirmar resolução/identidade no novo scanner. A intenção protocolar antiga não equivale a uma ocorrência atual.",
     "evidence": [
       "apps/frontend/src/views/admin/SessionAuditDetailView.vue:932",
-      "docs/changes/2026/11/NA-0087-sonar-frontend/test-results.md"
+      "docs/changes/2026/11/NA-0087-sonar-frontend/test-results.md",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json"
     ],
     "risk": "low"
   },
@@ -1297,10 +1355,11 @@
     "file": "apps/frontend/src/views/admin/SessionAuditDetailView.vue",
     "baselineLine": 932,
     "status": "context_reviewed",
-    "rationale": "Limpeza/detecção de controle da auditoria em linha 932 trata ESC, BEL e terminadores de OSC/DCS/CSI de saída SSH. Remover controles invalidaria transcrição e classificação de conteúdo.",
+    "rationale": "Ocorrência original ausente na análise 28a77996d; ausência isolada não comprova correção. A ocorrência histórica SQ-0201, na linha 933, deixou de existir após NA0148. Não é apropriado transicionar como falso positivo um trecho substituído: confirmar resolução/identidade no novo scanner. A intenção protocolar antiga não equivale a uma ocorrência atual.",
     "evidence": [
       "apps/frontend/src/views/admin/SessionAuditDetailView.vue:932",
-      "docs/changes/2026/11/NA-0087-sonar-frontend/test-results.md"
+      "docs/changes/2026/11/NA-0087-sonar-frontend/test-results.md",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json"
     ],
     "risk": "low"
   },
@@ -1310,10 +1369,11 @@
     "file": "apps/frontend/src/views/admin/SessionAuditDetailView.vue",
     "baselineLine": 932,
     "status": "context_reviewed",
-    "rationale": "Limpeza/detecção de controle da auditoria em linha 932 trata ESC, BEL e terminadores de OSC/DCS/CSI de saída SSH. Remover controles invalidaria transcrição e classificação de conteúdo.",
+    "rationale": "Ocorrência original ausente na análise 28a77996d; ausência isolada não comprova correção. A ocorrência histórica SQ-0202, na linha 933, deixou de existir após NA0148. Não é apropriado transicionar como falso positivo um trecho substituído: confirmar resolução/identidade no novo scanner. A intenção protocolar antiga não equivale a uma ocorrência atual.",
     "evidence": [
       "apps/frontend/src/views/admin/SessionAuditDetailView.vue:932",
-      "docs/changes/2026/11/NA-0087-sonar-frontend/test-results.md"
+      "docs/changes/2026/11/NA-0087-sonar-frontend/test-results.md",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json"
     ],
     "risk": "low"
   },
@@ -1323,10 +1383,11 @@
     "file": "apps/frontend/src/views/admin/SessionAuditDetailView.vue",
     "baselineLine": 932,
     "status": "context_reviewed",
-    "rationale": "Limpeza/detecção de controle da auditoria em linha 932 trata ESC, BEL e terminadores de OSC/DCS/CSI de saída SSH. Remover controles invalidaria transcrição e classificação de conteúdo.",
+    "rationale": "Ocorrência original ausente na análise 28a77996d; ausência isolada não comprova correção. A ocorrência histórica SQ-0203, na linha 933, deixou de existir após NA0148. Não é apropriado transicionar como falso positivo um trecho substituído: confirmar resolução/identidade no novo scanner. A intenção protocolar antiga não equivale a uma ocorrência atual.",
     "evidence": [
       "apps/frontend/src/views/admin/SessionAuditDetailView.vue:932",
-      "docs/changes/2026/11/NA-0087-sonar-frontend/test-results.md"
+      "docs/changes/2026/11/NA-0087-sonar-frontend/test-results.md",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json"
     ],
     "risk": "low"
   },
@@ -1336,10 +1397,11 @@
     "file": "apps/frontend/src/views/admin/SessionAuditDetailView.vue",
     "baselineLine": 932,
     "status": "context_reviewed",
-    "rationale": "Limpeza/detecção de controle da auditoria em linha 932 trata ESC, BEL e terminadores de OSC/DCS/CSI de saída SSH. Remover controles invalidaria transcrição e classificação de conteúdo.",
+    "rationale": "Ocorrência original ausente na análise 28a77996d; ausência isolada não comprova correção. A ocorrência histórica SQ-0204, na linha 933, deixou de existir após NA0148. Não é apropriado transicionar como falso positivo um trecho substituído: confirmar resolução/identidade no novo scanner. A intenção protocolar antiga não equivale a uma ocorrência atual.",
     "evidence": [
       "apps/frontend/src/views/admin/SessionAuditDetailView.vue:932",
-      "docs/changes/2026/11/NA-0087-sonar-frontend/test-results.md"
+      "docs/changes/2026/11/NA-0087-sonar-frontend/test-results.md",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json"
     ],
     "risk": "low"
   },
@@ -1349,10 +1411,11 @@
     "file": "apps/frontend/src/views/admin/SessionAuditDetailView.vue",
     "baselineLine": 932,
     "status": "context_reviewed",
-    "rationale": "Limpeza/detecção de controle da auditoria em linha 932 trata ESC, BEL e terminadores de OSC/DCS/CSI de saída SSH. Remover controles invalidaria transcrição e classificação de conteúdo.",
+    "rationale": "Ocorrência original ausente na análise 28a77996d; ausência isolada não comprova correção. A ocorrência histórica SQ-0205, na linha 933, deixou de existir após NA0148. Não é apropriado transicionar como falso positivo um trecho substituído: confirmar resolução/identidade no novo scanner. A intenção protocolar antiga não equivale a uma ocorrência atual.",
     "evidence": [
       "apps/frontend/src/views/admin/SessionAuditDetailView.vue:932",
-      "docs/changes/2026/11/NA-0087-sonar-frontend/test-results.md"
+      "docs/changes/2026/11/NA-0087-sonar-frontend/test-results.md",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json"
     ],
     "risk": "low"
   },
@@ -1441,9 +1504,10 @@
     "file": "apps/frontend/src/views/PemKeysView.vue",
     "baselineLine": 199,
     "status": "context_reviewed",
-    "rationale": "Input file oculto por display:none; é acionado por botão/dropzone nomeado do fluxo. Não integra árvore acessível nem navegação Tab. Revisada a marcação específica em PemKeysView.vue:199; nenhum valor de credencial foi extraído.",
+    "rationale": "Proposta técnica de falso positivo, ainda sem transição no projeto principal. O input pemKeyFileInput de seleção de chave PEM usa class hidden (display:none) e não é o controle apresentado ao usuário. A seleção é aberta por acionador visível nomeado; adicionar label ao elemento oculto não corrige uma falta de nome na interface. A regra exige nome/associação para controles apresentados ao usuário; este controle com display:none não participa da árvore de acessibilidade. Não se usa tabindex=-1 isoladamente como justificativa.",
     "evidence": [
-      "apps/frontend/src/views/PemKeysView.vue:199"
+      "apps/frontend/src/views/PemKeysView.vue:199",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json"
     ],
     "risk": "low"
   },
@@ -1453,9 +1517,10 @@
     "file": "apps/frontend/src/views/admin/NativeSshGatewayView.vue",
     "baselineLine": 37,
     "status": "context_reviewed",
-    "rationale": "Endereço privado demonstrativo no campo/exemplo SSH Gateway (37); usuário escolhe destino e revisa comando. Não determina conexão automática nem configuração de infraestrutura.",
+    "rationale": "Proposta técnica de falso positivo, ainda sem transição no projeto principal. O endereço privado é exemplo em estado inicial editável sampleTarget, exibido para copiar; não alimenta diretamente transporte SSH da aplicação. O destino é configurável na seção Parâmetros dos exemplos. A regra evita acoplamento operacional a endpoints de infraestrutura. O literal aqui é dado demonstrativo editável/exportável, não endpoint fixo usado pelo transporte. Faixas privadas não são exceção automática da regra; RFC5737 seria uma melhoria editorial separada.",
     "evidence": [
-      "apps/frontend/src/views/admin/NativeSshGatewayView.vue:37"
+      "apps/frontend/src/views/admin/NativeSshGatewayView.vue:37",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json"
     ],
     "risk": "low"
   },
@@ -1465,9 +1530,10 @@
     "file": "apps/frontend/src/views/admin/NativeSshGatewayView.vue",
     "baselineLine": 61,
     "status": "context_reviewed",
-    "rationale": "Endereço privado demonstrativo no campo/exemplo SSH Gateway (61); usuário escolhe destino e revisa comando. Não determina conexão automática nem configuração de infraestrutura.",
+    "rationale": "Proposta técnica de falso positivo, ainda sem transição no projeto principal. O endereço privado é exemplo em comando com usuário padrão via -l, exibido para copiar; não alimenta diretamente transporte SSH da aplicação. O destino é configurável na seção Parâmetros dos exemplos. A regra evita acoplamento operacional a endpoints de infraestrutura. O literal aqui é dado demonstrativo editável/exportável, não endpoint fixo usado pelo transporte. Faixas privadas não são exceção automática da regra; RFC5737 seria uma melhoria editorial separada.",
     "evidence": [
-      "apps/frontend/src/views/admin/NativeSshGatewayView.vue:61"
+      "apps/frontend/src/views/admin/NativeSshGatewayView.vue:61",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json"
     ],
     "risk": "low"
   },
@@ -1477,9 +1543,10 @@
     "file": "apps/frontend/src/views/admin/NativeSshGatewayView.vue",
     "baselineLine": 65,
     "status": "context_reviewed",
-    "rationale": "Endereço privado demonstrativo no campo/exemplo SSH Gateway (65); usuário escolhe destino e revisa comando. Não determina conexão automática nem configuração de infraestrutura.",
+    "rationale": "Proposta técnica de falso positivo, ainda sem transição no projeto principal. O endereço privado é exemplo em comando com override de usuário via -l, exibido para copiar; não alimenta diretamente transporte SSH da aplicação. O destino é configurável na seção Parâmetros dos exemplos. A regra evita acoplamento operacional a endpoints de infraestrutura. O literal aqui é dado demonstrativo editável/exportável, não endpoint fixo usado pelo transporte. Faixas privadas não são exceção automática da regra; RFC5737 seria uma melhoria editorial separada.",
     "evidence": [
-      "apps/frontend/src/views/admin/NativeSshGatewayView.vue:65"
+      "apps/frontend/src/views/admin/NativeSshGatewayView.vue:65",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json"
     ],
     "risk": "low"
   },
@@ -1489,9 +1556,10 @@
     "file": "apps/frontend/src/views/admin/NativeSshGatewayView.vue",
     "baselineLine": 70,
     "status": "context_reviewed",
-    "rationale": "Endereço privado demonstrativo no campo/exemplo SSH Gateway (70); usuário escolhe destino e revisa comando. Não determina conexão automática nem configuração de infraestrutura.",
+    "rationale": "Proposta técnica de falso positivo, ainda sem transição no projeto principal. O endereço privado é exemplo em forma inline com usuário padrão e IdentitiesOnly, exibido para copiar; não alimenta diretamente transporte SSH da aplicação. O destino é configurável na seção Parâmetros dos exemplos. A regra evita acoplamento operacional a endpoints de infraestrutura. O literal aqui é dado demonstrativo editável/exportável, não endpoint fixo usado pelo transporte. Faixas privadas não são exceção automática da regra; RFC5737 seria uma melhoria editorial separada.",
     "evidence": [
-      "apps/frontend/src/views/admin/NativeSshGatewayView.vue:70"
+      "apps/frontend/src/views/admin/NativeSshGatewayView.vue:70",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json"
     ],
     "risk": "low"
   },
@@ -1501,9 +1569,10 @@
     "file": "apps/frontend/src/views/admin/NativeSshGatewayView.vue",
     "baselineLine": 75,
     "status": "context_reviewed",
-    "rationale": "Endereço privado demonstrativo no campo/exemplo SSH Gateway (75); usuário escolhe destino e revisa comando. Não determina conexão automática nem configuração de infraestrutura.",
+    "rationale": "Proposta técnica de falso positivo, ainda sem transição no projeto principal. O endereço privado é exemplo em forma inline com override e IdentitiesOnly, exibido para copiar; não alimenta diretamente transporte SSH da aplicação. O destino é configurável na seção Parâmetros dos exemplos. A regra evita acoplamento operacional a endpoints de infraestrutura. O literal aqui é dado demonstrativo editável/exportável, não endpoint fixo usado pelo transporte. Faixas privadas não são exceção automática da regra; RFC5737 seria uma melhoria editorial separada.",
     "evidence": [
-      "apps/frontend/src/views/admin/NativeSshGatewayView.vue:75"
+      "apps/frontend/src/views/admin/NativeSshGatewayView.vue:75",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json"
     ],
     "risk": "low"
   },
@@ -1513,10 +1582,11 @@
     "file": "apps/frontend/src/views/admin/NativeSshGatewayView.vue",
     "baselineLine": 365,
     "status": "context_reviewed",
-    "rationale": "Label desta ocorrência envolve textbox; o componente renderiza input/textarea nativo dentro do label. DOM confirmou nome \"Host destino para exemplo Please Input\" e foco. Não é campo sem associação apesar do scanner estático.",
+    "rationale": "Proposta técnica de falso positivo, ainda sem transição no projeto principal. O label envolve sampleTarget, usado para host de destino do exemplo SSH. Naive renderiza o controle nativo dentro desse ancestral; a evidência DOM desta ocorrência possui nome acessível e foco. O scanner estático não expande o componente Vue. A intenção é associação efetiva label-controle, não exigir que o analisador estático conheça a expansão do componente Vue. A evidência DOM individual anterior é reutilizada com o trecho preservado.",
     "evidence": [
       "docs/changes/2026/11/NA-0087-sonar-frontend/dom-label-evidence.json#af7180f2-a438-4bd1-b586-4e6e8df1af16",
-      "tools/frontend/sonar-frontend-review.cjs"
+      "tools/frontend/sonar-frontend-review.cjs",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json"
     ],
     "risk": "low"
   },
@@ -1526,10 +1596,11 @@
     "file": "apps/frontend/src/views/admin/NativeSshGatewayView.vue",
     "baselineLine": 369,
     "status": "context_reviewed",
-    "rationale": "Label desta ocorrência envolve textbox; o componente renderiza input/textarea nativo dentro do label. DOM confirmou nome \"Usuário SSH opcional do destino Please Input\" e foco. Não é campo sem associação apesar do scanner estático.",
+    "rationale": "Proposta técnica de falso positivo, ainda sem transição no projeto principal. O label envolve sampleTargetUser, usado para usuário SSH opcional do exemplo. Naive renderiza o controle nativo dentro desse ancestral; a evidência DOM desta ocorrência possui nome acessível e foco. O scanner estático não expande o componente Vue. A intenção é associação efetiva label-controle, não exigir que o analisador estático conheça a expansão do componente Vue. A evidência DOM individual anterior é reutilizada com o trecho preservado.",
     "evidence": [
       "docs/changes/2026/11/NA-0087-sonar-frontend/dom-label-evidence.json#965f1baa-23a6-4e19-a71f-0c9fecbc6e1a",
-      "tools/frontend/sonar-frontend-review.cjs"
+      "tools/frontend/sonar-frontend-review.cjs",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json"
     ],
     "risk": "low"
   },
@@ -1553,10 +1624,11 @@
     "file": "apps/frontend/src/views/HostsView.vue",
     "baselineLine": 3294,
     "status": "context_reviewed",
-    "rationale": "NUL é sentinela interna temporária para contar compressões :: de IPv6 e rejeitar múltiplas compressões. Não é literal acidental nem transmitido ao host.",
+    "rationale": "Ocorrência original ausente na análise 28a77996d; ausência isolada não comprova correção. A ocorrência histórica SQ-0245, na linha 3294, deixou de existir após NA0148. Não é apropriado transicionar como falso positivo um trecho substituído: confirmar resolução/identidade no novo scanner. A intenção protocolar antiga não equivale a uma ocorrência atual.",
     "evidence": [
       "apps/frontend/src/views/HostsView.vue:3294",
-      "docs/changes/2026/11/NA-0087-sonar-frontend/test-results.md"
+      "docs/changes/2026/11/NA-0087-sonar-frontend/test-results.md",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json"
     ],
     "risk": "low"
   },
@@ -1671,9 +1743,10 @@
     "file": "apps/frontend/src/views/TerminalView.vue",
     "baselineLine": 1893,
     "status": "context_reviewed",
-    "rationale": "ID de correlação de execução de snippet prefere crypto.randomUUID; fallback timestamp+Math.random não concede acesso nem autentica comando. Uso não criptográfico revisto no chamador.",
+    "rationale": "Proposta técnica de falso positivo, ainda sem transição no projeto principal. O fallback combina relógio e Math.random para correlação de execução de snippet; o caminho preferido já usa crypto.randomUUID. O identificador não é credencial nem concede autorização ao SSH. A definição se refere a valores aleatórios usados em contexto de segurança. A rastreabilidade deste identificador mostrou correlação, sem decisão de privilégio dependente de sua imprevisibilidade.",
     "evidence": [
-      "apps/frontend/src/views/TerminalView.vue:1893"
+      "apps/frontend/src/views/TerminalView.vue:1893",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json"
     ],
     "risk": "low"
   },
@@ -1696,9 +1769,10 @@
     "file": "apps/frontend/src/views/admin/WebhooksView.vue",
     "baselineLine": 1078,
     "status": "context_reviewed",
-    "rationale": "Input artificial oculto e tabindex=-1 usado como isca de autofill; não é campo operável. Nomeá-lo não melhora interação e alterá-lo arrisca comportamento de gerenciadores de senha. Revisada a marcação específica em WebhooksView.vue:1078; nenhum valor de credencial foi extraído.",
+    "rationale": "Proposta técnica de falso positivo, ainda sem transição no projeto principal. Campo auxiliar de usuário para desviar autofill em criação de webhook inbound; class hidden e tabindex=-1 retiram-no da interação visual e por Tab. Não é o campo real de credencial nem carece de label de um controle visível. A regra exige nome/associação para controles apresentados ao usuário; este controle com display:none não participa da árvore de acessibilidade. Não se usa tabindex=-1 isoladamente como justificativa.",
     "evidence": [
-      "apps/frontend/src/views/admin/WebhooksView.vue:1078"
+      "apps/frontend/src/views/admin/WebhooksView.vue:1078",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json"
     ],
     "risk": "low"
   },
@@ -1708,9 +1782,10 @@
     "file": "apps/frontend/src/views/admin/WebhooksView.vue",
     "baselineLine": 1079,
     "status": "context_reviewed",
-    "rationale": "Input artificial oculto e tabindex=-1 usado como isca de autofill; não é campo operável. Nomeá-lo não melhora interação e alterá-lo arrisca comportamento de gerenciadores de senha. Revisada a marcação específica em WebhooksView.vue:1079; nenhum valor de credencial foi extraído.",
+    "rationale": "Proposta técnica de falso positivo, ainda sem transição no projeto principal. Campo auxiliar de senha para desviar autofill em criação de webhook inbound; class hidden e tabindex=-1 retiram-no da interação visual e por Tab. Não é o campo real de credencial nem carece de label de um controle visível. A regra exige nome/associação para controles apresentados ao usuário; este controle com display:none não participa da árvore de acessibilidade. Não se usa tabindex=-1 isoladamente como justificativa.",
     "evidence": [
-      "apps/frontend/src/views/admin/WebhooksView.vue:1079"
+      "apps/frontend/src/views/admin/WebhooksView.vue:1079",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json"
     ],
     "risk": "low"
   },
@@ -1734,9 +1809,10 @@
     "file": "apps/frontend/src/locales/en-BACKUP-UX.json",
     "baselineLine": 1522,
     "status": "context_reviewed",
-    "rationale": "Revisada linha do exemplo de uso de secret salvo: argumento mysql referencia placeholder {{secret:...}}, não senha literal. Arquivo de tradução backup preservado; nenhum segredo ou conteúdo sensível publicado.",
+    "rationale": "Proposta técnica de falso positivo, ainda sem transição no projeto principal. A tradução de exemplo MySQL em inglês, cópia BACKUP-UX, contém sintaxe de substituição de alias do cofre (duplas chaves secret:alias), não o valor resolvido de uma credencial. A descrição ensina resolução posterior no backend e mascaramento. A regra detecta credencial MySQL incorporada. Verificação do caminho JSON snippetsPage.help.examples[4].cmd confirmou placeholder não resolvido após a opção de senha, sem valor de credencial. Não se presume que placeholders dispensem autorização posterior.",
     "evidence": [
-      "apps/frontend/src/locales/en-BACKUP-UX.json:1522"
+      "apps/frontend/src/locales/en-BACKUP-UX.json:1522",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json"
     ],
     "risk": "low"
   },
@@ -1746,9 +1822,10 @@
     "file": "apps/frontend/src/locales/en-NOTE-JEFF.json",
     "baselineLine": 1247,
     "status": "context_reviewed",
-    "rationale": "Revisada linha do exemplo de uso de secret salvo: argumento mysql referencia placeholder {{secret:...}}, não senha literal. Arquivo de tradução backup preservado; nenhum segredo ou conteúdo sensível publicado.",
+    "rationale": "Proposta técnica de falso positivo, ainda sem transição no projeto principal. A tradução de exemplo MySQL em inglês, cópia NOTE-JEFF, contém sintaxe de substituição de alias do cofre (duplas chaves secret:alias), não o valor resolvido de uma credencial. A descrição ensina resolução posterior no backend e mascaramento. A regra detecta credencial MySQL incorporada. Verificação do caminho JSON snippetsPage.help.examples[4].cmd confirmou placeholder não resolvido após a opção de senha, sem valor de credencial. Não se presume que placeholders dispensem autorização posterior.",
     "evidence": [
-      "apps/frontend/src/locales/en-NOTE-JEFF.json:1247"
+      "apps/frontend/src/locales/en-NOTE-JEFF.json:1247",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json"
     ],
     "risk": "low"
   },
@@ -1758,9 +1835,10 @@
     "file": "apps/frontend/src/locales/pt-BR-BACKUP-UX.json",
     "baselineLine": 1522,
     "status": "context_reviewed",
-    "rationale": "Revisada linha do exemplo de uso de secret salvo: argumento mysql referencia placeholder {{secret:...}}, não senha literal. Arquivo de tradução backup preservado; nenhum segredo ou conteúdo sensível publicado.",
+    "rationale": "Proposta técnica de falso positivo, ainda sem transição no projeto principal. A tradução de exemplo MySQL em português, cópia BACKUP-UX, contém sintaxe de substituição de alias do cofre (duplas chaves secret:alias), não o valor resolvido de uma credencial. A descrição ensina resolução posterior no backend e mascaramento. A regra detecta credencial MySQL incorporada. Verificação do caminho JSON snippetsPage.help.examples[4].cmd confirmou placeholder não resolvido após a opção de senha, sem valor de credencial. Não se presume que placeholders dispensem autorização posterior.",
     "evidence": [
-      "apps/frontend/src/locales/pt-BR-BACKUP-UX.json:1522"
+      "apps/frontend/src/locales/pt-BR-BACKUP-UX.json:1522",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json"
     ],
     "risk": "low"
   },
@@ -1770,9 +1848,10 @@
     "file": "apps/frontend/src/locales/pt-BR-NOTE-JEFF.json",
     "baselineLine": 1247,
     "status": "context_reviewed",
-    "rationale": "Revisada linha do exemplo de uso de secret salvo: argumento mysql referencia placeholder {{secret:...}}, não senha literal. Arquivo de tradução backup preservado; nenhum segredo ou conteúdo sensível publicado.",
+    "rationale": "Proposta técnica de falso positivo, ainda sem transição no projeto principal. A tradução de exemplo MySQL em português, cópia NOTE-JEFF, contém sintaxe de substituição de alias do cofre (duplas chaves secret:alias), não o valor resolvido de uma credencial. A descrição ensina resolução posterior no backend e mascaramento. A regra detecta credencial MySQL incorporada. Verificação do caminho JSON snippetsPage.help.examples[4].cmd confirmou placeholder não resolvido após a opção de senha, sem valor de credencial. Não se presume que placeholders dispensem autorização posterior.",
     "evidence": [
-      "apps/frontend/src/locales/pt-BR-NOTE-JEFF.json:1247"
+      "apps/frontend/src/locales/pt-BR-NOTE-JEFF.json:1247",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json"
     ],
     "risk": "low"
   },
@@ -1796,9 +1875,10 @@
     "file": "apps/frontend/src/views/HostsView-BACKUP-UX.vue",
     "baselineLine": 2264,
     "status": "context_reviewed",
-    "rationale": "Input artificial oculto e tabindex=-1 usado como isca de autofill; não é campo operável. Nomeá-lo não melhora interação e alterá-lo arrisca comportamento de gerenciadores de senha. Revisada a marcação específica em HostsView-BACKUP-UX.vue:2264; nenhum valor de credencial foi extraído.",
+    "rationale": "Proposta técnica de falso positivo, ainda sem transição no projeto principal. Campo auxiliar de usuário para desviar autofill em formulário de host na cópia BACKUP-UX; class hidden e tabindex=-1 retiram-no da interação visual e por Tab. Não é o campo real de credencial nem carece de label de um controle visível. A regra exige nome/associação para controles apresentados ao usuário; este controle com display:none não participa da árvore de acessibilidade. Não se usa tabindex=-1 isoladamente como justificativa.",
     "evidence": [
-      "apps/frontend/src/views/HostsView-BACKUP-UX.vue:2264"
+      "apps/frontend/src/views/HostsView-BACKUP-UX.vue:2264",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json"
     ],
     "risk": "low"
   },
@@ -1808,9 +1888,10 @@
     "file": "apps/frontend/src/views/HostsView-BACKUP-UX.vue",
     "baselineLine": 2265,
     "status": "context_reviewed",
-    "rationale": "Input artificial oculto e tabindex=-1 usado como isca de autofill; não é campo operável. Nomeá-lo não melhora interação e alterá-lo arrisca comportamento de gerenciadores de senha. Revisada a marcação específica em HostsView-BACKUP-UX.vue:2265; nenhum valor de credencial foi extraído.",
+    "rationale": "Proposta técnica de falso positivo, ainda sem transição no projeto principal. Campo auxiliar de senha para desviar autofill em formulário de host na cópia BACKUP-UX; class hidden e tabindex=-1 retiram-no da interação visual e por Tab. Não é o campo real de credencial nem carece de label de um controle visível. A regra exige nome/associação para controles apresentados ao usuário; este controle com display:none não participa da árvore de acessibilidade. Não se usa tabindex=-1 isoladamente como justificativa.",
     "evidence": [
-      "apps/frontend/src/views/HostsView-BACKUP-UX.vue:2265"
+      "apps/frontend/src/views/HostsView-BACKUP-UX.vue:2265",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json"
     ],
     "risk": "low"
   },
@@ -1820,9 +1901,10 @@
     "file": "apps/frontend/src/views/HostsView-NOTE-JEFF.vue",
     "baselineLine": 2007,
     "status": "context_reviewed",
-    "rationale": "Input artificial oculto e tabindex=-1 usado como isca de autofill; não é campo operável. Nomeá-lo não melhora interação e alterá-lo arrisca comportamento de gerenciadores de senha. Revisada a marcação específica em HostsView-NOTE-JEFF.vue:2007; nenhum valor de credencial foi extraído.",
+    "rationale": "Proposta técnica de falso positivo, ainda sem transição no projeto principal. Campo auxiliar de usuário para desviar autofill em formulário de host na cópia NOTE-JEFF; class hidden e tabindex=-1 retiram-no da interação visual e por Tab. Não é o campo real de credencial nem carece de label de um controle visível. A regra exige nome/associação para controles apresentados ao usuário; este controle com display:none não participa da árvore de acessibilidade. Não se usa tabindex=-1 isoladamente como justificativa.",
     "evidence": [
-      "apps/frontend/src/views/HostsView-NOTE-JEFF.vue:2007"
+      "apps/frontend/src/views/HostsView-NOTE-JEFF.vue:2007",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json"
     ],
     "risk": "low"
   },
@@ -1832,9 +1914,10 @@
     "file": "apps/frontend/src/views/HostsView-NOTE-JEFF.vue",
     "baselineLine": 2008,
     "status": "context_reviewed",
-    "rationale": "Input artificial oculto e tabindex=-1 usado como isca de autofill; não é campo operável. Nomeá-lo não melhora interação e alterá-lo arrisca comportamento de gerenciadores de senha. Revisada a marcação específica em HostsView-NOTE-JEFF.vue:2008; nenhum valor de credencial foi extraído.",
+    "rationale": "Proposta técnica de falso positivo, ainda sem transição no projeto principal. Campo auxiliar de senha para desviar autofill em formulário de host na cópia NOTE-JEFF; class hidden e tabindex=-1 retiram-no da interação visual e por Tab. Não é o campo real de credencial nem carece de label de um controle visível. A regra exige nome/associação para controles apresentados ao usuário; este controle com display:none não participa da árvore de acessibilidade. Não se usa tabindex=-1 isoladamente como justificativa.",
     "evidence": [
-      "apps/frontend/src/views/HostsView-NOTE-JEFF.vue:2008"
+      "apps/frontend/src/views/HostsView-NOTE-JEFF.vue:2008",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json"
     ],
     "risk": "low"
   },
@@ -1948,9 +2031,10 @@
     "file": "apps/frontend/src/views/SecretsView.vue",
     "baselineLine": 483,
     "status": "context_reviewed",
-    "rationale": "Input artificial oculto e tabindex=-1 usado como isca de autofill; não é campo operável. Nomeá-lo não melhora interação e alterá-lo arrisca comportamento de gerenciadores de senha. Revisada a marcação específica em SecretsView.vue:483; nenhum valor de credencial foi extraído.",
+    "rationale": "Proposta técnica de falso positivo, ainda sem transição no projeto principal. Campo auxiliar de usuário para desviar autofill em criação/edição de segredo; class hidden e tabindex=-1 retiram-no da interação visual e por Tab. Não é o campo real de credencial nem carece de label de um controle visível. A regra exige nome/associação para controles apresentados ao usuário; este controle com display:none não participa da árvore de acessibilidade. Não se usa tabindex=-1 isoladamente como justificativa.",
     "evidence": [
-      "apps/frontend/src/views/SecretsView.vue:483"
+      "apps/frontend/src/views/SecretsView.vue:483",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json"
     ],
     "risk": "low"
   },
@@ -1960,9 +2044,10 @@
     "file": "apps/frontend/src/views/SecretsView.vue",
     "baselineLine": 484,
     "status": "context_reviewed",
-    "rationale": "Input artificial oculto e tabindex=-1 usado como isca de autofill; não é campo operável. Nomeá-lo não melhora interação e alterá-lo arrisca comportamento de gerenciadores de senha. Revisada a marcação específica em SecretsView.vue:484; nenhum valor de credencial foi extraído.",
+    "rationale": "Proposta técnica de falso positivo, ainda sem transição no projeto principal. Campo auxiliar de senha para desviar autofill em criação/edição de segredo; class hidden e tabindex=-1 retiram-no da interação visual e por Tab. Não é o campo real de credencial nem carece de label de um controle visível. A regra exige nome/associação para controles apresentados ao usuário; este controle com display:none não participa da árvore de acessibilidade. Não se usa tabindex=-1 isoladamente como justificativa.",
     "evidence": [
-      "apps/frontend/src/views/SecretsView.vue:484"
+      "apps/frontend/src/views/SecretsView.vue:484",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json"
     ],
     "risk": "low"
   },
@@ -1972,9 +2057,10 @@
     "file": "apps/frontend/src/views/SecretsView.vue",
     "baselineLine": 540,
     "status": "context_reviewed",
-    "rationale": "Input artificial oculto e tabindex=-1 usado como isca de autofill; não é campo operável. Nomeá-lo não melhora interação e alterá-lo arrisca comportamento de gerenciadores de senha. Revisada a marcação específica em SecretsView.vue:540; nenhum valor de credencial foi extraído.",
+    "rationale": "Proposta técnica de falso positivo, ainda sem transição no projeto principal. Campo auxiliar de usuário para desviar autofill em rotação de segredo; class hidden e tabindex=-1 retiram-no da interação visual e por Tab. Não é o campo real de credencial nem carece de label de um controle visível. A regra exige nome/associação para controles apresentados ao usuário; este controle com display:none não participa da árvore de acessibilidade. Não se usa tabindex=-1 isoladamente como justificativa.",
     "evidence": [
-      "apps/frontend/src/views/SecretsView.vue:540"
+      "apps/frontend/src/views/SecretsView.vue:540",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json"
     ],
     "risk": "low"
   },
@@ -1984,9 +2070,10 @@
     "file": "apps/frontend/src/views/SecretsView.vue",
     "baselineLine": 541,
     "status": "context_reviewed",
-    "rationale": "Input artificial oculto e tabindex=-1 usado como isca de autofill; não é campo operável. Nomeá-lo não melhora interação e alterá-lo arrisca comportamento de gerenciadores de senha. Revisada a marcação específica em SecretsView.vue:541; nenhum valor de credencial foi extraído.",
+    "rationale": "Proposta técnica de falso positivo, ainda sem transição no projeto principal. Campo auxiliar de senha para desviar autofill em rotação de segredo; class hidden e tabindex=-1 retiram-no da interação visual e por Tab. Não é o campo real de credencial nem carece de label de um controle visível. A regra exige nome/associação para controles apresentados ao usuário; este controle com display:none não participa da árvore de acessibilidade. Não se usa tabindex=-1 isoladamente como justificativa.",
     "evidence": [
-      "apps/frontend/src/views/SecretsView.vue:541"
+      "apps/frontend/src/views/SecretsView.vue:541",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json"
     ],
     "risk": "low"
   },
@@ -2153,10 +2240,11 @@
     "file": "apps/frontend/src/components/TerminalPane.vue",
     "baselineLine": 1735,
     "status": "context_reviewed",
-    "rationale": "Área pre do modo cópia é selecionável e rolável; foco é deliberado para navegação/seleção de texto e não representa ação.",
+    "rationale": "Proposta técnica de falso positivo, ainda sem transição no projeto principal. O tabindex está no buffer de texto com rolagem overflow-auto, limitado pela área absoluta do terminal. Receber foco permite seleção e rolagem por teclado; não acrescenta uma parada em texto estático sem ação. A indicação focus-visible foi acrescentada em NA0148. A restrição genérica de S6845 não distingue esse uso legítimo de região rolável.",
     "evidence": [
       "tools/frontend/terminal-experience-playwright.cjs",
-      "apps/frontend/src/components/TerminalPane.vue"
+      "apps/frontend/src/components/TerminalPane.vue",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json"
     ],
     "risk": "low"
   },

@@ -1,0 +1,92 @@
+{
+  "project_issueadmin": {
+    "status": 200,
+    "usersCount": 0,
+    "credentialUserPresent": false
+  },
+  "groups_issueadmin": {
+    "status": 200,
+    "groups": []
+  },
+  "project_admin": {
+    "status": 200,
+    "usersCount": 0,
+    "credentialUserPresent": false
+  },
+  "groups_admin": {
+    "status": 200,
+    "groups": [
+      {
+        "name": "sonar-administrators",
+        "permissions": [
+          "admin"
+        ]
+      }
+    ]
+  },
+  "project_user": {
+    "status": 200,
+    "usersCount": 2,
+    "credentialUserPresent": true
+  },
+  "groups_user": {
+    "status": 200,
+    "groups": []
+  },
+  "globalAdmin": {
+    "status": 200,
+    "credentialUserPresent": false
+  },
+  "apiDescriptions": [
+    {
+      "key": "do_transition",
+      "description": "Do workflow transition on an issue. Requires authentication and Browse permission on project.<br/>\nThe transitions 'accept', 'wontfix' and 'falsepositive' require the permission 'Administer Issues'.<br/>\nThe transitions involving security hotspots require the permission 'Administer Security Hotspot'.\n",
+      "params": [
+        {
+          "key": "transition",
+          "description": "Transition",
+          "possibleValues": [
+            "confirm",
+            "unconfirm",
+            "reopen",
+            "resolve",
+            "falsepositive",
+            "wontfix",
+            "resolveasreviewed",
+            "resetastoreview",
+            "accept"
+          ]
+        }
+      ]
+    },
+    {
+      "key": "search",
+      "description": "Search for issues.<br>Requires the 'Browse' permission on the specified project(s). <br>For applications, it also requires 'Browse' permission on its child projects.<br/>When issue indexing is in progress returns 503 service unavailable HTTP code.",
+      "params": [
+        {
+          "key": "additionalFields",
+          "description": "Comma-separated list of the optional fields to be returned in response. Action plans are dropped in 5.5, it is not returned in the response.",
+          "possibleValues": [
+            "_all",
+            "comments",
+            "languages",
+            "rules",
+            "ruleDescriptionContextKey",
+            "transitions",
+            "actions",
+            "users"
+          ]
+        }
+      ]
+    }
+  ],
+  "sample": [
+    {
+      "status": "OPEN",
+      "type": "BUG",
+      "transitions": [
+        "confirm"
+      ]
+    }
+  ]
+}

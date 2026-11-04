@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 const { artifactPath } = require('../shared/private-artifacts.cjs')
+const { attachBrowserCoverage } = require('../coverage/playwright-coverage.cjs')
 /*
  * HA admin UI smoke via Playwright.
  *
@@ -339,6 +340,7 @@ async function runScenario(browser, scenario, viewport, captured) {
     localStorage.setItem('na_refresh_token', 'ha-smoke-refresh')
   }, fakeJwt())
   const page = await context.newPage()
+  await attachBrowserCoverage(page, browser)
   const consoleErrors = []
   const pageErrors = []
   page.on('console', (message) => {

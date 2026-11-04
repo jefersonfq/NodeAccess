@@ -1,0 +1,11 @@
+{
+  "project": "nodeaccess-review-lab-3bd0fbd1-5bec-4a8c-be04-2ad65fef69df",
+  "root": "/tmp/na0157-sonar-lab-057a3L",
+  "startedAt": "2026-11-04T15:38:10.602Z",
+  "checks": [],
+  "passed": false,
+  "error": "LAB_EXPECTED_FINDINGS_MISSING",
+  "actorCleaned": true,
+  "projectCleaned": true,
+  "finishedAt": "2026-11-04T15:38:35.820Z"
+}

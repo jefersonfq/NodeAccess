@@ -241,13 +241,6 @@
       "reason": "Material público e descartável de teste/CI; não usar em produção; revalidado na NA-0069 após integração."
     },
     {
-      "path": "tools/deploy/helm-ollama-kind-certification.sh",
-      "rule": "generic-api-key",
-      "line": 29,
-      "fileSha256": "b613f46164f6f06afaa7e5a205985f7c103bbf1de76f0f27caac77265ddb1280",
-      "reason": "Material público e descartável de teste/CI; não usar em produção; revalidado na NA-0149 após diff limitado a contexto Kubernetes explícito e cleanup do cluster criado, sem alterar literais."
-    },
-    {
       "path": "tools/deploy/helm-kind-certification-harness.sh",
       "rule": "generic-api-key",
       "line": 151,

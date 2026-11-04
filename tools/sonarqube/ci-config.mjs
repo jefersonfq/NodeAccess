@@ -47,7 +47,7 @@ export function assertConfiguration(root, settings, expectedHash) {
 export function verifyScannerContext(context, configuration, { root, revision }) {
   if (typeof context !== 'string' || !context.trim()) throw new Error('CI_SCANNER_CONTEXT_MISSING')
   const expected = { ...configuration.properties, 'sonar.projectBaseDir': root, 'sonar.projectVersion': revision,
-    'sonar.scm.disabled': 'true', 'sonar.qualitygate.wait': 'false' }
+    'sonar.scm.disabled': 'true', 'sonar.scm.revision': revision, 'sonar.qualitygate.wait': 'false' }
   const effective = {}
   for (const raw of context.split('\n')) {
     const line = raw.trim().replace(/^-\s+/, ''), at = line.indexOf('=')

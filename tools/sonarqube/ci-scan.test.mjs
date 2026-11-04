@@ -17,6 +17,7 @@ test('scanner launches pinned CLI with env-only token and verifies the matching 
 import assert from 'node:assert/strict';
 assert.ok(process.argv.includes('--package=@sonar/scan@5.0.2'));
 assert.ok(process.argv.includes('-Dsonar.scm.disabled=true'));
+assert.ok(process.argv.includes('-Dsonar.scm.revision='+'a'.repeat(40)));
 assert.ok(!process.argv.some(arg => arg.startsWith('-Dproject.settings=')));
 assert.match(readFileSync('sonar-project.properties','utf8'), /sonar.tests=test/);
 assert.ok(!process.argv.some(arg => arg.includes('private-token')));
@@ -38,7 +39,7 @@ writeFileSync(file, 'ceTaskId=task-fixture\\nprojectKey=nodeaccess\\nserverUrl='
   server.listen(0, '127.0.0.1'); await once(server, 'listening')
   t.after(() => { server.closeAllConnections(); server.close() })
   let scannerContext = ['sonar.projectKey=nodeaccess', 'sonar.sources=src', 'sonar.tests=test', 'sonar.test.inclusions=**/*.test.js', 'sonar.exclusions=sentinel/**',
-    `sonar.projectBaseDir=${directory}`, `sonar.projectVersion=${'a'.repeat(40)}`, 'sonar.scm.disabled=true', 'sonar.qualitygate.wait=false', 'sonar.token=must-not-export'].map(line => `  - ${line}`).join('\n')
+    `sonar.projectBaseDir=${directory}`, `sonar.projectVersion=${'a'.repeat(40)}`, 'sonar.scm.disabled=true', `sonar.scm.revision=${'a'.repeat(40)}`, 'sonar.qualitygate.wait=false', 'sonar.token=must-not-export'].map(line => `  - ${line}`).join('\n')
   const verified = []
   const input = { root: directory, settings, revision: 'a'.repeat(40), onConfiguration: data => verified.push(data),
     instance: { server: `http://127.0.0.1:${server.address().port}`, admin: async (path, params, method) => {

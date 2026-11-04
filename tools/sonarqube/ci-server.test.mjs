@@ -2,7 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { createServer } from 'node:http'
 import { once } from 'node:events'
-import { startServer, configureProject, api } from './ci-server.mjs'
+import { startServer, configureProject, createReviewActor, api } from './ci-server.mjs'
 
 async function fakeSonar(t, { privateProject = true, anonymous = false, token = true, status = 'UP', absentAnyone = false } = {}) {
   const calls = []
@@ -79,4 +79,26 @@ test('absent virtual Anyone group is tolerated only after explicit 404 and anony
   const tokens = await configureProject({ server, admin: api(server, 'admin', 'ephemeral') })
   assert.ok(tokens.scan); assert.ok(tokens.review)
   assert.ok(sonar.calls.some(call => call.path === '/api/issues/search' && !call.auth))
+})
+test('review actor has only project browse and issue review, with distinct credentials and explicit cleanup', async t => {
+  const sonar = await fakeSonar(t), server = `http://127.0.0.1:${sonar.port}`
+  const actor = await createReviewActor({ server, admin: api(server, 'admin', 'ephemeral') }, 'nodeaccess-review-lab')
+  const grants = sonar.calls.filter(c => c.path === '/api/permissions/add_user')
+  assert.deepEqual(grants.map(c => c.body.permission), ['user', 'issueadmin'])
+  assert.ok(grants.every(c => c.body.projectKey === 'nodeaccess-review-lab' && c.body.login.startsWith('ci-issue-review-')))
+  await actor.request('/api/issues/search', {}, 'GET')
+  assert.notEqual(sonar.calls.at(-1).auth, sonar.calls[0].auth)
+  assert.equal(sonar.calls.filter(c => c.path === '/api/user_tokens/generate').length, 0)
+  await actor.cleanup(); await actor.cleanup()
+  assert.equal(sonar.calls.filter(c => c.path === '/api/users/deactivate').length, 1)
+})
+test('partially created review actor is deactivated when a grant fails', async () => {
+  const calls = []
+  const instance = { server: 'http://127.0.0.1:9000', admin: async (path, params) => {
+    calls.push({ path, params })
+    if (params.permission === 'issueadmin') throw new Error('CI_GRANT_DENIED')
+  } }
+  await assert.rejects(createReviewActor(instance), /CI_GRANT_DENIED/)
+  assert.equal(calls.at(-1).path, '/api/users/deactivate')
+  assert.equal(calls.at(-1).params.login, calls[0].params.login)
 })

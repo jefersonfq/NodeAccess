@@ -137,7 +137,7 @@ try {
   assert.ok(token)
   const headers = { authorization: `Bearer ${token}` }
   const rootNode = await db.inventoryNode.findFirstOrThrow({ where: { rootTenantId: trial.tenantId! } })
-  assert.equal((await page.request.post(`${frontend}/api/v1/hosts`, { headers, data: { name: 'Forbidden destination', ip: boundary.forbiddenHost, port: 22, sshUser: 'visitor', authType: 'password', password: 'Never-used-fixture-2026', connectionMode: 'direct', scope: 'personal', inventoryParentId: rootNode.id } })).status(), 403)
+  assert.equal((await page.request.post(`${frontend}/api/v1/hosts`, { headers, data: { name: 'Forbidden destination', ip: boundary.forbiddenHost, port: 22, sshUser: 'visitor', authType: 'password', password: randomBytes(32).toString('hex'), connectionMode: 'direct', scope: 'personal', inventoryParentId: rootNode.id } })).status(), 403)
   console.log('Checking machine expansion and own-host CRUD through actual trial routes.')
   await page.getByLabel('Quantidade total desejada de máquinas de demonstração').fill('3')
   await page.getByRole('button', { name: 'Solicitar máquinas', exact: true }).click()

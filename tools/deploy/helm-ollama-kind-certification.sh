@@ -22,15 +22,9 @@ trap cleanup EXIT
 created_cluster=true
 "$KIND_BIN" load docker-image --name "$CLUSTER_NAME" "$OLLAMA_IMAGE"
 "$KUBECTL_BIN" --context "$KUBE_CONTEXT" create namespace "$NAMESPACE"
-"$KUBECTL_BIN" --context "$KUBE_CONTEXT" -n "$NAMESPACE" create secret generic nodeaccess-runtime \
-  --from-literal=DATABASE_URL=mysql://unused:unused@mysql:3306/unused \
-  --from-literal=REDIS_URL=redis://redis:6379 \
-  --from-literal=JWT_SECRET=nodeaccess-certification-secret-with-32-chars \
-  --from-literal=PEM_ENCRYPTION_KEY=0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
 
 common=(
   charts/nodeaccess -n "$NAMESPACE"
-  --set existingSecret=nodeaccess-runtime
   --set migrations.enabled=false --set tests.enabled=false
   --set api.enabled=false --set gateway.enabled=false --set frontend.enabled=false
   --set ollama.enabled=true --set ollama.persistence.enabled=true

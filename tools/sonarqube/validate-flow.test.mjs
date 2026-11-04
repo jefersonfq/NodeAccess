@@ -14,6 +14,7 @@ async function fixture(options = {}) {
  const issue = { key: 'issue-1', rule: 'javascript:S1', component: 'nodeaccess:example.js', hash: 'sample-hash' }
  mkdirSync(join(root, 'docs/sonarqube'), { recursive: true }); mkdirSync(join(root, 'tools/sonarqube'), { recursive: true }); mkdirSync(join(root, '.scannerwork')); mkdirSync(join(root, 'coverage'))
  writeFileSync(join(root, 'tools/sonarqube/example.test.mjs'), '')
+ writeFileSync(join(root, '.gitignore'), 'coverage/\n.scannerwork/\n.sonar-reports/\n')
  writeFileSync(join(root, '.scannerwork/report-task.txt'), 'stale-task-must-never-be-reused')
  writeFileSync(join(root, 'coverage/lcov.info'), 'stale-coverage-must-never-be-reused')
  writeFileSync(join(root, 'docs/sonarqube/accepted-findings.json'), JSON.stringify({ schemaVersion: 1, findings: [{ signature: signature(issue), count: 1, status: 'context_reviewed', reason: 'Synthetic isolated fixture', evidence: ['synthetic-test'] }] }))
@@ -25,6 +26,7 @@ async function fixture(options = {}) {
  const head = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim()
  let latestReads = 0, requests = []
  const server = http.createServer((req, res) => {
+  assert.equal(req.method, 'GET', 'Local validation must never mutate Sonar decisions')
   const url = new URL(req.url, 'http://localhost'); requests.push(url.pathname)
   assert.equal(req.headers.authorization, url.pathname === '/api/ce/task' ? 'Bearer analysis-synthetic' : 'Bearer reader-synthetic')
   let data
@@ -87,6 +89,16 @@ for (const [name, options, failure] of [
 test('same analysis/read token is rejected before executing tests', async () => {
  const f = await fixture()
  try { await assert.rejects(validate({ ...f, env: { ...f.env, SONAR_REVIEW_TOKEN: f.env.SONAR_TOKEN } }), /distinct/); assert.equal(f.requests.length, 0) } finally { await f.close() }
+})
+test('an invalid review manifest blocks local approval without granting or mutating permissions', async () => {
+ const f = await fixture()
+ try {
+  writeFileSync(join(f.root, 'docs/sonarqube/reviewed-false-positives.json'), JSON.stringify({ schemaVersion: 0, project: 'nodeaccess', findings: [] }))
+  const result = await validate(f)
+  assert.equal(result.passed, false); assert.equal(result.analysisVerified, true); assert.equal(result.reviewsVerified, false)
+  assert.ok(result.failures.includes('REVIEWED_FINDINGS_NOT_VERIFIED')); assert.equal(result.error, 'REVIEW_MANIFEST_INVALID')
+  assert.ok(!f.requests.some(path => /permissions|do_transition|add_comment/.test(path)))
+ } finally { await f.close() }
 })
 
 for (const options of [{ staleCoverage: true }, { wrongFingerprint: true }, { pipelineError: true }, { invalidLcov: true }]) {

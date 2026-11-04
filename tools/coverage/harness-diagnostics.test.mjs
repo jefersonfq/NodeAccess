@@ -6,7 +6,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { spawnSync } from 'node:child_process'
 const { parseHarnessDiagnostic, sanitizeHarnessDiagnostic, readHarnessDiagnostic } = createRequire(import.meta.url)('./harness-diagnostics.cjs')
-const scripts = ['sonar-frontend-review.cjs', 'table-review.cjs', 'terminal-experience-playwright.cjs', 'platform-settings-playwright.cjs', 'sonar-flow-coverage.cjs']
+const scripts = ['sonar-frontend-review.cjs', 'table-review.cjs', 'terminal-experience-playwright.cjs', 'platform-settings-playwright.cjs', 'sonar-flow-coverage.cjs', 'ha-playwright-smoke.cjs', 'audit-input-safety-playwright.cjs', 'terminal-highlight-budget.mjs']
 test('all allowed script frames yield only class and bounded coordinates', () => {
   for (const name of scripts) {
     const result = parseHarnessDiagnostic(`AssertionError [ERR_ASSERTION]: PRIVATE selector\n    at main (/PRIVATE/${name}:123:45)\n    at /secret/other.cjs:1:1`, `tools/${name}`)
