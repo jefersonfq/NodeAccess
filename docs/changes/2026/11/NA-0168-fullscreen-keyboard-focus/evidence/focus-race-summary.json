@@ -1,0 +1,27 @@
+{
+  "baseSha": "72ff4fcd7ba033a28243abbcada1e3a779de481f",
+  "testedCandidate": "LOCAL_WIP guard and deterministic harness",
+  "baseline": {
+    "exitCode": 1,
+    "assertion": "Late fullscreen callback must preserve local keyboard focus",
+    "actualActiveText": "",
+    "expectedActiveText": "Retomar teclado remoto"
+  },
+  "after": {
+    "exitCode": 0,
+    "checks": [
+      "Playback stays read-only; Tab leaves and Shift+Tab returns with visible focus",
+      "Delayed fullscreen frames preserve explicit local keyboard mode and return-button focus",
+      "Closed canvas hides local return action and forwards no keyboard input",
+      "Canvas preserves remote Tab/Escape; exit chord releases modifiers, moves focus and offers return; mobile hint fits",
+      "IPv6 typing feedback, incomplete save blocked with focus, repeated compression rejected, mapped IPv4 accepted"
+    ],
+    "status": "passed"
+  },
+  "transport": "intercepted API/WebSocket; actual Vue and keyboard events",
+  "limitations": [
+    "Proves an existing scheduling race compatible with hosted failure; does not recover the historical CI event timeline.",
+    "No real remote host; API and WebSocket use synthetic fixtures.",
+    "Sonar and final CI pending."
+  ]
+}

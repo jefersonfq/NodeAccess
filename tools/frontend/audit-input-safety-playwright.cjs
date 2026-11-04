@@ -101,12 +101,36 @@ async function main() {
     assert(sent.some(item => item.data === '3.key,2.97,1.0;'), 'Blur must release a held remote character')
     await page.keyboard.up('a')
     await page.getByRole('button', { name: 'Ocultar detalhes', exact: true }).click()
+    // Reproduce a late fullscreen callback after the user explicitly releases remote input.
+    // Only the harness controls frame delivery; product scheduling and timeouts stay unchanged.
+    await page.evaluate(() => {
+      const requestFrame = window.requestAnimationFrame.bind(window)
+      const queued = []
+      let hold = false
+      document.addEventListener('fullscreenchange', () => { hold = true }, { once: true, capture: true })
+      window.requestAnimationFrame = callback => requestFrame(timestamp => {
+        if (hold) queued.push(() => callback(timestamp))
+        else callback(timestamp)
+      })
+      window.__fullscreenFocusRace = { release: async () => {
+        const delayedFrames = queued.length
+        hold = false
+        window.requestAnimationFrame = requestFrame
+        for (const callback of queued) requestFrame(callback)
+        await new Promise(resolve => requestFrame(() => requestFrame(() => requestFrame(resolve))))
+        return delayedFrames
+      } }
+    })
     await page.getByRole('button', { name: 'Tela cheia', exact: true }).click()
-    await page.waitForFunction(() => Boolean(document.fullscreenElement))
+    await page.waitForFunction(() => Boolean(document.fullscreenElement), null, { polling: 20 })
     await canvas.focus()
     await page.keyboard.press('Control+Alt+Shift')
-    await page.waitForFunction(() => document.activeElement?.textContent?.trim() === 'Retomar teclado remoto')
+    await page.waitForFunction(() => document.activeElement?.textContent?.trim() === 'Retomar teclado remoto', null, { polling: 20 })
+    const delayedFrames = await page.evaluate(() => window.__fullscreenFocusRace.release())
+    assert(delayedFrames > 0, 'Fullscreen race must exercise delayed animation frames')
     await page.screenshot({ path: join(output, 'canvas-local-keyboard-fullscreen.png'), fullPage: true })
+    assert.equal(await page.evaluate(() => document.activeElement?.textContent?.trim()), 'Retomar teclado remoto', 'Late fullscreen callback must preserve local keyboard focus')
+    report.checks.push('Delayed fullscreen frames preserve explicit local keyboard mode and return-button focus')
     await page.evaluate(() => document.exitFullscreen())
     await page.waitForFunction(() => !document.fullscreenElement)
     await page.setViewportSize({ width: 390, height: 844 })

@@ -1123,7 +1123,7 @@ function handleFullscreenChange(): void {
     requestAnimationFrame(() => {
       requestAnimationFrame(() => {
         updateDisplaySize()
-        focusCanvas()
+        if (!localKeyboardMode.value) focusCanvas()
       })
     })
   })

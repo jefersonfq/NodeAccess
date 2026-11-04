@@ -386,3 +386,12 @@ Integrado NA0167 6022e40035db1bf597538e39e2e358089ffad3e6: namespace próprio, v
 Ran: primeira tentativa opt-in CSP sem laboratório retornou ERR_CONNECTION_REFUSED; sete contratos passaram, browser falhou por setup. Recriado Nginx descartável em localhost18667: oito testes passaram, zero skips; recursos próprios removidos. Lint estrito PASS. Segurança integrada PASS:45 fixtures exatas, zero pendentes, Semgrep899 alvos sem achados/erros.
 
 CI da base ae0624944:17 checks PASS, CSP FAIL conhecido, sonar-real FAIL com audit-input TIMEOUT na linha108 (foco após fullscreen); cobertura incompleta79,3%, sem violações novas. Falha em investigação; não atribuída a defeito de produto sem evidência. Nenhum gate foi reduzido.
+
+
+### 2026-11-04T18:47:07-03:00 — Corrida real de foco em tela cheia
+
+Integrado NA0168 addf8611f65e18c08724feddd534c398c9d8e45f após revisão independente PASS_WITH_WARNINGS. Baseline em Chromium/Vue reais: reter callbacks fullscreen, sair do teclado remoto e liberar callbacks remove botão e rouba foco (exit1). Guard de uma linha preserva localKeyboardMode ao executar callback, mantendo updateDisplaySize. Pós-patch e revisão independente: cinco checks PASS; lint/typecheck frontend PASS. APIs/WebSocket interceptados, sem homologação de host remoto. Prints antes/depois inspecionados pela raiz e disponíveis em docs canônico; sem alteração visual/layout/transporte.
+
+Governança da origem PASS; primeira estrutura de plano reprovada foi corrigida antes do SHA definitivo. Novo candidato exige full validation e CI. Baseline Sonar hash18f7da99e04529765c24a0623836e70957fdb6663cb117b6b899cd7d98577d83 intacto; GET confirmou sonar-real obrigatório. Homologação humana/merge/deploy pendentes.
+
+Ran integrado: lint estrito dos dois arquivos168 PASS; segurança PASS45 fixtures exatas/zero pendentes, Semgrep899 alvos/zero achados/erros. Prints fullscreen/mobile inspecionados. Candidato será congelado para full validation e CI.
