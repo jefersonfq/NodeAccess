@@ -3,6 +3,8 @@ import { join } from 'node:path'
 import { createRequire } from 'node:module'
 const { sanitizeFlowFailure } = createRequire(import.meta.url)('../frontend/sonar-flow-diagnostics.cjs')
 
+const { sanitizeHarnessDiagnostic } = createRequire(import.meta.url)('../coverage/harness-diagnostics.cjs')
+
 const failures = new Set([
   'VITEST_TESTS_FAILED', 'NODE_TESTS_FAILED', 'BROWSER_TESTS_FAILED',
   'BROWSER_RESULT_NOT_VERIFIED', 'VITEST_RESULT_NOT_VERIFIED', 'COVERAGE_PIPELINE_FAILED',
@@ -38,14 +40,20 @@ function browserDiagnostics(source) {
   for (const name of ['frontend', 'table', 'terminal', 'platform', 'flows']) {
     const run = runs.find(item => item?.name === name)
     if (!run) continue
-    const entry = { name }
-    if (Number.isSafeInteger(run.exitCode) && run.exitCode >= 0 && run.exitCode <= 255) entry.exitCode = run.exitCode
-    if (typeof run.timedOut === 'boolean') entry.timedOut = run.timedOut
-    const failure = name === 'flows' ? sanitizeFlowFailure(run.failure) : undefined
-    if (failure) entry.failure = failure
+    const entry = harnessDiagnostics(name, run)
     safe.harnesses.push(entry)
   }
   return safe
+}
+function harnessDiagnostics(name, run) {
+  const entry = { name }
+  if (Number.isSafeInteger(run.exitCode) && run.exitCode >= 0 && run.exitCode <= 255) entry.exitCode = run.exitCode
+  if (typeof run.timedOut === 'boolean') entry.timedOut = run.timedOut
+  const failure = name === 'flows' ? sanitizeFlowFailure(run.failure) : undefined
+  if (failure) entry.failure = failure
+  const diagnostic = sanitizeHarnessDiagnostic(run.diagnostic)
+  if (diagnostic) entry.diagnostic = diagnostic
+  return entry
 }
 function collectorDiagnostics(collector) {
   const safe = {}

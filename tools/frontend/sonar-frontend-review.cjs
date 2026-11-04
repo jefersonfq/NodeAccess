@@ -169,4 +169,4 @@ if (process.argv[2] === '--workflow') {
    return browser
  }
  require(path.join(__dirname,name))
-} else main().catch(error=>{console.error(error.message);process.exitCode=1})
+} else main().catch(error=>{console.error(error);process.exitCode=1})

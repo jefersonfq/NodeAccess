@@ -220,3 +220,15 @@ Ran na origem: depois da correção, navegação real Ubuntu24/Chromium1248/CPU2
 Integrado como patch o checkpoint NA-0139 f6c68a3b1198639b52cef8f574030316b3d2c39e. Ran na integração:35/35 contratos PASS. Fonte da aplicação permanece intacta neste delta. Análise de segurança integrada em execução; próxima validação completa será vinculada ao novo SHA, sem reaproveitar aprovação do candidato anterior.
 
 Ran antes do checkpoint: Gitleaks47/47 fixtures exatas e zero pendentes; Semgrep865 alvos, zero achados/erros; diffcheck PASS. Governança, cobertura e scanner do próximo SHA permanecem Planned.
+
+### 2026-11-03T21:37:19-03:00 — Sonar local aprovado; dois harnesses hospedados sob investigação
+
+Ran no de7817938: validação local completa PASS, Sonar gate OK, cobertura nova81,5%, duplicação0,06204%, zero novas violações/hotspots pendentes/condições ignoradas. Revisor independente confirmou fontes, fingerprint, políticas e quatro capturas sem regressão perceptível; fonte UI idêntica ao candidato anterior. CI falhou em agent-ui-e2e no terminal-experience linha1082 aguardando cabeçalho HTOP após zoom; footer havia sido verificado. NA-0140 investiga sincronização de geometria/frame sem presumir defeito de produto. O job sonar-real falhou na coleta, primeiro harness frontend exit1 sem timeout; Vitest/Node passaram. NA-0141 investiga a condição intermitente e diagnóstico seguro. Nenhum gate foi dispensado; PR permanece draft e merge bloqueado.
+
+### 2026-11-03T21:45:22-03:00 — Sincronização do zoom corrigida e diagnóstico ampliado
+
+Integrados patches NA-0140 8771b8dfd5abae7058ce69a766a8bef721989f36 e NA-0141 2c6a553d80fb34e74a340a9cba9fc8f95e5582a9, preservando as branches. Reprodução dirigida capturou40 linhas antes do zoom e emitiu o frame após fit real para37: cabeçalho ausente/rodapé presente, timeout original preservado. O harness agora espera resize novo, fonte esperada e dimensões coerentes, usando snapshot único; não altera produto ou transporte. Terminal completo Ubuntu1248/CPU2 passou em60,87s, cabeçalho/rodapé presentes,37x149, gap11px, frame45ms e zero erros. Revisor reproduziu contratos; limitações da reprodução dirigida estão documentadas.
+
+A falha histórica do primeiro harness frontend não foi reproduzida. Plano fixo de três controles Ubuntu1248/cache frio/CPU2 passou (21,24s/19,93s/18,46s),44 labels+10 controles por execução. NA-0141 é diagnóstico: preserva stack apenas no log privado e projeta categoria/linha/coluna limitadas para cinco scripts permitidos, com leitura regular O_NOFOLLOW/O_NONBLOCK limitada e dupla sanitização. Não altera waits, asserções ou gates e não declara correção causal dessa ocorrência.39 contratos autor/revisor e lint PASS. Na integração, união de41 contratos PASS; análise de segurança em execução. Próximo passo: congelar novo SHA e repetir gates completos; homologação humana permanece Manual.
+
+Ran antes do checkpoint: Gitleaks47/47 fixtures exatas e zero pendentes; Semgrep867 alvos, zero achados/erros; diffcheck PASS. Cobertura, scanner e CI do próximo SHA ainda Planned.

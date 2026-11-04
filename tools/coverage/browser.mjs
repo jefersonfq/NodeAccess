@@ -9,6 +9,7 @@ import { chromium } from 'playwright'
 import { createRequire } from 'node:module'
 import { randomUUID } from 'node:crypto'
 const { readFlowFailure } = createRequire(import.meta.url)('../frontend/sonar-flow-diagnostics.cjs')
+const { readHarnessDiagnostic } = createRequire(import.meta.url)('./harness-diagnostics.cjs')
 const { manualPlugin } = createRequire(import.meta.url)('../manual/build.cjs')
 export const requiredBrowserHarnesses = [
   ['frontend', 'tools/frontend/sonar-frontend-review.cjs'], ['table', 'tools/sonarqube/table-review.cjs'],
@@ -104,7 +105,8 @@ export async function collectBrowserCoverage({ root = projectRoot, env = process
       if (name === 'flows') rmSync(join(directory, 'report.json'), { force: true })
       const run = await execute(root, script, childEnv, join(output, `${name}.log`))
       const failure = name === 'flows' && (run.exitCode !== 0 || run.timedOut) ? readFlowFailure(directory) : undefined
-      result.harnesses.push({ name, ...run, ...(failure ? { failure } : {}) })
+      const diagnostic = run.exitCode !== 0 || run.timedOut ? readHarnessDiagnostic(join(output, `${name}.log`), script) : undefined
+      result.harnesses.push({ name, ...run, ...(failure ? { failure } : {}), ...(diagnostic ? { diagnostic } : {}) })
       if (run.exitCode !== 0 || run.timedOut) throw new Error(`Browser coverage harness failed: ${name}`)
     }
     result.status = 'passed'

@@ -81,3 +81,17 @@ test('flow failure retains only known stage and class through CI projection', t 
   f.write({ collectors: { browser: { harnesses: [{ name: 'flows', failure: { stage: 'PRIVATE', category: 'OTHER' } }, { name: 'frontend', failure: { stage: 'setup', category: 'OTHER' } }] } } })
   assert.deepEqual(coverageDiagnostics(f.root).collectors.browser.harnesses, [{ name: 'frontend' }, { name: 'flows' }])
 })
+
+test('CI revalidates generic stack coordinates and keeps structured flow failure independently', t => {
+  const f = fixture(t)
+  f.write({ collectors: { browser: { harnesses: [
+    { name: 'frontend', exitCode: 1, diagnostic: { category: 'ASSERTION', line: 137, column: 5, message: 'PRIVATE' } },
+    { name: 'table', diagnostic: { category: 'OTHER', line: 'PRIVATE', column: 1 } },
+    { name: 'flows', failure: { stage: 'jira', category: 'TIMEOUT' }, diagnostic: { category: 'TIMEOUT', line: 4, column: 3 } },
+  ] } } })
+  assert.deepEqual(coverageDiagnostics(f.root).collectors.browser.harnesses, [
+    { name: 'frontend', exitCode: 1, diagnostic: { category: 'ASSERTION', line: 137, column: 5 } },
+    { name: 'table' },
+    { name: 'flows', failure: { stage: 'jira', category: 'TIMEOUT' }, diagnostic: { category: 'TIMEOUT', line: 4, column: 3 } },
+  ])
+})

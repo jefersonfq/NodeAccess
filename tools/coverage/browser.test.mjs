@@ -184,3 +184,15 @@ test('flow diagnostics are current, sanitized and never turn a failed run into s
   assert.deepEqual(result.harnesses.at(-1), { name: 'flows', exitCode: 1, timedOut: false, failure: { stage: 'hosts-destination', category: 'ASSERTION' } })
   assert.doesNotMatch(JSON.stringify(result), /PRIVATE/)
 })
+
+test('failed frontend retains bounded stack coordinates without private text or changing failure', async t => {
+  const root = fixture(t), vite = fakeVite()
+  const result = await collectBrowserCoverage({ root, env: {}, create: vite.create, execute: async (_root, script, _env, logfile) => {
+    assert.equal(script, 'tools/frontend/sonar-frontend-review.cjs')
+    writeFileSync(logfile, 'AssertionError [ERR_ASSERTION]: PRIVATE selector\n    at main (/PRIVATE/sonar-frontend-review.cjs:137:5)')
+    return { exitCode: 1, timedOut: false }
+  } })
+  assert.equal(result.status, 'failed'); assert.equal(vite.closed, true)
+  assert.deepEqual(result.harnesses, [{ name: 'frontend', exitCode: 1, timedOut: false, diagnostic: { category: 'ASSERTION', line: 137, column: 5 } }])
+  assert.doesNotMatch(JSON.stringify(result), /PRIVATE|selector/)
+})

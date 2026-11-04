@@ -3,6 +3,7 @@ const { artifactPath } = require('../shared/private-artifacts.cjs')
 const fs = require('node:fs')
 const { chromium } = require('playwright')
 const { assertFreshSftpListing } = require('./terminal-sftp-assertions.cjs')
+const { observeTerminalZoom } = require('./terminal-zoom-observer.cjs')
 const { attachBrowserCoverage } = require('../coverage/playwright-coverage.cjs')
 
 const FRONTEND = (process.env.FRONTEND_BASE || 'http://127.0.0.1:5174').replace(/\/$/, '')
@@ -1063,7 +1064,7 @@ async function main() {
   await inlineAi.getByRole('button', { name: 'Fechar assistente' }).click()
   await inlineAi.waitFor({ state: 'detached' })
 
-  const before = await container.evaluate((element) => ({ rows: Number(element.dataset.terminalRows), cols: Number(element.dataset.terminalCols), rect: element.getBoundingClientRect().toJSON() }))
+  const before = await container.evaluate((element) => ({ rows: Number(element.dataset.terminalRows), cols: Number(element.dataset.terminalCols), rect: element.getBoundingClientRect().toJSON(), resizeCount: window.__terminalExperience.resizeMessages.length }))
   const initialFont = await page.evaluate(() => Number(localStorage.getItem('na_term_fontSize') || 14))
   const box = await container.boundingBox()
   await page.keyboard.down('Control')
@@ -1072,9 +1073,10 @@ async function main() {
   await page.keyboard.up('Control')
   await page.getByText(`Zoom do terminal: ${initialFont + 1}px`, { exact: true }).waitFor()
   await page.waitForFunction((font) => Number(localStorage.getItem('na_term_fontSize')) === font, initialFont + 1)
-  await page.waitForFunction(() => window.__terminalExperience.resizeMessages.length >= 2)
-
-  const zoomedRows = await container.evaluate((element) => Number(element.dataset.terminalRows))
+  const zoomHandle = await page.waitForFunction(observeTerminalZoom, { resizeCount: before.resizeCount, rowsBefore: before.rows, expectedFont: initialFont + 1 })
+  const zoomSnapshot = await zoomHandle.jsonValue()
+  await zoomHandle.dispose()
+  const zoomedRows = zoomSnapshot.rows
   const resizeBeforeAlternateScreen = await page.evaluate(() => window.__terminalExperience.resizeMessages.length)
   const htopStartedAt = Date.now()
   await page.evaluate((rows) => window.__emitHtopFrame(rows), zoomedRows)

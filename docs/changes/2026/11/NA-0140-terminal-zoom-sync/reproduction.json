@@ -1,0 +1,43 @@
+{
+  "schemaVersion": 1,
+  "baseSha": "de7817938134c0c1e08e00833b671af937ad5864",
+  "runtime": {
+    "node": "24.22.1",
+    "chromium": 1248,
+    "cpus": 2,
+    "network": "none"
+  },
+  "naturalControl": {
+    "status": "passed",
+    "rowsBefore": 40,
+    "resizeCountBefore": 62,
+    "capturedRows": 37,
+    "resizeCountCaptured": 63,
+    "startedAt": "2026-11-04T00:36:49.523Z",
+    "finishedAt": "2026-11-04T00:37:48.041Z"
+  },
+  "controlledInterleaving": {
+    "status": "reproduced",
+    "method": "Private in-memory harness instrumentation retains pre-zoom rows and waits for actual smaller DOM rows before the unchanged ANSI frame. No product source changed.",
+    "capturedRows": 40,
+    "actualRows": 37,
+    "actualCols": 149,
+    "headerVisible": false,
+    "footerVisible": true,
+    "originalTimeoutMs": 30000,
+    "childExitCode": 1,
+    "startedAt": "2026-11-04T00:38:21.783Z",
+    "finishedAt": "2026-11-04T00:39:45.840Z"
+  },
+  "limitation": "Controlled scheduling proves the failure mechanism, not spontaneous reproduction or exact historical CI event timing.",
+  "candidateSources": [
+    {
+      "file": "tools/frontend/terminal-experience-playwright.cjs",
+      "sha256": "945bb49b209a7939461c00005b2a4d866c83d9a3ca5ff3e934951b7a5b183bb3"
+    },
+    {
+      "file": "tools/frontend/terminal-zoom-observer.cjs",
+      "sha256": "c2f903aff5610e7e9d84f1029129d03ee84ecaa57238b192d880a6a512d1133a"
+    }
+  ]
+}
