@@ -79,7 +79,7 @@ test('source identity is stable across Windows and Linux checkout line endings',
 
 test('release preparation CLI imports and rejects stale packages', t => {
   const f = fixture(t)
-  for (const path of ['apps/agent/installer/release-signing.mjs', 'apps/agent/installer/windows/artifacts.mjs', 'scripts/release/prepare-agent-windows.mjs']) {
+  for (const path of ['tools/shared/trusted-executable.cjs', 'apps/agent/installer/release-signing.mjs', 'apps/agent/installer/windows/artifacts.mjs', 'scripts/release/prepare-agent-windows.mjs']) {
     mkdirSync(dirname(join(f.root, path)), { recursive: true })
     copyFileSync(join(projectRoot, path), join(f.root, path))
   }
@@ -88,7 +88,8 @@ test('release preparation CLI imports and rejects stale packages', t => {
   const run = () => spawnSync(process.execPath, [join(f.root, 'scripts/release/prepare-agent-windows.mjs')], {
     env: { ...process.env, AGENT_WINDOWS_RELEASE_REPO: '', AGENT_WINDOWS_ARTIFACTS_DIR: f.dist }, encoding: 'utf8',
   })
-  assert.equal(run().status, 0)
+  const imported = run()
+  assert.equal(imported.status, 0, imported.stderr)
   f.write('apps/agent/src/index.js', 'new version of code')
   const result = run()
   assert.equal(result.status, 1)
@@ -97,7 +98,7 @@ test('release preparation CLI imports and rejects stale packages', t => {
 
 test('release script fails before creating an output directory for stale Windows artifacts', { skip: process.platform === 'win32' }, t => {
   const f = fixture(t)
-  for (const path of ['apps/agent/installer/release-signing.mjs', 'apps/agent/installer/windows/artifacts.mjs', 'scripts/release/prepare-agent-windows.mjs', 'scripts/release/build-release.sh', 'scripts/release/release-provenance.mjs', 'scripts/release/prepare-agents.mjs', 'apps/agent/installer/platforms.mjs', 'apps/agent/installer/platform-artifacts.mjs']) {
+  for (const path of ['tools/shared/trusted-executable.cjs', 'apps/agent/installer/release-signing.mjs', 'apps/agent/installer/windows/artifacts.mjs', 'scripts/release/prepare-agent-windows.mjs', 'scripts/release/build-release.sh', 'scripts/release/release-provenance.mjs', 'scripts/release/prepare-agents.mjs', 'apps/agent/installer/platforms.mjs', 'apps/agent/installer/platform-artifacts.mjs']) {
     mkdirSync(dirname(join(f.root, path)), { recursive: true })
     copyFileSync(join(projectRoot, path), join(f.root, path))
   }

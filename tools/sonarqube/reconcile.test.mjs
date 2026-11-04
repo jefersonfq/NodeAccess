@@ -215,3 +215,21 @@ test('deleting a tracked manifest cannot bypass review verification', async t =>
   await assert.rejects(reconcile({ ...f.args, dryRun: false }), /REVIEW_CHECKOUT_CHANGED/)
   assert.deepEqual(f.calls, [])
 })
+
+for (const state of ['FIXED', 'OPEN', 'CONFIRMED', 'ACCEPTED', 'FALSE_POSITIVE', 'IN_SANDBOX']) {
+  test(`historical range in ${state} is handled without mutating unrelated issues`, async t => {
+    const f = fixture(t)
+    const historical = { ...f.issue, key: 'historical', issueStatus: state,
+      textRange: { ...f.issue.textRange, startLine: 2, endLine: 2 } }
+    f.state.issues.push(historical)
+    if (state === 'FIXED') {
+      const result = await reconcile({ ...f.args, dryRun: false })
+      assert.equal(result.changed, 1)
+      assert.equal(historical.issueStatus, 'FIXED')
+      assert.ok(writes(f).every(call => call.params.issue === f.issue.key))
+    } else {
+      await assert.rejects(reconcile({ ...f.args, dryRun: false }), /REVIEW_UNREVIEWED_OCCURRENCE/)
+      assert.deepEqual(writes(f), [])
+    }
+  })
+}

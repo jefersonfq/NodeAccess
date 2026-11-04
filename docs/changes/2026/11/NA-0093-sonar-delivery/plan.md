@@ -95,3 +95,5 @@ Aceitação complementar: evidências vinculadas às 294 ocorrências; correçõ
 
 
 Correções necessárias NA0155–0157: ampliar contratos HA e oito harnesses obrigatórios com cobertura real; eliminar dois segredos sintéticos desnecessários; reproduzir revisões individuais em CI descartável com revisor efêmero distinto e verificação somente leitura local. Manifesto exige identidade, fonte, regra, range e análise exatos, falhando diante de divergências. Não ampliar baseline nem aceitar riscos operacionais. Aplicação local depende de autorização específica para permissão temporária após apresentação do candidato validado.
+
+Correções necessárias NA0158–0160: distinguir histórico FIXED de ocorrências atuais no replay, completar dependência das fixtures de release e preparar propriedade do webroot descartável sob runner não privilegiado. Preservar matcher ativo e segurança; A/B real e CI final obrigatórios.

@@ -110,7 +110,7 @@ export async function reconcile({ root, project = 'nodeaccess', analysisId, revi
     const groups = new Set(manifest.findings.map(item => group(item))), expected = new Set(manifest.findings.map(item => identity(item)))
     for (const issue of issues) {
       const item = { rule: issue.rule, file: issue.component.slice(project.length + 1), hash: issue.hash, range: issue.textRange }
-      if (groups.has(group(item)) && !expected.has(identity(item))) fail('UNREVIEWED_OCCURRENCE')
+      if (issue.issueStatus !== 'FIXED' && groups.has(group(item)) && !expected.has(identity(item))) fail('UNREVIEWED_OCCURRENCE')
     }
     for (const item of manifest.findings) {
       const candidates = issues.filter(issue => identity({ rule: issue.rule, file: issue.component.slice(project.length + 1),

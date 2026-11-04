@@ -317,3 +317,12 @@ Ran: diagnóstico integrado ampliado3.609 Vitest PASS,125 opt-in ignorados, oito
 Segurança integrada PASS:45 fixtures exatas, zero pendentes, Semgrep894 alvos/zero achados; removida allowance Helm obsoleta, sem adicionar exceções. Manifesto contém206 propostas individuais verificadas contra fontes/regras; cinco ranges dependem de confirmação pelo scanner novo. Baseline aceito preservado. Não houve concessão de issueadmin nem alterações no projeto Sonar principal. Ativação local exige autorização específica para revisor temporário; token de leitura permanece somente leitura.
 
 Documentos e tabela em docs do projeto atual. Governança da frente0157 corrigida e validada. Próximo passo: checkpoint, gates e scanner no novo SHA, CI do PR draft e decisão explícita sobre aplicação local das revisões. Sem merge, homologação humana ou implantação na VPS.
+
+
+### 2026-11-04T14:18:01-03:00 — Correções das falhas hospedadas
+
+Usuário pediu continuar. Scanner9a47 confirmado: cobertura Sonar80,4% PASS, duplicação0,07601% PASS,209abertos e9 novos falsos positivos propostos;206match exatos, cinco ranges movidos confirmados e dois segredos FIXED. Gate continua ERROR, sem transições. CI falhou replay por histórico FIXED, instalador Linux/Windows por helper ausente na fixture, e TLS por webroot UID1001. Demais checks concluídos PASS; macOS cancelado pelo fail-fast.
+
+Integradas branches NA0158 2436cf797 (41contratos PASS), NA0159 5bc84c11b (19testes PASS) e NA0160 84979965c (A/B TLS real não privilegiado:base HTTP01_LOCAL_FAILED/candidato PASS com ACME,SSH,WS e recuperação). Lint quatro arquivos PASS0warnings. Sem relaxar gates, matcher ativo ou propriedade exigida pelo worker. Primeira tentativa TLS usou tag antiga e falhou antes do cenário; corrigida seleção da imagem, hashes conferidos.
+
+Revisores delegados ficaram indisponíveis por limite da ferramenta; não inferir revisão independente destes três incrementos. Revisão da raiz e testes executados; revisão independente complementar e CI final pendentes. Próximo passo: checkpoint, nova análise e checks; nenhuma publicação em produção ou homologação.
