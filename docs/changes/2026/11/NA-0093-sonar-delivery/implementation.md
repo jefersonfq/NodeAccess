@@ -395,3 +395,10 @@ Integrado NA0168 addf8611f65e18c08724feddd534c398c9d8e45f após revisão indepen
 Governança da origem PASS; primeira estrutura de plano reprovada foi corrigida antes do SHA definitivo. Novo candidato exige full validation e CI. Baseline Sonar hash18f7da99e04529765c24a0623836e70957fdb6663cb117b6b899cd7d98577d83 intacto; GET confirmou sonar-real obrigatório. Homologação humana/merge/deploy pendentes.
 
 Ran integrado: lint estrito dos dois arquivos168 PASS; segurança PASS45 fixtures exatas/zero pendentes, Semgrep899 alvos/zero achados/erros. Prints fullscreen/mobile inspecionados. Candidato será congelado para full validation e CI.
+
+
+### 2026-11-04T19:04:42-03:00 — Integridade das revisões após correção de foco
+
+4c291a294:3629 Vitest PASS/125skip,649 Node PASS/6skip,229contratosSonarPASS,oito fluxos ChromiumPASS; diff80,2156%,scannerQualityGateOK80,1%,zeroachadosinesperados. Validação geral FAIL exclusivamente REVIEW_SOURCE_CHANGED: dois arquivos168 mudaram hashes de fonte de revisões existentes. CI18PASS/umskip,sonar-realFAIL. Não tratar gateisoladoOK comoentregaaprovada.
+
+Revisão independente individual PASS confirmou SQ0240(canvasinterativo) e NA0157-DOCUMENTATION-IP(literalRFC5737sintético) continuamFP. GETSonar confirmou hashesSonar/rules/ranges e estadoFALSE_POSITIVE. Atualizados somente sourceSha256 dos dois registros e range149→173 do literal; IDs/regras/hashesSonar/hashesregras/justificativas preservados. Nenhum replay/transição ou aceiteMD5; nenhuma ampliação de baseline. Novo commit exige gates novamente.

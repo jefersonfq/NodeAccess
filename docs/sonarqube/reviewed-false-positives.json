@@ -3752,7 +3752,7 @@
         "startOffset": 12,
         "endOffset": 14
       },
-      "sourceSha256": "0596e14fb850bdffb25fa147f546cee1d160070a0436ce785d87cb44f866200e",
+      "sourceSha256": "7696386f811f7c5da803d67b6c433eaa69ac074fe1752f2fe8ce40de0ac9ff64",
       "ruleSha256": "d5314ec06fed05cc86c1c822a3a41489719d4870c42f7f30974564c09172f512",
       "rationale": "S6843 proíbe atribuir semântica não interativa a elemento interativo. Aqui application descreve uma superfície de desktop remoto com teclado, ponteiro, roda e colagem, sem padrão de widget nativo equivalente. A definição normativa de application prevê entrada personalizada e não descreve conteúdo estático. O canvas não está sendo convertido semanticamente em artigo/imagem; a generalização do analisador é inadequada neste caso. NA0148 adicionou instrução de saída, liberação das teclas e retorno local, preservando Tab/Escape remotos.",
       "evidence": [
@@ -3861,12 +3861,12 @@
       "file": "tools/frontend/audit-input-safety-playwright.cjs",
       "hash": "e05d824f39b7c67fe9fdc327ae2c249d",
       "range": {
-        "startLine": 149,
-        "endLine": 149,
+        "startLine": 173,
+        "endLine": 173,
         "startOffset": 18,
         "endOffset": 40
       },
-      "sourceSha256": "66cac649b949c67beb12d475486e1298a8a5b284c3c039b6f1d8a843be0f8c7e",
+      "sourceSha256": "1e8b1c7dff09606663bbe2658e7d78fdae6405a35189b21368a6c5fa321d5876",
       "ruleSha256": "47a5ad141f589cc10929bc37af67e1b72748bafba5026868b88f10f0dc5977a0",
       "rationale": "Literal ::ffff:192.0.2.1/128 é IPv6 com IPv4 mapeado do bloco normativo de documentação 192.0.2.0/24 (RFC5737), usado como entrada sintética do formulário com API interceptada. Não é infraestrutura real nem destino externo a configurar. A fixture verifica aceitação de IPv4 mapeado válido; não cria host nem executa conexão SSH para esse endereço. A definição instalada S1313 exclui expressamente o bloco de documentação.",
       "evidence": [
