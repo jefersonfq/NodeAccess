@@ -1,6 +1,7 @@
 # Reavaliação das 294 ocorrências
 
-Estado atual: **Quality Gate OK** no commit 630040e6c. Revisão autorizada aplicada a206falsos positivos; conta temporária desativada. Dos294itens originais,197são falsos positivos confirmados,96estão FIXED e1risco operacional permanece aberto. O catálogo histórico completo contém569ocorrências. Os registros abaixo preservam avaliações anteriores; os estados atuais estão no JSON/CSV e na tabela geral. CI hospedado e homologação humana permanecem pendentes.
+Estado atual: **Quality Gate OK** no commit ae0624944. Revisão autorizada aplicada a206falsos positivos; conta temporária desativada. Dos294itens originais,197são falsos positivos confirmados,96estão FIXED e1risco operacional permanece aberto. O catálogo histórico completo contém569ocorrências. Os registros abaixo preservam avaliações anteriores; os estados atuais estão no JSON/CSV e na tabela geral. CI hospedado e homologação humana permanecem pendentes.
+
 
 
 

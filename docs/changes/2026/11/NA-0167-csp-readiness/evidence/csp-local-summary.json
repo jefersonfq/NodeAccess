@@ -1,0 +1,82 @@
+{
+  "baseSha": "ae062494453585d5fec49da60786fb62257a6490",
+  "candidate": "LOCAL_WIP before commit",
+  "environment": "isolated worktree167; synthetic fixtures; real Nginx and Monaco; no production traffic",
+  "checks": [
+    {
+      "transport": "http",
+      "exitCode": 0,
+      "passed": true,
+      "probe": {
+        "editorReady": true,
+        "workerChecked": true,
+        "sameOriginWebSocket": true,
+        "evalBlocked": true
+      },
+      "inlineExecuted": false,
+      "evalExecuted": false,
+      "violations": [
+        {
+          "directive": "script-src-elem",
+          "blocked": "inline",
+          "disposition": "enforce"
+        },
+        {
+          "directive": "script-src",
+          "blocked": "eval",
+          "disposition": "enforce"
+        }
+      ],
+      "diagnostics": []
+    },
+    {
+      "transport": "https",
+      "exitCode": 0,
+      "passed": true,
+      "probe": {
+        "editorReady": true,
+        "workerChecked": true,
+        "sameOriginWebSocket": true,
+        "evalBlocked": true
+      },
+      "inlineExecuted": false,
+      "evalExecuted": false,
+      "violations": [
+        {
+          "directive": "script-src-elem",
+          "blocked": "inline",
+          "disposition": "enforce"
+        },
+        {
+          "directive": "script-src",
+          "blocked": "eval",
+          "disposition": "enforce"
+        }
+      ],
+      "diagnostics": []
+    },
+    {
+      "test": "controlled CDN DNS unavailability",
+      "exitCode": 1,
+      "expectedFailure": true,
+      "report": {
+        "passed": false,
+        "phase": "editor-load",
+        "category": "ERROR",
+        "probeError": "LOADER_UNAVAILABLE",
+        "diagnostics": [
+          {
+            "kind": "request-failed",
+            "resource": "monaco",
+            "code": "ERR_NAME_NOT_RESOLVED"
+          }
+        ]
+      }
+    }
+  ],
+  "limitations": [
+    "Synthetic local evidence does not establish the historical hosted CDN failure cause.",
+    "Integrated Sonar and final hosted CI remain pending.",
+    "Local WS fixture Node24.21 differs from CI Node24.22.1."
+  ]
+}

@@ -372,3 +372,17 @@ CI630040 repetiu asserção imediata de overflow após resize, antes deLCOV; dem
 Novo candidato precisa gates completos eCI; relatório630040 preservado. Segurança integrada do patch emexecução; sem homologação/merge/deploy.
 
 Ran em 2026-11-04T18:17:36-03:00: patch166 integrado, dois contratosNodePASS+umskipopt-in esperado; ensaio explícitoChromium5PASS/0skip, incluindooverflowpersistente reprovado pelo helper como esperado. Segurança integradaPASS:45fixturesexatas/zeropendentes,Semgrep898alvos/zeroachados/erros. Candidato pronto para novoSHA; cobertura/Sonar/CI completos aindaPlanned.
+
+
+### 2026-11-04T18:38:31-03:00 — Prontidão CSP e confirmação Sonar
+
+Base ae062494453585d5fec49da60786fb62257a6490 validada localmente: 3629 Vitest, 642 Node, 229 contratos Sonar e oito harnesses Chromium passaram; 125/5 skips opt-in documentados. Sonar: 362 FIXED, 206 FALSE_POSITIVE, um OPEN (MD5 TACACS); catálogo original294:96/197/1. CI CSP falhou duas vezes: timeout e DOM confundido com editor; causa de rede não comprovada.
+
+Integrado NA0167 6022e40035db1bf597538e39e2e358089ffad3e6: namespace próprio, validação explícita da instância, erro de carga interrompe teste e diagnóstico categórico sem URLs. Sem mudar CSP, timeout ou asserções. Origem: HTTP/HTTPS reais PASS, negativo DNS reprova conforme esperado, oito testes PASS e revisão independente PASS_WITH_WARNINGS. Evidência sanitizada na frente167. Novo candidato exige validação e CI; homologação humana, merge e deploy não executados.
+
+
+### 2026-11-04T18:40:19-03:00 — Revalidação integrada e CI
+
+Ran: primeira tentativa opt-in CSP sem laboratório retornou ERR_CONNECTION_REFUSED; sete contratos passaram, browser falhou por setup. Recriado Nginx descartável em localhost18667: oito testes passaram, zero skips; recursos próprios removidos. Lint estrito PASS. Segurança integrada PASS:45 fixtures exatas, zero pendentes, Semgrep899 alvos sem achados/erros.
+
+CI da base ae0624944:17 checks PASS, CSP FAIL conhecido, sonar-real FAIL com audit-input TIMEOUT na linha108 (foco após fullscreen); cobertura incompleta79,3%, sem violações novas. Falha em investigação; não atribuída a defeito de produto sem evidência. Nenhum gate foi reduzido.

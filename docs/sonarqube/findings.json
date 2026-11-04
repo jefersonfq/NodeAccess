@@ -37,7 +37,7 @@
       "signature": "4a4424ad79e8943584678f778ef8209268b1a0e99974e2ef04a2fe9061864f8c",
       "status": "fixed",
       "observed": "absent",
-      "rationale": "Estado FIXED confirmado pelo scanner final. Decisão operacional pendente; não houve aceite automático. O default de auditoria permanece em /tmp. A gravação usa diretório dedicado, proprietário do serviço, 0700, validação de symlinks e arquivo exclusivo 0600; não reproduzi escrita insegura. Persistência após limpeza/reboot, mesmo UID entre componentes e proteção do diretório em produção requerem decisão operacional explícita.",
+      "rationale": "Estado FIXED confirmado pelo scanner 630040 após NA-0163: default persistente privado; overrides preservados e migração documentada em docs/OPERATIONS-private-storage.md. Avaliação histórica anterior à correção: Decisão operacional pendente; não houve aceite automático. O default de auditoria permanece em /tmp. A gravação usa diretório dedicado, proprietário do serviço, 0700, validação de symlinks e arquivo exclusivo 0600; não reproduzi escrita insegura. Persistência após limpeza/reboot, mesmo UID entre componentes e proteção do diretório em produção requerem decisão operacional explícita.",
       "evidence": [
         "apps/backend/src/config/env.ts",
         "apps/backend/src/shared/private-storage.ts",
@@ -62,7 +62,7 @@
       "signature": "a095561b87c0959bef7f2eaea4b450323b4f2873a5275818d2d57d2a7fa10922",
       "status": "fixed",
       "observed": "absent",
-      "rationale": "Estado FIXED confirmado pelo scanner final. Decisão operacional pendente; não houve aceite automático. O default de avatares permanece em /tmp. O consumidor escreve via helper privado com owner/mode/symlink checks, mas retenção e compartilhamento seguro entre réplicas não decorrem desse default; precisam configuração e aceite operacional.",
+      "rationale": "Estado FIXED confirmado pelo scanner 630040 após NA-0163: default persistente privado; overrides preservados e migração documentada em docs/OPERATIONS-private-storage.md. Avaliação histórica anterior à correção: Decisão operacional pendente; não houve aceite automático. O default de avatares permanece em /tmp. O consumidor escreve via helper privado com owner/mode/symlink checks, mas retenção e compartilhamento seguro entre réplicas não decorrem desse default; precisam configuração e aceite operacional.",
       "evidence": [
         "apps/backend/src/config/env.ts",
         "apps/backend/src/shared/private-storage.ts",
@@ -15883,8 +15883,8 @@
     "analysisId": "6168dd15-05df-4b5c-93c9-82230698d37e"
   },
   "latestAnalysis": {
-    "revision": "630040e6c956c1d645a55c89a076edcdc3854445",
-    "analysisId": "6efa8065-5bb5-45b1-a128-b1e8f1365317",
+    "revision": "ae062494453585d5fec49da60786fb62257a6490",
+    "analysisId": "7a1513bc-6b31-4b91-b315-65fd2da959ef",
     "counts": {
       "FALSE_POSITIVE": 206,
       "FIXED": 362,

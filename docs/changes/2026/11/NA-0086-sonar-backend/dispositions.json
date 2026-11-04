@@ -694,7 +694,7 @@
     "file": "apps/backend/src/config/env.ts",
     "baselineLine": 172,
     "status": "fixed",
-    "rationale": "Estado FIXED confirmado pelo scanner final. Decisão operacional pendente; não houve aceite automático. O default de avatares permanece em /tmp. O consumidor escreve via helper privado com owner/mode/symlink checks, mas retenção e compartilhamento seguro entre réplicas não decorrem desse default; precisam configuração e aceite operacional.",
+    "rationale": "Estado FIXED confirmado pelo scanner 630040 após NA-0163: default persistente privado; overrides preservados e migração documentada em docs/OPERATIONS-private-storage.md. Avaliação histórica anterior à correção: Decisão operacional pendente; não houve aceite automático. O default de avatares permanece em /tmp. O consumidor escreve via helper privado com owner/mode/symlink checks, mas retenção e compartilhamento seguro entre réplicas não decorrem desse default; precisam configuração e aceite operacional.",
     "evidence": [
       "apps/backend/src/config/env.ts",
       "apps/backend/src/shared/private-storage.ts",
@@ -1309,7 +1309,7 @@
     "file": "apps/backend/src/config/env.ts",
     "baselineLine": 171,
     "status": "fixed",
-    "rationale": "Estado FIXED confirmado pelo scanner final. Decisão operacional pendente; não houve aceite automático. O default de auditoria permanece em /tmp. A gravação usa diretório dedicado, proprietário do serviço, 0700, validação de symlinks e arquivo exclusivo 0600; não reproduzi escrita insegura. Persistência após limpeza/reboot, mesmo UID entre componentes e proteção do diretório em produção requerem decisão operacional explícita.",
+    "rationale": "Estado FIXED confirmado pelo scanner 630040 após NA-0163: default persistente privado; overrides preservados e migração documentada em docs/OPERATIONS-private-storage.md. Avaliação histórica anterior à correção: Decisão operacional pendente; não houve aceite automático. O default de auditoria permanece em /tmp. A gravação usa diretório dedicado, proprietário do serviço, 0700, validação de symlinks e arquivo exclusivo 0600; não reproduzi escrita insegura. Persistência após limpeza/reboot, mesmo UID entre componentes e proteção do diretório em produção requerem decisão operacional explícita.",
     "evidence": [
       "apps/backend/src/config/env.ts",
       "apps/backend/src/shared/private-storage.ts",
