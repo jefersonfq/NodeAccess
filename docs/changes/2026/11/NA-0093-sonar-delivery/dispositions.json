@@ -2,10 +2,11 @@
   {
     "issueId": "218e14d9-5eba-4907-af26-509994afe393",
     "status": "context_reviewed",
-    "rationale": "Proposta técnica de falso positivo, ainda sem transição no projeto principal. BEL excluído do corpo OSC para reservar o terminador. A função countTerminalControlSequences conta tokens reais de protocolo para a heurística de redraw; procurar esses caracteres não é erro de digitação nem busca de texto comum. O controle é intencional nesta posição. NA0148 testou DCS/OSC e equivalência finita de 2744 combinações; não se afirma prova universal de todos os terminais.",
+    "rationale": "Falso positivo aplicado e confirmado no Sonar, com revisor temporário autorizado e desativado. BEL excluído do corpo OSC para reservar o terminador. A função countTerminalControlSequences conta tokens reais de protocolo para a heurística de redraw; procurar esses caracteres não é erro de digitação nem busca de texto comum. O controle é intencional nesta posição. NA0148 testou DCS/OSC e equivalência finita de 2744 combinações; não se afirma prova universal de todos os terminais.",
     "evidence": [
       "apps/frontend/src/services/terminal-audit-controls.service.test.ts",
-      "docs/changes/2026/11/NA-0148-audit-ui-input-safety/evidence/dcs-performance.json"
+      "docs/changes/2026/11/NA-0148-audit-ui-input-safety/evidence/dcs-performance.json",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/final-review.json"
     ],
     "branch": "fix/NA-0157-20261104-sonar-reviewed-findings",
     "risk": "Revisão limitada à fonte/range registrados; não é aceite de risco nem homologação humana."
@@ -13,10 +14,11 @@
   {
     "issueId": "57ea3afd-860c-411b-9cfe-87f7967397c0",
     "status": "context_reviewed",
-    "rationale": "Proposta técnica de falso positivo, ainda sem transição no projeto principal. ESC excluído do corpo OSC para reservar o terminador ST. A função countTerminalControlSequences conta tokens reais de protocolo para a heurística de redraw; procurar esses caracteres não é erro de digitação nem busca de texto comum. O controle é intencional nesta posição. NA0148 testou DCS/OSC e equivalência finita de 2744 combinações; não se afirma prova universal de todos os terminais.",
+    "rationale": "Falso positivo aplicado e confirmado no Sonar, com revisor temporário autorizado e desativado. ESC excluído do corpo OSC para reservar o terminador ST. A função countTerminalControlSequences conta tokens reais de protocolo para a heurística de redraw; procurar esses caracteres não é erro de digitação nem busca de texto comum. O controle é intencional nesta posição. NA0148 testou DCS/OSC e equivalência finita de 2744 combinações; não se afirma prova universal de todos os terminais.",
     "evidence": [
       "apps/frontend/src/services/terminal-audit-controls.service.test.ts",
-      "docs/changes/2026/11/NA-0148-audit-ui-input-safety/evidence/dcs-performance.json"
+      "docs/changes/2026/11/NA-0148-audit-ui-input-safety/evidence/dcs-performance.json",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/final-review.json"
     ],
     "branch": "fix/NA-0157-20261104-sonar-reviewed-findings",
     "risk": "Revisão limitada à fonte/range registrados; não é aceite de risco nem homologação humana."
@@ -24,10 +26,11 @@
   {
     "issueId": "a9113693-139d-4665-bfc0-93c8c351cd99",
     "status": "context_reviewed",
-    "rationale": "Proposta técnica de falso positivo, ainda sem transição no projeto principal. ESC inicial: identifica o início de uma sequência de controle ANSI/OSC. A função countTerminalControlSequences conta tokens reais de protocolo para a heurística de redraw; procurar esses caracteres não é erro de digitação nem busca de texto comum. O controle é intencional nesta posição. NA0148 testou DCS/OSC e equivalência finita de 2744 combinações; não se afirma prova universal de todos os terminais.",
+    "rationale": "Falso positivo aplicado e confirmado no Sonar, com revisor temporário autorizado e desativado. ESC inicial: identifica o início de uma sequência de controle ANSI/OSC. A função countTerminalControlSequences conta tokens reais de protocolo para a heurística de redraw; procurar esses caracteres não é erro de digitação nem busca de texto comum. O controle é intencional nesta posição. NA0148 testou DCS/OSC e equivalência finita de 2744 combinações; não se afirma prova universal de todos os terminais.",
     "evidence": [
       "apps/frontend/src/services/terminal-audit-controls.service.test.ts",
-      "docs/changes/2026/11/NA-0148-audit-ui-input-safety/evidence/dcs-performance.json"
+      "docs/changes/2026/11/NA-0148-audit-ui-input-safety/evidence/dcs-performance.json",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/final-review.json"
     ],
     "branch": "fix/NA-0157-20261104-sonar-reviewed-findings",
     "risk": "Revisão limitada à fonte/range registrados; não é aceite de risco nem homologação humana."
@@ -35,10 +38,11 @@
   {
     "issueId": "d30db800-5820-47e1-916c-ed74ec9df457",
     "status": "context_reviewed",
-    "rationale": "Proposta técnica de falso positivo, ainda sem transição no projeto principal. ESC seguido de barra invertida como terminador ST. A função countTerminalControlSequences conta tokens reais de protocolo para a heurística de redraw; procurar esses caracteres não é erro de digitação nem busca de texto comum. O controle é intencional nesta posição. NA0148 testou DCS/OSC e equivalência finita de 2744 combinações; não se afirma prova universal de todos os terminais.",
+    "rationale": "Falso positivo aplicado e confirmado no Sonar, com revisor temporário autorizado e desativado. ESC seguido de barra invertida como terminador ST. A função countTerminalControlSequences conta tokens reais de protocolo para a heurística de redraw; procurar esses caracteres não é erro de digitação nem busca de texto comum. O controle é intencional nesta posição. NA0148 testou DCS/OSC e equivalência finita de 2744 combinações; não se afirma prova universal de todos os terminais.",
     "evidence": [
       "apps/frontend/src/services/terminal-audit-controls.service.test.ts",
-      "docs/changes/2026/11/NA-0148-audit-ui-input-safety/evidence/dcs-performance.json"
+      "docs/changes/2026/11/NA-0148-audit-ui-input-safety/evidence/dcs-performance.json",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/final-review.json"
     ],
     "branch": "fix/NA-0157-20261104-sonar-reviewed-findings",
     "risk": "Revisão limitada à fonte/range registrados; não é aceite de risco nem homologação humana."
@@ -46,10 +50,11 @@
   {
     "issueId": "fdfae5d6-21d1-4434-8d5f-94228779c6f8",
     "status": "context_reviewed",
-    "rationale": "Proposta técnica de falso positivo, ainda sem transição no projeto principal. BEL como alternativa de término OSC. A função countTerminalControlSequences conta tokens reais de protocolo para a heurística de redraw; procurar esses caracteres não é erro de digitação nem busca de texto comum. O controle é intencional nesta posição. NA0148 testou DCS/OSC e equivalência finita de 2744 combinações; não se afirma prova universal de todos os terminais.",
+    "rationale": "Falso positivo aplicado e confirmado no Sonar, com revisor temporário autorizado e desativado. BEL como alternativa de término OSC. A função countTerminalControlSequences conta tokens reais de protocolo para a heurística de redraw; procurar esses caracteres não é erro de digitação nem busca de texto comum. O controle é intencional nesta posição. NA0148 testou DCS/OSC e equivalência finita de 2744 combinações; não se afirma prova universal de todos os terminais.",
     "evidence": [
       "apps/frontend/src/services/terminal-audit-controls.service.test.ts",
-      "docs/changes/2026/11/NA-0148-audit-ui-input-safety/evidence/dcs-performance.json"
+      "docs/changes/2026/11/NA-0148-audit-ui-input-safety/evidence/dcs-performance.json",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/final-review.json"
     ],
     "branch": "fix/NA-0157-20261104-sonar-reviewed-findings",
     "risk": "Revisão limitada à fonte/range registrados; não é aceite de risco nem homologação humana."
@@ -57,10 +62,11 @@
   {
     "issueId": "b6bc4250-7710-485f-bc2d-50664e1d42e2",
     "status": "context_reviewed",
-    "rationale": "Proposta técnica de falso positivo, ainda sem transição no projeto principal. CJS compara objetos NodeModule compatíveis: import não executa CLI; execução direta cria env privado e erro preserva diagnóstico.",
+    "rationale": "Falso positivo aplicado e confirmado no Sonar, com revisor temporário autorizado e desativado. CJS compara objetos NodeModule compatíveis: import não executa CLI; execução direta cria env privado e erro preserva diagnóstico.",
     "evidence": [
       "docs/changes/2026/11/NA-0156-sonar-followup/validation.md",
-      "tools/deploy/restore-mysql-env.test.mjs"
+      "tools/deploy/restore-mysql-env.test.mjs",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/final-review.json"
     ],
     "branch": "fix/NA-0157-20261104-sonar-reviewed-findings",
     "risk": "Revisão limitada à fonte/range registrados; não é aceite de risco nem homologação humana."
@@ -68,18 +74,19 @@
   {
     "issueId": "34c6e542-39f8-4476-b7da-50a538e41f0f",
     "status": "context_reviewed",
-    "rationale": "Proposta técnica de falso positivo, ainda sem transição no projeto principal. Literal ::ffff:192.0.2.1/128 é IPv6 com IPv4 mapeado do bloco normativo de documentação 192.0.2.0/24 (RFC5737), usado como entrada sintética do formulário com API interceptada. Não é infraestrutura real nem destino externo a configurar. A fixture verifica aceitação de IPv4 mapeado válido; não cria host nem executa conexão SSH para esse endereço. A definição instalada S1313 exclui expressamente o bloco de documentação.",
+    "rationale": "Falso positivo aplicado e confirmado no Sonar, com revisor temporário autorizado e desativado. Literal ::ffff:192.0.2.1/128 é IPv6 com IPv4 mapeado do bloco normativo de documentação 192.0.2.0/24 (RFC5737), usado como entrada sintética do formulário com API interceptada. Não é infraestrutura real nem destino externo a configurar. A fixture verifica aceitação de IPv4 mapeado válido; não cria host nem executa conexão SSH para esse endereço. A definição instalada S1313 exclui expressamente o bloco de documentação.",
     "evidence": [
       "tools/frontend/audit-input-safety-playwright.cjs",
-      "docs/changes/2026/11/NA-0148-audit-ui-input-safety/evidence/after-ui.json"
+      "docs/changes/2026/11/NA-0148-audit-ui-input-safety/evidence/after-ui.json",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/final-review.json"
     ],
     "branch": "fix/NA-0157-20261104-sonar-reviewed-findings",
     "risk": "Revisão limitada à fonte/range registrados; não é aceite de risco nem homologação humana."
   },
   {
     "issueId": "5ddc4e91-e7af-4762-976e-17ece1124723",
-    "status": "pending",
-    "rationale": "NA0156 substituiu a senha fixa do teste negativo403 por valor efêmero criptográfico. Aguarda nova análise.",
+    "status": "fixed",
+    "rationale": "Estado FIXED confirmado pelo scanner final. NA0156: correção confirmada pelo scanner; estado FIXED, sem ocorrência ativa equivalente. NA0156 substituiu a senha fixa do teste negativo403 por valor efêmero criptográfico. Aguarda nova análise.",
     "evidence": [
       "docs/changes/2026/11/NA-0156-sonar-followup/validation.md"
     ],
@@ -89,10 +96,11 @@
   {
     "issueId": "ffe9aafb-c316-43ca-8184-608aed467c4a",
     "status": "context_reviewed",
-    "rationale": "Proposta técnica de falso positivo, ainda sem transição no projeto principal. Diretório de nonce público exige travessia pelo HTTP reader de outro UID. 0755 não concede escrita a outros.",
+    "rationale": "Falso positivo aplicado e confirmado no Sonar, com revisor temporário autorizado e desativado. Diretório de nonce público exige travessia pelo HTTP reader de outro UID. 0755 não concede escrita a outros.",
     "evidence": [
       "docs/changes/2026/11/NA-0156-sonar-followup/validation.md",
-      "tools/tls/challenge-files.test.mjs"
+      "tools/tls/challenge-files.test.mjs",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/final-review.json"
     ],
     "branch": "fix/NA-0157-20261104-sonar-reviewed-findings",
     "risk": "Revisão limitada à fonte/range registrados; não é aceite de risco nem homologação humana."
@@ -100,10 +108,11 @@
   {
     "issueId": "9db2139f-246d-4122-890c-37141d038405",
     "status": "context_reviewed",
-    "rationale": "Proposta técnica de falso positivo, ainda sem transição no projeto principal. Arquivo contém apenas nonce público aleatório. UID65534 lê conteúdo e recebe EACCES ao escrever; 0644 é deliberado.",
+    "rationale": "Falso positivo aplicado e confirmado no Sonar, com revisor temporário autorizado e desativado. Arquivo contém apenas nonce público aleatório. UID65534 lê conteúdo e recebe EACCES ao escrever; 0644 é deliberado.",
     "evidence": [
       "docs/changes/2026/11/NA-0156-sonar-followup/validation.md",
-      "tools/tls/challenge-files.test.mjs"
+      "tools/tls/challenge-files.test.mjs",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/final-review.json"
     ],
     "branch": "fix/NA-0157-20261104-sonar-reviewed-findings",
     "risk": "Revisão limitada à fonte/range registrados; não é aceite de risco nem homologação humana."

@@ -331,3 +331,14 @@ Revisores delegados ficaram indisponíveis por limite da ferramenta; não inferi
 ### 2026-11-04T14:27:45-03:00 — Fixture macOS e execução local reprovada
 
 Integrada NA0161 33202fd65: caminho físico da fixture macOS, sem alterar resolvedor.11testes PASS/2Windows ignorados e contrato de alias positivo/negativo. b32a6c9c1: segurança PASS e229contratos Sonar PASS; cobertura completa reprovou em sonar-baseline.test.mjs com VMtimeout10000ms. Carga WSL concorrente observada, causa não atribuída definitivamente. Execução encerrada após falha para consolidar candidato; não aprovar cobertura, browser ou scanner desse run. Logs privados preservados. Repetir sem aumentar timeout. Revisão temporária206decisões autorizada pelo usuário após validação, ainda não executada.
+
+
+### 2026-11-04T15:09:00-03:00 — Revisões autorizadas e correção das imagens
+
+No candidato 554790c30, executados 3.609 testes Vitest, 590 Node, 229 contratos Sonar e oito fluxos Chromium; cobertura diff 80,5581%, Sonar 80,4%. Validador inicialmente terminou com código 1 por nove classificações pendentes, preservado no relatório. Após autorização explícita, aplicadas 206 decisões exatas; conta temporária desativada e token de leitura preservado. Verificação posterior somente leitura confirmou gate OK, zero novas violações, 206 FP e três riscos OPEN. Não declarar que o comando original terminou com sucesso. Inventário completo: 360 FIXED, 206 FP, três OPEN; recorte original: 94 FIXED, 197 FP, três OPEN.
+
+CI aprovou TLS real, mas bloqueou vulnerabilidades SQLite nas imagens. Integrado patch NA0162 5ffd24af0: sqlite-libs 3.54.1-r0 oficial assinado/checksum, política exata e temporária apenas para achado do CLI ausente. Ran: 51 contratos de segurança, lint estrito, dois builds, Grype real nas duas imagens, SQLite FTS5/Certbot, TLS real UID1001 com SSH/WS e handshakes guacd UID1000 PASS. Governança da origem PASS. Não representa renderização completa RDP/VNC. Baseline Sonar preservado; nenhum aceite dos três riscos operacionais.
+
+Próximo passo: repetir gates no novo candidato e verificar CI hospedado. Revisão independente dos incrementos NA0158–0162 e homologação humana pendentes; PR permanece draft, sem merge ou deploy.
+
+Ran: segurança integrada PASS (45 fixtures exatas, zero pendentes; Semgrep 895 alvos, zero achados/erros), 44 contratos de políticas de imagem PASS. Primeiro scan bloqueou nove IDs públicos Sonar em campos key; cópia pública normalizada para issueId, original privado preservado, sem exceções novas. CI de 554790c30 confirmou sonar-real, Windows, Linux e UI E2E PASS; macOS cancelado e upgrade-restore bloqueado pelo SQLite, corrigido no novo candidato.

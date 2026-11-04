@@ -25,6 +25,9 @@ ADD --checksum=sha256:e9d92102c6537a036cc3f4e27f97fe860f944f3b26565d9991bfdbe21c
 # Official stable GLib release fixes CVE-2026-58016; keep edge scoped to this APK.
 ADD --checksum=sha256:b5d0ad79a8e73c3e0f8e9749fbb407bb4f2bf089cdaceffbff9fed25edc33dd0 https://dl-4.alpinelinux.org/alpine/edge/main/x86_64/glib-2.90.0-r0.apk /tmp/glib-2.90.0-r0.apk
 RUN apk add --no-cache /tmp/alsa-lib-1.2.16.1-r0.apk /tmp/glib-2.90.0-r0.apk && rm /tmp/alsa-lib-1.2.16.1-r0.apk /tmp/glib-2.90.0-r0.apk
+# SQLite 3.54.1 fixes the reviewed FTS5/session memory errors; pin only this APK.
+ADD --checksum=sha256:5dfd76936e795efd988d6bad4949b8d20c410d6dc9dd256da884111f668f3915 https://dl-4.alpinelinux.org/alpine/edge/main/x86_64/sqlite-libs-3.54.1-r0.apk /tmp/sqlite-libs-3.54.1-r0.apk
+RUN apk add --no-cache /tmp/sqlite-libs-3.54.1-r0.apk && rm /tmp/sqlite-libs-3.54.1-r0.apk && test ! -e /usr/bin/sqlite3
 ENV LC_ALL=C.UTF-8 LD_LIBRARY_PATH=/opt/guacamole/lib
 HEALTHCHECK --interval=5m --timeout=5s CMD nc -z 127.0.0.1 4822 || exit 1
 USER guacd

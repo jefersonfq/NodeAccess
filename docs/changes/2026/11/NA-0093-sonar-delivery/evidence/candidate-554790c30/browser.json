@@ -1,0 +1,59 @@
+{
+  "status": "passed",
+  "phase": "complete",
+  "captureRunId": "0243414a-2daa-4ec3-b537-b86b6e3f155f",
+  "startedAt": "2026-11-04T17:31:23.791Z",
+  "kind": "real Chromium; Node and mapped browser coverage are collected separately",
+  "harnesses": [
+    {
+      "name": "frontend",
+      "coverageMode": "node-only",
+      "exitCode": 0,
+      "timedOut": false
+    },
+    {
+      "name": "table",
+      "coverageMode": "node-only",
+      "exitCode": 0,
+      "timedOut": false
+    },
+    {
+      "name": "terminal",
+      "coverageMode": "node-and-browser",
+      "exitCode": 0,
+      "timedOut": false
+    },
+    {
+      "name": "platform",
+      "coverageMode": "node-and-browser",
+      "exitCode": 0,
+      "timedOut": false
+    },
+    {
+      "name": "flows",
+      "coverageMode": "node-and-browser",
+      "exitCode": 0,
+      "timedOut": false
+    },
+    {
+      "name": "ha",
+      "coverageMode": "node-and-browser",
+      "exitCode": 0,
+      "timedOut": false
+    },
+    {
+      "name": "audit-input",
+      "coverageMode": "node-and-browser",
+      "exitCode": 0,
+      "timedOut": false
+    },
+    {
+      "name": "highlight-budget",
+      "coverageMode": "node-only",
+      "exitCode": 0,
+      "timedOut": false
+    }
+  ],
+  "origin": "http://127.0.0.1:44073",
+  "finishedAt": "2026-11-04T17:36:22.137Z"
+}

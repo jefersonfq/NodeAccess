@@ -1,5 +1,8 @@
 # Reavaliação das 294 ocorrências
 
+Estado atual: **Quality Gate OK** no commit 554790c30. Revisão autorizada aplicada a206falsos positivos; conta temporária desativada. Dos294itens originais,197são falsos positivos confirmados,94estão FIXED e3riscos operacionais permanecem abertos. O catálogo histórico completo contém569ocorrências. Os registros abaixo preservam avaliações anteriores; os estados atuais estão no JSON/CSV e na tabela geral. CI hospedado e homologação humana permanecem pendentes.
+
+
 Esta tabela descreve o candidato integrado. Ainda não substitui a análise final do SonarQube nem indica fechamento de itens no servidor.
 
 | Avaliação atual | Quantidade | Próximo gate |

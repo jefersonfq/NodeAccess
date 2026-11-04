@@ -1,0 +1,21 @@
+{
+  "testedSha": "554790c3081b4f345a5b9f754c0199e685f2644d",
+  "vitest": {
+    "passed": 3609,
+    "skipped": 125,
+    "failed": 0
+  },
+  "node": {
+    "passed": 590,
+    "skipped": 4,
+    "failed": 0
+  },
+  "sonarContracts": {
+    "passed": 229,
+    "failed": 0
+  },
+  "browserHarnesses": 8,
+  "scanner": "running",
+  "github": "queued",
+  "humanHomologation": false
+}

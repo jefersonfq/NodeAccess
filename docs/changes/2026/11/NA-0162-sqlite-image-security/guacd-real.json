@@ -1,0 +1,11 @@
+{
+  "image": "nodeaccess-guacd:na0162",
+  "protocols": {
+    "ssh": "real guacd plugin handshake passed",
+    "rdp": "real guacd plugin handshake passed",
+    "vnc": "real guacd plugin handshake passed"
+  },
+  "uid": 1000,
+  "sqliteCliAbsent": true,
+  "passed": true
+}
