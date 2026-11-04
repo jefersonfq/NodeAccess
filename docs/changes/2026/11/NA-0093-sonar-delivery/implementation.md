@@ -342,3 +342,22 @@ CI aprovou TLS real, mas bloqueou vulnerabilidades SQLite nas imagens. Integrado
 Próximo passo: repetir gates no novo candidato e verificar CI hospedado. Revisão independente dos incrementos NA0158–0162 e homologação humana pendentes; PR permanece draft, sem merge ou deploy.
 
 Ran: segurança integrada PASS (45 fixtures exatas, zero pendentes; Semgrep 895 alvos, zero achados/erros), 44 contratos de políticas de imagem PASS. Primeiro scan bloqueou nove IDs públicos Sonar em campos key; cópia pública normalizada para issueId, original privado preservado, sem exceções novas. CI de 554790c30 confirmou sonar-real, Windows, Linux e UI E2E PASS; macOS cancelado e upgrade-restore bloqueado pelo SQLite, corrigido no novo candidato.
+
+
+### 2026-11-04T17:52:53-03:00 — Fechamento autorizado e rotina econômica
+
+Usuário autorizou fim a fim as pendências e economia de tokens; escolheu preservar TACACS legado com ativação endurecida. Integrados patches163 ac85dc2e0 (defaults persistentes; overrides literais preservados, sem migração automática),164 753505507 (guard de risco antes dos listeners; MD5 permanece OPEN) e165 9c0471be8 (sonar-real obrigatório e quality:context). Nenhum aceite de risco ou alteração de algoritmo.
+
+Ran:163 baseline20 e candidato47 testes PASS, lint PASS, simulação em dois processos audit/arquivo avatar PASS (não é reboot/volume/produção);164 baseline55/candidato69 PASS, lint/types PASS;16514contratos/lint PASS. Revisão independente PASS_WITH_WARNINGS das frentes e incrementos0158–0162; ressalvas de metadados e overrides corrigidas. Semgrep897 alvos/zero achados;Gitleaks45fixtures exatas/zero pendentes após revalidar literal idêntico da fixture.env.example. Typecheck integrado PASS; lint integrado em execução.
+
+Ruleset24882260 ativo agora exige sonar-real da app15368; PUT/GET verificados e demais regras preservadas. CI anterior025e828 confirmou21checksPASS, incluindo macOS e repetição Sonar. First mobile overflow permanece registrado, causa não comprovada; cinco repetições isoladas PASS.
+
+Resumo econômico local mediu733bytes versus754861bytes do catálogo, com menos detalhes; não é medida de tokens/custo. Não houve chamada paga de IA, troca de modelo ou redução de gates. Documentos/planilha canônicos em docs. Próximo passo: congelar candidato e executar Sonar/cobertura/CI; homologação humana e merge pendentes.
+
+### 2026-11-04T17:59:17-03:00 — Lint global e escopo do gate
+
+Ran: lint global primeiro falhou por heap4GB/OOM; repetido com8GB temporário, terminou1 com769erros/6025avisos em319arquivos. Comparação por Git comprovou319/319arquivos byte-idênticos ao candidato025e828, nenhum arquivo modificado ou novo com diagnóstico. Não declarar lint global PASS. Inventário por arquivo salvo em evidence/closure-prechecks/legacy-lint-files.csv; dívida fora do delta atual, sem refatoração global automática. O CI usa lint:changed; mesma verificação com basef4a e WIP está em execução. Baseline Sonar não ampliado.
+
+Assinaturas finais das fontes:NA0163 a0c556fbd3b6e630643e5d4930731b5f4ca57679;NA0164 7535055076f86e953b99535340a13a96bc671a4d;NA0165 9c0471be8e8bca03524770b7fbdb604bfaacf690.
+
+Ran em 2026-11-04T18:01:25-03:00: lint:changed obrigatório PASS nos130arquivos de toda a frente contra basef4a, incluindo WIP. Lint global continua reprovado pela dívida preexistente documentada. Candidato pronto para checkpoint e validação completa; não há homologação humana.

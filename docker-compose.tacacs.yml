@@ -8,6 +8,8 @@ services:
     env_file: [apps/backend/.env]
     environment:
       NODEACCESS_TACACS_ENABLE: 'true'
+      # Explicit operator acknowledgement; never enabled by this example.
+      NODEACCESS_TACACS_LEGACY_RISK_ACKNOWLEDGED: '${NODEACCESS_TACACS_LEGACY_RISK_ACKNOWLEDGED:-}'
       NODEACCESS_TACACS_BIND: '0.0.0.0'
       NODEACCESS_TACACS_PORT: '4949'
       NODEACCESS_TACACS_HEALTH_PORT: '4950'

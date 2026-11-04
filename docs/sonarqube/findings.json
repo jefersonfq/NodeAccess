@@ -15878,9 +15878,13 @@
       "sonarState": "FALSE_POSITIVE"
     }
   ],
-  "latestAnalysis": {
+  "authorizedReviewAnalysis": {
     "revision": "554790c3081b4f345a5b9f754c0199e685f2644d",
-    "analysisId": "6168dd15-05df-4b5c-93c9-82230698d37e",
+    "analysisId": "6168dd15-05df-4b5c-93c9-82230698d37e"
+  },
+  "latestAnalysis": {
+    "revision": "025e82863d0a2cff49b29896dc283c7efdd00548",
+    "analysisId": "8d39384c-2529-4faf-b6c6-8eb273a57f9c",
     "counts": {
       "FALSE_POSITIVE": 206,
       "FIXED": 360,

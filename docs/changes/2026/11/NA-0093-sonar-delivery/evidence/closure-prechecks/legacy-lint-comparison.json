@@ -1,0 +1,9 @@
+{
+  "reportedFiles": 319,
+  "byteIdenticalToBase": 319,
+  "changedFilesWithDiagnostics": [],
+  "notInBase": [],
+  "totalErrors": 769,
+  "totalWarnings": 6025,
+  "scope": "full repository lint, not the required changed-file gate"
+}

@@ -20,7 +20,7 @@
       "path": ".env.example",
       "rule": "generic-api-key",
       "line": 124,
-      "fileSha256": "e887dd2435dcf1e6d3e2811af342b7407ed1f1c9a3723760efc6b2adc9501628",
+      "fileSha256": "5695807adb5fef077f6accbc8075db5a9c5ef59ee282a5aff6d3b07338860ff0",
       "reason": "Placeholder de documentação/configuração; substituir antes de usar; revalidado na NA-0069 após integração."
     },
     {

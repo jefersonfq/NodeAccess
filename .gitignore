@@ -19,6 +19,7 @@ apps/**/.env.*
 
 # ─── Dados de runtime (auditoria de sessão SSH) ───────────────────────────────
 # Chunks JSONL contêm gravações reais de sessões SSH — dados sensíveis
+/data/
 apps/backend/data/
 apps/backend/storage/
 *.jsonl

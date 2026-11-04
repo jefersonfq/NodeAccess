@@ -1,8 +1,22 @@
 # Operar o piloto de rede/TACACS+
 
+## Ativação do protocolo legado
+
+Este piloto preserva a interoperabilidade TACACS+ legada e sua ofuscação MD5. O risco criptográfico e o achado Sonar correspondente permanecem abertos; este guard não corrige o algoritmo nem representa aceite ou falso positivo do achado.
+
+A [RFC 8907, seção 10.5](https://www.rfc-editor.org/rfc/rfc8907.html#section-10.5) orienta restringir o tráfego a uma rede de gerenciamento protegida. Antes da ativação, restrinja origens e destino por firewall e proteja o caminho completo entre equipamento e listener. Quando necessário, use túnel autenticado e criptografado (por exemplo, IPsec), verificando também os segmentos fora do túnel. Bind em loopback ou firewall isoladamente não comprova proteção ponta a ponta.
+
+A [RFC 9887](https://www.rfc-editor.org/rfc/rfc9887.html) especifica TACACS+ sobre TLS 1.3. Este piloto **não implementa esse transporte**; um túnel externo não equivale a implementar a RFC 9887.
+
+Além de `NODEACCESS_TACACS_ENABLE=true`, o operador deve definir explicitamente `NODEACCESS_TACACS_LEGACY_RISK_ACKNOWLEDGED=true` no ambiente do processo. Somente o valor literal `true` é aceito. A ausência ou outro valor encerra o bootstrap antes de abrir os listeners TACACS+ e de diagnóstico. Essa variável registra ciência do risco operacional; o processo não verifica a existência ou eficácia de rede protegida/túnel.
+
+O Compose mantém o perfil opcional e não fornece reconhecimento automático: exporte a variável no shell que executa o Compose (ou no arquivo de interpolação `--env-file` do Compose), após revisar a proteção. `apps/backend/.env` fornece o ambiente do container, mas não substitui a interpolação desta variável no Compose. Não acrescente o reconhecimento a defaults de release. Instalações existentes precisam desta configuração explícita ao atualizar; sem ela o supervisor pode repetir a falha de inicialização.
+
 ## Instalação
 
 Atualize o conjunto API/gateway/frontend e aplique as migrações pelo procedimento habitual antes de usar perfis de rede. A migração é aditiva e não habilita o serviço.
+
+Após configurar o reconhecimento no ambiente, prossiga com a instalação.
 
 O SSH de servidores e o uso de AAA externo não exigem o processo abaixo. Para disponibilizar o serviço próprio, inicie uma instância separada do backend compilado:
 
