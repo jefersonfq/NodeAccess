@@ -1,12 +1,13 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync, symlinkSync, chmodSync, statSync } from 'node:fs'
-import { join } from 'node:path'
+import { join, dirname } from 'node:path'
 import { tmpdir } from 'node:os'
 import { execFileSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
 import { sourceInventory, sourceFingerprint } from './inventory.mjs'
 import { requiredBrowserHarnesses } from './browser.mjs'
+import { cspConfigFiles, cspConfigFingerprint, lifecycleScenarios, supervisionScenarios, sha256 } from '../security/csp-coverage-policy.mjs'
 import { runCoverage, argumentsForCoverage } from './run.mjs'
 
 
@@ -27,6 +28,7 @@ function fixture(t, options = {}) {
   writeFileSync(join(root, 'tools/network-access/tls-lab.test.mjs'), '// Laboratory fixture only\n')
   writeFileSync(join(root, 'tools/network-access/tacacs-client.py'), 'print(1)\n')
   writeFileSync(join(root, 'tools/network-access/tls-python-coverage.py'), 'pass\n')
+  for (const file of cspConfigFiles) { mkdirSync(dirname(join(root, file)), { recursive: true }); writeFileSync(join(root, file), '{}') }
   execFileSync('git', ['init', '-q'], { cwd: root })
   execFileSync('git', ['-c', 'user.email=fixture@example.test', '-c', 'user.name=Fixture', 'add', '.'], { cwd: root })
   execFileSync('git', ['-c', 'user.email=fixture@example.test', '-c', 'user.name=Fixture', 'commit', '-qm', 'fixture'], { cwd: root })
@@ -38,11 +40,19 @@ function fixture(t, options = {}) {
       assert.equal(env.NODEACCESS_TLS_COVERAGE, undefined)
       assert.equal(env.NODEACCESS_COVERAGE_COLLECT, '1')
       mkdirSync(join(root, 'coverage/vitest'), { recursive: true })
-      writeFileSync(join(root, 'coverage/vitest/coverage-final.json'), JSON.stringify({ [join(root, browserFile)]: fileCoverage(join(root, browserFile)), [join(root, source)]: fileCoverage(join(root, source), options.lowCoverage ? 0 : 1), ...(options.jsonData ? { [join(root, 'tools/data.json')]: fileCoverage(join(root, 'tools/data.json')) } : {}) }))
+      writeFileSync(join(root, 'coverage/vitest/coverage-final.json'), JSON.stringify({ ...Object.fromEntries(cspConfigFiles.filter(file => sourceInventory(root).includes(file)).map(file => [join(root, file), fileCoverage(join(root, file))])), [join(root, browserFile)]: fileCoverage(join(root, browserFile)), [join(root, source)]: fileCoverage(join(root, source), options.lowCoverage ? 0 : 1), ...(options.jsonData ? { [join(root, 'tools/data.json')]: fileCoverage(join(root, 'tools/data.json')) } : {}) }))
       writeFileSync(join(root, 'coverage/vitest-tests.json'), JSON.stringify({ success: true, numPassedTests: 1, numFailedTests: 0, numPendingTests: 0, ...options.report }))
       return options.vitestFailure ? 1 : 0
     }
     assert.equal(env.NODE_V8_COVERAGE, join(root, 'coverage/node-v8'))
+    if (args[0].endsWith('/tools/security/csp-coverage.mjs')) {
+      mkdirSync(join(root, 'coverage/csp'), { recursive: true })
+      const samples = { styles: { status: 'passed', proof: { before: 'black', noNonce: 'black', wrongNonce: 'black', authorized: 'rgb(7, 8, 9)', inlineExecuted: false, evalBlocked: true } }, editor: { passed: true, workerChecked: true, sameOriginWebSocket: true, evalBlocked: true, initialEditorRequests: 0 }, lifecycle: { scenarios: lifecycleScenarios, runtimeErrors: [] }, supervision: ['dark', 'light'].flatMap(theme => supervisionScenarios.map(name => ({ theme, name, passed: true }))), sanitizer: { tests: 1, pass: 1, fail: 0, skipped: 0 } }
+      const harnesses = Object.entries(samples).map(([name, report]) => { const bytes = JSON.stringify(report); writeFileSync(join(root, `coverage/csp/${name}.json`), bytes); return { name, exitCode: 0, timedOut: false, orphaned: false, reportSha256: sha256(bytes) } })
+      const now = new Date().toISOString()
+      if (!options.missingCsp) writeFileSync(join(root, 'coverage/csp/summary.json'), JSON.stringify({ schemaVersion: 1, runId: env.NODEACCESS_CSP_COVERAGE_RUN_ID, head: execFileSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim(), passed: true, cleanupVerified: true, origin: 'http://127.0.0.1:12345', startedAt: now, finishedAt: now, sourceFingerprint: sourceFingerprint(root, sourceInventory(root)), configFingerprint: cspConfigFingerprint(root), harnesses, ...options.cspProof }))
+      return 0
+    }
     if (args[0].endsWith('/tools/coverage/browser.mjs')) {
       assert.equal(env.NODEACCESS_TLS_COVERAGE, undefined)
       mkdirSync(join(root, 'coverage/browser/chromium-v8'), { recursive: true })
@@ -70,7 +80,7 @@ test('aggregate pipeline writes fresh LCOV, preserves legacy gates and strips So
   const f = fixture(t)
   const result = await runCoverage({ ...f, env: { SONAR_TOKEN: 'synthetic-a', SONAR_REVIEW_TOKEN: 'synthetic-b', NODEACCESS_TLS_COVERAGE: 'false', NODEACCESS_TLS_COVERAGE_RUN_ID: 'inherited', NODEACCESS_TLS_COVERAGE_OUTPUT: '/tmp/ignored' } })
   assert.equal(result.status, 'passed'); assert.equal(result.legacy.passed, true)
-  assert.equal(result.newCoverage.status, 'not_requested'); assert.equal(f.calls.length, 3)
+  assert.equal(result.newCoverage.status, 'not_requested'); assert.equal(f.calls.length, 4)
   assert.match(readFileSync(join(f.root, 'coverage/lcov.info'), 'utf8'), /SF:apps\/backend/)
   assert.equal(JSON.parse(readFileSync(join(f.root, 'coverage/summary.json'))).head, result.head)
 })
@@ -112,6 +122,7 @@ test('base-aware run fails on uncovered additions and records a verified passing
 test('missing Node suites and corrupted artifacts fail closed', async t => {
   const f = fixture(t)
   rmSync(join(f.root, 'tools/demo.test.mjs'))
+  rmSync(join(f.root, 'tools/frontend/monaco-sanitizer-real.test.cjs'))
   rmSync(join(f.root, 'tools/network-access/tls-lab.test.mjs'))
   let result = await runCoverage(f)
   assert.equal(result.status, 'failed'); assert.match(result.error, /No Node test/)
@@ -187,3 +198,5 @@ for (const [label, options] of [
   const f = fixture(t, options), result = await runCoverage(f)
   assert.equal(result.status, 'failed'); assert.ok(result.failures.includes('PYTHON_COVERAGE_NOT_VERIFIED'))
 })
+
+for (const options of [{ missingCsp: true }, { cspProof: { runId: 'stale' } }, { cspProof: { cleanupVerified: false } }, { cspProof: { sourceFingerprint: 'tamper' } }, { cspProof: { harnesses: [] } }]) test(`CSP fails closed ${JSON.stringify(options)}`, async t => { const f = fixture(t, options); const result = await runCoverage(f); assert.ok(result.failures.includes('CSP_COVERAGE_NOT_VERIFIED')) })

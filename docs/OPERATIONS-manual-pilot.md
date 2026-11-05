@@ -278,3 +278,10 @@ manual:check-reviewed final passou nos cinco capítulos após a atualização ed
 ### 2026-11-04T11:22:45-03:00 — NA0093 integração final dos destaques
 
 Ran: nova captura conjunta após rótulo visível de pausa NA0147 (53d136fbb), cinco imagens abertas/revisadas pela raiz; 2 contratos Node e18 Vitest manual PASS, check-reviewed cinco capítulos PASS. Apenas hash editorial do terminal atualizado após validação. API/SSH simulados; prints são demonstrações, não homologação humana nem teste de produção.
+
+## NA-0171 — 2026-11-05T11:24:32.375586-03:00
+
+Revalidado o capítulo SFTP após mudança do carregamento Monaco para assets locais com CSP de nonce. Procedimento mantido: abrir, revisar, salvar e recuperar falhas. Ran: manual:capture contra Nginx real127.0.0.1:18171/builddev, cinco capturas abertas e revisadas (Hosts, Terminal, SFTP, Tenants, Compartilhamento); legibilidade e enquadramento preservados. test:manual aprovado (2 contratosNode e18Vitest); manual:check-reviewed aprovado nos cinco capítulos após atualizar apenas hash/data editorial SFTP. Lifecycle com Monaco real validou erros503/502/403, conflito409, transporte indisponível e escrita atrasada sem perda de rascunho/SSH. Terminal completo sob CSP aprovado. Dados/API/SSH simulados; sem homologação humana, produção ou validação formal com leitor de tela. Primeira captura reprovou versão esperada padrão; repetida com MANUAL_EXPECTED_VERSION=dev conferido no build, sem alterar asserção. Evidências privadas /tmp/NA0171-manual-*.log. Fonte validada no worktree /tmp/nodeaccess-NA-0171, base745253d1e com alterações de trabalho; gates no SHA final ainda pendentes.
+
+### 2026-11-05T12:16:02.601801-03:00 — NA-0171 revalidação final
+Após ajuste de tipagem do modal e carregamento efetivamente sob demanda, manual:capture repetido contra build final: aprovado. Tenants manteve PNG idêntico; demais quatro capturas reabertas e revisadas, sem regressão visual. Hash/data SFTP recalculados somente após essa validação; manual:check-reviewed cinco capítulos aprovado.

@@ -1,0 +1,181 @@
+{
+  "schemaVersion": 1,
+  "passed": true,
+  "startedAt": "2026-11-05T17:02:37.451Z",
+  "scope": "Passive HTTP inspection of a disposable NodeAccess stack; no active scan, SSH or WebSocket assessment",
+  "cleanup": "complete",
+  "images": {
+    "backend": {
+      "id": "sha256:99cf32c9a0435332cf6055e9fc443a49276629335466b6081c1f38728b0b5ff5",
+      "builtFromCandidate": true
+    },
+    "frontend": {
+      "id": "sha256:4f2baeb3d293e37958ddf42de9363259502baad4ddbf7b5f26883a7693fa0523",
+      "builtFromCandidate": true
+    },
+    "mysql": {
+      "id": "sha256:56545b524b0a2b4d82a93d98dbad15f7101e6c2f6e8d63f0cc0994e934d09a21",
+      "builtFromCandidate": true
+    },
+    "redis": {
+      "id": "sha256:34556fb54bf555e6599aa5ee9cd44f24d9671136558629c821f374f40e2b48f1",
+      "builtFromCandidate": true
+    },
+    "scanner": {
+      "ref": "zaproxy/zap-stable@sha256:9624669db72f54d86c4b46a7064518bd9bf79d8c61a4c31befa9923489f328af",
+      "id": "sha256:52ea8d2e5e4d6334337cd9037b297e62b01b36e63e0274417693797420450f32"
+    }
+  },
+  "sourceSha": "745253d1edb522db79aaa44fd96608ce434a2774",
+  "includesWorkingTree": true,
+  "mode": "passive",
+  "target": "https://web",
+  "version": "2.17.0",
+  "messages": 18,
+  "enabledRules": 62,
+  "queueRemaining": 0,
+  "requests": [
+    {
+      "name": "login-page",
+      "path": "/login",
+      "method": "GET",
+      "status": 200,
+      "passed": true
+    },
+    {
+      "name": "javascript",
+      "path": "/assets/index-DuxhQ0gj.js",
+      "method": "GET",
+      "status": 200,
+      "passed": true
+    },
+    {
+      "name": "stylesheet",
+      "path": "/assets/index-DIFWPIXL.css",
+      "method": "GET",
+      "status": 200,
+      "passed": true
+    },
+    {
+      "name": "ready",
+      "path": "/health/ready",
+      "method": "GET",
+      "status": 200,
+      "passed": true
+    },
+    {
+      "name": "anonymous-hosts",
+      "path": "/api/v1/hosts",
+      "method": "GET",
+      "status": 401,
+      "passed": true
+    },
+    {
+      "name": "invalid-login",
+      "path": "/api/v1/auth/login",
+      "method": "POST",
+      "status": 400,
+      "passed": true
+    },
+    {
+      "name": "login",
+      "path": "/api/v1/auth/login",
+      "method": "POST",
+      "status": 200,
+      "passed": true
+    },
+    {
+      "name": "mfa",
+      "path": "/api/v1/auth/verify-totp",
+      "method": "POST",
+      "status": 200,
+      "passed": true
+    },
+    {
+      "name": "authenticated-hosts",
+      "path": "/api/v1/hosts",
+      "method": "GET",
+      "status": 200,
+      "passed": true
+    },
+    {
+      "name": "refresh",
+      "path": "/api/v1/auth/refresh",
+      "method": "POST",
+      "status": 200,
+      "passed": true
+    },
+    {
+      "name": "logout",
+      "path": "/api/v1/auth/logout",
+      "method": "POST",
+      "status": 204,
+      "passed": true
+    },
+    {
+      "name": "revoked-refresh",
+      "path": "/api/v1/auth/refresh",
+      "method": "POST",
+      "status": 401,
+      "passed": true
+    }
+  ],
+  "alerts": [
+    {
+      "rule": "10015",
+      "risk": 0,
+      "paths": [
+        "/api/v1/hosts",
+        "/health/ready",
+        "/login"
+      ]
+    },
+    {
+      "rule": "10036-2",
+      "risk": 1,
+      "paths": [
+        "/api/v1/auth/login",
+        "/api/v1/auth/logout",
+        "/api/v1/auth/refresh",
+        "/api/v1/auth/verify-totp",
+        "/api/v1/hosts",
+        "/assets/index-DIFWPIXL.css",
+        "/assets/index-DuxhQ0gj.js",
+        "/health/ready",
+        "/login"
+      ]
+    },
+    {
+      "rule": "10109",
+      "risk": 0,
+      "paths": [
+        "/login"
+      ]
+    },
+    {
+      "rule": "10111",
+      "risk": 0,
+      "paths": [
+        "/api/v1/auth/login"
+      ]
+    },
+    {
+      "rule": "10112",
+      "risk": 0,
+      "paths": [
+        "/api/v1/auth/refresh",
+        "/api/v1/auth/verify-totp"
+      ]
+    },
+    {
+      "rule": "2",
+      "risk": 1,
+      "paths": [
+        "/assets/index-DuxhQ0gj.js"
+      ]
+    }
+  ],
+  "blocking": [],
+  "cancelled": false,
+  "finishedAt": "2026-11-05T17:09:32.659Z"
+}

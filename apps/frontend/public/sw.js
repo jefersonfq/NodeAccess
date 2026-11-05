@@ -1,4 +1,4 @@
-const CACHE_NAME = 'nodeaccess-v2'
+const CACHE_NAME = 'nodeaccess-v3-csp'
 const PRECACHE = []
 
 self.addEventListener('install', (event) => {
@@ -31,17 +31,14 @@ self.addEventListener('fetch', (event) => {
     return
   }
 
-  // Network-first with cache fallback for navigation requests (HTML)
+  // Documents contain a per-response nonce: never replay them from Cache API.
   if (event.request.mode === 'navigate') {
-    event.respondWith(
-      fetch(event.request)
-        .then((res) => {
-          const clone = res.clone()
-          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone))
-          return res
-        })
-        .catch(() => caches.match('/') ?? caches.match(event.request))
-    )
+    event.respondWith(fetch(event.request, { cache: 'no-store' }).catch(() =>
+      new Response('Sem conexão. Reconecte e recarregue o NodeAccess.', {
+        status: 503,
+        headers: { 'Content-Type': 'text/plain; charset=utf-8', 'Cache-Control': 'no-store' },
+      })
+    ))
     return
   }
 
@@ -58,11 +55,14 @@ self.addEventListener('fetch', (event) => {
   // Cache-first for static media assets only.
   event.respondWith(
     caches.match(event.request).then((cached) => {
-      if (cached) return cached
+      if (cached && !/text\/html/i.test(cached.headers.get('Content-Type') || '')) return cached
       return fetch(event.request).then((res) => {
-        if (res.ok) {
+        if (res.ok && !/text\/html/i.test(res.headers.get('Content-Type') || '')
+          && !/no-store/i.test(res.headers.get('Cache-Control') || '')) {
           const clone = res.clone()
-          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone))
+          // Cache persistence is best-effort: quota/storage failures must not
+          // discard or delay the successful network response.
+          event.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone)).catch(() => {}))
         }
         return res
       })

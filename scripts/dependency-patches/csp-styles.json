@@ -1,0 +1,44 @@
+[
+  {
+    "path": "css-render/esm/utils.js",
+    "sha256": "bd4e179482a42a105c3b447345571c53971ed154f7135f686be6cce40c40990d",
+    "old": "el.setAttribute('cssr-id', id);",
+    "new": "el.setAttribute('cssr-id', id);\n    el.nonce = document.querySelector('meta[property=\"csp-nonce\"]')?.nonce || '';",
+    "count": 1
+  },
+  {
+    "path": "css-render/lib/utils.js",
+    "sha256": "22734771edab8ed8911ae23db9bcc6af63dca9b69097bbda933f95ef5abc831f",
+    "old": "el.setAttribute('cssr-id', id);",
+    "new": "el.setAttribute('cssr-id', id);\n    el.nonce = document.querySelector('meta[property=\"csp-nonce\"]')?.nonce || '';",
+    "count": 1
+  },
+  {
+    "path": "xterm/lib/xterm.js",
+    "sha256": "f0aea0f75f48559013ae6643c2479dd737d26da42d5524e6d2b70915ae6523c7",
+    "old": "document.createElement(\"style\")",
+    "new": "Object.assign(document.createElement(\"style\"),{nonce:document.querySelector('meta[property=\"csp-nonce\"]')?.nonce||\"\"})",
+    "count": 2
+  },
+  {
+    "path": "monaco-editor/esm/vs/base/browser/domStylesheets.js",
+    "sha256": "a592db1165accc61d6cf2bb1f38b0ed526c63f810e80928e35d130c2eec5dbf1",
+    "old": "const style = document.createElement('style');",
+    "new": "const style = document.createElement('style');\n    style.nonce = document.querySelector('meta[property=\"csp-nonce\"]')?.nonce || '';",
+    "count": 1
+  },
+  {
+    "path": "monaco-editor/esm/vs/base/browser/ui/contextview/contextview.js",
+    "sha256": "f56b32fc9debc54ec6c3890cf67de573284d00984f7369874de4681fb11d28c3",
+    "old": "const style = document.createElement('style');",
+    "new": "const style = document.createElement('style');\n                style.nonce = document.querySelector('meta[property=\"csp-nonce\"]')?.nonce || '';",
+    "count": 1
+  },
+  {
+    "path": "monaco-editor/esm/vs/base/browser/domSanitize.js",
+    "sha256": "fd41b231eb5e191936ed5f84252b4d729a48e722348a82cfae25c45b7308ac7e",
+    "old": "import purify from './dompurify/dompurify.js';",
+    "new": "import purify from 'dompurify';",
+    "count": 1
+  }
+]

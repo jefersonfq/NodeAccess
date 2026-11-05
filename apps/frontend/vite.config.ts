@@ -6,6 +6,7 @@ const { manualPlugin } = createRequire(import.meta.url)('../../tools/manual/buil
 
 export default defineConfig({
   plugins: [vue(), manualPlugin()],
+  html: { cspNonce: '__NODEACCESS_CSP_NONCE__' },
   resolve: {
     alias: { '@': resolve(__dirname, 'src') },
   },
@@ -14,6 +15,8 @@ export default defineConfig({
     rollupOptions: {
       output: {
         manualChunks(id) {
+          // A shared preload helper must not pull the optional editor into login.
+          if (id === '\0vite/preload-helper.js') return 'preload-helper'
           if (!id.includes('node_modules')) return undefined
 
           if (
@@ -38,7 +41,7 @@ export default defineConfig({
           }
 
           if (id.includes('/xterm/') || id.includes('/@xterm/')) return 'vendor-terminal'
-          if (id.includes('/monaco-editor/') || id.includes('/@monaco-editor/')) return 'vendor-monaco'
+          if (id.includes('/monaco-editor/') || id.includes('/@monaco-editor/') || id.includes('/dompurify/')) return 'vendor-monaco'
           if (id.includes('/axios/')) return 'vendor-http'
           if (id.includes('/zod/')) return 'vendor-validation'
 

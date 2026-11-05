@@ -2,7 +2,7 @@
 const { artifactPath } = require('../shared/private-artifacts.cjs')
 const fs = require('node:fs')
 const { chromium } = require('playwright')
-const { assertFreshSftpListing } = require('./terminal-sftp-assertions.cjs')
+const { assertFreshSftpListing, assertSessionSftpNavigation } = require('./terminal-sftp-assertions.cjs')
 const { observeTerminalZoom } = require('./terminal-zoom-observer.cjs')
 const { attachBrowserCoverage } = require('../coverage/playwright-coverage.cjs')
 
@@ -116,6 +116,7 @@ async function main() {
           if (message.type === 'sftp_home') this.emitControl({ type: 'sftp_result', requestId: message.requestId, ok: true, home: '/root' })
           if (message.type === 'sftp_list') {
             window.__terminalExperience.sftpMessages.push(message.path)
+            ;(window.__terminalExperience.sftpQueries ??= []).push({ path: message.path, prefix: message.prefix, directoriesOnly: message.directoriesOnly, socketIndex: this.socketIndex })
             window.__terminalExperience.sftpFaults[message.path] = (window.__terminalExperience.sftpFaults[message.path] || 0) + 1
             if (message.path === '/review-delayed' || message.path === '/review-dismiss') {
               setTimeout(() => this.emitControl({ type: 'sftp_result', requestId: message.requestId, ok: true, path: message.path, entries: [{ name: 'report.txt', type: 'file', permissions: '-rw-r--r--' }] }), 600); return
@@ -577,16 +578,20 @@ async function main() {
 
   // A transient REST failure must not rebuild a healthy terminal or its SSH socket.
   const socketsBeforeHttpFailure = await page.evaluate(() => window.__terminalExperience.sockets.filter(s => s.url.includes('/ws/ssh/')).length)
-  await page.route('**/api/v1/recovery-simulation', route => route.fulfill({ status: 503, contentType: 'application/json', body: '{"message":"simulated VPN HTTP failure"}' }))
+  await page.route('**/api/v1/snippets', route => route.fulfill({ status: 503, contentType: 'application/json', body: '{"message":"simulated VPN HTTP failure"}' }), { times: 1 })
   expectedCdpHttpErrors += 1
-  await page.evaluate(async () => {
+  await page.evaluate(() => {
     window.__recoveryDocument = true
     window.__recoveryObserved = false
     window.addEventListener('nodeaccess:backend-recovered', () => { window.__recoveryObserved = true }, { once: true })
-    const { default: api } = await import('/src/services/api.ts')
-    try { await api.get('/recovery-simulation') } catch {}
   })
+  // Use a real UI request through the bundled interceptor; importing a Vite
+  // source path would make this regression test unusable against production CSP.
+  const recoveryFailure = page.waitForResponse(response => new URL(response.url()).pathname === '/api/v1/snippets' && response.status() === 503)
+  await openQuickSnippets()
+  await recoveryFailure
   await page.waitForFunction(() => window.__recoveryObserved === true)
+  await page.keyboard.press('Escape')
   if (!await page.evaluate(() => window.__recoveryDocument)) throw new Error('HTTP recovery reloaded terminal')
   const afterHttpFailure = await page.evaluate(() => window.__terminalExperience.sockets.filter(s => s.url.includes('/ws/ssh/')).map(s => ({ readyState: s.readyState })))
   if (afterHttpFailure.length !== socketsBeforeHttpFailure || afterHttpFailure.at(-1).readyState !== 1) throw new Error('HTTP failure interrupted healthy SSH')
@@ -906,7 +911,12 @@ async function main() {
   // that request before taking the cache baseline, rather than racing its timer.
   await page.waitForFunction(() => window.__terminalExperience.sftpMessages.includes('/var/log/anaconda'))
   const sessionSftpRequests = await page.evaluate(() => window.__terminalExperience.sftpMessages)
-  if (sessionSftpRequests.length < 2 || sessionSftpRequests[0] !== '/' || sessionSftpRequests[1] !== '/var' || autocompleteSftpRequests.length !== 0) throw new Error(`Autocomplete não reutilizou exclusivamente o SFTP da sessão: ${JSON.stringify({ sessionSftpRequests, autocompleteSftpRequests })}`)
+  try {
+    assertSessionSftpNavigation(sessionSftpRequests, autocompleteSftpRequests)
+  } catch (error) {
+    const queries = await page.evaluate(() => window.__terminalExperience.sftpQueries)
+    throw new Error(`${error.message}: ${JSON.stringify(queries)}`, { cause: error })
+  }
   await terminalInput.press('Control+U')
   await terminalInput.pressSequentially('mkdir /var/new-directory', { delay: 4 })
   await terminalInput.press('Enter')

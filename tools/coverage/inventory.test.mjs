@@ -10,9 +10,9 @@ test('inventory includes every executable layer and distinguishes tests, declara
   const root = mkdtempSync(join(tmpdir(), 'na0090-inventory-')); t.after(() => rmSync(root, { recursive: true, force: true }))
   execFileSync('git', ['init', '-q'], { cwd: root })
   const sources = ['apps/frontend/src/App.vue', 'apps/backend/src/a.ts', 'apps/backend/prisma/seed.ts',
-    'apps/agent/src/a.js', 'packages/shared/src/a.mts', 'scripts/a.mjs', 'tools/a.cjs']
-  const tests = ['apps/agent/src/a.test.js', 'scripts/a.spec.mjs', 'tools/a.test.cjs']
-  const other = ['apps/backend/src/a.d.ts', 'apps/frontend/src/a.test.ts', 'tools/input.json', 'outside.js']
+    'apps/agent/src/a.js', 'packages/shared/src/a.mts', 'scripts/a.mjs', 'tools/a.cjs', 'docker/csp/document.js', 'apps/frontend/public/sw.js']
+  const tests = ['apps/agent/src/a.test.js', 'scripts/a.spec.mjs', 'tools/a.test.cjs', 'docker/csp/document.test.mjs']
+  const other = ['apps/backend/src/a.d.ts', 'apps/frontend/src/a.test.ts', 'tools/input.json', 'outside.js', 'docker/unrelated.js', 'apps/frontend/public/unrelated.js']
   for (const file of [...sources, ...tests, ...other]) {
     mkdirSync(dirname(join(root, file)), { recursive: true }); writeFileSync(join(root, file), 'fixture\n')
   }
