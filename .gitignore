@@ -97,3 +97,6 @@ docs/api/
 # Coverage tooling is source; generated coverage reports remain ignored.
 !tools/coverage/
 !tools/coverage/**
+
+# Python laboratory bytecode is generated, never source or evidence.
+__pycache__/

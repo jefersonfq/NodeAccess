@@ -1,7 +1,10 @@
-import { createServer, type Socket } from 'node:net'
+import { type Socket } from 'node:net'
+import { createServer } from 'node:tls'
+import { X509Certificate } from 'node:crypto'
+import { tacacsTlsOptions, type TacacsTlsMaterial } from './tacacs-tls.js'
 import { TacacsMetrics } from './tacacs-metrics.js'
 import type { NetworkAccessService } from './network-access.service.js'
-import { MAX_BODY, readHeader, cryptBody, reply, authStart, authContinue, authReply, requestArgs, authorizationReply, accountingReply } from './tacacs-protocol.js'
+import { MAX_BODY, readHeader, reply, authStart, authContinue, authReply, requestArgs, authorizationReply, accountingReply } from './tacacs-protocol.js'
 
 type Backend=Pick<NetworkAccessService,'device'|'authenticate'|'authorize'|'event'>
 type TacacsLimits = { connections: number; perSource: number; operations: number; timeoutMs: number }
@@ -9,28 +12,37 @@ type TacacsStats = { accepted: number; rejected: number; requests: number; error
 type TacacsSnapshot = { listening: boolean; connections: number; limits: TacacsLimits } & TacacsStats & ReturnType<TacacsMetrics['snapshot']>
 type TacacsRuntime = { server: ReturnType<typeof createServer>; stats: TacacsStats; snapshot: () => TacacsSnapshot; close: () => Promise<void> }
 
-export function createTacacsServer(backend:Backend,{connections=64,perSource=8,operations:operationLimit=32,timeoutMs=5000}={}): TacacsRuntime {
+export function createTacacsServer(backend:Backend,tls:TacacsTlsMaterial,{connections=64,perSource=8,operations:operationLimit=32,timeoutMs=5000}={}): TacacsRuntime {
   const limits={connections,perSource,operations:operationLimit,timeoutMs}
   const sockets=new Set<Socket>(),bySource=new Map<string,number>()
   const authenticationWindows=new Map<string,{started:number;count:number}>()
   let operations=0
   const stats={accepted:0,rejected:0,requests:0,errors:0,timeouts:0}
   const metrics=new TacacsMetrics()
-  const server=createServer(socket=>{
+  const server=createServer({...tacacsTlsOptions(tls),handshakeTimeout:Math.max(1,timeoutMs)},socket=>{
     const ip=(socket.remoteAddress??'').replace(/^::ffff:/,'')
-    if(sockets.size>=limits.connections||(bySource.get(ip)??0)>=limits.perSource){stats.rejected++;socket.destroy();return}
-    sockets.add(socket);bySource.set(ip,(bySource.get(ip)??0)+1);stats.accepted++
+    // No early data is enabled. A resumed connection never dispatches AAA, even if a TLS ticket exists.
+    if(!socket.authorized||socket.isSessionReused()){stats.rejected++;socket.destroy();return}
+    const peer=socket.getPeerCertificate()
+    if(!peer.raw){stats.rejected++;socket.destroy();return}
+    const certificate=new X509Certificate(peer.raw)
+    if(!certificate.checkIP(ip)){stats.rejected++;socket.destroy();return}
+    const fingerprint=certificate.fingerprint256.replaceAll(':','').toLowerCase()
+    let boundIdentity:string|undefined
     let buffer=Buffer.alloc(0),busy=false,sequence=1,sessionId:number|undefined,username='',waiting:'user'|'password'|undefined
-    const lifetime=setTimeout(()=>socket.destroy(),90000);lifetime.unref()
     socket.setTimeout(limits.timeoutMs,()=>socket.destroy())
     socket.on('error',()=>{stats.errors++})
-    socket.on('close',()=>{clearTimeout(lifetime);sockets.delete(socket);const n=(bySource.get(ip)??1)-1;if(n)bySource.set(ip,n);else bySource.delete(ip)})
-    socket.on('data',chunk=>{
+    socket.on('data',(chunk:Buffer)=>{
       if(busy||buffer.length+chunk.length>MAX_BODY+12){stats.rejected++;socket.destroy();return}
       buffer=Buffer.concat([buffer,chunk])
       if(buffer.length<12)return
       let header:ReturnType<typeof readHeader>
       try{header=readHeader(buffer)}catch{stats.rejected++;socket.destroy();return}
+      if(!(header.flags&1)){
+        busy=true;socket.pause();stats.rejected++
+        socket.end(reply(header,header.type===1?authReply(7):header.type===2?authorizationReply(0x11):accountingReply(2)))
+        return
+      }
       if(buffer.length<12+header.length)return
       if(buffer.length!==12+header.length||header.sequence!==sequence||(sessionId!==undefined&&sessionId!==header.sessionId)||operations>=limits.operations){stats.rejected++;socket.destroy();return}
       if(header.type===1 && header.sequence===1) {
@@ -46,11 +58,14 @@ export function createTacacsServer(backend:Backend,{connections=64,perSource=8,o
       const deadline=setTimeout(()=>{stats.timeouts++;metrics.timeout(operationId);socket.destroy()},limits.timeoutMs);deadline.unref()
       let validated=false,activeDevice:Awaited<ReturnType<Backend['device']>>=null
       void (async(): Promise<void>=>{
-        // Fresh source binding, tenant activation and secret on EVERY request.
-        const device=await backend.device(ip)
+        // Fresh source/certificate binding and tenant activation on EVERY request.
+        const device=await backend.device(ip,fingerprint)
         if(!device||socket.destroyed)return
+        const identity=`${device.tenantId}:${device.id}:${device.hostId}`
+        if(boundIdentity!==undefined&&boundIdentity!==identity){socket.destroy();return}
+        boundIdentity=identity
         activeDevice=device;metrics.bind(operationId,device.tenantId)
-        const body=cryptBody(header,packet,device.secret)
+        const body=packet
         let response:Buffer,done=true
         if(header.type===1){
           if(sequence===1){
@@ -80,15 +95,27 @@ export function createTacacsServer(backend:Backend,{connections=64,perSource=8,o
           response=accountingReply(1)
         }
         if(socket.destroyed)return
-        const encoded=reply(header,response,device.secret)
+        const encoded=reply(header,response)
         if(done)socket.end(encoded)
         else{sequence+=2;busy=false;socket.setTimeout(30000);socket.write(encoded)}
       })().catch(()=>{
         stats.errors++;metrics.error(operationId)
-        if(validated&&activeDevice&&!socket.destroyed)socket.end(reply(header,header.type===1?authReply(7):header.type===2?authorizationReply(0x11):accountingReply(2),activeDevice.secret))
+        if(validated&&activeDevice&&!socket.destroyed)socket.end(reply(header,header.type===1?authReply(7):header.type===2?authorizationReply(0x11):accountingReply(2)))
         else socket.destroy()
       }).finally(()=>{operations--;metrics.finish(operationId);clearTimeout(deadline);if(busy&&!socket.writableEnded)socket.destroy()})
     })
   })
+  // Count raw TCP connections before certificate exchange, including slow or invalid handshakes.
+  server.on('connection',(socket:Socket)=>{
+    const ip=(socket.remoteAddress??'').replace(/^::ffff:/,'')
+    if(sockets.size>=limits.connections||(bySource.get(ip)??0)>=limits.perSource){stats.rejected++;socket.destroy();return}
+    sockets.add(socket);bySource.set(ip,(bySource.get(ip)??0)+1);stats.accepted++
+    const lifetime=setTimeout(()=>socket.destroy(),90000);lifetime.unref()
+    socket.on('error',()=>{})
+    socket.on('close',()=>{clearTimeout(lifetime);sockets.delete(socket);const n=(bySource.get(ip)??1)-1;if(n)bySource.set(ip,n);else bySource.delete(ip)})
+  })
+  server.on('tlsClientError',(_error,socket)=>{stats.errors++;socket.destroy()})
+  server.on('newSession',(_id,_data,done)=>done())
+  server.on('resumeSession',(_id,done)=>done(null,null))
   return {server,stats,snapshot:(): TacacsSnapshot=>({listening:server.listening,connections:sockets.size,limits:{...limits},...stats,...metrics.snapshot()}),close:async(): Promise<void>=>{for(const socket of sockets)socket.destroy();await new Promise<void>((resolve,reject)=>server.close(err=>err?reject(err):resolve()))}}
 }

@@ -456,6 +456,9 @@ Atualização 2026-09-10: compartilhamento ao vivo idempotente, criação concor
 
 ## Equipamentos de rede e TACACS+ (piloto, 2026-09-11)
 
+O listener próprio exige TLS 1.3 e autenticação mútua por certificados; TACACS+ legado sem TLS não é suportado por segurança. A integração orienta o vínculo de IP de origem/fingerprint e os requisitos de PKI. A modalidade continua em piloto, sem homologação de fabricantes.
+
+
 O cadastro recebe perfis de servidor SSH e equipamento de rede. Hosts antigos permanecem servidores; o tenant pode definir o padrão apenas para novos cadastros. SFTP e automações de servidor são recusados nos perfis de rede tanto na interface quanto no backend. O terminal SSH normal não recebe sondagens de fabricante.
 
 Equipamentos podem continuar consultando seu AAA existente. Um processo TACACS+ próprio é opcional, administrado nas configurações do tenant, com cadastro de equipamentos/origens, credenciais AAA vinculadas a usuários, ACL efetiva de conexão, comandos exatos por usuário/host e registros AAA. Mudanças administrativas são auditadas na mesma transação. É piloto PAP/ASCII e shell command authorization, sem promessa de homologação de fabricante, capacidade de produção, AV-pairs Junos ou automação CLI específica. Contrato e limites: `docs/PRD-network-access-lite.md`; operação: `docs/guides/network-access-tacacs.md`.

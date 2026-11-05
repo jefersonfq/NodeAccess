@@ -23,6 +23,10 @@ function fixture(t, options = {}) {
   mkdirSync(join(root, 'apps/frontend/src'), { recursive: true }); writeFileSync(join(root, browserFile), browserSource)
   writeFileSync(join(root, source), 'export function fixture() { return 1 }\n')
   writeFileSync(join(root, 'tools/demo.test.mjs'), '// Test fixture only\n')
+  mkdirSync(join(root, 'tools/network-access'))
+  writeFileSync(join(root, 'tools/network-access/tls-lab.test.mjs'), '// Laboratory fixture only\n')
+  writeFileSync(join(root, 'tools/network-access/tacacs-client.py'), 'print(1)\n')
+  writeFileSync(join(root, 'tools/network-access/tls-python-coverage.py'), 'pass\n')
   execFileSync('git', ['init', '-q'], { cwd: root })
   execFileSync('git', ['-c', 'user.email=fixture@example.test', '-c', 'user.name=Fixture', 'add', '.'], { cwd: root })
   execFileSync('git', ['-c', 'user.email=fixture@example.test', '-c', 'user.name=Fixture', 'commit', '-qm', 'fixture'], { cwd: root })
@@ -31,6 +35,7 @@ function fixture(t, options = {}) {
     calls.push(args)
     assert.equal(env.SONAR_TOKEN, undefined); assert.equal(env.SONAR_REVIEW_TOKEN, undefined)
     if (args.includes('--coverage')) {
+      assert.equal(env.NODEACCESS_TLS_COVERAGE, undefined)
       assert.equal(env.NODEACCESS_COVERAGE_COLLECT, '1')
       mkdirSync(join(root, 'coverage/vitest'), { recursive: true })
       writeFileSync(join(root, 'coverage/vitest/coverage-final.json'), JSON.stringify({ [join(root, browserFile)]: fileCoverage(join(root, browserFile)), [join(root, source)]: fileCoverage(join(root, source), options.lowCoverage ? 0 : 1), ...(options.jsonData ? { [join(root, 'tools/data.json')]: fileCoverage(join(root, 'tools/data.json')) } : {}) }))
@@ -39,6 +44,7 @@ function fixture(t, options = {}) {
     }
     assert.equal(env.NODE_V8_COVERAGE, join(root, 'coverage/node-v8'))
     if (args[0].endsWith('/tools/coverage/browser.mjs')) {
+      assert.equal(env.NODEACCESS_TLS_COVERAGE, undefined)
       mkdirSync(join(root, 'coverage/browser/chromium-v8'), { recursive: true })
       const sourceMap = { version: 3, sources: ['example.ts'], sourcesContent: [browserSource], names: [], mappings: 'AAAA' }
       const code = browserSource + '\n//# sourceMappingURL=data:application/json;base64,' + Buffer.from(JSON.stringify(sourceMap)).toString('base64')
@@ -48,6 +54,12 @@ function fixture(t, options = {}) {
         harnesses: options.invalidBrowser ? [] : requiredBrowserHarnesses.filter(([name]) => name !== options.missingHarness).map(([name]) => ({ name, exitCode: 0, timedOut: false })) }))
       return options.browserFailure ? 1 : 0
     }
+    assert.equal(env.NODEACCESS_TLS_COVERAGE, 'true')
+    assert.equal(env.NODEACCESS_TLS_COVERAGE_OUTPUT, join(root, 'coverage/tls-lab.json'))
+    const pythonXml = '<coverage><class filename="tools/network-access/tacacs-client.py"/></coverage>'
+    if (!options.missingPython) writeFileSync(join(root, 'coverage/python.xml'), pythonXml)
+    const pythonCoverage = { sourceSha256: createHash('sha256').update('print(1)\n').digest('hex'), helperSourceSha256: createHash('sha256').update('pass\n').digest('hex'), reportSha256: createHash('sha256').update(pythonXml).digest('hex'), totalLines: 1, executedLines: 1, ...options.pythonCoverage }
+    if (!options.missingLabProof) writeFileSync(env.NODEACCESS_TLS_COVERAGE_OUTPUT, options.malformedLabProof ? '{broken' : JSON.stringify({ schemaVersion: 1, runId: env.NODEACCESS_TLS_COVERAGE_RUN_ID, passed: true, isolated: true, cleanupVerified: true, checks: ['live', 'health', 'soak', 'watchdog'], pythonCoverage, ...options.labProof }))
     writeFileSync(join(root, 'coverage/node-v8/coverage-fixture.json'), JSON.stringify({ result: [] }))
     if (options.sourceDrift) writeFileSync(join(root, source), 'changed after collection\n')
     return options.nodeFailure ? 1 : 0
@@ -56,7 +68,7 @@ function fixture(t, options = {}) {
 }
 test('aggregate pipeline writes fresh LCOV, preserves legacy gates and strips Sonar credentials', async t => {
   const f = fixture(t)
-  const result = await runCoverage({ ...f, env: { SONAR_TOKEN: 'synthetic-a', SONAR_REVIEW_TOKEN: 'synthetic-b' } })
+  const result = await runCoverage({ ...f, env: { SONAR_TOKEN: 'synthetic-a', SONAR_REVIEW_TOKEN: 'synthetic-b', NODEACCESS_TLS_COVERAGE: 'false', NODEACCESS_TLS_COVERAGE_RUN_ID: 'inherited', NODEACCESS_TLS_COVERAGE_OUTPUT: '/tmp/ignored' } })
   assert.equal(result.status, 'passed'); assert.equal(result.legacy.passed, true)
   assert.equal(result.newCoverage.status, 'not_requested'); assert.equal(f.calls.length, 3)
   assert.match(readFileSync(join(f.root, 'coverage/lcov.info'), 'utf8'), /SF:apps\/backend/)
@@ -100,6 +112,7 @@ test('base-aware run fails on uncovered additions and records a verified passing
 test('missing Node suites and corrupted artifacts fail closed', async t => {
   const f = fixture(t)
   rmSync(join(f.root, 'tools/demo.test.mjs'))
+  rmSync(join(f.root, 'tools/network-access/tls-lab.test.mjs'))
   let result = await runCoverage(f)
   assert.equal(result.status, 'failed'); assert.match(result.error, /No Node test/)
   const g = fixture(t)
@@ -148,3 +161,29 @@ for (const missingHarness of ['ha', 'audit-input', 'highlight-budget']) {
     assert.ok(result.failures.includes('BROWSER_RESULT_NOT_VERIFIED'))
   })
 }
+
+for (const [label, options] of [
+  ['missing', { missingLabProof: true }], ['malformed', { malformedLabProof: true }],
+  ['stale', { labProof: { runId: 'previous' } }], ['failed', { labProof: { passed: false } }],
+  ['not isolated', { labProof: { isolated: false } }], ['cleanup incomplete', { labProof: { cleanupVerified: false } }],
+  ['incomplete', { labProof: { checks: ['live'] } }], ['duplicate', { labProof: { checks: ['live', 'live', 'live', 'live'] } }],
+]) test(`rejects ${label} TLS laboratory proof despite exit zero`, async t => {
+  const f = fixture(t, options), result = await runCoverage(f)
+  assert.equal(result.status, 'failed'); assert.ok(result.failures.includes('TLS_LABORATORY_NOT_VERIFIED'))
+})
+test('required TLS laboratory cannot disappear from discovered Node tests', async t => {
+  const f = fixture(t)
+  rmSync(join(f.root, 'tools/network-access/tls-lab.test.mjs'))
+  const result = await runCoverage(f)
+  assert.equal(result.status, 'failed'); assert.match(result.error, /Required TLS laboratory test missing/)
+})
+
+for (const [label, options] of [
+  ['missing report', { missingPython: true }], ['stale source', { pythonCoverage: { sourceSha256: 'stale' } }],
+  ['stale helper', { pythonCoverage: { helperSourceSha256: 'stale' } }],
+  ['stale report', { pythonCoverage: { reportSha256: 'stale' } }], ['no execution', { pythonCoverage: { executedLines: 0 } }],
+  ['impossible totals', { pythonCoverage: { totalLines: 0 } }],
+]) test(`rejects Python coverage with ${label}`, async t => {
+  const f = fixture(t, options), result = await runCoverage(f)
+  assert.equal(result.status, 'failed'); assert.ok(result.failures.includes('PYTHON_COVERAGE_NOT_VERIFIED'))
+})

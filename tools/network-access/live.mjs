@@ -1,26 +1,37 @@
 import { artifactPath } from '../shared/private-artifacts.cjs'
 // Opt-in: creates and removes ONLY its own database tenant; listener binds loopback.
 import assert from 'node:assert/strict'
-import { randomUUID } from 'node:crypto'
+import { randomUUID, X509Certificate } from 'node:crypto'
 import { spawn } from 'node:child_process'
-import { writeFileSync } from 'node:fs'
+import { readFileSync, writeFileSync } from 'node:fs'
+import { join } from 'node:path'
+import { createTacacsTestPki } from '../../apps/backend/dist/modules/network-access/tacacs-tls.test-pki.js'
 import Fastify from 'fastify'
 import jwt from '@fastify/jwt'
 import { Prisma, PrismaClient } from '@prisma/client'
-import { SshRepository } from '../../apps/backend/src/modules/ssh/ssh.repository.ts'
-import { InventoryAclRepository } from '../../apps/backend/src/modules/inventory/inventory-acl.repository.ts'
-import { NetworkAccessService } from '../../apps/backend/src/modules/network-access/network-access.service.ts'
-import { networkAccessRoutes } from '../../apps/backend/src/modules/network-access/network-access.routes.ts'
-import { TacacsHealthStore } from '../../apps/backend/src/modules/network-access/tacacs-health.ts'
-import { createTacacsServer } from '../../apps/backend/src/modules/network-access/tacacs-server.ts'
+import { SshRepository } from '../../apps/backend/dist/modules/ssh/ssh.repository.js'
+import { InventoryAclRepository } from '../../apps/backend/dist/modules/inventory/inventory-acl.repository.js'
+import { NetworkAccessService } from '../../apps/backend/dist/modules/network-access/network-access.service.js'
+import { networkAccessRoutes } from '../../apps/backend/dist/modules/network-access/network-access.routes.js'
+import { TacacsHealthStore } from '../../apps/backend/dist/modules/network-access/tacacs-health.js'
+import { createTacacsServer } from '../../apps/backend/dist/modules/network-access/tacacs-server.js'
 if(process.env.RUN_NETWORK_ACCESS_LIVE!=='true')throw Error('Set RUN_NETWORK_ACCESS_LIVE=true for disposable tenant tests')
 const healthStore=process.env.RUN_NETWORK_DAEMON_HEALTH==='true'?new TacacsHealthStore(process.env.REDIS_URL,process.env.REDIS_PASSWORD):undefined
 const db=new PrismaClient(), api=Fastify(), ssh=new SshRepository(db,new InventoryAclRepository(db)),service=new NetworkAccessService(db,ssh,healthStore)
-const runtime=createTacacsServer(service),secret='disposable-tacacs-secret-at-least-32-characters'
-let tenant,user,host,node,acl,foreignTenant,foreignUser
+if(process.env.NETWORK_TACACS_EXTERNAL_PORT && !process.env.NETWORK_TLS_PKI_DIR)throw Error('External disposable daemon requires explicit matching NETWORK_TLS_PKI_DIR')
+const ownedPki=process.env.NETWORK_TLS_PKI_DIR?null:createTacacsTestPki()
+const pkiDirectory=process.env.NETWORK_TLS_PKI_DIR??ownedPki.directory
+const pem=file=>readFileSync(join(pkiDirectory,file))
+const tlsMaterial={key:pem('server.key'),cert:pem('server.crt'),ca:pem('root/ca.crt'),crl:pem('root/ca.crl')}
+const certificateFingerprintSha256=new X509Certificate(pem('client.crt')).fingerprint256.replaceAll(':','').toLowerCase()
+const rotatedFingerprint=new X509Certificate(pem('unknown.crt')).fingerprint256.replaceAll(':','').toLowerCase()
+const runtime=createTacacsServer(service,tlsMaterial)
+const clientIdentity=name=>({cert:join(pkiDirectory,name+'.crt'),key:join(pkiDirectory,name+'.key')})
+const tlsClient={...clientIdentity('client'),ca:join(pkiDirectory,'root/ca.crt'),crl:join(pkiDirectory,'root/ca.crl'),serverName:process.env.NETWORK_TLS_SERVER_NAME??'localhost'}
+let tenant,user,host,node,acl,foreignTenant,foreignUser,foreignHost
 const checks=[]
 function checked(name){checks.push(name);console.log('PASS '+name)}
-async function probe(action,extra={}){return new Promise((resolve,reject)=>{const child=spawn(process.env.PYTHON??'python3',['tools/network-access/tacacs-client.py'],{env:process.env});let output='',error='';const deadline=setTimeout(()=>child.kill('SIGKILL'),10000);child.once('close',()=>clearTimeout(deadline));child.stdout.on('data',b=>output+=b);child.stderr.on('data',b=>error+=b);child.on('error',reject);child.on('exit',code=>{try{if(code)throw Error(error);resolve(JSON.parse(output))}catch(e){reject(e)}});child.stdin.end(JSON.stringify({port:Number(process.env.NETWORK_TACACS_EXTERNAL_PORT)||runtime.server.address().port,secret,action,...extra}))})}
+async function probe(action,extra={}){return new Promise((resolve,reject)=>{const child=spawn(process.env.PYTHON??'python3',['tools/network-access/tacacs-client.py'],{env:process.env});let output='',error='';const deadline=setTimeout(()=>child.kill('SIGKILL'),10000);child.once('close',()=>clearTimeout(deadline));child.stdout.on('data',b=>output+=b);child.stderr.on('data',b=>error+=b);child.on('error',reject);child.on('exit',code=>{try{if(code)throw Error(error);resolve(JSON.parse(output))}catch(e){reject(e)}});child.stdin.end(JSON.stringify({port:Number(process.env.NETWORK_TACACS_EXTERNAL_PORT)||runtime.server.address().port,...tlsClient,action,...extra}))})}
 try{
  tenant=await db.tenant.create({data:{name:'Disposable network AAA',slug:'network-aaa-'+randomUUID()}})
  user=await db.user.create({data:{tenantId:tenant.id,name:'Alice network pilot',email:randomUUID()+'@example.test'}})
@@ -37,13 +48,22 @@ try{
  checked('HTTP authentication and administrator restriction')
  await put('settings',{defaultProfile:'network_generic',tacacsEnabled:true})
  assert.equal((await service.settings(tenant.id)).defaultProfile,'network_generic')
- await put('devices',{hostId:host.id,sourceIp:'127.0.0.1',secret,enabled:true})
+ await db.$executeRaw(Prisma.sql`INSERT INTO network_tacacs_devices (tenant_id,host_id,source_ip,secret_cipher,certificate_fingerprint_sha256,enabled) VALUES (${tenant.id},${host.id},${'127.0.0.1'},NULL,NULL,TRUE)`)
+ assert.equal(await service.device('127.0.0.1',certificateFingerprintSha256),null)
+ checked('enabled legacy row without certificate pin cannot authenticate after migration')
+ await put('devices',{hostId:host.id,sourceIp:'127.0.0.1',certificateFingerprintSha256,enabled:true})
+ foreignHost=await db.host.create({data:{tenantId:foreignTenant.id,name:'Disposable foreign TLS device',ip:'127.0.0.2',sshUser:'alice',authType:'PASSWORD',scope:'GLOBAL'}})
+ const originalBinding=await service.device('127.0.0.1',certificateFingerprintSha256)
+ await assert.rejects(service.saveDevice(foreignTenant.id,foreignUser.id,{hostId:foreignHost.id,sourceIp:'127.0.0.2',certificateFingerprintSha256,enabled:true}))
+ assert.deepEqual(await service.device('127.0.0.1',certificateFingerprintSha256),originalBinding)
+ assert.equal((await service.overview(foreignTenant.id)).devices.length,0)
+ checked('cross-tenant certificate pin collision rejects without mutating the original binding')
  await put('credentials',{userId:user.id,username:'alice',password:'disposable-aaa-password',enabled:true})
  await put('grants',{userId:user.id,hostId:host.id,commands:[['show','version']]})
  await put('grants',{userId:user.id,hostId:host.id,commands:[['show','version;reload']]},400)
  await assert.rejects(service.saveCredential(tenant.id,user.id,{userId:foreignUser.id,username:'foreign',password:'disposable-aaa-password',enabled:true}),/cliente/)
  checked('CRUD validation and cross-tenant identity isolation')
- const overview=JSON.stringify(await service.overview(tenant.id));assert.ok(!overview.includes(secret));assert.ok(!overview.includes('disposable-aaa-password'));assert.ok(!overview.includes('password_hash'));checked('API never returns secrets or password hashes')
+ const overview=JSON.stringify(await service.overview(tenant.id));assert.ok(!overview.includes('encryptedSecret'));assert.ok(!overview.includes('disposable-aaa-password'));assert.ok(!overview.includes('password_hash'));checked('API never returns secrets or password hashes')
  if(!process.env.NETWORK_TACACS_EXTERNAL_PORT)await new Promise(resolve=>runtime.server.listen(0,'127.0.0.1',resolve))
  assert.equal((await probe('pap')).valid,false);checked('connect ACL required independently of AAA credentials')
  acl=await db.resourceAclEntry.create({data:{tenantId:tenant.id,inventoryNodeId:node.id,principalType:'USER',principalId:user.id,canView:true,canConnect:true,createdById:user.id}})
@@ -97,15 +117,14 @@ try{
  await db.user.update({where:{id:user.id},data:{lockedUntil:null}})
  assert.equal((await probe('authorize',query)).valid,true)
  checked('locked user is denied and recovers after administrative unlock')
- const rotatedSecret=secret+'-rotated'
- await put('devices',{hostId:host.id,sourceIp:'127.0.0.1',secret:rotatedSecret,enabled:true})
+ await put('devices',{hostId:host.id,sourceIp:'127.0.0.1',certificateFingerprintSha256:rotatedFingerprint,enabled:true})
  assert.equal((await probe('authorize',query)).unavailable,true)
- assert.equal((await probe('authorize',{...query,secret:rotatedSecret})).valid,true)
- await put('devices',{hostId:host.id,sourceIp:'127.0.0.1',secret,enabled:false})
+ assert.equal((await probe('authorize',{...query,...clientIdentity('unknown')})).valid,true)
+ await put('devices',{hostId:host.id,sourceIp:'127.0.0.1',certificateFingerprintSha256,enabled:false})
  assert.equal((await probe('authorize',query)).unavailable,true)
- await put('devices',{hostId:host.id,sourceIp:'127.0.0.1',secret,enabled:true})
+ await put('devices',{hostId:host.id,sourceIp:'127.0.0.1',certificateFingerprintSha256,enabled:true})
  assert.equal((await probe('authorize',query)).valid,true)
- checked('device key rotation and disable/enable are effective without listener restart')
+ checked('device certificate pin rotation and disable/enable are effective without listener restart')
  // Corrupt only the disposable tenant's policy, exercising real DB deserialization.
  await db.$executeRaw(Prisma.sql`UPDATE network_tacacs_grants SET commands_json=${'{invalid-json'} WHERE tenant_id=${tenant.id}`)
  assert.equal((await probe('authorize',query)).status,17)
@@ -117,7 +136,7 @@ try{
    if(key==='event'&&injectAuditFault)return async()=>{throw Error('Injected audit outage')}
    return Reflect.get(target,key,receiver)
  }})
- const faultRuntime=createTacacsServer(faultService)
+ const faultRuntime=createTacacsServer(faultService,tlsMaterial)
  await new Promise(resolve=>faultRuntime.server.listen(0,'127.0.0.1',resolve))
  try{
    const port=faultRuntime.server.address().port
@@ -134,12 +153,12 @@ try{
  let emulation=null
  if(process.env.RUN_NETWORK_DEVICE_EMULATION==='true'){
    const {runDeviceEmulation}=await import('./device-emulator.mjs')
-   emulation=await runDeviceEmulation({service,probe,primaryPort:Number(process.env.NETWORK_TACACS_EXTERNAL_PORT)||runtime.server.address().port,setCommands:commands=>put('grants',{userId:user.id,hostId:host.id,commands})})
+   emulation=await runDeviceEmulation({service,probe,tlsMaterial,primaryPort:Number(process.env.NETWORK_TACACS_EXTERNAL_PORT)||runtime.server.address().port,setCommands:commands=>put('grants',{userId:user.id,hostId:host.id,commands})})
    checked('emulated network CLI enforces AAA over real SSH, including failover and recovery')
  }
  let soak=null
  if(process.env.RUN_NETWORK_ACCESS_SOAK==='true'){
-   const {runSoak}=await import('./soak.mjs');soak=await runSoak({service,probe});checked('sustained real database load, injected faults, timeouts and recovery')
+   const {runSoak}=await import('./soak.mjs');soak=await runSoak({service,probe,tlsMaterial});checked('sustained real database load, injected faults, timeouts and recovery')
  }
  let daemonHealth=null
  if(healthStore){
@@ -150,25 +169,28 @@ try{
    checked('compiled daemon heartbeat reaches tenant-scoped administrator HTTP diagnostics')
  }
  const durations=[]
- for(let i=0;i<25;i++){const started=performance.now();const d=await service.device('127.0.0.1');assert.equal(await service.authorize(d,'alice',query.args),true);durations.push(performance.now()-started)}
+ for(let i=0;i<25;i++){const started=performance.now();const d=await service.device('127.0.0.1',certificateFingerprintSha256);assert.equal(await service.authorize(d,'alice',query.args),true);durations.push(performance.now()-started)}
  durations.sort((a,b)=>a-b);checked('25 actual database authorizations')
  const deviceId=(await service.overview(tenant.id)).devices[0].id
  await service.remove(tenant.id,user.id,'credentials',user.id)
  assert.equal((await probe('pap')).valid,false)
  await service.remove(tenant.id,user.id,'grants',host.id,user.id)
  await service.remove(tenant.id,user.id,'devices',deviceId)
- const events=await db.adminLog.findMany({where:{adminId:user.id}});assert.ok(events.some(e=>e.action==='NETWORK_REMOVED'));assert.ok(!JSON.stringify(events).includes(secret));checked('revocation and deletion retain redacted administrative audit')
+ const events=await db.adminLog.findMany({where:{adminId:user.id}});assert.ok(events.some(e=>e.action==='NETWORK_REMOVED'));assert.ok(!JSON.stringify(events).includes('disposable-aaa-password'));checked('revocation and deletion retain redacted administrative audit')
  const report={ok:true,checks,emulation,soak,daemonHealth,concurrency:{authorizationRequests:32,accountingRequests:12,parallelClients:4,elapsedMs:concurrencyMs},authorizationMs:{p50:durations[12],p95:durations[23],max:durations[24]},protocolStats:process.env.NETWORK_TACACS_EXTERNAL_PORT?null:runtime.stats,externalDaemon:Boolean(process.env.NETWORK_TACACS_EXTERNAL_PORT),limits:'Local pilot only; vendor hardware and production load not certified'}
  writeFileSync(process.env.NETWORK_REPORT_PATH??artifactPath('nodeaccess-network-live.json'),JSON.stringify(report,null,2));console.log(JSON.stringify(report))
 }finally{
  if(runtime.server.listening)await runtime.close();await api.close()
- if(tenant){for(const table of ['network_tacacs_events','network_tacacs_grants','network_tacacs_credentials','network_tacacs_devices','network_settings'])await db.$executeRaw(Prisma.sql`DELETE FROM ${Prisma.raw(table)} WHERE tenant_id=${tenant.id}`);await db.resourceAclEntry.deleteMany({where:{tenantId:tenant.id}})}
+ for(const ownedTenant of [tenant,foreignTenant].filter(Boolean)){for(const table of ['network_tacacs_events','network_tacacs_grants','network_tacacs_credentials','network_tacacs_devices','network_settings'])await db.$executeRaw(Prisma.sql`DELETE FROM ${Prisma.raw(table)} WHERE tenant_id=${ownedTenant.id}`);await db.resourceAclEntry.deleteMany({where:{tenantId:ownedTenant.id}})}
  if(node)await db.inventoryNode.delete({where:{id:node.id}})
  if(host)await db.host.delete({where:{id:host.id}})
  if(user){await db.adminLog.deleteMany({where:{adminId:user.id}});await db.user.delete({where:{id:user.id}})}
  if(tenant)await db.tenant.delete({where:{id:tenant.id}})
+ if(foreignHost)await db.host.delete({where:{id:foreignHost.id}})
+ if(foreignUser){await db.adminLog.deleteMany({where:{adminId:foreignUser.id}})}
  if(foreignUser)await db.user.delete({where:{id:foreignUser.id}})
  if(foreignTenant)await db.tenant.delete({where:{id:foreignTenant.id}})
  healthStore?.close()
  await db.$disconnect()
+ ownedPki?.cleanup()
 }

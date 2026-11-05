@@ -138,8 +138,8 @@
     "db:studio": "npm run db:studio -w apps/backend",
     "db:seed": "npm run db:seed -w apps/backend",
     "docs": "typedoc --entryPointStrategy packages --out docs",
-    "test:network-access:lab": "RUN_NETWORK_ACCESS_LIVE=true RUN_NETWORK_DEVICE_EMULATION=true node --env-file=apps/backend/.env --import tsx tools/network-access/live.mjs",
-    "test:network-access:soak": "RUN_NETWORK_ACCESS_LIVE=true RUN_NETWORK_DEVICE_EMULATION=true RUN_NETWORK_ACCESS_SOAK=true node --env-file=apps/backend/.env --import tsx tools/network-access/live.mjs",
+    "test:network-access:lab": "NODEACCESS_TLS_COVERAGE=true node --test tools/network-access/tls-lab.test.mjs",
+    "test:network-access:soak": "RUN_NETWORK_ACCESS_LIVE=true RUN_NETWORK_DEVICE_EMULATION=true RUN_NETWORK_ACCESS_SOAK=true node --env-file=\"${NODEACCESS_NETWORK_LAB_ENV:?Set NODEACCESS_NETWORK_LAB_ENV to a disposable lab env file}\" tools/network-access/live.mjs",
     "test:network-access": "vitest run apps/backend/src/modules/network-access apps/backend/src/modules/hosts/host.routes-profile.test.ts apps/backend/src/modules/hosts/host.service.test.ts apps/backend/src/modules/sftp/sftp.service.test.ts apps/backend/src/modules/ssh/ssh.repository-bastion-source.test.ts apps/frontend/src/stores/terminals.test.ts apps/frontend/src/services/api-public-auth.test.ts",
     "manual:validate": "node tools/manual/build.cjs",
     "manual:check-reviewed": "node tools/manual/build.cjs --check-reviewed",
@@ -176,7 +176,8 @@
     "test:coverage": "node tools/coverage/run.mjs",
     "postinstall": "node scripts/dependency-patches/typedoc-minimatch.mjs",
     "test:dependency-compatibility": "node --test scripts/dependency-patches/dependency-compatibility.test.cjs scripts/dependency-patches/typedoc-minimatch.test.mjs",
-    "quality:context": "node tools/quality/context.mjs"
+    "quality:context": "node tools/quality/context.mjs",
+    "pretest:network-access:soak": "npm run build -w packages/shared && npm run build -w apps/backend"
   },
   "devDependencies": {
     "@bcoe/v8-coverage": "1.0.2",

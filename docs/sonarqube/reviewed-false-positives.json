@@ -1745,7 +1745,7 @@
         "startOffset": 18,
         "endOffset": 19
       },
-      "sourceSha256": "4766347e79a50ba524d6e21be6ea66a1e1914b75aea37119457aea821ab3a49a",
+      "sourceSha256": "b4d828eaccba4b19ce8bee06f2ac585a905f35d30cace9b257e0495fa3749f1c",
       "ruleSha256": "364063b4ce150ed114c1a468ac33e4685efcba303096bd136991b75e4031bd4a",
       "rationale": "O input localAiUploadRef de envio de arquivo para implantação de IA usa class hidden (display:none) e não é o controle apresentado ao usuário. A seleção é aberta por acionador visível nomeado; adicionar label ao elemento oculto não corrige uma falta de nome na interface. A regra exige nome/associação para controles apresentados ao usuário; este controle com display:none não participa da árvore de acessibilidade. Não se usa tabindex=-1 isoladamente como justificativa.",
       "evidence": [
@@ -3517,14 +3517,14 @@
       "id": "SQ-0490",
       "rule": "javascript:S1313",
       "file": "tools/network-access/ux.cjs",
-      "hash": "d9721452477a6e7d2350e999d05da778",
+      "hash": "2a9acfa2820b674870da79ac4df89f49",
       "range": {
-        "startLine": 65,
-        "endLine": 65,
+        "startLine": 68,
+        "endLine": 68,
         "startOffset": 76,
         "endOffset": 86
       },
-      "sourceSha256": "73f0f322548ba624b2b69cb43a37da3aa8957d20a02d666f41ce6a6d33bf3373",
+      "sourceSha256": "47ff2ee0e2fed1bf7e3cadea9651c71591df22989e93a03db02e5d8d96985c30",
       "ruleSha256": "47a5ad141f589cc10929bc37af67e1b72748bafba5026868b88f10f0dc5977a0",
       "rationale": "Literal representa sourceIp de dispositivo no overview mock de acesso à rede. Não é endereço de infraestrutura configurado pelo produto: o consumidor recebe dado sintético através da fronteira de simulação verificada.",
       "evidence": [

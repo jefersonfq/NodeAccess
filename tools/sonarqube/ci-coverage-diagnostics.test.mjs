@@ -96,9 +96,9 @@ test('CI revalidates generic stack coordinates and keeps structured flow failure
   ])
 })
 
-test('three additional harness diagnostics preserve exact names and capture modes only', t => {
+test('additional harness diagnostics preserve exact names and capture modes only', t => {
   const f = fixture(t)
-  for (const name of ['ha', 'audit-input', 'highlight-budget']) {
+  for (const name of ['ha', 'audit-input', 'tacacs-tls', 'highlight-budget']) {
     f.write({ collectors: { browser: { error: `Browser coverage harness failed: ${name}`, harnesses: [
       { name, exitCode: 7, timedOut: false, coverageMode: 'node-only', diagnostic: { category: 'ASSERTION', line: 2, column: 3, raw: 'PRIVATE' } },
       { name: `${name}-PRIVATE`, coverageMode: 'PRIVATE' },
@@ -109,4 +109,15 @@ test('three additional harness diagnostics preserve exact names and capture mode
   }
   f.write({ collectors: { browser: { harnesses: [{ name: 'ha', coverageMode: 'PRIVATE' }, { name: 'audit-input', coverageMode: 'node-and-browser' }] } } })
   assert.deepEqual(coverageDiagnostics(f.root).collectors.browser.harnesses, [{ name: 'ha' }, { name: 'audit-input', coverageMode: 'node-and-browser' }])
+})
+
+test('TLS and Python verification diagnostics retain booleans and known failures only', t => {
+  const f = fixture(t)
+  f.write({ failures: ['TLS_LABORATORY_NOT_VERIFIED', 'PYTHON_COVERAGE_NOT_VERIFIED'], collectors: { node: { tlsLaboratoryVerified: false, pythonCoverageVerified: true, private: 'PRIVATE' } } })
+  const result = coverageDiagnostics(f.root)
+  assert.deepEqual(result.failures, ['TLS_LABORATORY_NOT_VERIFIED', 'PYTHON_COVERAGE_NOT_VERIFIED'])
+  assert.equal(result.hasUnrecognizedFailures, false)
+  assert.deepEqual(result.collectors.node, { tlsLaboratoryVerified: false, pythonCoverageVerified: true })
+  f.write({ collectors: { node: { tlsLaboratoryVerified: 'PRIVATE', pythonCoverageVerified: 1 } } })
+  assert.deepEqual(coverageDiagnostics(f.root).collectors.node, {})
 })

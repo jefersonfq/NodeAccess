@@ -1,8 +1,9 @@
 // The reviewed CVE affects the SQLite shell, not the separately packaged shared library.
 export function reviewedSqliteImageFinding(ref, distro, match, policy, now = new Date()) {
+  const reviewedDistro = Object.hasOwn(policy.images, ref) ? policy.images[ref] : null
   const expiry = Date.parse(`${policy.expiresAt}T00:00:00Z`)
   if (!Number.isFinite(expiry) || !Number.isFinite(now.getTime()) || now.getTime() >= expiry
-    || !policy.images.includes(ref) || distro?.name !== policy.distro.name || distro.version !== policy.distro.version) return null
+    || !reviewedDistro || distro?.name !== reviewedDistro.name || distro.version !== reviewedDistro.version) return null
   const a = match?.artifact, v = match?.vulnerability, details = match?.matchDetails
   if (!a || !v || a.type !== 'apk' || a.name !== policy.package || a.version !== policy.version
     || v.id !== policy.id || v.severity !== 'High' || v.namespace !== policy.namespace || v.dataSource !== policy.source

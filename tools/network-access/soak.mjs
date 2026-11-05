@@ -1,8 +1,8 @@
 // Opt-in real MySQL + Python client soak. Never targets a customer device.
 import assert from 'node:assert/strict'
 import { monitorEventLoopDelay } from 'node:perf_hooks'
-import { createTacacsServer } from '../../apps/backend/src/modules/network-access/tacacs-server.ts'
-export async function runSoak({service,probe}) {
+import { createTacacsServer } from '../../apps/backend/dist/modules/network-access/tacacs-server.js'
+export async function runSoak({service,probe,tlsMaterial}) {
   const duration=Number(process.env.NETWORK_SOAK_SECONDS??120),concurrency=Number(process.env.NETWORK_SOAK_CLIENTS??4)
   assert.ok(Number.isInteger(duration)&&duration>=30&&duration<=1800,'duration must be 30..1800 seconds')
   assert.ok(Number.isInteger(concurrency)&&concurrency>=1&&concurrency<=8,'clients must be 1..8')
@@ -16,7 +16,7 @@ export async function runSoak({service,probe}) {
     }
     return Reflect.get(target,key,receiver)
   }})
-  const runtime=createTacacsServer(faults,{connections:32,perSource:8,operations:16,timeoutMs:200})
+  const runtime=createTacacsServer(faults,tlsMaterial,{connections:32,perSource:8,operations:16,timeoutMs:200})
   await new Promise(resolve=>runtime.server.listen(0,'127.0.0.1',resolve))
   const port=runtime.server.address().port, phases=[],samples=[]
   const lag=monitorEventLoopDelay({resolution:20});lag.enable()
@@ -35,7 +35,7 @@ export async function runSoak({service,probe}) {
           if(response.unavailable)result.unavailable++
           else if(response.status===17)result.errors++
           else{assert.equal(response.valid,allowed,'never grant a denied command, even during failure');if(response.valid)result.permitted++;else result.denied++}
-          if(phase!=='faults')assert.equal(response.valid,allowed,'healthy phase must complete each request')
+          if(phase!=='faults')assert.equal(response.valid,allowed,'healthy phase must complete each request '+JSON.stringify({phase,status:response.status,errorType:response.errorType,stats:runtime.stats}))
         }
       }))
       // All injected delays settle before evaluating recovery and outstanding capacity.
