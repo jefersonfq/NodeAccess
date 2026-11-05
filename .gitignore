@@ -100,3 +100,6 @@ docs/api/
 
 # Python laboratory bytecode is generated, never source or evidence.
 __pycache__/
+
+# Mutation-testing sandboxes are local generated artifacts.
+.stryker-tmp/

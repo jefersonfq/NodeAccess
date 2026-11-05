@@ -3256,12 +3256,13 @@
         "startOffset": 182,
         "endOffset": 193
       },
-      "sourceSha256": "be931e39a0c4b5acb9ef049355a26d185e9394b54dd80b7458db6a8aa8da3858",
+      "sourceSha256": "768766acb6e9c0165cf8b6d7f88f2d8ba3c8f8e281a48c7b6098bb03634c9103",
       "ruleSha256": "47a5ad141f589cc10929bc37af67e1b72748bafba5026868b88f10f0dc5977a0",
       "rationale": "Literal representa host do terminal com FakeWebSocket. Não é endereço de infraestrutura configurado pelo produto: o consumidor recebe dado sintético através da fronteira de simulação verificada.",
       "evidence": [
         "docs/changes/2026/11/NA-0093-sonar-delivery/reconciliation/tooling.json",
-        "tools/frontend/terminal-experience-playwright.cjs"
+        "tools/frontend/terminal-experience-playwright.cjs",
+        "docs/changes/2026/11/NA-0170-zap-stryker/security-review-previous-decisions.md"
       ]
     },
     {
@@ -3275,12 +3276,13 @@
         "startOffset": 63,
         "endOffset": 74
       },
-      "sourceSha256": "be931e39a0c4b5acb9ef049355a26d185e9394b54dd80b7458db6a8aa8da3858",
+      "sourceSha256": "768766acb6e9c0165cf8b6d7f88f2d8ba3c8f8e281a48c7b6098bb03634c9103",
       "ruleSha256": "47a5ad141f589cc10929bc37af67e1b72748bafba5026868b88f10f0dc5977a0",
       "rationale": "Literal representa host de retry com FakeWebSocket. Não é endereço de infraestrutura configurado pelo produto: o consumidor recebe dado sintético através da fronteira de simulação verificada.",
       "evidence": [
         "docs/changes/2026/11/NA-0093-sonar-delivery/reconciliation/tooling.json",
-        "tools/frontend/terminal-experience-playwright.cjs"
+        "tools/frontend/terminal-experience-playwright.cjs",
+        "docs/changes/2026/11/NA-0170-zap-stryker/security-review-previous-decisions.md"
       ]
     },
     {
@@ -3294,12 +3296,13 @@
         "startOffset": 67,
         "endOffset": 78
       },
-      "sourceSha256": "be931e39a0c4b5acb9ef049355a26d185e9394b54dd80b7458db6a8aa8da3858",
+      "sourceSha256": "768766acb6e9c0165cf8b6d7f88f2d8ba3c8f8e281a48c7b6098bb03634c9103",
       "ruleSha256": "47a5ad141f589cc10929bc37af67e1b72748bafba5026868b88f10f0dc5977a0",
       "rationale": "Literal representa host bloqueado com FakeWebSocket. Não é endereço de infraestrutura configurado pelo produto: o consumidor recebe dado sintético através da fronteira de simulação verificada.",
       "evidence": [
         "docs/changes/2026/11/NA-0093-sonar-delivery/reconciliation/tooling.json",
-        "tools/frontend/terminal-experience-playwright.cjs"
+        "tools/frontend/terminal-experience-playwright.cjs",
+        "docs/changes/2026/11/NA-0170-zap-stryker/security-review-previous-decisions.md"
       ]
     },
     {
@@ -3929,6 +3932,25 @@
       "evidence": [
         "docs/changes/2026/11/NA-0156-sonar-followup/validation.md",
         "tools/tls/challenge-files.test.mjs"
+      ]
+    },
+    {
+      "id": "SQ-NA0170-TOTP",
+      "rule": "python:S4790",
+      "file": "tools/security/zap-driver.py",
+      "hash": "4698e8ed6f6888607720a0c6d3c3292e",
+      "range": {
+        "startLine": 70,
+        "endLine": 70,
+        "startOffset": 78,
+        "endOffset": 82
+      },
+      "sourceSha256": "959f5df50d32f8179bf8786135da4e2570d3395e19dac2caede1e267ee8d2456",
+      "ruleSha256": "521f6af35134bf3d22e029ebf898b16fae192f3711177c06cbfc10f90b30b5bc",
+      "rationale": "Independently reviewed RFC 6238 HMAC-SHA1 TOTP interoperability for an ephemeral MFA lab account only (20-byte random secret, six digits, 30-second interval). This is not password hashing or a digital signature. The real backend uses the same default algorithm; changing only the driver breaks the MFA test. All six RFC SHA1 vectors pass. User explicitly authorized this individual contextual false-positive decision after final validation. No rule, threshold or exclusion is changed; future product algorithm migration remains separate.",
+      "evidence": [
+        "docs/changes/2026/11/NA-0170-zap-stryker/security-review-totp.md",
+        "tools/security/zap-driver.test.py"
       ]
     }
   ]

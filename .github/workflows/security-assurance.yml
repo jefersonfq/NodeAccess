@@ -1,0 +1,65 @@
+name: Dynamic security and mutation tests
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: security-assurance-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  mutation-security:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 24.22.1
+          cache: npm
+      - name: Use locked-workspace compatible npm
+        run: npm install --global npm@12.2.1
+      - run: npm ci
+      - run: npm run test:mutation:contracts
+      - run: node --test scripts/security/stryker-dependency.test.mjs
+      - run: npm run test:mutation
+      - name: Upload summary without source code
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: mutation-security-summary
+          path: artifacts/mutation/summary.json
+          retention-days: 14
+          if-no-files-found: warn
+
+  security-zap:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 24.22.1
+          cache: npm
+      - name: Use locked-workspace compatible npm
+        run: npm install --global npm@12.2.1
+      - run: npm ci
+      - run: npm run db:generate -w apps/backend
+      - run: npm run build -w packages/shared
+      - run: npm run test:zap:contracts
+      - name: Scan disposable NodeAccess through ZAP
+        run: npm run security:zap
+        env:
+          RUN_ZAP_REAL: 'true'
+      - name: Upload sanitized scan summary
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: zap-security-summary
+          path: artifacts/security/zap/summary.json
+          retention-days: 14
+          if-no-files-found: warn

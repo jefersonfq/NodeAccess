@@ -2,7 +2,7 @@
 const { artifactPath } = require('../shared/private-artifacts.cjs')
 const fs = require('node:fs')
 const { chromium } = require('playwright')
-const { assertFreshSftpListing } = require('./terminal-sftp-assertions.cjs')
+const { assertFreshSftpListing, assertSessionSftpNavigation } = require('./terminal-sftp-assertions.cjs')
 const { observeTerminalZoom } = require('./terminal-zoom-observer.cjs')
 const { attachBrowserCoverage } = require('../coverage/playwright-coverage.cjs')
 
@@ -116,6 +116,7 @@ async function main() {
           if (message.type === 'sftp_home') this.emitControl({ type: 'sftp_result', requestId: message.requestId, ok: true, home: '/root' })
           if (message.type === 'sftp_list') {
             window.__terminalExperience.sftpMessages.push(message.path)
+            ;(window.__terminalExperience.sftpQueries ??= []).push({ path: message.path, prefix: message.prefix, directoriesOnly: message.directoriesOnly, socketIndex: this.socketIndex })
             window.__terminalExperience.sftpFaults[message.path] = (window.__terminalExperience.sftpFaults[message.path] || 0) + 1
             if (message.path === '/review-delayed' || message.path === '/review-dismiss') {
               setTimeout(() => this.emitControl({ type: 'sftp_result', requestId: message.requestId, ok: true, path: message.path, entries: [{ name: 'report.txt', type: 'file', permissions: '-rw-r--r--' }] }), 600); return
@@ -906,7 +907,12 @@ async function main() {
   // that request before taking the cache baseline, rather than racing its timer.
   await page.waitForFunction(() => window.__terminalExperience.sftpMessages.includes('/var/log/anaconda'))
   const sessionSftpRequests = await page.evaluate(() => window.__terminalExperience.sftpMessages)
-  if (sessionSftpRequests.length < 2 || sessionSftpRequests[0] !== '/' || sessionSftpRequests[1] !== '/var' || autocompleteSftpRequests.length !== 0) throw new Error(`Autocomplete não reutilizou exclusivamente o SFTP da sessão: ${JSON.stringify({ sessionSftpRequests, autocompleteSftpRequests })}`)
+  try {
+    assertSessionSftpNavigation(sessionSftpRequests, autocompleteSftpRequests)
+  } catch (error) {
+    const queries = await page.evaluate(() => window.__terminalExperience.sftpQueries)
+    throw new Error(`${error.message}: ${JSON.stringify(queries)}`, { cause: error })
+  }
   await terminalInput.press('Control+U')
   await terminalInput.pressSequentially('mkdir /var/new-directory', { delay: 4 })
   await terminalInput.press('Enter')

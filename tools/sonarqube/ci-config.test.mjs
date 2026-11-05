@@ -4,7 +4,7 @@ import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync, symlinkSyn
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { assertConfiguration, materializeBaseConfiguration, readConfiguration, verifyScannerContext } from './ci-config.mjs'
-const source = 'sonar.projectKey=nodeaccess\nsonar.sources=src\nsonar.tests=tests\nsonar.test.inclusions=**/*.test.js\nsonar.exclusions=sentinel/**\nsonar.sourceEncoding=UTF-8\nsonar.javascript.lcov.reportPaths=coverage/lcov.info\nsonar.python.coverage.reportPaths=coverage/python.xml\n'
+const source = 'sonar.projectKey=nodeaccess\nsonar.sources=src\nsonar.tests=tests\nsonar.test.inclusions=**/*.test.js\nsonar.exclusions=sentinel/**\nsonar.sourceEncoding=UTF-8\nsonar.javascript.lcov.reportPaths=coverage/lcov.info\nsonar.python.coverage.reportPaths=coverage/python.xml,coverage/zap-python.xml\n'
 function fixture(t) {
   const directory = mkdtempSync(join(tmpdir(), 'ci-config-test-')), root = join(directory, 'head'), baseRoot = join(directory, 'base')
   t.after(() => rmSync(directory, { recursive: true, force: true }))
@@ -60,5 +60,5 @@ test('effective context proves configured scope and discards every non-allowlist
 
 test('current repository scanner settings satisfy the strict CI contract', () => {
   const config = readConfiguration(new URL('../../sonar-project.properties', import.meta.url))
-  assert.equal(config.properties['sonar.python.coverage.reportPaths'], 'coverage/python.xml')
+  assert.equal(config.properties['sonar.python.coverage.reportPaths'], 'coverage/python.xml,coverage/zap-python.xml')
 })

@@ -1,0 +1,5 @@
+{
+  "image": "zaproxy/zap-stable@sha256:9624669db72f54d86c4b46a7064518bd9bf79d8c61a4c31befa9923489f328af",
+  "reviewedAt": "2026-11-05",
+  "source": "https://www.zaproxy.org/docs/docker/about/"
+}

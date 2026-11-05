@@ -852,6 +852,8 @@ ou nas regras podem invalidá-las. Resultados são vinculados ao SHA testado.
 | Grype | Vulnerabilidades nas imagens construídas | `npm run security:images -- <imagens>` e [validação da stack](.github/workflows/stack-compatibility.yml) |
 | ESLint, TypeScript, Vitest e Node test runner | Qualidade estática, tipos e regressões automatizadas | [Quality gate](.github/workflows/quality-gate.yml) |
 | Playwright/Chromium e laboratórios isolados | Fluxos de interface e contratos reais, incluindo TLS, falhas e recuperação | `npm run test:coverage -- --base <SHA>` e [guia de cobertura](docs/OPERATIONS-sonarqube.md) |
+| OWASP ZAP | Análise dinâmica passiva de frontend/API reais em laboratório descartável; gate de achados High/Medium | `RUN_ZAP_REAL=true npm run security:zap`; [guia](docs/OPERATIONS-zap-stryker.md) |
+| StrykerJS | Mutação dos testes das políticas de autenticação e ações MCP; mínimo de 80% global e por módulo | `npm run test:mutation`; [workflow](.github/workflows/security-assurance.yml) |
 
 Os checks publicam evidências no CI. A cobertura de código novo e a cobertura
 global têm escopos diferentes; aprovação do gate não equivale a certificação de
@@ -859,15 +861,14 @@ segurança nem substitui homologação operacional. Consulte os resultados da re
 atual, sem assumir que uma nota histórica continuará válida após novas mudanças.
 Para um resumo local das evidências e de sua atualidade: `npm run quality:context`.
 
-**Complementos em avaliação, ainda não integrados:**
+**Escopo dos controles adicionais:** ZAP observa tráfego sintético, incluindo login
+com MFA, consultas, refresh e logout. Não é uma varredura ativa nem cobertura de
+todas as rotas. Stryker começa por dois módulos críticos, com dois workers e tempo
+limitado; sua nota não representa todo o produto. Os comandos não operam na VPS.
 
-- [OWASP ZAP](https://www.zaproxy.org/docs/automate/automation-framework/): prioridade
-  para análise dinâmica da aplicação em ambiente de homologação descartável,
-  começando por navegação e análise passiva e evoluindo para cenários autenticados.
-  Varreduras ativas precisam de escopo explícito e dados de teste.
-- [StrykerJS](https://stryker-mutator.io/docs/stryker-js/introduction/): testes de
-  mutação em módulos críticos para verificar se os testes detectam alterações
-  deliberadas de comportamento. Adotar por módulo, com orçamento de execução.
+O [guia operacional](docs/OPERATIONS-zap-stryker.md) descreve execução, relatórios,
+limites e triagem. Achados reais permanecem visíveis e podem reprovar o gate;
+instalar uma ferramenta não equivale a resolver todos os alertas encontrados.
 
 Atualize esta seção quando uma ferramenta for adotada, removida ou mudar de escopo,
 incluindo o comando/workflow e distinguindo o que está em uso do que é proposta.

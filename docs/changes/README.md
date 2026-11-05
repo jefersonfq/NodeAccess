@@ -74,3 +74,5 @@ Planos e registros versionados por implementação. PRs e checkpoints identifica
 | NA-0001-change-lifecycle-governance | [plano](2026/08/NA-0001-change-lifecycle-governance/plan.md) | Anterior à obrigatoriedade |
 
 - NA-0085 — SonarQube local, scanner e exportação supervisionada: [plano](2026/11/NA-0085-sonarqube/plan.md). LOCAL_WIP; código em worktree isolado.
+
+- [NA-0170 — ZAP e StrykerJS](2026/11/NA-0170-zap-stryker/plan.md): integração e execuções em laboratório, em validação; [diário](2026/11/NA-0170-zap-stryker/implementation.md) e [operação](../OPERATIONS-zap-stryker.md).

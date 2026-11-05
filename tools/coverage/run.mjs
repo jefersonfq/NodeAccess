@@ -12,6 +12,7 @@ import { summarizeCoverage, mergeCollectorMaps } from './summary.mjs'
 import { browserCoverageRecords, overlayBrowserCoverage } from './browser-map.mjs'
 import { requiredBrowserHarnesses } from './browser.mjs'
 import { diffCoverage } from './lcov.mjs'
+import { verifiedMutationEvidence, verifiedZapPythonEvidence } from './assurance-proof.mjs'
 
 const projectRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../..')
 export function argumentsForCoverage(args) {
@@ -46,10 +47,11 @@ export async function runCoverage({ root = projectRoot, base, execute = command,
   if (!existsSync(output)) mkdirSync(output, { mode: 0o700 })
   if (!lstatSync(output).isDirectory() || lstatSync(output).isSymbolicLink() || realpathSync(output) !== resolve(output)) throw new Error('Unsafe coverage output directory')
   chmodSync(output, 0o700)
-  for (const name of ['vitest', 'node-v8', 'browser', 'vitest-tests.json', 'summary.json', 'coverage-final.json', 'lcov.info', 'tls-lab.json', 'python.xml']) rmSync(join(output, name), { recursive: true, force: true })
+  for (const name of ['vitest', 'node-v8', 'browser', 'vitest-tests.json', 'summary.json', 'coverage-final.json', 'lcov.info', 'tls-lab.json', 'python.xml', 'zap-python.xml', 'zap-python-proof.json']) rmSync(join(output, name), { recursive: true, force: true })
   mkdirSync(join(output, 'node-v8'), { mode: 0o700 })
   const childEnv = { ...env }; delete childEnv.SONAR_TOKEN; delete childEnv.SONAR_REVIEW_TOKEN; delete childEnv.NODE_V8_COVERAGE
   delete childEnv.NODEACCESS_TLS_COVERAGE; delete childEnv.NODEACCESS_TLS_COVERAGE_RUN_ID; delete childEnv.NODEACCESS_TLS_COVERAGE_OUTPUT
+  for (const key of ['NODEACCESS_MUTATION_COVERAGE', 'NODEACCESS_MUTATION_RUN_ID', 'NODEACCESS_ZAP_PYTHON_COVERAGE', 'NODEACCESS_ZAP_PYTHON_RUN_ID']) delete childEnv[key]
   const result = { schemaVersion: 1, startedAt, head, requestedBase: base ?? null, sourceFingerprint: fingerprint,
     status: 'failed', failures: [], newCoverage: { status: 'not_requested' }, collectors: {} }
   try {
@@ -63,10 +65,16 @@ export async function runCoverage({ root = projectRoot, base, execute = command,
     const nodeTests = nodeTestFiles(root)
     if (!nodeTests.length) throw new Error('No Node test suites discovered')
     if (!nodeTests.includes('tools/network-access/tls-lab.test.mjs')) throw new Error('Required TLS laboratory test missing')
+    for (const required of ['tools/mutation/run.real.test.mjs', 'tools/coverage/zap-python.test.mjs']) {
+      if (!nodeTests.includes(required)) throw new Error(`Required assurance test missing: ${required}`)
+    }
+    const assuranceRunId = randomUUID()
     const labRunId = randomUUID(), labOutput = join(output, 'tls-lab.json')
     const nodeExit = execute(root, ['--test', '--test-concurrency=2', ...nodeTests],
       { ...childEnv, NODE_V8_COVERAGE: join(output, 'node-v8'), NODEACCESS_TLS_COVERAGE: 'true',
-        NODEACCESS_TLS_COVERAGE_RUN_ID: labRunId, NODEACCESS_TLS_COVERAGE_OUTPUT: labOutput }, join(output, 'node.log'))
+        NODEACCESS_TLS_COVERAGE_RUN_ID: labRunId, NODEACCESS_TLS_COVERAGE_OUTPUT: labOutput,
+        NODEACCESS_MUTATION_COVERAGE: 'true', NODEACCESS_MUTATION_RUN_ID: assuranceRunId,
+        NODEACCESS_ZAP_PYTHON_COVERAGE: 'true', NODEACCESS_ZAP_PYTHON_RUN_ID: assuranceRunId }, join(output, 'node.log'))
     result.collectors.node = { exitCode: nodeExit, testFiles: nodeTests.length }
     if (nodeExit !== 0) result.failures.push('NODE_TESTS_FAILED')
     let lab
@@ -78,6 +86,11 @@ export async function runCoverage({ root = projectRoot, base, execute = command,
     if (!labVerified) result.failures.push('TLS_LABORATORY_NOT_VERIFIED')
     result.collectors.node.pythonCoverageVerified = verifiedPythonCoverage(root, output, lab?.pythonCoverage)
     if (!result.collectors.node.pythonCoverageVerified) result.failures.push('PYTHON_COVERAGE_NOT_VERIFIED')
+    const mutationContext = { runId: assuranceRunId, head, startedAt }
+    result.collectors.node.mutationVerified = verifiedMutationEvidence(root, mutationContext)
+    result.collectors.node.zapPythonCoverageVerified = verifiedZapPythonEvidence(root, output, assuranceRunId)
+    if (!result.collectors.node.mutationVerified) result.failures.push('MUTATION_NOT_VERIFIED')
+    if (!result.collectors.node.zapPythonCoverageVerified) result.failures.push('ZAP_PYTHON_COVERAGE_NOT_VERIFIED')
     const browserExit = execute(root, [join(root, 'tools/coverage/browser.mjs')],
       { ...childEnv, NODE_V8_COVERAGE: join(output, 'node-v8') }, join(output, 'browser.log'))
     const browserReport = JSON.parse(readFileSync(join(output, 'browser/summary.json'), 'utf8'))
@@ -117,6 +130,8 @@ export async function runCoverage({ root = projectRoot, base, execute = command,
       if (result.newCoverage.status !== 'passed') result.failures.push('NEW_COVERAGE_BELOW_80_OR_INCOMPLETE')
     }
     if (!verifiedPythonCoverage(root, output, lab?.pythonCoverage) && !result.failures.includes('PYTHON_COVERAGE_NOT_VERIFIED')) result.failures.push('PYTHON_COVERAGE_NOT_VERIFIED')
+    if (!verifiedMutationEvidence(root, mutationContext) && !result.failures.includes('MUTATION_NOT_VERIFIED')) result.failures.push('MUTATION_NOT_VERIFIED')
+    if (!verifiedZapPythonEvidence(root, output, assuranceRunId) && !result.failures.includes('ZAP_PYTHON_COVERAGE_NOT_VERIFIED')) result.failures.push('ZAP_PYTHON_COVERAGE_NOT_VERIFIED')
     result.status = result.failures.length ? 'failed' : 'passed'
   } catch (error) {
     result.failures.push('COVERAGE_PIPELINE_FAILED')

@@ -77,3 +77,59 @@ describe('resolveTenantAuthPolicy', () => {
     expect(effective.emailTenantDiscoveryEnabled).toBe(false)
   })
 })
+
+describe('authentication policy boundaries', () => {
+  it('keeps tenant defaults restrictive even when installation capabilities are enabled', () => {
+    expect(DEFAULT_TENANT_AUTH_POLICY).toEqual({
+      localLoginEnabled: true, ssoRequired: false, mfaRequired: true,
+      jitProvisioningEnabled: false, automaticAccountLinkingEnabled: false, emailTenantDiscoveryEnabled: true,
+    })
+    const effective = resolveTenantAuthPolicy({
+      ...DEFAULT_INSTALLATION_AUTH_POLICY,
+      requireMfa: false, allowJitProvisioning: true, allowAutomaticAccountLinking: true,
+    }, DEFAULT_TENANT_AUTH_POLICY)
+    expect(effective.mfaRequired).toBe(true)
+    expect(effective.jitProvisioningEnabled).toBe(false)
+    expect(effective.automaticAccountLinkingEnabled).toBe(false)
+  })
+
+  it.each([false, true])('requires tenant consent for installation capability %s', (allowed) => {
+    for (const requested of [false, true]) {
+      const result = resolveTenantAuthPolicy({
+        ...DEFAULT_INSTALLATION_AUTH_POLICY, requireMfa: allowed,
+        allowJitProvisioning: allowed, allowAutomaticAccountLinking: allowed, allowEmailTenantDiscovery: allowed,
+      }, {
+        ...DEFAULT_TENANT_AUTH_POLICY, mfaRequired: requested,
+        jitProvisioningEnabled: requested, automaticAccountLinkingEnabled: requested, emailTenantDiscoveryEnabled: requested,
+      })
+      expect(result.mfaRequired).toBe(allowed || requested)
+      expect(result.jitProvisioningEnabled).toBe(allowed && requested)
+      expect(result.automaticAccountLinkingEnabled).toBe(allowed && requested)
+      expect(result.emailTenantDiscoveryEnabled).toBe(allowed && requested)
+    }
+  })
+
+  it.each([NaN, Infinity, -Infinity])('falls back to installation defaults for non-finite limits %s', (value) => {
+    const result = resolveTenantAuthPolicy(DEFAULT_INSTALLATION_AUTH_POLICY, {
+      ...DEFAULT_TENANT_AUTH_POLICY, lockoutMaxAttempts: value, lockoutDurationMinutes: value,
+      accessTokenMinutes: value, refreshTokenDays: value,
+    })
+    expect(result.lockoutMaxAttempts).toBe(5)
+    expect(result.lockoutDurationMinutes).toBe(15)
+    expect(result.accessTokenMinutes).toBe(15)
+    expect(result.refreshTokenDays).toBe(7)
+  })
+
+  it('uses integer tenant limits and preserves explicit local-login denial', () => {
+    const result = resolveTenantAuthPolicy(DEFAULT_INSTALLATION_AUTH_POLICY, {
+      ...DEFAULT_TENANT_AUTH_POLICY, localLoginEnabled: false, ssoRequired: false,
+      lockoutMaxAttempts: 6.9, lockoutDurationMinutes: 16.9, accessTokenMinutes: 17.9, refreshTokenDays: 8.9,
+    })
+    expect(result.localLoginEnabled).toBe(false)
+    expect(result.ssoRequired).toBe(false)
+    expect(result.lockoutMaxAttempts).toBe(6)
+    expect(result.lockoutDurationMinutes).toBe(16)
+    expect(result.accessTokenMinutes).toBe(17)
+    expect(result.refreshTokenDays).toBe(8)
+  })
+})
