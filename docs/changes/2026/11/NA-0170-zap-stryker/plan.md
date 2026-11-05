@@ -14,7 +14,7 @@ risk: medium
 
 # NA-0170 — ZAP e StrykerJS
 
-## Contexto e objetivo
+## Contexto e situação anterior
 Usuário autorizou instalar/integrar e já usar as duas ferramentas propostas no README. Base master remota confirmada; PRs59/60 encerradas. GO_WITH_RISKS: escopo de laboratório e ferramentas de desenvolvimento, sem alterar produção. Pasta principal suja preservada em worktree separado; documentos canônicos espelhados na pasta atual do projeto.
 
 ## Escopo
@@ -31,16 +31,16 @@ Usuário autorizou instalar/integrar e já usar as duas ferramentas propostas no
 - [ ] Testes negativos para políticas/seleção/relatórios e cleanup. Relatórios não publicados em serviço externo.
 - [ ] CI, documentação e evidências coerentes com SHA; revisão independente antes de entrega.
 
-## Estratégia e arquivos
+## Estratégia técnica
 Ferramentas em tools/security e tools/mutation, configuração Stryker e devDependencies, scripts npm, workflow dedicado, documentação e testes focais. Seleção inicial Stryker: políticas pequenas de segurança (auth/MCP ou similar após baseline), orçamento de dois workers e limite de execução. ZAP: rede Docker própria, dados sintéticos, limites, cleanup em finally, relatório reduzido sem cookies/tokens. Possível build de imagens locais atuais para evitar analisar versão antiga. Testes HTTP autenticados não equivalem a varredura ativa autenticada.
 
-## Riscos e mitigação
+## Riscos e mitigações
 Carga e recursos: execução isolada e limitada. Relatórios sensíveis: sanitizar antes de artefatos. Falsos positivos: decisão exata com evidência e prazo; sem desligar regra. Mutantes equivalentes: registro explícito, sem relaxar limiar. Rede indisponível: preservar diagnóstico e não declarar ferramenta executada. Necessidades corretivas documentadas; mudanças amplas no produto fora do escopo.
 
-## Validação
+## Matriz de testes e evidências
 Baseline: master745253d1e validado no CI anterior, nenhum ZAP/Stryker integrado; versões Node24.22.1/Vitest4.1.12 verificadas. Rodar contratos focais, lint, auditoria de novas dependências, execução real das duas ferramentas e revisão independente; repetir gates relevantes no candidato publicado. CI completo permanece aplicável, sem bypass.
 
-## Recuperação
+## Rollback ou recuperação
 Reverter commit da frente por PR; sem migrations ou dados produtivos alterados. Remover somente recursos Docker identificados desta execução; preservar serviços existentes.
 
 ## Correção necessária de dependência
@@ -48,3 +48,12 @@ O Stryker introduz typed-rest-client2.3.1 com qs6.15.1 vulnerável. Override res
 
 ## Correção necessária do harness de terminal
 A coleta Sonar revelou pressuposição preexistente de que a segunda requisição SFTP seria /var. O cache distingue prefixos e a digitação com debounce pode gerar consultas intermediárias à raiz. Ajuste restrito ao harness: verificar progressão completa de diretórios e REST zero; preservar invalidação exatamente uma vez e stress sem tráfego. Adicionado diagnóstico por prefixo/socket. Sem mudança do produto.
+
+## Problema e objetivo
+Introduzir análise dinâmica passiva e teste de mutação reproduzíveis, isolados e verificáveis. Falhas e achados devem permanecer visíveis e impedir aprovação indevida.
+
+## Baseline
+Base remota745253d1edb522db79aaa44fd96608ce434a2774, master após PRs59/60. Sem comandosZAP/Stryker anteriormente. Node24.22.1 eVitest4.1.12. PilotoStrykerbaseline75,68%, preservado em evidência.
+
+## Aprovação
+Decisão: GO_WITH_RISKS. Usuário autorizou instalar, integrar e executar as ferramentas; posteriormente autorizou correçãoCSP em frente separada e classificação individual do TOTP após validação. Homologação/merge das novasPRs permanecem pendentes dos gates pertinentes.

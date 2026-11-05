@@ -67,3 +67,11 @@ Ran: coleta anterior aprovou cobertura nova92,48%; scanner via npm identificou6i
 ### 2026-11-05T12:49:22.634179-03:00 — Decisão TOTP aplicada e candidato das ferramentas
 
 Ran: repetição isolada806NodePASS/0falhas/7skips, incluindoTLSsoak com mesmos limites; noveharnessesbrowserPASS, coberturaPASS, análise verificada38eaad8c-8a57-4f0e-9d51-c64752d2e040. Scannerconfirmou somente1item abertoTOTP, demais5corrigidos desapareceram. Após autorização individual, aplicada classificaçãoFALSE_POSITIVE com comentário/evidência apenas nessa ocorrência; token temporário revogado eusuáriodesativado, credenciaisleitura intactas. APIgateOK,zeroissuesabertas/zerohotspotspendentes,coverageSonar81,7%. validate:sonar desta rodada encerrouantesdaaplicação comexit1; não foi reescrito comoPASS. Ledgerregistra decisão207 e revalida3FPs deIPs sintéticos conforme revisãoindependente. Gate de checkout/últimoSHA eCI ainda pendentes. Próximo: registrar candidato ePR separada; merge dependeCSPNA0171/homologação/checks.
+
+### 2026-11-05T13:07:47-03:00 — Alinhamento ao contrato de governança
+
+Ran: validador identificou títulos de plano incompatíveis e ausência de entrada de diário sem frações de segundo no formato exigido. PlanoNA0170 recebeu as seções obrigatórias preservando escopo; esta entrada usa precisão de segundos/timezone. Nenhuma regra de validação ou autorização foi alterada. PR61 é draft, commitpublicadoe361a933c; checks/gates ainda pendentes, semmerge.
+
+### 2026-11-05T13:20:57-03:00 — Correções dos checks da PR 61
+
+Registrada exceção Gitleaks estrita por regra, caminho, linha e hash somente para o vetor público RFC 6238, após revisão independente. Nenhum segredo operacional permitido. Scanner local completo aprovado: 43 fixtures revisadas, zero achados não revisados; Semgrep zero achados e erros em 914 alvos. Validação de governança aprovada após ajuste dos títulos e formato temporal, sem alterar o validador. PR permanece draft; merge e sincronização de master pendentes.
