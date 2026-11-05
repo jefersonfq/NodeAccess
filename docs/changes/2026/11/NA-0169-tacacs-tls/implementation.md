@@ -92,3 +92,15 @@ Relatório da segunda falha preservado no projeto principal. Novo commit e gates
 Usuário autorizou seguir com homologação e merge das PRs59/60 e pediu documentação das ferramentas de qualidade/segurança. Aceite de integração baseado nas evidências apresentadas; nenhum ensaio manual em hardware ou deploy foi declarado. PR59 integrada em e1d4995c1869accb685aedd8b602ede5bfd0e289 e master sincronizado em worktree limpo; pasta principal suja preservada. Base nova tem árvore idêntica à base anterior df8482674.
 
 README substitui texto desatualizado de preparação Sonar local por controles reais de CI e inventário verificado: Sonar,Semgrep,Gitleaks,npm audit/SBOM,Grype,ESLint/TypeScript/Vitest/Node/Playwright. ZAP e Stryker são propostas explícitas,sem instalação. Fontes oficiais consultadas. Correção documental incluída na NA-0169 por autorização expressa; não altera comportamento do produto. Próximo passo: validar diff/documentação,registrar commit de integração,redirecionar PR60 ao master e conferir gates do novo SHA antes do merge.
+
+
+### 2026-11-05T09:31:44.716325-03:00 — Gate de imagens bloqueou mudança de distribuição
+
+Ran: novo CI Sonar aprovado e árvores base/candidato equivalentes verificadas; testes reais da stack passaram. Grype bloqueou TLS por Alpine3.24.4 fora da revisão3.24.3; pacote SQLite e CVE idênticos. Fonte CNA confirma que afeta CLI, ausente no build; inventário do APK contém somente bibliotecas. Correção pontual no plano para identificar distro por imagem, mantendo validade e demais restrições. Merge60 permanece pendente; PR59 já integrada. Sem bypass nem aceite de vulnerabilidade do CLI.
+
+
+### 2026-11-05T09:34:28.014872-03:00 — Política SQLite revisada por imagem
+
+Ran:50 contratos focais PASS (42SQLite), lint estrito e diffcheck PASS. Replay do relatório real b0ac11ef passou de0 para1 classificação, exclusivamente CVE119586/SQLitelibs3.54.1-r0 na imagemTLS Alpine3.24.4. Outros6 achados não recebem dispensa desta política. Casos cruzados/versões futuras/CLI/outrosCVEs/prazo continuam bloqueados. Inventário bruto registra apenas bibliotecas. CNA reconsultada confirma falha do shellCLI. Implementação não altera aplicação ou Dockerfiles. Revisão independente e CI do novoSHA exigidos antes de merge.
+
+Revisão independente focal PASS_WITH_WARNINGS: reexecutados50 contratos e lint; replay real e bloqueio cruzado confirmados. Limite: novo SHA/CI/Sonar ainda obrigatórios, sem homologação de hardware.

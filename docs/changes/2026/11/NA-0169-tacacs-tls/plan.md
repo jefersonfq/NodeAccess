@@ -73,3 +73,10 @@ A primeira coleta completa executou os nove fluxos Chromium, mas a cobertura inc
 
 ### Integração e documentação autorizadas em 2026-11-05
 Atualizar base após merge da PR59,documentar ferramentas realmente usadas no README e distinguir propostas futuras. Usuário autorizou a integração das duas PRs. Nenhum teste manual em hardware ou deploy foi presumido. Nova revisão do CI exigida antes do merge; alterações locais alheias preservadas em worktree separado.
+
+
+## Correção necessária de gate — revisão SQLite por imagem (2026-11-05)
+
+GO_WITH_RISKS. O CI do candidato b0ac11ef reprovou somente a triagem SQLite na imagem TLS: apk upgrade atualizou Alpine3.24.3→3.24.4. Mesmo APK sqlite-libs3.54.1-r0, checksum e CVE de CLI; Grype lista apenas bibliotecas e o build verificou ausência do executável. CNA reconsultada confirma escopo CLI. A revisão expirada por identidade funcionou como previsto; não remover o controle. Correção necessária para concluir integração já autorizada: substituir distro única por mapeamento exato imagem→distro, TLS3.24.4 e guacd3.24.3, mantendo todas as demais identidades e prazo original. Não ampliar para versões futuras ou componentes CLI.
+
+Aceitação adicional: caso real da imagem TLS passa somente após revisão; distro cruzada entre imagens, distro futura, CLI, outros CVEs, fix alterado e expiração permanecem bloqueados. Testes focais, replay do relatório real, lint, revisão independente e novo CI completo obrigatórios. Análise anterior preservada como histórica. Rollback por reversão do commit de política, sem afetar runtime. Arquivos: security/sqlite-image-triage.json, scripts/security/sqlite-image-policy{,.test}.mjs, revisão SQLite e diário NA-0169. Nenhuma mudança de aplicação ou exclusão genérica.
