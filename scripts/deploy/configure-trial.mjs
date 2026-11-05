@@ -7,6 +7,13 @@ import { parseEnv } from 'node:util'
 
 const flag = 'TRIAL_REGISTRATION_ENABLED'
 
+export function isTrialAssignment(line) {
+  let assignment = line.trimStart()
+  if (assignment.startsWith('export ') || assignment.startsWith('export\t')) assignment = assignment.slice(6).trimStart()
+  const equals = assignment.indexOf('=')
+  return equals >= 0 && assignment.slice(0, equals).trimEnd() === flag
+}
+
 export function validateTrialConfiguration(values) {
   const required = ['TRIAL_PUBLIC_URL', 'TRIAL_PROVISIONER_URL', 'TRIAL_PROVISIONER_TOKEN', 'TRIAL_SMTP_HOST', 'TRIAL_SMTP_USER', 'TRIAL_SMTP_PASSWORD', 'TRIAL_SMTP_FROM']
   for (const name of required) {
@@ -21,7 +28,7 @@ export function validateTrialConfiguration(values) {
   }
   const port = values.TRIAL_SMTP_PORT || '587'
   if (!/^\d+$/.test(port) || Number(port) < 1 || Number(port) > 65535) throw new Error('TRIAL_SMTP_PORT deve estar entre 1 e 65535.')
-  if (!/^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/.test(values.TRIAL_SMTP_FROM)) throw new Error('TRIAL_SMTP_FROM deve ser um endereço de e-mail.')
+  if (values.TRIAL_SMTP_FROM.length > 254 || !/^[^\s@<>]+@[^\s@<>.]+(?:\.[^\s@<>.]+)+$/.test(values.TRIAL_SMTP_FROM)) throw new Error('TRIAL_SMTP_FROM deve ser um endereço de e-mail.')
   if (values.TRIAL_PROVISIONER_TOKEN.length < 32) throw new Error('TRIAL_PROVISIONER_TOKEN deve ter pelo menos 32 caracteres.')
 }
 
@@ -36,8 +43,9 @@ export function configureTrial(envPath, action) {
   let temporary
   try {
     const original = readFileSync(target, 'utf8')
-    const assignment = /^(?:[ \t]*export[ \t]+)?[ \t]*TRIAL_REGISTRATION_ENABLED[ \t]*=/gm
-    if ([...original.matchAll(assignment)].length > 1) throw new Error('TRIAL_REGISTRATION_ENABLED duplicada; resolva a ambiguidade antes de continuar.')
+    const lines = original.split(/(\r?\n)/)
+    const assignments = lines.flatMap((line, index) => isTrialAssignment(line) ? [index] : [])
+    if (assignments.length > 1) throw new Error('TRIAL_REGISTRATION_ENABLED duplicada; resolva a ambiguidade antes de continuar.')
     const values = parseEnv(original)
     if (action === 'check') {
       if (![undefined, 'true', 'false'].includes(values[flag])) throw new Error('TRIAL_REGISTRATION_ENABLED deve ser true ou false.')
@@ -48,8 +56,9 @@ export function configureTrial(envPath, action) {
     const enabled = action === 'enable'
     if (values[flag] === String(enabled)) return { changed: false, enabled }
     const newline = original.includes('\r\n') ? '\r\n' : '\n'
-    const updated = assignment.test(original)
-      ? original.replace(/^(?:[ \t]*export[ \t]+)?[ \t]*TRIAL_REGISTRATION_ENABLED[ \t]*=.*$/m, `${flag}=${enabled}`)
+    if (assignments.length) lines[assignments[0]] = `${flag}=${enabled}`
+    const updated = assignments.length
+      ? lines.join('')
       : `${original}${original && !original.endsWith('\n') ? newline : ''}${flag}=${enabled}${newline}`
     const backup = `${target}.trial-${randomUUID()}.bak`
     writeFileSync(backup, original, { flag: 'wx', mode: 0o600 })

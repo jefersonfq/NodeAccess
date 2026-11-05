@@ -1,0 +1,278 @@
+[
+  {
+    "issueId": "225f29e0-1b12-4ded-9032-d66b9e7fbcec",
+    "file": "apps/frontend/src/components/ImportHostsModal.vue",
+    "line": 1999,
+    "control": "NSelect",
+    "inputProps": "{ id: 'royalts-protocol-input', 'aria-labelledby': 'royalts-protocol-label' }"
+  },
+  {
+    "issueId": "6b3dbbd2-f165-49b8-8c08-6f2233a0f5b1",
+    "file": "apps/frontend/src/components/snippets/MacroStepEditor.vue",
+    "line": 161,
+    "control": "NInputNumber",
+    "inputProps": "{ 'aria-label': t('snippets.macro.timeoutMs') }"
+  },
+  {
+    "issueId": "ce693eb8-2ada-454c-a936-a1f0b0680fbd",
+    "file": "apps/frontend/src/components/snippets/MacroStepEditor.vue",
+    "line": 173,
+    "control": "NInputNumber",
+    "inputProps": "{ 'aria-label': t('snippets.macro.durationMs') }"
+  },
+  {
+    "issueId": "eaa3c373-f07d-4d30-b489-0aee1d8b58b8",
+    "file": "apps/frontend/src/components/snippets/SnippetCommandEditor.vue",
+    "line": 74,
+    "control": "NInput",
+    "inputProps": "{ 'aria-label': t(label) }"
+  },
+  {
+    "issueId": "086a25bc-0da6-4ed6-9b63-b2a22c761f75",
+    "file": "apps/frontend/src/views/admin/McpTokensView.vue",
+    "line": 1137,
+    "control": "NCheckbox"
+  },
+  {
+    "issueId": "5c5d92f8-297d-41b4-a6b5-bc6e89c8b3fe",
+    "file": "apps/frontend/src/views/admin/McpTokensView.vue",
+    "line": 1372,
+    "control": "NCheckbox"
+  },
+  {
+    "issueId": "65c152b7-ebf6-41d3-af3c-37ead57b621c",
+    "file": "apps/frontend/src/views/ForwardingsView.vue",
+    "line": 650,
+    "control": "NSelect",
+    "inputProps": "{ id: 'forwarding-personal-agent', 'aria-label': 'Agente pessoal' }"
+  },
+  {
+    "issueId": "b12dc2de-fdf2-4b1e-a9c2-00b36c9e9e5f",
+    "file": "apps/frontend/src/components/SessionSupervisionPermission.vue",
+    "line": 38,
+    "control": "NSwitch"
+  },
+  {
+    "issueId": "ae05e55c-7fdf-480b-8b31-7abf36b98ee2",
+    "file": "apps/frontend/src/components/platform/TenantLicenseEditor.vue",
+    "line": 140,
+    "control": "NInputNumber"
+  },
+  {
+    "issueId": "b80bb8b0-ad62-48ea-838b-22dd9b9870a7",
+    "file": "apps/frontend/src/components/platform/TenantLicenseEditor.vue",
+    "line": 168,
+    "control": "NSelect",
+    "inputProps": "{ id: 'license-ai-provider-input', 'aria-labelledby': 'license-ai-provider-title' }"
+  },
+  {
+    "issueId": "0e61b664-5437-43e1-aee8-6be145958b5d",
+    "file": "apps/frontend/src/views/admin/SettingsView.vue",
+    "line": 2036,
+    "control": "NCheckbox"
+  },
+  {
+    "issueId": "75c0c94b-b595-4fa0-86ea-a0b4b2cdfe54",
+    "file": "apps/frontend/src/views/admin/SettingsView.vue",
+    "line": 2043,
+    "control": "NCheckbox"
+  },
+  {
+    "issueId": "60ee9916-00df-4703-b8b5-30c0f4f09440",
+    "file": "apps/frontend/src/views/admin/IntegrationsView.vue",
+    "line": 1591,
+    "control": "NSelect",
+    "inputProps": "{ id: 'jiraTicketUserIds', 'aria-label': 'Usuários' }"
+  },
+  {
+    "issueId": "19b57190-698e-419e-8d0f-c957826a53ed",
+    "file": "apps/frontend/src/views/admin/IntegrationsView.vue",
+    "line": 1601,
+    "control": "NSelect",
+    "inputProps": "{ id: 'jiraTicketGroupIds', 'aria-label': 'Grupos' }"
+  },
+  {
+    "issueId": "c7528158-7189-462e-a109-27eff3fa5572",
+    "file": "apps/frontend/src/views/admin/IntegrationsView.vue",
+    "line": 1612,
+    "control": "NSelect",
+    "inputProps": "{ id: 'jiraTicketInventoryFolderIds', 'aria-label': 'Pastas corporativas' }"
+  },
+  {
+    "issueId": "fca0436e-3ddb-42b4-b4e1-e6bf1f42f4ec",
+    "file": "apps/frontend/src/views/admin/SettingsView.vue",
+    "line": 2126,
+    "control": "NCheckbox"
+  },
+  {
+    "issueId": "4a184400-718c-484a-b2b2-0fc4d7f6d43d",
+    "file": "apps/frontend/src/views/admin/SettingsView.vue",
+    "line": 2115,
+    "control": "NCheckbox"
+  },
+  {
+    "issueId": "837cb40c-e519-4569-a645-2fe22f255c74",
+    "file": "apps/frontend/src/components/integrations/TenantAuthPolicyCard.vue",
+    "line": 310,
+    "control": "NInputNumber"
+  },
+  {
+    "issueId": "b11287e3-9121-4ef2-b1de-3f4e068123ed",
+    "file": "apps/frontend/src/components/integrations/TenantAuthPolicyCard.vue",
+    "line": 315,
+    "control": "NInputNumber"
+  },
+  {
+    "issueId": "87095c85-f631-4cbe-bc4c-a65ba78e4709",
+    "file": "apps/frontend/src/components/integrations/TenantAuthPolicyCard.vue",
+    "line": 320,
+    "control": "NInputNumber"
+  },
+  {
+    "issueId": "d5ec8fbb-fe40-4f34-926d-aeb1d94bf79f",
+    "file": "apps/frontend/src/components/integrations/TenantAuthPolicyCard.vue",
+    "line": 325,
+    "control": "NInputNumber"
+  },
+  {
+    "issueId": "fdb7b3af-bd93-4070-acfc-0697892cc40a",
+    "file": "apps/frontend/src/views/admin/SettingsView.vue",
+    "line": 2104,
+    "control": "NCheckbox"
+  },
+  {
+    "issueId": "af7180f2-a438-4bd1-b586-4e6e8df1af16",
+    "file": "apps/frontend/src/views/admin/NativeSshGatewayView.vue",
+    "line": 365,
+    "control": "NInput"
+  },
+  {
+    "issueId": "965f1baa-23a6-4e19-a71f-0c9fecbc6e1a",
+    "file": "apps/frontend/src/views/admin/NativeSshGatewayView.vue",
+    "line": 369,
+    "control": "NInput"
+  },
+  {
+    "issueId": "dcc6941b-6650-4a90-9de9-e014ad973474",
+    "file": "apps/frontend/src/views/SnippetsView.vue",
+    "line": 741,
+    "control": "NSelect",
+    "inputProps": "{ id: 'snippet-kind-filter', 'aria-label': $t('snippets.kind.label') }"
+  },
+  {
+    "issueId": "9897e613-5ea8-4488-bbe6-13e518c2755a",
+    "file": "apps/frontend/src/views/SnippetsView.vue",
+    "line": 749,
+    "control": "NSelect",
+    "inputProps": "{ id: 'snippet-group-filter', 'aria-label': $t('snippets.groups.label') }"
+  },
+  {
+    "issueId": "1172d30b-f5f0-4721-9afb-a72759711101",
+    "file": "apps/frontend/src/views/SnippetsView.vue",
+    "line": 757,
+    "control": "NSelect",
+    "inputProps": "{ id: 'snippet-secret-filter', 'aria-label': $t('snippetsPage.filters.secrets') }"
+  },
+  {
+    "issueId": "847b64ac-d962-4792-9f98-5780097b51a0",
+    "file": "apps/frontend/src/views/admin/SettingsView.vue",
+    "line": 1912,
+    "control": "NCheckbox"
+  },
+  {
+    "issueId": "3055120b-d7ad-4c17-ac84-8624b3c0c299",
+    "file": "apps/frontend/src/views/admin/SettingsView.vue",
+    "line": 1938,
+    "control": "NCheckbox"
+  },
+  {
+    "issueId": "20ab972e-b889-41eb-b648-0b1b7a240cd4",
+    "file": "apps/frontend/src/views/admin/SettingsView.vue",
+    "line": 1962,
+    "control": "NCheckbox"
+  },
+  {
+    "issueId": "3a3e153c-30e9-46e6-9c0c-fe0b1e0d565a",
+    "file": "apps/frontend/src/views/admin/SettingsView.vue",
+    "line": 1976,
+    "control": "NCheckbox"
+  },
+  {
+    "issueId": "230de2de-165a-4214-8e31-98feb9895477",
+    "file": "apps/frontend/src/views/admin/SettingsView.vue",
+    "line": 2024,
+    "control": "NCheckbox"
+  },
+  {
+    "issueId": "4cc20835-5e8a-4c0f-8c51-ae596047d1cc",
+    "file": "apps/frontend/src/views/admin/SettingsView.vue",
+    "line": 2032,
+    "control": "NCheckbox"
+  },
+  {
+    "issueId": "e6cc98b9-be98-4c18-8195-cd457358c3fb",
+    "file": "apps/frontend/src/views/admin/SettingsView.vue",
+    "line": 2051,
+    "control": "NCheckbox"
+  },
+  {
+    "issueId": "ab179744-77cd-409e-ae21-88ad3f57423c",
+    "file": "apps/frontend/src/views/admin/SettingsView.vue",
+    "line": 1890,
+    "control": "NCheckbox"
+  },
+  {
+    "issueId": "3be5ca28-ce11-460b-83b1-d380f8e22393",
+    "file": "apps/frontend/src/views/admin/SettingsView.vue",
+    "line": 1930,
+    "control": "NCheckbox"
+  },
+  {
+    "issueId": "b998c9a3-ffd3-4187-97ad-3a7f83d5213a",
+    "file": "apps/frontend/src/views/admin/SettingsView.vue",
+    "line": 1984,
+    "control": "NCheckbox"
+  },
+  {
+    "issueId": "441bc334-d3cd-4bdb-a3e4-d01f890e2b7b",
+    "file": "apps/frontend/src/views/admin/SettingsView.vue",
+    "line": 1992,
+    "control": "NCheckbox"
+  },
+  {
+    "issueId": "92e1fa62-f411-4e87-917a-646fb52c6b4d",
+    "file": "apps/frontend/src/views/admin/SettingsView.vue",
+    "line": 2000,
+    "control": "NCheckbox"
+  },
+  {
+    "issueId": "c6fa7a1e-153e-483f-a2ae-209f69d691ab",
+    "file": "apps/frontend/src/views/admin/SettingsView.vue",
+    "line": 2008,
+    "control": "NCheckbox"
+  },
+  {
+    "issueId": "d860d4cd-0edb-475f-81af-87afb0402cf4",
+    "file": "apps/frontend/src/views/admin/SettingsView.vue",
+    "line": 2016,
+    "control": "NCheckbox"
+  },
+  {
+    "issueId": "e19b23d8-6b59-4a55-b90b-0221fc102961",
+    "file": "apps/frontend/src/views/admin/SettingsView.vue",
+    "line": 2071,
+    "control": "NCheckbox"
+  },
+  {
+    "issueId": "33598464-9f28-4592-a5d5-f6cddffc8b90",
+    "file": "apps/frontend/src/views/admin/SettingsView.vue",
+    "line": 2082,
+    "control": "NCheckbox"
+  },
+  {
+    "issueId": "7d670c6f-4c11-46e0-a1f6-073b27b07218",
+    "file": "apps/frontend/src/views/admin/SettingsView.vue",
+    "line": 2093,
+    "control": "NCheckbox"
+  }
+]

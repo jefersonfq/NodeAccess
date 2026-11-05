@@ -1,3 +1,4 @@
+import { trimTrailingSlashes } from '../../shared/linear-text.js'
 import { trialOutboundFetch } from '../trials/trial-outbound.js'
 import { boundedFetch } from '../../shared/bounded-http.js'
 import { encrypt, decrypt } from '../../shared/crypto.js'
@@ -64,7 +65,7 @@ export class JiraIntegrationService {
 
   normalizeBaseUrl(value?: string | null): string {
     if (!value) return ''
-    return value.replace(/\/+$/, '')
+    return trimTrailingSlashes(value)
   }
 
   encryptApiToken(apiToken: string): { encrypted: string; iv: string } {

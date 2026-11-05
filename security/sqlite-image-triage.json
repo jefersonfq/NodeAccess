@@ -1,0 +1,21 @@
+{
+  "reviewedAt": "2026-11-04",
+  "expiresAt": "2026-11-18",
+  "evidence": "docs/changes/2026/11/NA-0162-sqlite-image-security/sqlite-review.md",
+  "images": [
+    "nodeaccess-tls-agent:security-local",
+    "nodeaccess-guacd:1.6.0-1"
+  ],
+  "distro": {
+    "name": "alpine",
+    "version": "3.24.3"
+  },
+  "package": "sqlite-libs",
+  "version": "3.54.1-r0",
+  "id": "CVE-2026-119586",
+  "namespace": "nvd:cpe",
+  "source": "https://nvd.nist.gov/vuln/detail/CVE-2026-119586",
+  "searchedCpe": "cpe:2.3:a:sqlite:sqlite:3.54.1:*:*:*:*:*:*:*",
+  "foundCpe": "cpe:2.3:a:sqlite:sqlite:*:*:*:*:*:*:*:*",
+  "reason": "Component mismatch: this CVE concerns dot-command processing in the SQLite CLI. The reviewed APK contains shared libraries only; both images verify the CLI is absent. Other SQLite CVEs and the sqlite CLI package remain blocked."
+}

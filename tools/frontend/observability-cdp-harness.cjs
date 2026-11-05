@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+const { artifactPath } = require('../shared/private-artifacts.cjs')
 /*
  * Admin Observability UI harness via Chromium CDP.
  *
@@ -19,7 +20,7 @@ const WebSocket = require('ws')
 
 const CDP_BASE = process.env.CDP_BASE || 'http://127.0.0.1:9356'
 const FRONTEND = process.env.FRONTEND_BASE || 'http://127.0.0.1:5173'
-const REPORT_PATH = process.env.REPORT_PATH || '/tmp/nodeaccess-observability-harness.json'
+const REPORT_PATH = process.env.REPORT_PATH || artifactPath('nodeaccess-observability-harness.json')
 const SCREENSHOT_DIR = process.env.SCREENSHOT_DIR || ''
 const UI_THEME = process.env.UI_THEME === 'light' ? 'light' : 'dark'
 

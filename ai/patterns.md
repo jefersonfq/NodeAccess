@@ -15,3 +15,5 @@ Quando responder ou gerar codigo:
 - evite repetir contexto do produto em cada prompt
 - cite arquivo e modulo tocado em vez de colar blocos longos
 - se faltar regra de negocio, consulte o PRD no trecho necessario
+
+Retomadas e qualidade: usar `npm run quality:context` para resumo local com SHA e frescor; consultar `ai/quality-context.md` quando trabalhar em Sonar/CI ou reduzir leituras. Resumo não substitui gates, CI atual ou homologação.

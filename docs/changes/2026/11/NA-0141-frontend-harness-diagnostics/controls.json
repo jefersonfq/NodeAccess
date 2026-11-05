@@ -1,0 +1,64 @@
+{
+  "controls": [
+    {
+      "control": 1,
+      "startedAt": "2026-11-04T00:41:56.777476+00:00",
+      "finishedAt": "2026-11-04T00:42:18.018783+00:00",
+      "containerExit": 0,
+      "result": {
+        "kind": "first-harness-only probe; not aggregate coverage evidence",
+        "observed": {
+          "exitCode": 0,
+          "timedOut": false
+        }
+      }
+    },
+    {
+      "control": 2,
+      "startedAt": "2026-11-04T00:42:18.073453+00:00",
+      "finishedAt": "2026-11-04T00:42:38.003246+00:00",
+      "containerExit": 0,
+      "result": {
+        "kind": "first-harness-only probe; not aggregate coverage evidence",
+        "observed": {
+          "exitCode": 0,
+          "timedOut": false
+        }
+      }
+    },
+    {
+      "control": 3,
+      "startedAt": "2026-11-04T00:42:38.039103+00:00",
+      "finishedAt": "2026-11-04T00:42:56.498301+00:00",
+      "containerExit": 0,
+      "result": {
+        "kind": "first-harness-only probe; not aggregate coverage evidence",
+        "observed": {
+          "exitCode": 0,
+          "timedOut": false
+        }
+      }
+    }
+  ],
+  "historicalCiFailureReproduced": false,
+  "sourceHashes": [
+    {
+      "file": "tools/frontend/sonar-frontend-review.cjs",
+      "sha256": "65d73118001816dfeb1600e3ae797224ed96cc8b722492741592525809174206"
+    },
+    {
+      "file": "tools/coverage/harness-diagnostics.cjs",
+      "sha256": "ba75610206ffa1308b8a85d6cc8df5ccc8fd902b27c278ba4c6eb9cdd1678f11"
+    },
+    {
+      "file": "tools/coverage/browser.mjs",
+      "sha256": "0967cf7012fda298286d72f958e274d1ad5c2b39c7ad09ebd37881ce5e5ae373"
+    },
+    {
+      "file": "tools/sonarqube/ci-coverage-diagnostics.mjs",
+      "sha256": "16db74b4418778da3f95fbb7882f9c1ed485859e2c85e8263e679d0c1e214985"
+    }
+  ],
+  "scope": "Only frontend harness real; aggregate coverage not claimed",
+  "image": "mcr.microsoft.com/playwright:v1.64.0-noble@sha256:06a9939e57531807f8d5fd76ce44b53165ffb7d7501d87ab10e285c20b1e971f"
+}

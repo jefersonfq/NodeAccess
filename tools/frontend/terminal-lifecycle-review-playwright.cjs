@@ -1,3 +1,4 @@
+const { waitFor } = require('../shared/wait-for.cjs')
 // Invoked by terminal-experience-playwright with TERMINAL_LIFECYCLE_REVIEW=1.
 const assert = require('node:assert/strict')
 module.exports = async function review({ page, context, frontend, host }) {
@@ -23,7 +24,7 @@ module.exports = async function review({ page, context, frontend, host }) {
   })
   await page.locator('[data-terminal-rail-action="files"]').click()
   await page.getByText('review.conf', { exact: true }).click({ button: 'right' }).catch(async error => { console.log(await page.evaluate(() => ({ body: document.body.innerText.slice(-2200), paths: window.__terminalExperience.sftpMessages }))); throw error })
-  await page.getByRole('button', { name: 'Editar', exact: true }).click()
+  await page.getByText('Editar', { exact: true }).last().click()
   await page.getByRole('button', { name: 'Tentar novamente', exact: true }).waitFor()
   const fileSockets = await sshCount(page)
   for (let i = 0; i < 2; i++) {
@@ -89,7 +90,7 @@ module.exports = async function review({ page, context, frontend, host }) {
   const pendingWrite = page.waitForRequest(r => r.url().includes('/sftp/') && r.url().endsWith('/write'))
   await page.getByRole('button', { name: 'Tentar novamente', exact: true }).click(); await pendingWrite
   await editor.fill('mode=typed-while-saving')
-  while (!releaseWrite) await page.waitForTimeout(10)
+  await waitFor(() => releaseWrite, { message: 'Delayed SFTP write request was not observed' })
   const metadata = page.waitForResponse(r => r.url().includes('/sftp/') && r.url().includes('/read'))
   releaseWrite(); await metadata
   assert.equal(await editor.inputValue(), 'mode=typed-while-saving')

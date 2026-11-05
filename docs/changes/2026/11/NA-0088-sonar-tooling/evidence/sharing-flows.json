@@ -1,0 +1,9 @@
+{
+  "ok": true,
+  "flows": {
+    "jit": "anonymous terminal, PIN retry, no authenticated Jira call, expired public token stays public",
+    "jitFaults": "expired/revoked mobile entry, duplicate Enter, delayed response, 503 retry, navigation during resolve",
+    "ownSession": "login required with destination preserved",
+    "liveSession": "login required with destination preserved"
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "imageId": "sha256:cf0a7bf3153f2ba7563fa536bc86db12b1ef32a0c93425c56eb5f93842ee7f48",
+  "renderedByteIdentical": true,
+  "sha256": "20fc80cbdc542e39110ca742ecab04e8b04a225c1a371feb93d9daab6e0c96c3",
+  "bytes": 3850,
+  "secretReferences": false,
+  "kinds": [
+    "ServiceAccount",
+    "ConfigMap",
+    "PersistentVolumeClaim",
+    "Service",
+    "Deployment"
+  ]
+}

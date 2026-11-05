@@ -1,0 +1,38 @@
+{
+  "source": "apps/backend/src/modules/native-ssh-gateway/native-ssh-gateway.service.ts",
+  "scope": "targeted observation, not integrated gate",
+  "tests": 74,
+  "newTests": 65,
+  "coverage": {
+    "lines": {
+      "total": 663,
+      "covered": 627,
+      "skipped": 0,
+      "pct": 94.57
+    },
+    "statements": {
+      "total": 702,
+      "covered": 654,
+      "skipped": 0,
+      "pct": 93.16
+    },
+    "functions": {
+      "total": 95,
+      "covered": 86,
+      "skipped": 0,
+      "pct": 90.52
+    },
+    "branches": {
+      "total": 397,
+      "covered": 333,
+      "skipped": 0,
+      "pct": 83.87
+    },
+    "branchesTrue": {
+      "total": 0,
+      "covered": 0,
+      "skipped": 0,
+      "pct": "Unknown"
+    }
+  }
+}

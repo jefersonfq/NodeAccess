@@ -1,0 +1,60 @@
+name: SonarQube real CI
+
+on:
+  pull_request:
+  push:
+    branches: [master, main]
+  workflow_dispatch:
+    inputs:
+      base_sha:
+        description: Full ancestor commit SHA to compare (required)
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sonar-real-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  sonar-real:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    env:
+      SONAR_CI_BASE: ${{ github.event.pull_request.base.sha || inputs.base_sha || github.event.before }}
+      DATABASE_URL: mysql://nodeaccess_test:nodeaccess_test@127.0.0.1:3306/nodeaccess_test
+      REDIS_URL: redis://127.0.0.1:6379
+      JWT_SECRET: nodeaccess-ci-jwt-secret-at-least-32-characters
+      PEM_ENCRYPTION_KEY: 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 24.22.1
+          cache: npm
+      - name: Use npm with workspace override support
+        run: npm install --global npm@12.2.1
+      - run: npm ci
+      - name: Install locked Chromium and system dependencies
+        run: node node_modules/playwright/cli.js install --with-deps chromium
+      - run: npm run db:generate -w apps/backend
+      - run: npm run build -w packages/shared
+      - name: Test Sonar tools
+        run: node --test tools/sonarqube/*.test.mjs
+      - name: Prepare disposable runner kernel
+        run: sudo sysctl -w vm.max_map_count=524288
+      - name: Coverage and real base/head Sonar analyses
+        run: node tools/sonarqube/ci-run.mjs
+      - name: Upload sanitized result only
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: sonar-real-result
+          path: coverage/sonar-ci-summary.json
+          retention-days: 7
+          if-no-files-found: warn

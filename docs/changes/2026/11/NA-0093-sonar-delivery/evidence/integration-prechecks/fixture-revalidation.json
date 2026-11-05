@@ -1,0 +1,66 @@
+[
+  {
+    "path": "apps/backend/src/modules/network-access/tacacs-resilience.test.ts",
+    "rule": "generic-api-key",
+    "originalLine": 6,
+    "currentLine": 6,
+    "priorHashMatchesBase": true,
+    "literalLineByteIdentical": true,
+    "newFileSha256": "38a4067922a1573dbf506eaf67d4c4284bbb1810c0a96006e89ae51a109b274b"
+  },
+  {
+    "path": "apps/frontend/src/locales/en.json",
+    "rule": "private-key",
+    "originalLine": 1050,
+    "currentLine": 1050,
+    "priorHashMatchesBase": true,
+    "literalLineByteIdentical": true,
+    "newFileSha256": "35ad1e23a15bcc0556d2a7c73b7f4f39cb6caa3bcfa1bc1a916c4ac2fd4f8bd7",
+    "placeholderChecks": [
+      {
+        "jsonPath": "hosts.form.pemContentPlaceholder",
+        "placeholderOnly": true
+      },
+      {
+        "jsonPath": "pemKeys.modal.contentPlaceholder",
+        "placeholderOnly": true
+      },
+      {
+        "jsonPath": "admin.bastions.modal.pemPlaceholder",
+        "placeholderOnly": true
+      }
+    ]
+  },
+  {
+    "path": "apps/frontend/src/locales/pt-BR.json",
+    "rule": "private-key",
+    "originalLine": 1053,
+    "currentLine": 1053,
+    "priorHashMatchesBase": true,
+    "literalLineByteIdentical": true,
+    "newFileSha256": "f678eadced312ab69f5762762595d2a715d1a81f9299ffa659db48c0748d5a24",
+    "placeholderChecks": [
+      {
+        "jsonPath": "hosts.form.pemContentPlaceholder",
+        "placeholderOnly": true
+      },
+      {
+        "jsonPath": "pemKeys.modal.contentPlaceholder",
+        "placeholderOnly": true
+      },
+      {
+        "jsonPath": "admin.bastions.modal.pemPlaceholder",
+        "placeholderOnly": true
+      }
+    ]
+  },
+  {
+    "path": "tools/deploy/doctor-nodeaccess-harness.cjs",
+    "rule": "generic-api-key",
+    "originalLine": 29,
+    "currentLine": 30,
+    "priorHashMatchesBase": true,
+    "literalLineByteIdentical": true,
+    "newFileSha256": "bd99d6f21328dc4f5d279f231edf1050f8c68307f0437e2596cc8b89445f1766"
+  }
+]

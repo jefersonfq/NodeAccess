@@ -1,0 +1,10 @@
+npm warn deprecated prebuild-install@7.1.3: No longer maintained. Please contact the author of the relevant native addon; alternatives are available.
+npm warn deprecated xterm@5.3.0: This package is now deprecated. Move to @xterm/xterm instead.
+npm notice run nodeaccess@0.1.0 postinstall
+npm notice run node scripts/dependency-patches/typedoc-minimatch.mjs
+TypeDoc compatibility: applied
+
+added 684 packages in 39s
+
+159 packages are looking for funding
+  run `npm fund` for details

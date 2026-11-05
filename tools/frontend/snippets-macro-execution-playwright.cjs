@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+const { artifactPath } = require('../shared/private-artifacts.cjs')
 const fs = require('node:fs')
 const { chromium } = require('playwright')
 
@@ -7,7 +8,7 @@ const EXECUTABLE_PATH = process.env.PLAYWRIGHT_EXECUTABLE_PATH || '/usr/bin/chro
 const TRIAL_REVIEW = process.env.TRIAL_REVIEW === '1'
 let secretRequests = 0
 const CDP_URL = process.env.CHROMIUM_CDP_URL || ''
-const REPORT_PATH = process.env.REPORT_PATH || '/tmp/nodeaccess-terminal-split-layout.json'
+const REPORT_PATH = process.env.REPORT_PATH || artifactPath('nodeaccess-terminal-split-layout.json')
 const PERFORMANCE_BUDGETS = {
   // Covers the complete split journey, including mode and auxiliary-panel transitions.
   taskDurationMs: 2_000,
@@ -237,7 +238,7 @@ async function main() {
   await unchangedGeometry()
   await launch('Macro cancelar')
   await progress.getByRole('button',{name:'Cancelar',exact:true}).waitFor()
-  const output=process.env.SCREENSHOT_DIR || '/tmp/nodeaccess-snippets-execution'
+  const output=process.env.SCREENSHOT_DIR || artifactPath('nodeaccess-snippets-execution')
   fs.mkdirSync(output,{recursive:true})
   await page.locator('.n-modal').waitFor({state:'hidden'})
   await page.locator('.n-message').waitFor({state:'hidden',timeout:5000})

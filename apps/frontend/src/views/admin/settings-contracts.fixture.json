@@ -1,0 +1,87 @@
+{
+  "tenant": {
+    "id": 7,
+    "name": "Tenant de teste",
+    "slug": "fixture"
+  },
+  "license": {
+    "maxUsers": 10,
+    "maxHosts": 5,
+    "activeUsers": 8,
+    "registeredHosts": 5,
+    "hasKey": true,
+    "multiConnect": true,
+    "sessionAuditEnabled": true,
+    "sessionAuditAiEnabled": true,
+    "sessionAuditAiProvider": "automatic",
+    "sessionAuditAiAutoSummaryEnabled": false,
+    "featureEntitlements": {
+      "integrations": true,
+      "agents": true,
+      "secrets": true,
+      "snippets": true,
+      "portForwarding": true,
+      "feedback": false,
+      "localAi": true,
+      "terminalAutocomplete": true,
+      "terminalAi": true,
+      "mcp": true,
+      "aiSshActions": true,
+      "ha": false
+    },
+    "integrationEntitlements": {
+      "jira": true,
+      "google": true,
+      "ldap": false,
+      "onepassword": true,
+      "oidc": true,
+      "scim": true
+    }
+  },
+  "sessionLimits": {
+    "activeSessions": 1,
+    "maxPerUser": 3,
+    "maxPerTenant": 10
+  },
+  "passwordPolicy": {
+    "minLength": 12,
+    "regex": ".{12,}",
+    "description": "Doze caracteres"
+  },
+  "tenantSettings": {
+    "totpIssuer": "Fixture",
+    "hostsDefaultView": "home"
+  },
+  "jitAccess": {
+    "enabled": false,
+    "expiryMinutes": [
+      5
+    ],
+    "maxExpiryMinutes": 30,
+    "pinRequired": false
+  },
+  "sharedSessions": {
+    "expiryMinutes": [
+      5
+    ],
+    "maxExpiryMinutes": 30
+  },
+  "environment": {
+    "features": {
+      "sessionAudit": true,
+      "sessionAuditAiSummary": true,
+      "sessionAuditAiAutoSummary": false,
+      "localAi": true,
+      "nativeSshGateway": true,
+      "mcp": false
+    },
+    "cache": {
+      "hostDashboardTtlSeconds": 30,
+      "userDashboardTtlSeconds": 30,
+      "hostSidebarTtlSeconds": 30,
+      "observabilityTtlMs": 1000,
+      "sessionAuditPolicyTtlSeconds": 30,
+      "runtime": []
+    }
+  }
+}

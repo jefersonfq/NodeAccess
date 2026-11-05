@@ -1,0 +1,9 @@
+{
+  "status": "passed",
+  "workflowsChanged": 12,
+  "setupNodePins": 20,
+  "npm1221Steps": 17,
+  "providerTags": 3,
+  "workflowSemanticDelta": "only Node patch version and CSP image digest",
+  "enginesUnchanged": true
+}

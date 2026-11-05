@@ -4,7 +4,13 @@ import type { NetworkAccessService } from './network-access.service.js'
 import { MAX_BODY, readHeader, cryptBody, reply, authStart, authContinue, authReply, requestArgs, authorizationReply, accountingReply } from './tacacs-protocol.js'
 
 type Backend=Pick<NetworkAccessService,'device'|'authenticate'|'authorize'|'event'>
-export function createTacacsServer(backend:Backend,limits={connections:64,perSource:8,operations:32,timeoutMs:5000}) {
+type TacacsLimits = { connections: number; perSource: number; operations: number; timeoutMs: number }
+type TacacsStats = { accepted: number; rejected: number; requests: number; errors: number; timeouts: number }
+type TacacsSnapshot = { listening: boolean; connections: number; limits: TacacsLimits } & TacacsStats & ReturnType<TacacsMetrics['snapshot']>
+type TacacsRuntime = { server: ReturnType<typeof createServer>; stats: TacacsStats; snapshot: () => TacacsSnapshot; close: () => Promise<void> }
+
+export function createTacacsServer(backend:Backend,{connections=64,perSource=8,operations:operationLimit=32,timeoutMs=5000}={}): TacacsRuntime {
+  const limits={connections,perSource,operations:operationLimit,timeoutMs}
   const sockets=new Set<Socket>(),bySource=new Map<string,number>()
   const authenticationWindows=new Map<string,{started:number;count:number}>()
   let operations=0
@@ -39,7 +45,7 @@ export function createTacacsServer(backend:Backend,limits={connections:64,perSou
       const packet=buffer.subarray(12);buffer=Buffer.alloc(0)
       const deadline=setTimeout(()=>{stats.timeouts++;metrics.timeout(operationId);socket.destroy()},limits.timeoutMs);deadline.unref()
       let validated=false,activeDevice:Awaited<ReturnType<Backend['device']>>=null
-      void (async()=>{
+      void (async(): Promise<void>=>{
         // Fresh source binding, tenant activation and secret on EVERY request.
         const device=await backend.device(ip)
         if(!device||socket.destroyed)return
@@ -84,5 +90,5 @@ export function createTacacsServer(backend:Backend,limits={connections:64,perSou
       }).finally(()=>{operations--;metrics.finish(operationId);clearTimeout(deadline);if(busy&&!socket.writableEnded)socket.destroy()})
     })
   })
-  return {server,stats,snapshot:()=>({listening:server.listening,connections:sockets.size,limits:{...limits},...stats,...metrics.snapshot()}),close:async()=>{for(const socket of sockets)socket.destroy();await new Promise<void>((resolve,reject)=>server.close(err=>err?reject(err):resolve()))}}
+  return {server,stats,snapshot:(): TacacsSnapshot=>({listening:server.listening,connections:sockets.size,limits:{...limits},...stats,...metrics.snapshot()}),close:async(): Promise<void>=>{for(const socket of sockets)socket.destroy();await new Promise<void>((resolve,reject)=>server.close(err=>err?reject(err):resolve()))}}
 }

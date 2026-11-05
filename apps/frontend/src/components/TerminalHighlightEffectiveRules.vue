@@ -2,13 +2,14 @@
 import { computed, ref } from 'vue'
 import { NAlert, NEmpty, NInput, NTag } from 'naive-ui'
 import type { EffectiveTerminalHighlights } from '@/services/terminal-highlight.service'
-import { compileHighlightRules, matchTerminalLine } from '@/terminal/terminal-highlighter'
+import { useHighlightPreview } from '@/composables/useHighlightPreview'
 
 const props = defineProps<{ effective: EffectiveTerminalHighlights }>()
 const sourceLabels = { direct: 'Atribuição direta', group: 'Por grupo', personal: 'Pessoal' }
 const sample = ref('ERROR WARNING CRITICAL')
+const { rows: previewRows, warning: previewWarning } = useHighlightPreview(() => ({ rows: props.effective.enabled ? [{ key: 'sample', text: sample.value, rules: props.effective.rules }] : [] }))
 const preview = computed(() => {
-  const ranges = props.effective.enabled ? matchTerminalLine(sample.value, compileHighlightRules(props.effective.rules)).sort((a, b) => a.x - b.x) : []
+  const ranges = [...(previewRows.value[0]?.ranges ?? [])].sort((a, b) => a.x - b.x)
   const parts: Array<{ text: string; style?: Record<string, string | number | undefined> }> = []
   let cursor = 0
   for (const range of ranges) {
@@ -35,6 +36,13 @@ const preview = computed(() => {
     >
       Destaques desativados pelo usuário. As regras abaixo estão configuradas, mas não são aplicadas.
     </NAlert>
+    <p
+      v-if="previewWarning"
+      role="status"
+      class="text-xs text-amber-300"
+    >
+      {{ previewWarning }}
+    </p>
     <section
       aria-label="Templates recebidos"
       class="space-y-2"

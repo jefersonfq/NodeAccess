@@ -1,7 +1,14 @@
 import type { FastifyInstance } from 'fastify'
 import type { SharedSessionGateway } from './shared-session.gateway.js'
 
-export async function sharedSessionWsRoutes(app: FastifyInstance, gateway: SharedSessionGateway): Promise<void> {
+export function sharedSessionWsRoutes(app: FastifyInstance, gateway: SharedSessionGateway): Promise<void> {
+  return new Promise<void>((resolve) => {
+    registerSharedSessionWsRoutes(app, gateway)
+    resolve()
+  })
+}
+
+function registerSharedSessionWsRoutes(app: FastifyInstance, gateway: SharedSessionGateway): void {
   app.get<{
     Params: { sharedSessionId: string }
     Querystring: { token?: string }
@@ -12,7 +19,7 @@ export async function sharedSessionWsRoutes(app: FastifyInstance, gateway: Share
       const sharedSessionId = Number(request.params.sharedSessionId)
       const token = request.query.token
 
-      if (isNaN(sharedSessionId)) {
+      if (Number.isNaN(sharedSessionId)) {
         socket.send(JSON.stringify({ type: 'error', message: 'sharedSessionId inválido' }))
         socket.close(1008)
         return

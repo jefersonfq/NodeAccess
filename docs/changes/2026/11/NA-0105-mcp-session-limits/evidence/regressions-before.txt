@@ -1,0 +1,46 @@
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - ESM syntax in a file loaded as CommonJS (vitest.config.ts:2:1). Use a `.mjs` extension or set `"type": "module"` in the closest package.json
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+ RUN  v4.1.12 /tmp/nodeaccess-NA-0100
+
+··········································xx
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  apps/backend/src/modules/mcp/mcp-interactive-ssh.service.test.ts > MCP regression probes > reserves per-token capacity while concurrent opens are pending
+AssertionError: expected [ { status: 'fulfilled', …(1) }, …(1) ] to have a length of 1 but got 2
+
+- Expected
++ Received
+
+- 1
++ 2
+
+ ❯ apps/backend/src/modules/mcp/mcp-interactive-ssh.service.test.ts:127:63
+    125|   const s=setup();env.MCP_INTERACTIVE_SSH_MAX_SESSIONS_PER_TOKEN=1
+    126|   const results=await Promise.allSettled([s.open(),s.open()])
+    127|   expect(results.filter(result=>result.status==='fulfilled')).toHaveLe…
+       |                                                               ^
+    128|   expect(results.filter(result=>result.status==='rejected')).toHaveLen…
+    129|  })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+ FAIL  apps/backend/src/modules/mcp/mcp-interactive-ssh.service.test.ts > MCP regression probes > respects maxBytes for multibyte UTF-8 output
+AssertionError: expected 4 to be less than or equal to 3
+ ❯ apps/backend/src/modules/mcp/mcp-interactive-ssh.service.test.ts:133:44
+    131|   const s=setup(),opened=await s.open();clients()[0]!.channel.push(Buf…
+    132|   const result=await s.service.read(user,{sessionId:opened.sessionId,m…
+    133|   expect(Buffer.byteLength(result.output)).toBeLessThanOrEqual(3)
+       |                                            ^
+    134|   expect(result.output).toBe('é')
+    135|  })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  2 failed | 42 passed (44)
+   Start at  16:42:44
+   Duration  1.42s (transform 598ms, setup 0ms, import 1000ms, tests 136ms, environment 1ms)

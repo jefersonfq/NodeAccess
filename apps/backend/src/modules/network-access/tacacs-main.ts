@@ -7,9 +7,10 @@ import { SshRepository } from '../ssh/ssh.repository.js'
 import { InventoryAclRepository } from '../inventory/inventory-acl.repository.js'
 import { NetworkAccessService } from './network-access.service.js'
 import { createTacacsServer } from './tacacs-server.js'
-import { TacacsHealthStore, operationalState, requiresSupervisorRestart } from './tacacs-health.js'
+import { assertTacacsActivation } from './tacacs-activation.js'
+import { TacacsHealthStore, operationalState, requiresSupervisorRestart, type Heartbeat } from './tacacs-health.js'
 
-if (process.env.NODEACCESS_TACACS_ENABLE !== 'true') throw new Error('Set NODEACCESS_TACACS_ENABLE=true explicitly to start the optional TACACS+ service')
+assertTacacsActivation(process.env)
 const host = process.env.NODEACCESS_TACACS_BIND ?? '127.0.0.1'
 const port = Number(process.env.NODEACCESS_TACACS_PORT ?? 4949)
 const healthPort = Number(process.env.NODEACCESS_TACACS_HEALTH_PORT ?? 0)
@@ -22,14 +23,14 @@ const runtime = createTacacsServer(service)
 const health = new TacacsHealthStore(env.REDIS_URL, env.REDIS_PASSWORD ?? undefined)
 const instanceId = randomUUID()
 let closing = false, publishing = false, probing = false, databaseAt = 0, database = false
-const heartbeat = () => ({ observedAt: Date.now(), database: database && Date.now() - databaseAt < 20000, runtime: runtime.snapshot() })
-function probe() {
+const heartbeat = (): Heartbeat => ({ observedAt: Date.now(), database: database && Date.now() - databaseAt < 20000, runtime: runtime.snapshot() })
+function probe(): void {
   if (probing || closing) return
   probing = true
   void prisma.$queryRaw`SELECT 1`.then(() => { database = true; databaseAt = Date.now() })
     .catch(() => { database = false; databaseAt = Date.now() }).finally(() => { probing = false })
 }
-async function publish() {
+async function publish(): Promise<void> {
   if (publishing || closing) return
   publishing = true
   try { await health.publish(instanceId, heartbeat()) }
@@ -38,7 +39,8 @@ async function publish() {
 }
 const diagnostics = createServer((request, response) => {
   if (request.url === '/metrics') {
-    const { tenants: _tenants, ...processMetrics } = runtime.snapshot()
+    // Undefined properties are omitted by JSON.stringify; tenant details stay private.
+    const processMetrics = { ...runtime.snapshot(), tenants: undefined }
     response.writeHead(200, { 'Content-Type': 'application/json' })
     response.end(JSON.stringify({ ...processMetrics, database: heartbeat().database, rssBytes: process.memoryUsage().rss }))
     return
@@ -57,7 +59,7 @@ const watchdog = setInterval(() => {
     void shutdown(1)
   }
 }, 1000)
-async function shutdown(code: number) {
+async function shutdown(code: number): Promise<void> {
   if (closing) return
   closing = true; clearInterval(probeTimer); clearInterval(publishTimer); clearInterval(watchdog)
   const force = setTimeout(() => process.exit(code), 2500); force.unref()

@@ -1,3 +1,4 @@
+import { resolveExecutable } from '../shared/trusted-executable.cjs'
 import { X509Certificate, createPrivateKey, createPublicKey } from 'node:crypto'
 import { execFile } from 'node:child_process'
 import { promisify } from 'node:util'
@@ -26,7 +27,7 @@ export function validatePair(chain, key, domain) {
   } catch { throw new TlsError('INVALID_CERTIFICATE','Certificado inválido: confira domínio SAN, validade, cadeia e correspondência da chave privada (PEM sem senha).') }
 }
 export async function run(command,args,options={}) {
-  try { return await exec(command,args,{timeout:120000,maxBuffer:1024*1024,...options}) }
+  try { return await exec(resolveExecutable(command),args,{timeout:120000,maxBuffer:1024*1024,...options}) }
   catch (error) {
     if(command==='certbot')throw classifyAcmeError(error)
     if(command==='openssl')throw new TlsError('CHAIN_UNTRUSTED','Não foi possível validar a cadeia de confiança. Confira intermediárias e a CA confiável na instalação.')

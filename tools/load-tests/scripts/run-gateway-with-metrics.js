@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+const { resolveExecutable } = require('../../shared/trusted-executable.cjs')
 
 const fs = require('node:fs')
 const path = require('node:path')
@@ -129,7 +130,7 @@ function shouldIncludeContainer(row) {
 }
 
 function readContainerStats() {
-  const result = spawnSync('docker', ['stats', '--no-stream', '--format', '{{json .}}'], {
+  const result = spawnSync(resolveExecutable('docker'), ['stats', '--no-stream', '--format', '{{json .}}'], {
     encoding: 'utf8',
     timeout: 5000,
   })
@@ -285,7 +286,7 @@ function parsePrometheusMetrics(text) {
   const values = {}
   for (const line of text.split('\n')) {
     if (!line || line.startsWith('#')) continue
-    const match = line.match(/^([a-zA-Z_:][a-zA-Z0-9_:]*)(?:\{[^}]*\})?\s+(-?(?:\d+\.?\d*|\.\d+)(?:e[+-]?\d+)?)$/i)
+    const match = line.match(/^([a-zA-Z_:][a-zA-Z0-9_:]*)(?:\{[^}]*\})?\s+(-?(?:\d+(?:\.\d*)?|\.\d+)(?:e[+-]?\d+)?)$/i)
     if (!match) continue
     const name = match[1]
     const value = Number(match[2])

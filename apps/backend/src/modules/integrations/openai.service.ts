@@ -1,3 +1,4 @@
+import { trimTrailingSlashes } from '../../shared/linear-text.js'
 import { trialOpenAiFetch } from '../trials/trial-outbound.js'
 import { z } from 'zod'
 import { env } from '../../config/env.js'
@@ -57,7 +58,7 @@ export class OpenAiIntegrationService {
 
   normalizeBaseUrl(value?: string | null): string {
     if (!value) return this.defaultBaseUrl
-    return value.replace(/\/+$/, '')
+    return trimTrailingSlashes(value)
   }
 
   async testConnection(input: {

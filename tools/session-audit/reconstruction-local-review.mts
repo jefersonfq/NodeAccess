@@ -1,3 +1,4 @@
+import { artifactPath } from '../shared/private-artifacts.cjs'
 /** End-to-end API review of a local recording. Creates only its derived version. */
 import {PrismaClient} from '@prisma/client'
 import Fastify from 'fastify'
@@ -35,6 +36,6 @@ async function main(){
  assert.equal((await call('reconstructions')).json().length,history!.json().length)
  const comparison=await call(`reconstructions/${metadata.id}/compare`);assert.equal(comparison.statusCode,200);assert.equal(comparison.json().modified,0)
  const result={ok:true,sessionId:id,tenantId:tenant,commands:metadata.commandCount,events:metadata.eventCount,version:metadata.processorVersion,persisted:true,integrity:metadata.state,txtBytes:Buffer.byteLength(txt!.body),readableBytes:Buffer.byteLength(readable.body),threeFormats:true,idempotentReprocess:true,compare:true}
- writeFileSync('/tmp/nodeaccess-audit-reconstruction-local.json',JSON.stringify(result,null,2));console.log(JSON.stringify(result))
+ writeFileSync(artifactPath('nodeaccess-audit-reconstruction-local.json'),JSON.stringify(result,null,2));console.log(JSON.stringify(result))
 }
 main().finally(async()=>{await app.close();await db.$disconnect()}).catch(e=>{console.error(e);process.exitCode=1})

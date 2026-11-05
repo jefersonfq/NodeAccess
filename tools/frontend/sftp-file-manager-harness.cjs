@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+const { artifactPath } = require('../shared/private-artifacts.cjs')
 /*
  * SFTP File Manager UI/API harness via Chromium CDP.
  *
@@ -24,7 +25,7 @@ const WebSocket = require('ws')
 const CDP_BASE = process.env.CDP_BASE || 'http://127.0.0.1:9353'
 const FRONTEND = process.env.FRONTEND_BASE || 'http://127.0.0.1:5173'
 const HOST_ID = Number(process.env.SFTP_HOST_ID || '10')
-const REPORT_PATH = process.env.REPORT_PATH || '/tmp/nodeaccess-sftp-file-manager-harness.json'
+const REPORT_PATH = process.env.REPORT_PATH || artifactPath('nodeaccess-sftp-file-manager-harness.json')
 const SCREENSHOT_DIR = process.env.SCREENSHOT_DIR || ''
 
 let scenario = 'happy-path'

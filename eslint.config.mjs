@@ -4,7 +4,7 @@ import vue from 'eslint-plugin-vue'
 import vueParser from 'vue-eslint-parser'
 
 export default [
-  { ignores: ['**/dist/**', '**/node_modules/**', '**/coverage/**', '**/*-NOTE-JEFF.*'] },
+  { ignores: ['**/dist/**', '**/node_modules/**', 'coverage/**', '**/*-NOTE-JEFF.*'] },
   ...tsPlugin.configs['flat/recommended-type-checked'].map(config => ({ ...config, files: ['apps/backend/src/**/*.ts', 'apps/frontend/src/**/*.{ts,vue}'] })),
   ...vue.configs['flat/recommended'].map(config => ({ ...config, files: ['apps/frontend/src/**/*.vue'] })),
   {

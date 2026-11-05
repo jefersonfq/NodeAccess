@@ -1,0 +1,67 @@
+{
+  "kind": "post_review_read_only_verification",
+  "at": "2026-11-04T17:48:28.575Z",
+  "head": "554790c3081b4f345a5b9f754c0199e685f2644d",
+  "analysisId": "6168dd15-05df-4b5c-93c9-82230698d37e",
+  "originalScannerCommandExit": 1,
+  "originalScannerExitReason": "Quality gate before authorized false-positive review; original failed report preserved",
+  "sameSourceAndCoverageVerified": true,
+  "toolingExit": 0,
+  "coverageExit": 0,
+  "reviews": {
+    "status": "dry_run",
+    "proposed": 0,
+    "changed": 0,
+    "absent": 0,
+    "unchanged": 206
+  },
+  "comparison": {
+    "passed": true,
+    "reviewed": 3,
+    "unexpected": [],
+    "absentReviewedOccurrences": 292
+  },
+  "gate": {
+    "status": "OK",
+    "conditions": [
+      {
+        "status": "OK",
+        "metricKey": "new_coverage",
+        "comparator": "LT",
+        "errorThreshold": "80",
+        "actualValue": "80.4"
+      },
+      {
+        "status": "OK",
+        "metricKey": "new_duplicated_lines_density",
+        "comparator": "GT",
+        "errorThreshold": "3",
+        "actualValue": "0.07589"
+      },
+      {
+        "status": "OK",
+        "metricKey": "new_security_hotspots_reviewed",
+        "comparator": "LT",
+        "errorThreshold": "100"
+      },
+      {
+        "status": "OK",
+        "metricKey": "new_violations",
+        "comparator": "GT",
+        "errorThreshold": "0",
+        "actualValue": "0"
+      }
+    ],
+    "ignoredConditions": false,
+    "period": {
+      "mode": "PREVIOUS_VERSION",
+      "date": "2026-11-03T16:48:47+0000"
+    },
+    "caycStatus": "compliant"
+  },
+  "hotspotsToReview": 0,
+  "actorDeactivated": true,
+  "readTokenUnchanged": true,
+  "clean": true,
+  "passed": true
+}

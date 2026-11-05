@@ -1,0 +1,2343 @@
+[
+  {
+    "issueId": "72ac394a-590d-43a0-9e8b-9a5a0b599e87",
+    "rule": "Web:S6845",
+    "file": "apps/frontend/src/components/HostAccessIndicator.vue",
+    "baselineLine": 16,
+    "status": "fixed",
+    "rationale": "Estado FIXED confirmado pelo scanner final. Indicador abre tooltip por foco, clique e teclado; papel corrigido de imagem para botão com aria-expanded. Enter/Escape e nome exercitados no componente real.",
+    "evidence": [
+      "tools/frontend/sonar-frontend-review.cjs",
+      "apps/frontend/src/components/HostAccessIndicator.vue"
+    ],
+    "risk": "low"
+  },
+  {
+    "issueId": "37509f88-2ee7-4d6d-bc37-494774e1b76c",
+    "rule": "Web:InputWithoutLabelCheck",
+    "file": "apps/frontend/src/components/ImportHostsModal.vue",
+    "baselineLine": 1921,
+    "status": "context_reviewed",
+    "rationale": "Falso positivo aplicado e confirmado no Sonar, com revisor temporário autorizado e desativado. O input universalFileRef de entrada universal do importador, acionada também por Enter/Space no botão de drop usa class hidden (display:none) e não é o controle apresentado ao usuário. A seleção é aberta por acionador visível nomeado; adicionar label ao elemento oculto não corrige uma falta de nome na interface. A regra exige nome/associação para controles apresentados ao usuário; este controle com display:none não participa da árvore de acessibilidade. Não se usa tabindex=-1 isoladamente como justificativa.",
+    "evidence": [
+      "apps/frontend/src/components/ImportHostsModal.vue:1921",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/final-review.json"
+    ],
+    "risk": "low"
+  },
+  {
+    "issueId": "225f29e0-1b12-4ded-9032-d66b9e7fbcec",
+    "rule": "Web:S6853",
+    "file": "apps/frontend/src/components/ImportHostsModal.vue",
+    "baselineLine": 1999,
+    "status": "fixed",
+    "rationale": "Estado FIXED confirmado pelo scanner final. Controle textbox (import.royalts.protocol) agora recebe nome no componente/input interno; wrapper externo inválido foi removido ou label passou a ter associação real. Fixture derivada desta ocorrência confirma nome e foco.",
+    "evidence": [
+      "docs/changes/2026/11/NA-0087-sonar-frontend/dom-label-evidence.json#225f29e0-1b12-4ded-9032-d66b9e7fbcec",
+      "tools/frontend/sonar-frontend-review.cjs"
+    ],
+    "risk": "low"
+  },
+  {
+    "issueId": "76693a96-55cf-497b-b5c4-af0393ca2e56",
+    "rule": "Web:S6845",
+    "file": "apps/frontend/src/components/mcp/McpAgentSetup.vue",
+    "baselineLine": 133,
+    "status": "fixed",
+    "rationale": "Estado FIXED confirmado pelo scanner final. NA-0152: correção implementada e ocorrência ausente na análise 28a77996d. Correção e evidências na frente indicada.",
+    "evidence": [
+      "apps/frontend/src/components/mcp/McpAgentSetup.vue:133",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json"
+    ],
+    "risk": "low"
+  },
+  {
+    "issueId": "84adc557-c63f-48b8-8072-4454abed948b",
+    "rule": "Web:S6845",
+    "file": "apps/frontend/src/components/mcp/McpAgentSetup.vue",
+    "baselineLine": 150,
+    "status": "fixed",
+    "rationale": "Estado FIXED confirmado pelo scanner final. NA-0152: correção implementada e ocorrência ausente na análise 28a77996d. Correção e evidências na frente indicada.",
+    "evidence": [
+      "apps/frontend/src/components/mcp/McpAgentSetup.vue:150",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json"
+    ],
+    "risk": "low"
+  },
+  {
+    "issueId": "3c252e24-150c-4efc-849f-e9cafcf20ee8",
+    "rule": "Web:S6845",
+    "file": "apps/frontend/src/components/mcp/McpAgentSetup.vue",
+    "baselineLine": 166,
+    "status": "fixed",
+    "rationale": "Estado FIXED confirmado pelo scanner final. NA-0152: correção implementada e ocorrência ausente na análise 28a77996d. Correção e evidências na frente indicada.",
+    "evidence": [
+      "apps/frontend/src/components/mcp/McpAgentSetup.vue:166",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json"
+    ],
+    "risk": "low"
+  },
+  {
+    "issueId": "86ece36a-8222-4fea-9a77-8eb9259976bb",
+    "rule": "Web:S6845",
+    "file": "apps/frontend/src/components/mcp/McpAgentSetup.vue",
+    "baselineLine": 195,
+    "status": "fixed",
+    "rationale": "Estado FIXED confirmado pelo scanner final. NA-0152: correção implementada e ocorrência ausente na análise 28a77996d. Correção e evidências na frente indicada.",
+    "evidence": [
+      "apps/frontend/src/components/mcp/McpAgentSetup.vue:195",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json"
+    ],
+    "risk": "low"
+  },
+  {
+    "issueId": "6b3dbbd2-f165-49b8-8c08-6f2233a0f5b1",
+    "rule": "Web:S6853",
+    "file": "apps/frontend/src/components/snippets/MacroStepEditor.vue",
+    "baselineLine": 161,
+    "status": "context_reviewed",
+    "rationale": "Falso positivo aplicado e confirmado no Sonar, com revisor temporário autorizado e desativado. O label envolve timeoutMs, usado para timeout da etapa wait, incluindo aria-label no input-props. Naive renderiza o controle nativo dentro desse ancestral; a evidência DOM desta ocorrência possui nome acessível e foco. O scanner estático não expande o componente Vue. A intenção é associação efetiva label-controle, não exigir que o analisador estático conheça a expansão do componente Vue. A evidência DOM individual anterior é reutilizada com o trecho preservado.",
+    "evidence": [
+      "docs/changes/2026/11/NA-0087-sonar-frontend/dom-label-evidence.json#6b3dbbd2-f165-49b8-8c08-6f2233a0f5b1",
+      "tools/frontend/sonar-frontend-review.cjs",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/final-review.json"
+    ],
+    "risk": "low"
+  },
+  {
+    "issueId": "ce693eb8-2ada-454c-a936-a1f0b0680fbd",
+    "rule": "Web:S6853",
+    "file": "apps/frontend/src/components/snippets/MacroStepEditor.vue",
+    "baselineLine": 173,
+    "status": "context_reviewed",
+    "rationale": "Falso positivo aplicado e confirmado no Sonar, com revisor temporário autorizado e desativado. O label envolve durationMs, usado para duração da pausa, incluindo aria-label no input-props. Naive renderiza o controle nativo dentro desse ancestral; a evidência DOM desta ocorrência possui nome acessível e foco. O scanner estático não expande o componente Vue. A intenção é associação efetiva label-controle, não exigir que o analisador estático conheça a expansão do componente Vue. A evidência DOM individual anterior é reutilizada com o trecho preservado.",
+    "evidence": [
+      "docs/changes/2026/11/NA-0087-sonar-frontend/dom-label-evidence.json#ce693eb8-2ada-454c-a936-a1f0b0680fbd",
+      "tools/frontend/sonar-frontend-review.cjs",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/final-review.json"
+    ],
+    "risk": "low"
+  },
+  {
+    "issueId": "eaa3c373-f07d-4d30-b489-0aee1d8b58b8",
+    "rule": "Web:S6853",
+    "file": "apps/frontend/src/components/snippets/SnippetCommandEditor.vue",
+    "baselineLine": 74,
+    "status": "context_reviewed",
+    "rationale": "Falso positivo aplicado e confirmado no Sonar, com revisor temporário autorizado e desativado. O label envolve modelValue[field], usado para editor textarea do comando com aria-label traduzido. Naive renderiza o controle nativo dentro desse ancestral; a evidência DOM desta ocorrência possui nome acessível e foco. O scanner estático não expande o componente Vue. A intenção é associação efetiva label-controle, não exigir que o analisador estático conheça a expansão do componente Vue. A evidência DOM individual anterior é reutilizada com o trecho preservado.",
+    "evidence": [
+      "docs/changes/2026/11/NA-0087-sonar-frontend/dom-label-evidence.json#eaa3c373-f07d-4d30-b489-0aee1d8b58b8",
+      "tools/frontend/sonar-frontend-review.cjs",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/final-review.json"
+    ],
+    "risk": "low"
+  },
+  {
+    "issueId": "739a8fec-c667-4a25-a144-605e43a1ee18",
+    "rule": "Web:InputWithoutLabelCheck",
+    "file": "apps/frontend/src/components/snippets/SnippetTransfer.vue",
+    "baselineLine": 44,
+    "status": "context_reviewed",
+    "rationale": "Falso positivo aplicado e confirmado no Sonar, com revisor temporário autorizado e desativado. O input file de importação JSON de snippets usa class hidden (display:none) e não é o controle apresentado ao usuário. A seleção é aberta por acionador visível nomeado; adicionar label ao elemento oculto não corrige uma falta de nome na interface. A regra exige nome/associação para controles apresentados ao usuário; este controle com display:none não participa da árvore de acessibilidade. Não se usa tabindex=-1 isoladamente como justificativa.",
+    "evidence": [
+      "apps/frontend/src/components/snippets/SnippetTransfer.vue:44",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/final-review.json"
+    ],
+    "risk": "low"
+  },
+  {
+    "issueId": "7c301dde-bcdb-475f-bf28-9ad5c9e3c1f0",
+    "rule": "Web:InputWithoutLabelCheck",
+    "file": "apps/frontend/src/views/admin/McpTokensView.vue",
+    "baselineLine": 1117,
+    "status": "fixed",
+    "rationale": "Estado FIXED confirmado pelo scanner final. Campo nativo visível em McpTokensView.vue:1117 recebeu aria-label correspondente ao propósito (porta, validade, protocolo, bind ou busca); placeholder deixa de ser única identificação.",
+    "evidence": [
+      "apps/frontend/src/views/admin/McpTokensView.vue:1117",
+      "docs/changes/2026/11/NA-0087-sonar-frontend/test-results.md"
+    ],
+    "risk": "low"
+  },
+  {
+    "issueId": "086a25bc-0da6-4ed6-9b63-b2a22c761f75",
+    "rule": "Web:S6853",
+    "file": "apps/frontend/src/views/admin/McpTokensView.vue",
+    "baselineLine": 1137,
+    "status": "fixed",
+    "rationale": "Estado FIXED confirmado pelo scanner final. Controle checkbox (Modo de ação) agora recebe nome no componente/input interno; wrapper externo inválido foi removido ou label passou a ter associação real. Fixture derivada desta ocorrência confirma nome e foco.",
+    "evidence": [
+      "docs/changes/2026/11/NA-0087-sonar-frontend/dom-label-evidence.json#086a25bc-0da6-4ed6-9b63-b2a22c761f75",
+      "tools/frontend/sonar-frontend-review.cjs"
+    ],
+    "risk": "low"
+  },
+  {
+    "issueId": "c138f94a-1891-409a-920e-fbbb40b62c81",
+    "rule": "Web:InputWithoutLabelCheck",
+    "file": "apps/frontend/src/views/admin/McpTokensView.vue",
+    "baselineLine": 1352,
+    "status": "fixed",
+    "rationale": "Estado FIXED confirmado pelo scanner final. Campo nativo visível em McpTokensView.vue:1352 recebeu aria-label correspondente ao propósito (porta, validade, protocolo, bind ou busca); placeholder deixa de ser única identificação.",
+    "evidence": [
+      "apps/frontend/src/views/admin/McpTokensView.vue:1352",
+      "docs/changes/2026/11/NA-0087-sonar-frontend/test-results.md"
+    ],
+    "risk": "low"
+  },
+  {
+    "issueId": "5c5d92f8-297d-41b4-a6b5-bc6e89c8b3fe",
+    "rule": "Web:S6853",
+    "file": "apps/frontend/src/views/admin/McpTokensView.vue",
+    "baselineLine": 1372,
+    "status": "fixed",
+    "rationale": "Estado FIXED confirmado pelo scanner final. Controle checkbox (Modo de ação) agora recebe nome no componente/input interno; wrapper externo inválido foi removido ou label passou a ter associação real. Fixture derivada desta ocorrência confirma nome e foco.",
+    "evidence": [
+      "docs/changes/2026/11/NA-0087-sonar-frontend/dom-label-evidence.json#5c5d92f8-297d-41b4-a6b5-bc6e89c8b3fe",
+      "tools/frontend/sonar-frontend-review.cjs"
+    ],
+    "risk": "low"
+  },
+  {
+    "issueId": "17a7c454-1215-476c-9512-a55c4660791d",
+    "rule": "Web:InputWithoutLabelCheck",
+    "file": "apps/frontend/src/components/FileManager.vue",
+    "baselineLine": 685,
+    "status": "context_reviewed",
+    "rationale": "Falso positivo aplicado e confirmado no Sonar, com revisor temporário autorizado e desativado. O input uploadRef de seleção múltipla de arquivos do gerenciador usa class hidden (display:none) e não é o controle apresentado ao usuário. A seleção é aberta por acionador visível nomeado; adicionar label ao elemento oculto não corrige uma falta de nome na interface. A regra exige nome/associação para controles apresentados ao usuário; este controle com display:none não participa da árvore de acessibilidade. Não se usa tabindex=-1 isoladamente como justificativa.",
+    "evidence": [
+      "apps/frontend/src/components/FileManager.vue:685",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/final-review.json"
+    ],
+    "risk": "low"
+  },
+  {
+    "issueId": "6a458e75-14da-4f35-819d-e4cf7511f500",
+    "rule": "Web:InputWithoutLabelCheck",
+    "file": "apps/frontend/src/components/ImportHostsModal.vue",
+    "baselineLine": 2072,
+    "status": "context_reviewed",
+    "rationale": "Falso positivo aplicado e confirmado no Sonar, com revisor temporário autorizado e desativado. O input sshFileRef de carregamento de configuração SSH usa class hidden (display:none) e não é o controle apresentado ao usuário. A seleção é aberta por acionador visível nomeado; adicionar label ao elemento oculto não corrige uma falta de nome na interface. A regra exige nome/associação para controles apresentados ao usuário; este controle com display:none não participa da árvore de acessibilidade. Não se usa tabindex=-1 isoladamente como justificativa.",
+    "evidence": [
+      "apps/frontend/src/components/ImportHostsModal.vue:2072",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/final-review.json"
+    ],
+    "risk": "low"
+  },
+  {
+    "issueId": "a4a4ac67-1571-4e32-8c90-843e7c8ed168",
+    "rule": "Web:InputWithoutLabelCheck",
+    "file": "apps/frontend/src/components/ImportHostsModal.vue",
+    "baselineLine": 2105,
+    "status": "context_reviewed",
+    "rationale": "Falso positivo aplicado e confirmado no Sonar, com revisor temporário autorizado e desativado. O input csvFileRef de carregamento CSV usa class hidden (display:none) e não é o controle apresentado ao usuário. A seleção é aberta por acionador visível nomeado; adicionar label ao elemento oculto não corrige uma falta de nome na interface. A regra exige nome/associação para controles apresentados ao usuário; este controle com display:none não participa da árvore de acessibilidade. Não se usa tabindex=-1 isoladamente como justificativa.",
+    "evidence": [
+      "apps/frontend/src/components/ImportHostsModal.vue:2105",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/final-review.json"
+    ],
+    "risk": "low"
+  },
+  {
+    "issueId": "a571a75e-1826-4f29-adf7-da031092ec50",
+    "rule": "Web:InputWithoutLabelCheck",
+    "file": "apps/frontend/src/components/ImportHostsModal.vue",
+    "baselineLine": 2254,
+    "status": "context_reviewed",
+    "rationale": "Falso positivo aplicado e confirmado no Sonar, com revisor temporário autorizado e desativado. O input guacamoleFileRef de carregamento XML/JSON do Guacamole usa class hidden (display:none) e não é o controle apresentado ao usuário. A seleção é aberta por acionador visível nomeado; adicionar label ao elemento oculto não corrige uma falta de nome na interface. A regra exige nome/associação para controles apresentados ao usuário; este controle com display:none não participa da árvore de acessibilidade. Não se usa tabindex=-1 isoladamente como justificativa.",
+    "evidence": [
+      "apps/frontend/src/components/ImportHostsModal.vue:2254",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/final-review.json"
+    ],
+    "risk": "low"
+  },
+  {
+    "issueId": "e989d673-060b-46ef-b746-65433ca5e20b",
+    "rule": "Web:S6845",
+    "file": "apps/frontend/src/components/ImportHostsModal.vue",
+    "baselineLine": 2395,
+    "status": "context_reviewed",
+    "rationale": "Falso positivo aplicado e confirmado no Sonar, com revisor temporário autorizado e desativado. tabindex=0 torna a lista de dependências com max-height e overflow-y:auto alcançável para rolagem por teclado. Há aria-label e estilo focus-visible explícito; retirar foco prejudicaria navegação da região rolável. Região com altura máxima e overflow-y:auto tem interação real de rolagem; difere dos quatro pre sem dimensão limitada.",
+    "evidence": [
+      "apps/frontend/src/components/ImportHostsModal.vue:2395",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/final-review.json"
+    ],
+    "risk": "low"
+  },
+  {
+    "issueId": "ed06d216-e71a-4ebe-b469-cf2a7755808a",
+    "rule": "Web:InputWithoutLabelCheck",
+    "file": "apps/frontend/src/components/ImportHostsModal.vue",
+    "baselineLine": 2734,
+    "status": "fixed",
+    "rationale": "Estado FIXED confirmado pelo scanner final. Campo nativo visível em ImportHostsModal.vue:2734 recebeu aria-label correspondente ao propósito (porta, validade, protocolo, bind ou busca); placeholder deixa de ser única identificação.",
+    "evidence": [
+      "apps/frontend/src/components/ImportHostsModal.vue:2734",
+      "docs/changes/2026/11/NA-0087-sonar-frontend/test-results.md"
+    ],
+    "risk": "low"
+  },
+  {
+    "issueId": "65c152b7-ebf6-41d3-af3c-37ead57b621c",
+    "rule": "Web:S6853",
+    "file": "apps/frontend/src/views/ForwardingsView.vue",
+    "baselineLine": 650,
+    "status": "fixed",
+    "rationale": "Estado FIXED confirmado pelo scanner final. Correção inicial nomeou input interno; refinamento separa label do contêiner NSelect com for e input-props.id estável e único. DOM confirma HTMLLabelElement.control, nome acessível e foco ao clicar no label, preservando layout/teclado. Reanálise posterior ainda pendente.",
+    "evidence": [
+      "tools/frontend/sonar-frontend-review.cjs",
+      "docs/changes/2026/11/NA-0087-sonar-frontend/dom-label-evidence.json#65c152b7-ebf6-41d3-af3c-37ead57b621c",
+      "docs/changes/2026/11/NA-0087-sonar-frontend/followup-review.md"
+    ],
+    "risk": "low",
+    "history": [
+      {
+        "status": "fixed",
+        "rationale": "Controle textbox (Agente pessoal) agora recebe nome no componente/input interno; wrapper externo inválido foi removido ou label passou a ter associação real. Fixture derivada desta ocorrência confirma nome e foco.",
+        "evidence": [
+          "docs/changes/2026/11/NA-0087-sonar-frontend/dom-label-evidence.json#65c152b7-ebf6-41d3-af3c-37ead57b621c",
+          "tools/frontend/sonar-frontend-review.cjs"
+        ],
+        "stage": "initial-remediation"
+      }
+    ],
+    "scannerAfterInitialFix": "open; integration NA-0089 follow-up"
+  },
+  {
+    "issueId": "57c47251-8ecf-4bac-bbda-bc8b6c49948e",
+    "rule": "Web:InputWithoutLabelCheck",
+    "file": "apps/frontend/src/views/ForwardingsView.vue",
+    "baselineLine": 1221,
+    "status": "fixed",
+    "rationale": "Estado FIXED confirmado pelo scanner final. Campo nativo visível em ForwardingsView.vue:1221 recebeu aria-label correspondente ao propósito (porta, validade, protocolo, bind ou busca); placeholder deixa de ser única identificação.",
+    "evidence": [
+      "apps/frontend/src/views/ForwardingsView.vue:1221",
+      "docs/changes/2026/11/NA-0087-sonar-frontend/test-results.md"
+    ],
+    "risk": "low"
+  },
+  {
+    "issueId": "6ba9eaff-ceec-4532-ae9d-7194d3f813fa",
+    "rule": "Web:InputWithoutLabelCheck",
+    "file": "apps/frontend/src/views/ForwardingsView.vue",
+    "baselineLine": 1258,
+    "status": "fixed",
+    "rationale": "Estado FIXED confirmado pelo scanner final. Campo nativo visível em ForwardingsView.vue:1258 recebeu aria-label correspondente ao propósito (porta, validade, protocolo, bind ou busca); placeholder deixa de ser única identificação.",
+    "evidence": [
+      "apps/frontend/src/views/ForwardingsView.vue:1258",
+      "docs/changes/2026/11/NA-0087-sonar-frontend/test-results.md"
+    ],
+    "risk": "low"
+  },
+  {
+    "issueId": "bb62b45e-9ab2-4860-94ec-479a18cc4a2a",
+    "rule": "Web:InputWithoutLabelCheck",
+    "file": "apps/frontend/src/views/HostsView.vue",
+    "baselineLine": 7468,
+    "status": "context_reviewed",
+    "rationale": "Falso positivo aplicado e confirmado no Sonar, com revisor temporário autorizado e desativado. O input hostPemKeyFileInput de seleção da chave no formulário de host usa class hidden (display:none) e não é o controle apresentado ao usuário. A seleção é aberta por acionador visível nomeado; adicionar label ao elemento oculto não corrige uma falta de nome na interface. A regra exige nome/associação para controles apresentados ao usuário; este controle com display:none não participa da árvore de acessibilidade. Não se usa tabindex=-1 isoladamente como justificativa.",
+    "evidence": [
+      "apps/frontend/src/views/HostsView.vue:7468",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/final-review.json"
+    ],
+    "risk": "low"
+  },
+  {
+    "issueId": "802c7f72-2fea-47f2-99f4-66d395a3d3be",
+    "rule": "Web:S6840",
+    "file": "apps/frontend/src/views/TerminalView.vue",
+    "baselineLine": 5877,
+    "status": "fixed",
+    "rationale": "Estado FIXED confirmado pelo scanner final. DOM confirmou que autocomplete no NInput raiz não chega ao input nativo. Movido para input-props, mantendo nome acessível e valor username no controle real.",
+    "evidence": [
+      "tools/frontend/sonar-frontend-review.cjs",
+      "docs/changes/2026/11/NA-0087-sonar-frontend/dom-label-evidence.json",
+      "apps/frontend/src/views/TerminalView.vue"
+    ],
+    "risk": "low"
+  },
+  {
+    "issueId": "b989b69e-d796-4659-aa6d-5679943326e9",
+    "rule": "Web:InputWithoutLabelCheck",
+    "file": "apps/frontend/src/views/TerminalView.vue",
+    "baselineLine": 6011,
+    "status": "context_reviewed",
+    "rationale": "Falso positivo aplicado e confirmado no Sonar, com revisor temporário autorizado e desativado. O input pemFixFileInput de seleção de chave para corrigir a sessão do terminal usa class hidden (display:none) e não é o controle apresentado ao usuário. A seleção é aberta por acionador visível nomeado; adicionar label ao elemento oculto não corrige uma falta de nome na interface. A regra exige nome/associação para controles apresentados ao usuário; este controle com display:none não participa da árvore de acessibilidade. Não se usa tabindex=-1 isoladamente como justificativa.",
+    "evidence": [
+      "apps/frontend/src/views/TerminalView.vue:6011",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/final-review.json"
+    ],
+    "risk": "low"
+  },
+  {
+    "issueId": "034a0e51-7fef-44f1-9251-a1b19ad6eb23",
+    "rule": "Web:InputWithoutLabelCheck",
+    "file": "apps/frontend/src/views/admin/IntegrationsView.vue",
+    "baselineLine": 3569,
+    "status": "context_reviewed",
+    "rationale": "Falso positivo aplicado e confirmado no Sonar, com revisor temporário autorizado e desativado. O input localAiUploadRef de envio de arquivo para implantação de IA usa class hidden (display:none) e não é o controle apresentado ao usuário. A seleção é aberta por acionador visível nomeado; adicionar label ao elemento oculto não corrige uma falta de nome na interface. A regra exige nome/associação para controles apresentados ao usuário; este controle com display:none não participa da árvore de acessibilidade. Não se usa tabindex=-1 isoladamente como justificativa.",
+    "evidence": [
+      "apps/frontend/src/views/admin/IntegrationsView.vue:3569",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/final-review.json"
+    ],
+    "risk": "low"
+  },
+  {
+    "issueId": "5d2e1405-1fac-4d8a-9af4-43959923ca60",
+    "rule": "Web:S6845",
+    "file": "apps/frontend/src/views/admin/ObservabilityView.vue",
+    "baselineLine": 463,
+    "status": "fixed",
+    "rationale": "Estado FIXED confirmado pelo scanner final. Métrica estática de ObservabilityView.vue:463 removida da sequência Tab; conteúdo e nome permanecem na leitura. Grupos de componentes/backups possuem role=group, sem ação fictícia.",
+    "evidence": [
+      "tools/frontend/observability-resilience-playwright.cjs",
+      "docs/changes/2026/11/NA-0087-sonar-frontend/test-results.md"
+    ],
+    "risk": "low"
+  },
+  {
+    "issueId": "0cb53bdc-14fd-42e4-83e9-6a111e2a779f",
+    "rule": "Web:S6845",
+    "file": "apps/frontend/src/views/admin/ObservabilityView.vue",
+    "baselineLine": 484,
+    "status": "fixed",
+    "rationale": "Estado FIXED confirmado pelo scanner final. Métrica estática de ObservabilityView.vue:484 removida da sequência Tab; conteúdo e nome permanecem na leitura. Grupos de componentes/backups possuem role=group, sem ação fictícia.",
+    "evidence": [
+      "tools/frontend/observability-resilience-playwright.cjs",
+      "docs/changes/2026/11/NA-0087-sonar-frontend/test-results.md"
+    ],
+    "risk": "low"
+  },
+  {
+    "issueId": "c8f5cde7-a2ba-47af-aa39-dd195192553b",
+    "rule": "Web:S6845",
+    "file": "apps/frontend/src/views/admin/ObservabilityView.vue",
+    "baselineLine": 504,
+    "status": "fixed",
+    "rationale": "Estado FIXED confirmado pelo scanner final. Métrica estática de ObservabilityView.vue:504 removida da sequência Tab; conteúdo e nome permanecem na leitura. Grupos de componentes/backups possuem role=group, sem ação fictícia.",
+    "evidence": [
+      "tools/frontend/observability-resilience-playwright.cjs",
+      "docs/changes/2026/11/NA-0087-sonar-frontend/test-results.md"
+    ],
+    "risk": "low"
+  },
+  {
+    "issueId": "b77f6567-ed72-4bc8-a7cc-6c9cd6711de8",
+    "rule": "Web:S6845",
+    "file": "apps/frontend/src/views/admin/ObservabilityView.vue",
+    "baselineLine": 615,
+    "status": "fixed",
+    "rationale": "Estado FIXED confirmado pelo scanner final. Métrica estática de ObservabilityView.vue:615 removida da sequência Tab; conteúdo e nome permanecem na leitura. Grupos de componentes/backups possuem role=group, sem ação fictícia.",
+    "evidence": [
+      "tools/frontend/observability-resilience-playwright.cjs",
+      "docs/changes/2026/11/NA-0087-sonar-frontend/test-results.md"
+    ],
+    "risk": "low"
+  },
+  {
+    "issueId": "75090a35-670c-4b78-b497-9e2ddd5ea258",
+    "rule": "Web:S6845",
+    "file": "apps/frontend/src/views/admin/ObservabilityView.vue",
+    "baselineLine": 622,
+    "status": "fixed",
+    "rationale": "Estado FIXED confirmado pelo scanner final. Métrica estática de ObservabilityView.vue:622 removida da sequência Tab; conteúdo e nome permanecem na leitura. Grupos de componentes/backups possuem role=group, sem ação fictícia.",
+    "evidence": [
+      "tools/frontend/observability-resilience-playwright.cjs",
+      "docs/changes/2026/11/NA-0087-sonar-frontend/test-results.md"
+    ],
+    "risk": "low"
+  },
+  {
+    "issueId": "c1423ab4-84fa-4ff7-8726-bae6cea929ec",
+    "rule": "Web:S6845",
+    "file": "apps/frontend/src/views/admin/ObservabilityView.vue",
+    "baselineLine": 629,
+    "status": "fixed",
+    "rationale": "Estado FIXED confirmado pelo scanner final. Métrica estática de ObservabilityView.vue:629 removida da sequência Tab; conteúdo e nome permanecem na leitura. Grupos de componentes/backups possuem role=group, sem ação fictícia.",
+    "evidence": [
+      "tools/frontend/observability-resilience-playwright.cjs",
+      "docs/changes/2026/11/NA-0087-sonar-frontend/test-results.md"
+    ],
+    "risk": "low"
+  },
+  {
+    "issueId": "abc80a91-f232-4437-b412-a796a8055bbf",
+    "rule": "Web:S6845",
+    "file": "apps/frontend/src/views/admin/ObservabilityView.vue",
+    "baselineLine": 636,
+    "status": "fixed",
+    "rationale": "Estado FIXED confirmado pelo scanner final. Métrica estática de ObservabilityView.vue:636 removida da sequência Tab; conteúdo e nome permanecem na leitura. Grupos de componentes/backups possuem role=group, sem ação fictícia.",
+    "evidence": [
+      "tools/frontend/observability-resilience-playwright.cjs",
+      "docs/changes/2026/11/NA-0087-sonar-frontend/test-results.md"
+    ],
+    "risk": "low"
+  },
+  {
+    "issueId": "2fad93ad-7ae3-4c25-9124-a0087b4b79b4",
+    "rule": "Web:S6845",
+    "file": "apps/frontend/src/views/admin/ObservabilityView.vue",
+    "baselineLine": 731,
+    "status": "fixed",
+    "rationale": "Estado FIXED confirmado pelo scanner final. Métrica estática de ObservabilityView.vue:731 removida da sequência Tab; conteúdo e nome permanecem na leitura. Grupos de componentes/backups possuem role=group, sem ação fictícia.",
+    "evidence": [
+      "tools/frontend/observability-resilience-playwright.cjs",
+      "docs/changes/2026/11/NA-0087-sonar-frontend/test-results.md"
+    ],
+    "risk": "low"
+  },
+  {
+    "issueId": "314dd50f-4482-4f55-b0a0-a1f8d64aded8",
+    "rule": "Web:S6845",
+    "file": "apps/frontend/src/views/admin/ObservabilityView.vue",
+    "baselineLine": 790,
+    "status": "fixed",
+    "rationale": "Estado FIXED confirmado pelo scanner final. Métrica estática de ObservabilityView.vue:790 removida da sequência Tab; conteúdo e nome permanecem na leitura. Grupos de componentes/backups possuem role=group, sem ação fictícia.",
+    "evidence": [
+      "tools/frontend/observability-resilience-playwright.cjs",
+      "docs/changes/2026/11/NA-0087-sonar-frontend/test-results.md"
+    ],
+    "risk": "low"
+  },
+  {
+    "issueId": "4549f072-ce30-4397-b815-19201f93ff3f",
+    "rule": "Web:S6845",
+    "file": "apps/frontend/src/views/admin/SessionAuditDetailView.vue",
+    "baselineLine": 2390,
+    "status": "context_reviewed",
+    "rationale": "Falso positivo aplicado e confirmado no Sonar, com revisor temporário autorizado e desativado. O tabindex pertence ao viewport de playback com altura máxima 560px e overflow-auto, cuja rolagem precisa permanecer acessível pelo teclado. NA0148 removeu o cancelamento global de keydown: Tab sai, Shift+Tab retorna e foco fica visível. O defeito anterior foi real e corrigido; o alerta residual sobre foco da região rolável é tecnicamente falso positivo, não uma autorização para voltar a interceptar Tab.",
+    "evidence": [
+      "tools/frontend/audit-reconstruction-playwright.cjs",
+      "apps/frontend/src/views/admin/SessionAuditDetailView.vue",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/final-review.json"
+    ],
+    "risk": "low"
+  },
+  {
+    "issueId": "0087ae89-303e-45f7-9348-faf429a64cfc",
+    "rule": "Web:S6843",
+    "file": "apps/frontend/src/views/GraphicalSessionView.vue",
+    "baselineLine": 1977,
+    "status": "context_reviewed",
+    "rationale": "Falso positivo aplicado e confirmado no Sonar, com revisor temporário autorizado e desativado. S6843 proíbe atribuir semântica não interativa a elemento interativo. Aqui application descreve uma superfície de desktop remoto com teclado, ponteiro, roda e colagem, sem padrão de widget nativo equivalente. A definição normativa de application prevê entrada personalizada e não descreve conteúdo estático. O canvas não está sendo convertido semanticamente em artigo/imagem; a generalização do analisador é inadequada neste caso. NA0148 adicionou instrução de saída, liberação das teclas e retorno local, preservando Tab/Escape remotos.",
+    "evidence": [
+      "apps/frontend/src/views/GraphicalSessionView.vue:1270",
+      "apps/frontend/src/services/graphical-guacd-client.test.ts",
+      "docs/changes/2026/11/NA-0087-sonar-frontend/followup-review.md",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/final-review.json"
+    ],
+    "risk": "low",
+    "history": [
+      {
+        "status": "fixed",
+        "rationale": "Canvas remoto interativo recebe role=application com nome existente; papel img não descrevia teclado, pointer e paste da aplicação remota.",
+        "evidence": [
+          "apps/frontend/src/views/GraphicalSessionView.vue",
+          "docs/changes/2026/11/NA-0087-sonar-frontend/test-results.md"
+        ],
+        "stage": "initial-remediation"
+      }
+    ],
+    "scannerAfterInitialFix": "open; integration NA-0089 follow-up"
+  },
+  {
+    "issueId": "b12dc2de-fdf2-4b1e-a9c2-00b36c9e9e5f",
+    "rule": "Web:S6853",
+    "file": "apps/frontend/src/components/SessionSupervisionPermission.vue",
+    "baselineLine": 38,
+    "status": "fixed",
+    "rationale": "Estado FIXED confirmado pelo scanner final. Controle switch (Pode supervisionar sessões SSH) agora recebe nome no componente/input interno; wrapper externo inválido foi removido ou label passou a ter associação real. Fixture derivada desta ocorrência confirma nome e foco.",
+    "evidence": [
+      "docs/changes/2026/11/NA-0087-sonar-frontend/dom-label-evidence.json#b12dc2de-fdf2-4b1e-a9c2-00b36c9e9e5f",
+      "tools/frontend/sonar-frontend-review.cjs"
+    ],
+    "risk": "low"
+  },
+  {
+    "issueId": "58537d45-fe46-4910-aa3f-845520ec34b1",
+    "rule": "typescript:S2245",
+    "file": "apps/frontend/src/services/service-cache.ts",
+    "baselineLine": 94,
+    "status": "context_reviewed",
+    "rationale": "Falso positivo aplicado e confirmado no Sonar, com revisor temporário autorizado e desativado. O aleatório identifica a origem de mensagens BroadcastChannel para ignorar eco da própria aba, não cria token, senha ou decisão de autorização. A previsibilidade não fornece privilégio a outro origin. A definição se refere a valores aleatórios usados em contexto de segurança. A rastreabilidade deste identificador mostrou correlação, sem decisão de privilégio dependente de sua imprevisibilidade.",
+    "evidence": [
+      "apps/frontend/src/services/service-cache.ts:94",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/final-review.json"
+    ],
+    "risk": "low"
+  },
+  {
+    "issueId": "b9900a35-4b3d-4816-98dd-1724aa8f69a8",
+    "rule": "typescript:S6324",
+    "file": "apps/frontend/src/services/terminal-input-model.service.ts",
+    "baselineLine": 43,
+    "status": "context_reviewed",
+    "rationale": "Falso positivo aplicado e confirmado no Sonar, com revisor temporário autorizado e desativado. ESC introduz a sequência Alt+b/Alt+f; o modelo marca edição por palavra como não confiável em vez de interpretar esse byte como texto digitado. A definição trata controles inesperados como provável engano. Nesta ocorrência o byte é parte expressa do protocolo terminal, e sua função específica está descrita acima; não se justifica apenas por ausência de exploração.",
+    "evidence": [
+      "apps/frontend/src/services/terminal-input-model.service.ts:43",
+      "docs/changes/2026/11/NA-0087-sonar-frontend/test-results.md",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/final-review.json"
+    ],
+    "risk": "low"
+  },
+  {
+    "issueId": "02183af1-9751-419a-a418-34381541e28b",
+    "rule": "typescript:S8786",
+    "file": "apps/frontend/src/components/ImportHostsModal.vue",
+    "baselineLine": 118,
+    "status": "fixed",
+    "rationale": "Estado FIXED confirmado pelo scanner final. Expansão Include agora é por linha, prefixo fixo e trim; evita que whitespace atravesse linhas e retrocesso em entrada longa. Caminho e resolução de dependências preservados.",
+    "evidence": [
+      "apps/frontend/src/services/text-boundaries.test.ts",
+      "docs/changes/2026/11/NA-0087-sonar-frontend/test-results.md",
+      "apps/frontend/src/components/ImportHostsModal.vue"
+    ],
+    "risk": "medium"
+  },
+  {
+    "issueId": "ae05e55c-7fdf-480b-8b31-7abf36b98ee2",
+    "rule": "Web:S6853",
+    "file": "apps/frontend/src/components/platform/TenantLicenseEditor.vue",
+    "baselineLine": 140,
+    "status": "context_reviewed",
+    "rationale": "Falso positivo aplicado e confirmado no Sonar, com revisor temporário autorizado e desativado. O label envolve maxUsers, usado para quantidade máxima de usuários e ajuda contextual. Naive renderiza o controle nativo dentro desse ancestral; a evidência DOM desta ocorrência possui nome acessível e foco. O scanner estático não expande o componente Vue. A intenção é associação efetiva label-controle, não exigir que o analisador estático conheça a expansão do componente Vue. A evidência DOM individual anterior é reutilizada com o trecho preservado.",
+    "evidence": [
+      "docs/changes/2026/11/NA-0087-sonar-frontend/dom-label-evidence.json#ae05e55c-7fdf-480b-8b31-7abf36b98ee2",
+      "tools/frontend/sonar-frontend-review.cjs",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/final-review.json"
+    ],
+    "risk": "low"
+  },
+  {
+    "issueId": "b80bb8b0-ad62-48ea-838b-22dd9b9870a7",
+    "rule": "Web:S6853",
+    "file": "apps/frontend/src/components/platform/TenantLicenseEditor.vue",
+    "baselineLine": 168,
+    "status": "fixed",
+    "rationale": "Estado FIXED confirmado pelo scanner final. Controle textbox (Provider para análise de sessões) agora recebe nome no componente/input interno; wrapper externo inválido foi removido ou label passou a ter associação real. Fixture derivada desta ocorrência confirma nome e foco.",
+    "evidence": [
+      "docs/changes/2026/11/NA-0087-sonar-frontend/dom-label-evidence.json#b80bb8b0-ad62-48ea-838b-22dd9b9870a7",
+      "tools/frontend/sonar-frontend-review.cjs"
+    ],
+    "risk": "low"
+  },
+  {
+    "issueId": "3d944c96-d8fc-439a-aed5-4bb9ee299160",
+    "rule": "typescript:S8786",
+    "file": "apps/frontend/src/services/mobaxterm-import.service.ts",
+    "baselineLine": 47,
+    "status": "fixed",
+    "rationale": "Estado FIXED confirmado pelo scanner final. Removido trim redundante de barras: split por separadores e filter(Boolean) já descartam componentes vazios, preservando pastas.",
+    "evidence": [
+      "apps/frontend/src/services/text-boundaries.test.ts",
+      "docs/changes/2026/11/NA-0087-sonar-frontend/test-results.md",
+      "apps/frontend/src/services/mobaxterm-import.service.ts"
+    ],
+    "risk": "medium"
+  },
+  {
+    "issueId": "5e3e2f4a-6e2e-4321-b005-155915b7583b",
+    "rule": "typescript:S2871",
+    "file": "apps/frontend/src/services/mobaxterm-import.service.ts",
+    "baselineLine": 215,
+    "status": "fixed",
+    "rationale": "Estado FIXED confirmado pelo scanner final. NA-0150: correção implementada e ocorrência ausente na análise 28a77996d. Comparador UTF16 preserva ordem nativa e digest.",
+    "evidence": [
+      "apps/frontend/src/services/mobaxterm-import.service.ts:215",
+      "docs/changes/2026/11/NA-0087-sonar-frontend/test-results.md",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json"
+    ],
+    "risk": "low"
+  },
+  {
+    "issueId": "b56b3ec4-5d5b-4bc9-9527-e3870703d41a",
+    "rule": "typescript:S8786",
+    "file": "apps/frontend/src/services/session-import-detection.service.ts",
+    "baselineLine": 39,
+    "status": "fixed",
+    "rationale": "Estado FIXED confirmado pelo scanner final. Detecção de diretivas OpenSSH por linha trimStart com prefixo ancorado, sem varredura repetida de whitespace.",
+    "evidence": [
+      "apps/frontend/src/services/text-boundaries.test.ts",
+      "docs/changes/2026/11/NA-0087-sonar-frontend/test-results.md",
+      "apps/frontend/src/services/session-import-detection.service.ts"
+    ],
+    "risk": "medium"
+  },
+  {
+    "issueId": "01082e58-8a32-4fcf-95cc-696d3271bbd5",
+    "rule": "typescript:S8786",
+    "file": "apps/frontend/src/services/terminal-input-model.service.ts",
+    "baselineLine": 35,
+    "status": "fixed",
+    "rationale": "Estado FIXED confirmado pelo scanner final. Ctrl+W usa três varreduras reversas. Mantém prefixo/sufixo e caso só espaços, sem retrocesso quadrático.",
+    "evidence": [
+      "apps/frontend/src/services/text-boundaries.test.ts",
+      "docs/changes/2026/11/NA-0087-sonar-frontend/test-results.md",
+      "apps/frontend/src/services/terminal-input-model.service.ts"
+    ],
+    "risk": "medium"
+  },
+  {
+    "issueId": "5be8a4e5-1585-44bf-b336-f0abfefb13e8",
+    "rule": "typescript:S6324",
+    "file": "apps/frontend/src/services/terminal-osc-command.service.ts",
+    "baselineLine": 5,
+    "status": "context_reviewed",
+    "rationale": "Falso positivo aplicado e confirmado no Sonar, com revisor temporário autorizado e desativado. BEL é uma das duas terminações válidas da mensagem OSC133;D de status do comando; removê-lo altera o protocolo aceito. A definição trata controles inesperados como provável engano. Nesta ocorrência o byte é parte expressa do protocolo terminal, e sua função específica está descrita acima; não se justifica apenas por ausência de exploração.",
+    "evidence": [
+      "apps/frontend/src/services/terminal-osc-command.service.ts:5",
+      "docs/changes/2026/11/NA-0087-sonar-frontend/test-results.md",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/final-review.json"
+    ],
+    "risk": "low"
+  },
+  {
+    "issueId": "8e96c3c6-a328-4ec7-92c1-ca14252d691f",
+    "rule": "typescript:S6324",
+    "file": "apps/frontend/src/services/terminal-osc-command.service.ts",
+    "baselineLine": 5,
+    "status": "context_reviewed",
+    "rationale": "Falso positivo aplicado e confirmado no Sonar, com revisor temporário autorizado e desativado. ESC seguido de barra invertida compõe ST, a outra terminação de OSC133;D; o buffer está limitado a1024caracteres. A definição trata controles inesperados como provável engano. Nesta ocorrência o byte é parte expressa do protocolo terminal, e sua função específica está descrita acima; não se justifica apenas por ausência de exploração.",
+    "evidence": [
+      "apps/frontend/src/services/terminal-osc-command.service.ts:5",
+      "docs/changes/2026/11/NA-0087-sonar-frontend/test-results.md",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/final-review.json"
+    ],
+    "risk": "low"
+  },
+  {
+    "issueId": "2de0581d-4ec3-41cc-b313-93006fc3eb5c",
+    "rule": "typescript:S6324",
+    "file": "apps/frontend/src/services/terminal-osc-directory.service.ts",
+    "baselineLine": 5,
+    "status": "context_reviewed",
+    "rationale": "Falso positivo aplicado e confirmado no Sonar, com revisor temporário autorizado e desativado. BEL é excluído do trecho de autoridade do URI OSC7 para impedir que a mensagem ultrapasse o terminador nessa região. A definição trata controles inesperados como provável engano. Nesta ocorrência o byte é parte expressa do protocolo terminal, e sua função específica está descrita acima; não se justifica apenas por ausência de exploração.",
+    "evidence": [
+      "apps/frontend/src/services/terminal-osc-directory.service.ts:5",
+      "docs/changes/2026/11/NA-0087-sonar-frontend/test-results.md",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/final-review.json"
+    ],
+    "risk": "low"
+  },
+  {
+    "issueId": "54effdb2-129d-46d1-82ab-520a90c9d5a2",
+    "rule": "typescript:S6324",
+    "file": "apps/frontend/src/services/terminal-osc-directory.service.ts",
+    "baselineLine": 5,
+    "status": "context_reviewed",
+    "rationale": "Falso positivo aplicado e confirmado no Sonar, com revisor temporário autorizado e desativado. ESC é excluído da autoridade OSC7 porque inicia ST; não é caractere acidental da expressão. A definição trata controles inesperados como provável engano. Nesta ocorrência o byte é parte expressa do protocolo terminal, e sua função específica está descrita acima; não se justifica apenas por ausência de exploração.",
+    "evidence": [
+      "apps/frontend/src/services/terminal-osc-directory.service.ts:5",
+      "docs/changes/2026/11/NA-0087-sonar-frontend/test-results.md",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/final-review.json"
+    ],
+    "risk": "low"
+  },
+  {
+    "issueId": "560176a2-6772-4170-828d-74ef224ac53f",
+    "rule": "typescript:S6324",
+    "file": "apps/frontend/src/services/terminal-osc-directory.service.ts",
+    "baselineLine": 5,
+    "status": "context_reviewed",
+    "rationale": "Falso positivo aplicado e confirmado no Sonar, com revisor temporário autorizado e desativado. BEL é excluído da captura do caminho OSC7, separando caminho de fim de mensagem. A definição trata controles inesperados como provável engano. Nesta ocorrência o byte é parte expressa do protocolo terminal, e sua função específica está descrita acima; não se justifica apenas por ausência de exploração.",
+    "evidence": [
+      "apps/frontend/src/services/terminal-osc-directory.service.ts:5",
+      "docs/changes/2026/11/NA-0087-sonar-frontend/test-results.md",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/final-review.json"
+    ],
+    "risk": "low"
+  },
+  {
+    "issueId": "72bbfbfd-9e08-4565-bbe5-df1c8d06005e",
+    "rule": "typescript:S6324",
+    "file": "apps/frontend/src/services/terminal-osc-directory.service.ts",
+    "baselineLine": 5,
+    "status": "context_reviewed",
+    "rationale": "Falso positivo aplicado e confirmado no Sonar, com revisor temporário autorizado e desativado. ESC é excluído da captura do caminho OSC7 para não incorporar ST ao diretório devolvido. A definição trata controles inesperados como provável engano. Nesta ocorrência o byte é parte expressa do protocolo terminal, e sua função específica está descrita acima; não se justifica apenas por ausência de exploração.",
+    "evidence": [
+      "apps/frontend/src/services/terminal-osc-directory.service.ts:5",
+      "docs/changes/2026/11/NA-0087-sonar-frontend/test-results.md",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/final-review.json"
+    ],
+    "risk": "low"
+  },
+  {
+    "issueId": "c1829053-a40e-4399-9d9b-3e6c51fb8737",
+    "rule": "typescript:S6324",
+    "file": "apps/frontend/src/services/terminal-osc-directory.service.ts",
+    "baselineLine": 5,
+    "status": "context_reviewed",
+    "rationale": "Falso positivo aplicado e confirmado no Sonar, com revisor temporário autorizado e desativado. BEL na alternativa final encerra OSC7; é delimitador protocolar explícito com buffer2048. A definição trata controles inesperados como provável engano. Nesta ocorrência o byte é parte expressa do protocolo terminal, e sua função específica está descrita acima; não se justifica apenas por ausência de exploração.",
+    "evidence": [
+      "apps/frontend/src/services/terminal-osc-directory.service.ts:5",
+      "docs/changes/2026/11/NA-0087-sonar-frontend/test-results.md",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/final-review.json"
+    ],
+    "risk": "low"
+  },
+  {
+    "issueId": "daaa581a-7de7-459b-961c-93abf6f8d327",
+    "rule": "typescript:S6324",
+    "file": "apps/frontend/src/services/terminal-osc-directory.service.ts",
+    "baselineLine": 5,
+    "status": "context_reviewed",
+    "rationale": "Falso positivo aplicado e confirmado no Sonar, com revisor temporário autorizado e desativado. ESC na alternativa final forma ST para encerrar OSC7, preservando a variante de terminal que não usa BEL. A definição trata controles inesperados como provável engano. Nesta ocorrência o byte é parte expressa do protocolo terminal, e sua função específica está descrita acima; não se justifica apenas por ausência de exploração.",
+    "evidence": [
+      "apps/frontend/src/services/terminal-osc-directory.service.ts:5",
+      "docs/changes/2026/11/NA-0087-sonar-frontend/test-results.md",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/final-review.json"
+    ],
+    "risk": "low"
+  },
+  {
+    "issueId": "525c047a-f7c2-41e0-a7af-9c916a99bfd5",
+    "rule": "typescript:S2310",
+    "file": "apps/frontend/src/services/terminal-path-autocomplete.service.ts",
+    "baselineLine": 212,
+    "status": "fixed",
+    "rationale": "Estado FIXED confirmado pelo scanner final. NA-0152: correção implementada e ocorrência ausente na análise 28a77996d. Correção e evidências na frente indicada.",
+    "evidence": [
+      "apps/frontend/src/services/terminal-path-autocomplete.service.ts",
+      "apps/frontend/src/services/terminal-path-autocomplete.service.test.ts",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json"
+    ],
+    "risk": "low"
+  },
+  {
+    "issueId": "bd314090-7e9d-4874-a617-61362fcf4c21",
+    "rule": "typescript:S8786",
+    "file": "apps/frontend/src/services/terminal-session-entity-index.service.ts",
+    "baselineLine": 46,
+    "status": "fixed",
+    "rationale": "Estado FIXED confirmado pelo scanner final. Ramos git são extraídos por linha com trim e remoção única do marcador ativo, mantendo validação de nome ancorada.",
+    "evidence": [
+      "apps/frontend/src/services/text-boundaries.test.ts",
+      "docs/changes/2026/11/NA-0087-sonar-frontend/test-results.md",
+      "apps/frontend/src/services/terminal-session-entity-index.service.ts"
+    ],
+    "risk": "medium"
+  },
+  {
+    "issueId": "636a6118-ffaf-49c1-a6ce-3a2e9637c4f8",
+    "rule": "Web:S6845",
+    "file": "apps/frontend/src/views/TerminalView.vue",
+    "baselineLine": 4391,
+    "status": "context_reviewed",
+    "rationale": "Falso positivo aplicado e confirmado no Sonar, com revisor temporário autorizado e desativado. O elemento é um separador interativo de colunas/vertical, com role=separator, orientação, valor atual/mínimo/máximo e handler de teclado. Não é um div decorativo colocado indevidamente na ordem de Tab. O handler usa setas da orientação correspondente e ajusta a proporção; o papel separator é efetivamente interativo.",
+    "evidence": [
+      "tools/frontend/terminal-experience-playwright.cjs",
+      "apps/frontend/src/views/TerminalView.vue:4391",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/final-review.json"
+    ],
+    "risk": "low"
+  },
+  {
+    "issueId": "9a5ede13-349c-4765-8d7c-24156b6103f7",
+    "rule": "Web:S6845",
+    "file": "apps/frontend/src/views/TerminalView.vue",
+    "baselineLine": 4408,
+    "status": "context_reviewed",
+    "rationale": "Falso positivo aplicado e confirmado no Sonar, com revisor temporário autorizado e desativado. O elemento é um separador interativo de linhas/horizontal, com role=separator, orientação, valor atual/mínimo/máximo e handler de teclado. Não é um div decorativo colocado indevidamente na ordem de Tab. O handler usa setas da orientação correspondente e ajusta a proporção; o papel separator é efetivamente interativo.",
+    "evidence": [
+      "tools/frontend/terminal-experience-playwright.cjs",
+      "apps/frontend/src/views/TerminalView.vue:4408",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/final-review.json"
+    ],
+    "risk": "low"
+  },
+  {
+    "issueId": "28e18390-20f4-490a-99d7-a0782105508a",
+    "rule": "Web:S6843",
+    "file": "apps/frontend/src/components/diagnostics/DiagnosticRunHistoryPanel.vue",
+    "baselineLine": 48,
+    "status": "fixed",
+    "rationale": "Estado FIXED confirmado pelo scanner final. Botão da execução mantém papel button nativo. Contêiner vira group nomeado, removendo role=listitem que ocultava a semântica de ação.",
+    "evidence": [
+      "apps/frontend/src/components/diagnostics/DiagnosticRunHistoryPanel.vue",
+      "docs/changes/2026/11/NA-0087-sonar-frontend/test-results.md"
+    ],
+    "risk": "low"
+  },
+  {
+    "issueId": "fde255a4-8d5c-474e-bd17-445df7efee35",
+    "rule": "typescript:S8786",
+    "file": "apps/frontend/src/composables/useTerminal.ts",
+    "baselineLine": 665,
+    "status": "fixed",
+    "rationale": "Estado FIXED confirmado pelo scanner final. Paste remove somente LF final por varredura reversa; não remove espaços nem modifica transporte.",
+    "evidence": [
+      "apps/frontend/src/services/text-boundaries.test.ts",
+      "docs/changes/2026/11/NA-0087-sonar-frontend/test-results.md",
+      "apps/frontend/src/composables/useTerminal.ts"
+    ],
+    "risk": "medium"
+  },
+  {
+    "issueId": "0e61b664-5437-43e1-aee8-6be145958b5d",
+    "rule": "Web:S6853",
+    "file": "apps/frontend/src/views/admin/SettingsView.vue",
+    "baselineLine": 2036,
+    "status": "fixed",
+    "rationale": "Estado FIXED confirmado pelo scanner final. Controle checkbox (Copiloto IA no terminal) agora recebe nome no componente/input interno; wrapper externo inválido foi removido ou label passou a ter associação real. Fixture derivada desta ocorrência confirma nome e foco.",
+    "evidence": [
+      "docs/changes/2026/11/NA-0087-sonar-frontend/dom-label-evidence.json#0e61b664-5437-43e1-aee8-6be145958b5d",
+      "tools/frontend/sonar-frontend-review.cjs"
+    ],
+    "risk": "low"
+  },
+  {
+    "issueId": "75c0c94b-b595-4fa0-86ea-a0b4b2cdfe54",
+    "rule": "Web:S6853",
+    "file": "apps/frontend/src/views/admin/SettingsView.vue",
+    "baselineLine": 2043,
+    "status": "fixed",
+    "rationale": "Estado FIXED confirmado pelo scanner final. Controle checkbox (admin.settings.license.mcp) agora recebe nome no componente/input interno; wrapper externo inválido foi removido ou label passou a ter associação real. Fixture derivada desta ocorrência confirma nome e foco.",
+    "evidence": [
+      "docs/changes/2026/11/NA-0087-sonar-frontend/dom-label-evidence.json#75c0c94b-b595-4fa0-86ea-a0b4b2cdfe54",
+      "tools/frontend/sonar-frontend-review.cjs"
+    ],
+    "risk": "low"
+  },
+  {
+    "issueId": "60ee9916-00df-4703-b8b5-30c0f4f09440",
+    "rule": "Web:S6853",
+    "file": "apps/frontend/src/views/admin/IntegrationsView.vue",
+    "baselineLine": 1591,
+    "status": "fixed",
+    "rationale": "Estado FIXED confirmado pelo scanner final. Controle textbox (Usuários) agora recebe nome no componente/input interno; wrapper externo inválido foi removido ou label passou a ter associação real. Fixture derivada desta ocorrência confirma nome e foco.",
+    "evidence": [
+      "docs/changes/2026/11/NA-0087-sonar-frontend/dom-label-evidence.json#60ee9916-00df-4703-b8b5-30c0f4f09440",
+      "tools/frontend/sonar-frontend-review.cjs"
+    ],
+    "risk": "low"
+  },
+  {
+    "issueId": "19b57190-698e-419e-8d0f-c957826a53ed",
+    "rule": "Web:S6853",
+    "file": "apps/frontend/src/views/admin/IntegrationsView.vue",
+    "baselineLine": 1601,
+    "status": "fixed",
+    "rationale": "Estado FIXED confirmado pelo scanner final. Controle textbox (Grupos) agora recebe nome no componente/input interno; wrapper externo inválido foi removido ou label passou a ter associação real. Fixture derivada desta ocorrência confirma nome e foco.",
+    "evidence": [
+      "docs/changes/2026/11/NA-0087-sonar-frontend/dom-label-evidence.json#19b57190-698e-419e-8d0f-c957826a53ed",
+      "tools/frontend/sonar-frontend-review.cjs"
+    ],
+    "risk": "low"
+  },
+  {
+    "issueId": "c7528158-7189-462e-a109-27eff3fa5572",
+    "rule": "Web:S6853",
+    "file": "apps/frontend/src/views/admin/IntegrationsView.vue",
+    "baselineLine": 1612,
+    "status": "fixed",
+    "rationale": "Estado FIXED confirmado pelo scanner final. Controle textbox (Pastas corporativas) agora recebe nome no componente/input interno; wrapper externo inválido foi removido ou label passou a ter associação real. Fixture derivada desta ocorrência confirma nome e foco.",
+    "evidence": [
+      "docs/changes/2026/11/NA-0087-sonar-frontend/dom-label-evidence.json#c7528158-7189-462e-a109-27eff3fa5572",
+      "tools/frontend/sonar-frontend-review.cjs"
+    ],
+    "risk": "low"
+  },
+  {
+    "issueId": "fca0436e-3ddb-42b4-b4e1-e6bf1f42f4ec",
+    "rule": "Web:S6853",
+    "file": "apps/frontend/src/views/admin/SettingsView.vue",
+    "baselineLine": 2126,
+    "status": "fixed",
+    "rationale": "Estado FIXED confirmado pelo scanner final. Controle checkbox (SCIM 2.0) agora recebe nome no componente/input interno; wrapper externo inválido foi removido ou label passou a ter associação real. Fixture derivada desta ocorrência confirma nome e foco.",
+    "evidence": [
+      "docs/changes/2026/11/NA-0087-sonar-frontend/dom-label-evidence.json#fca0436e-3ddb-42b4-b4e1-e6bf1f42f4ec",
+      "tools/frontend/sonar-frontend-review.cjs"
+    ],
+    "risk": "low"
+  },
+  {
+    "issueId": "4a184400-718c-484a-b2b2-0fc4d7f6d43d",
+    "rule": "Web:S6853",
+    "file": "apps/frontend/src/views/admin/SettingsView.vue",
+    "baselineLine": 2115,
+    "status": "fixed",
+    "rationale": "Estado FIXED confirmado pelo scanner final. Controle checkbox (OIDC / SSO) agora recebe nome no componente/input interno; wrapper externo inválido foi removido ou label passou a ter associação real. Fixture derivada desta ocorrência confirma nome e foco.",
+    "evidence": [
+      "docs/changes/2026/11/NA-0087-sonar-frontend/dom-label-evidence.json#4a184400-718c-484a-b2b2-0fc4d7f6d43d",
+      "tools/frontend/sonar-frontend-review.cjs"
+    ],
+    "risk": "low"
+  },
+  {
+    "issueId": "837cb40c-e519-4569-a645-2fe22f255c74",
+    "rule": "Web:S6853",
+    "file": "apps/frontend/src/components/integrations/TenantAuthPolicyCard.vue",
+    "baselineLine": 310,
+    "status": "context_reviewed",
+    "rationale": "Falso positivo aplicado e confirmado no Sonar, com revisor temporário autorizado e desativado. O label envolve lockoutMaxAttempts, usado para limite de tentativas antes do bloqueio. Naive renderiza o controle nativo dentro desse ancestral; a evidência DOM desta ocorrência possui nome acessível e foco. O scanner estático não expande o componente Vue. A intenção é associação efetiva label-controle, não exigir que o analisador estático conheça a expansão do componente Vue. A evidência DOM individual anterior é reutilizada com o trecho preservado.",
+    "evidence": [
+      "docs/changes/2026/11/NA-0087-sonar-frontend/dom-label-evidence.json#837cb40c-e519-4569-a645-2fe22f255c74",
+      "tools/frontend/sonar-frontend-review.cjs",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/final-review.json"
+    ],
+    "risk": "low"
+  },
+  {
+    "issueId": "b11287e3-9121-4ef2-b1de-3f4e068123ed",
+    "rule": "Web:S6853",
+    "file": "apps/frontend/src/components/integrations/TenantAuthPolicyCard.vue",
+    "baselineLine": 315,
+    "status": "context_reviewed",
+    "rationale": "Falso positivo aplicado e confirmado no Sonar, com revisor temporário autorizado e desativado. O label envolve lockoutDurationMinutes, usado para duração do bloqueio em minutos. Naive renderiza o controle nativo dentro desse ancestral; a evidência DOM desta ocorrência possui nome acessível e foco. O scanner estático não expande o componente Vue. A intenção é associação efetiva label-controle, não exigir que o analisador estático conheça a expansão do componente Vue. A evidência DOM individual anterior é reutilizada com o trecho preservado.",
+    "evidence": [
+      "docs/changes/2026/11/NA-0087-sonar-frontend/dom-label-evidence.json#b11287e3-9121-4ef2-b1de-3f4e068123ed",
+      "tools/frontend/sonar-frontend-review.cjs",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/final-review.json"
+    ],
+    "risk": "low"
+  },
+  {
+    "issueId": "87095c85-f631-4cbe-bc4c-a65ba78e4709",
+    "rule": "Web:S6853",
+    "file": "apps/frontend/src/components/integrations/TenantAuthPolicyCard.vue",
+    "baselineLine": 320,
+    "status": "context_reviewed",
+    "rationale": "Falso positivo aplicado e confirmado no Sonar, com revisor temporário autorizado e desativado. O label envolve accessTokenMinutes, usado para validade do access token. Naive renderiza o controle nativo dentro desse ancestral; a evidência DOM desta ocorrência possui nome acessível e foco. O scanner estático não expande o componente Vue. A intenção é associação efetiva label-controle, não exigir que o analisador estático conheça a expansão do componente Vue. A evidência DOM individual anterior é reutilizada com o trecho preservado.",
+    "evidence": [
+      "docs/changes/2026/11/NA-0087-sonar-frontend/dom-label-evidence.json#87095c85-f631-4cbe-bc4c-a65ba78e4709",
+      "tools/frontend/sonar-frontend-review.cjs",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/final-review.json"
+    ],
+    "risk": "low"
+  },
+  {
+    "issueId": "d5ec8fbb-fe40-4f34-926d-aeb1d94bf79f",
+    "rule": "Web:S6853",
+    "file": "apps/frontend/src/components/integrations/TenantAuthPolicyCard.vue",
+    "baselineLine": 325,
+    "status": "context_reviewed",
+    "rationale": "Falso positivo aplicado e confirmado no Sonar, com revisor temporário autorizado e desativado. O label envolve refreshTokenDays, usado para validade do refresh token em dias. Naive renderiza o controle nativo dentro desse ancestral; a evidência DOM desta ocorrência possui nome acessível e foco. O scanner estático não expande o componente Vue. A intenção é associação efetiva label-controle, não exigir que o analisador estático conheça a expansão do componente Vue. A evidência DOM individual anterior é reutilizada com o trecho preservado.",
+    "evidence": [
+      "docs/changes/2026/11/NA-0087-sonar-frontend/dom-label-evidence.json#d5ec8fbb-fe40-4f34-926d-aeb1d94bf79f",
+      "tools/frontend/sonar-frontend-review.cjs",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/final-review.json"
+    ],
+    "risk": "low"
+  },
+  {
+    "issueId": "125587ca-866e-458a-bf25-b8bd90afa0a9",
+    "rule": "typescript:S8786",
+    "file": "apps/frontend/src/services/pem-key-encryption.ts",
+    "baselineLine": 5,
+    "status": "fixed",
+    "rationale": "Estado FIXED confirmado pelo scanner final. Cabeçalho Encryption é interpretado na própria linha, evitando consumir cabeçalho seguinte como valor.",
+    "evidence": [
+      "apps/frontend/src/services/text-boundaries.test.ts",
+      "docs/changes/2026/11/NA-0087-sonar-frontend/test-results.md",
+      "apps/frontend/src/services/pem-key-encryption.ts"
+    ],
+    "risk": "medium"
+  },
+  {
+    "issueId": "802e7b24-b894-43ab-a3c0-660dbc6a115e",
+    "rule": "typescript:S1313",
+    "file": "apps/frontend/src/components/ImportHostsModal.vue",
+    "baselineLine": 662,
+    "status": "context_reviewed",
+    "rationale": "Falso positivo aplicado e confirmado no Sonar, com revisor temporário autorizado e desativado. O IP pertence a GUACAMOLE_JDBC_TEMPLATE, exemplo exportável para o usuário preencher; não é endpoint operacional fixado nem conexão iniciada por esse literal. A regra evita acoplamento operacional a endpoints de infraestrutura. O literal aqui é dado demonstrativo editável/exportável, não endpoint fixo usado pelo transporte. Faixas privadas não são exceção automática da regra; RFC5737 seria uma melhoria editorial separada.",
+    "evidence": [
+      "apps/frontend/src/components/ImportHostsModal.vue:662",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/final-review.json"
+    ],
+    "risk": "low"
+  },
+  {
+    "issueId": "dc176616-0f62-47ea-b291-d61aff75e56f",
+    "rule": "typescript:S7767",
+    "file": "apps/frontend/src/components/UserAvatar.vue",
+    "baselineLine": 42,
+    "status": "context_reviewed",
+    "rationale": "Falso positivo aplicado e confirmado no Sonar, com revisor temporário autorizado e desativado. A coerção hash |= 0 é deliberadamente um wrap signed-int32 no acumulador do hash, não um atalho para truncar parte fracionária (intenção de S7767). Comparação do corpo real com Math.trunc em três seeds sintéticos demonstrou hash e, em um seed, paleta diferentes; a substituição recomendada pela regra não preserva a operação pretendida.",
+    "evidence": [
+      "apps/frontend/src/components/UserAvatar.vue:42",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/final-review.json"
+    ],
+    "risk": "low"
+  },
+  {
+    "issueId": "e09d771d-5e64-46df-b9a3-950fe38b6d03",
+    "rule": "typescript:S8786",
+    "file": "apps/frontend/src/services/avatar-image-processing.ts",
+    "baselineLine": 136,
+    "status": "fixed",
+    "rationale": "Estado FIXED confirmado pelo scanner final. Normalização remove hífens das bordas por índices, preservando caracteres internos.",
+    "evidence": [
+      "apps/frontend/src/services/text-boundaries.test.ts",
+      "docs/changes/2026/11/NA-0087-sonar-frontend/test-results.md",
+      "apps/frontend/src/services/avatar-image-processing.ts"
+    ],
+    "risk": "medium"
+  },
+  {
+    "issueId": "b7da7a39-c1a8-478c-abb6-9a132c494cea",
+    "rule": "typescript:S2871",
+    "file": "apps/frontend/src/services/guacamole-import.service.ts",
+    "baselineLine": 172,
+    "status": "fixed",
+    "rationale": "Estado FIXED confirmado pelo scanner final. NA-0150: correção implementada e ocorrência ausente na análise 28a77996d. Comparador UTF16 preserva ordem nativa e digest.",
+    "evidence": [
+      "apps/frontend/src/services/guacamole-import.service.ts:172",
+      "docs/changes/2026/11/NA-0087-sonar-frontend/test-results.md",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json"
+    ],
+    "risk": "low"
+  },
+  {
+    "issueId": "0f2487e8-4c5c-4d4f-88d9-7e547578da32",
+    "rule": "typescript:S2871",
+    "file": "apps/frontend/src/services/guacamole-import.service.ts",
+    "baselineLine": 174,
+    "status": "fixed",
+    "rationale": "Estado FIXED confirmado pelo scanner final. NA-0150: correção implementada e ocorrência ausente na análise 28a77996d. Comparador UTF16 preserva ordem nativa e digest.",
+    "evidence": [
+      "apps/frontend/src/services/guacamole-import.service.ts:174",
+      "docs/changes/2026/11/NA-0087-sonar-frontend/test-results.md",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json"
+    ],
+    "risk": "low"
+  },
+  {
+    "issueId": "624de923-600c-4122-85e0-91d2568eedd5",
+    "rule": "typescript:S2871",
+    "file": "apps/frontend/src/services/guacamole-import.service.ts",
+    "baselineLine": 301,
+    "status": "fixed",
+    "rationale": "Estado FIXED confirmado pelo scanner final. NA-0150: correção implementada e ocorrência ausente na análise 28a77996d. Comparador UTF16 preserva ordem nativa e digest.",
+    "evidence": [
+      "apps/frontend/src/services/guacamole-import.service.ts:301",
+      "docs/changes/2026/11/NA-0087-sonar-frontend/test-results.md",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json"
+    ],
+    "risk": "low"
+  },
+  {
+    "issueId": "e3393cf9-d69e-42e1-ad02-27f82e8d55ee",
+    "rule": "typescript:S2871",
+    "file": "apps/frontend/src/services/guacamole-import.service.ts",
+    "baselineLine": 305,
+    "status": "fixed",
+    "rationale": "Estado FIXED confirmado pelo scanner final. NA-0150: correção implementada e ocorrência ausente na análise 28a77996d. Comparador UTF16 preserva ordem nativa e digest.",
+    "evidence": [
+      "apps/frontend/src/services/guacamole-import.service.ts:305",
+      "docs/changes/2026/11/NA-0087-sonar-frontend/test-results.md",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json"
+    ],
+    "risk": "low"
+  },
+  {
+    "issueId": "5130a863-488e-42ac-8257-afcc4fe5952e",
+    "rule": "Web:InputWithoutLabelCheck",
+    "file": "apps/frontend/src/views/ProfileView.vue",
+    "baselineLine": 286,
+    "status": "context_reviewed",
+    "rationale": "Falso positivo aplicado e confirmado no Sonar, com revisor temporário autorizado e desativado. O input avatarInput de seleção de imagem do perfil usa class hidden (display:none) e não é o controle apresentado ao usuário. A seleção é aberta por acionador visível nomeado; adicionar label ao elemento oculto não corrige uma falta de nome na interface. A regra exige nome/associação para controles apresentados ao usuário; este controle com display:none não participa da árvore de acessibilidade. Não se usa tabindex=-1 isoladamente como justificativa.",
+    "evidence": [
+      "apps/frontend/src/views/ProfileView.vue:286",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/final-review.json"
+    ],
+    "risk": "low"
+  },
+  {
+    "issueId": "46318762-793a-478e-90cc-e0b93ae7d526",
+    "rule": "typescript:S8786",
+    "file": "apps/frontend/src/views/admin/HighAvailabilityView.vue",
+    "baselineLine": 320,
+    "status": "fixed",
+    "rationale": "Estado FIXED confirmado pelo scanner final. NA-0152: correção implementada e ocorrência ausente na análise 28a77996d. Correção e evidências na frente indicada.",
+    "evidence": [
+      "apps/frontend/src/views/admin/HighAvailabilityView.vue:320",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json"
+    ],
+    "risk": "medium"
+  },
+  {
+    "issueId": "3487a5af-f76e-4323-a02d-64f6562dd25b",
+    "rule": "typescript:S6324",
+    "file": "apps/frontend/src/views/admin/SessionAuditDetailView.vue",
+    "baselineLine": 800,
+    "status": "context_reviewed",
+    "rationale": "Falso positivo aplicado e confirmado no Sonar, com revisor temporário autorizado e desativado. BEL é excluído do corpo OSC no sanitizador de auditoria para parar no delimitador, não texto de usuário. A definição trata controles inesperados como provável engano. Nesta ocorrência o byte é parte expressa do protocolo terminal, e sua função específica está descrita acima; não se justifica apenas por ausência de exploração.",
+    "evidence": [
+      "apps/frontend/src/views/admin/SessionAuditDetailView.vue:800",
+      "docs/changes/2026/11/NA-0087-sonar-frontend/test-results.md",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/final-review.json"
+    ],
+    "risk": "low"
+  },
+  {
+    "issueId": "3685a6e6-d0ea-48dd-88e6-12f161062375",
+    "rule": "typescript:S6324",
+    "file": "apps/frontend/src/views/admin/SessionAuditDetailView.vue",
+    "baselineLine": 800,
+    "status": "context_reviewed",
+    "rationale": "Falso positivo aplicado e confirmado no Sonar, com revisor temporário autorizado e desativado. ESC é excluído do corpo OSC para reconhecer ST sem consumir o início da terminação. A definição trata controles inesperados como provável engano. Nesta ocorrência o byte é parte expressa do protocolo terminal, e sua função específica está descrita acima; não se justifica apenas por ausência de exploração.",
+    "evidence": [
+      "apps/frontend/src/views/admin/SessionAuditDetailView.vue:800",
+      "docs/changes/2026/11/NA-0087-sonar-frontend/test-results.md",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/final-review.json"
+    ],
+    "risk": "low"
+  },
+  {
+    "issueId": "a1c79e7d-46b6-475d-8cd3-16381e212563",
+    "rule": "typescript:S6324",
+    "file": "apps/frontend/src/views/admin/SessionAuditDetailView.vue",
+    "baselineLine": 800,
+    "status": "context_reviewed",
+    "rationale": "Falso positivo aplicado e confirmado no Sonar, com revisor temporário autorizado e desativado. BEL na alternativa final conclui a remoção de OSC; suporte necessário ao formato de saída terminal. A definição trata controles inesperados como provável engano. Nesta ocorrência o byte é parte expressa do protocolo terminal, e sua função específica está descrita acima; não se justifica apenas por ausência de exploração.",
+    "evidence": [
+      "apps/frontend/src/views/admin/SessionAuditDetailView.vue:800",
+      "docs/changes/2026/11/NA-0087-sonar-frontend/test-results.md",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/final-review.json"
+    ],
+    "risk": "low"
+  },
+  {
+    "issueId": "a9f0e611-4fe5-4a35-bee7-78aacadf516a",
+    "rule": "typescript:S6324",
+    "file": "apps/frontend/src/views/admin/SessionAuditDetailView.vue",
+    "baselineLine": 800,
+    "status": "context_reviewed",
+    "rationale": "Falso positivo aplicado e confirmado no Sonar, com revisor temporário autorizado e desativado. ESC na alternativa final compõe ST na remoção de OSC; não pode ser eliminado como caractere de controle supérfluo. A definição trata controles inesperados como provável engano. Nesta ocorrência o byte é parte expressa do protocolo terminal, e sua função específica está descrita acima; não se justifica apenas por ausência de exploração.",
+    "evidence": [
+      "apps/frontend/src/views/admin/SessionAuditDetailView.vue:800",
+      "docs/changes/2026/11/NA-0087-sonar-frontend/test-results.md",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/final-review.json"
+    ],
+    "risk": "low"
+  },
+  {
+    "issueId": "09ee6126-cd1d-46b0-a3cc-4ccf8b4ce0bf",
+    "rule": "typescript:S6324",
+    "file": "apps/frontend/src/views/admin/SessionAuditDetailView.vue",
+    "baselineLine": 801,
+    "status": "fixed",
+    "rationale": "Estado FIXED confirmado pelo scanner final. Ocorrência original ausente na análise 28a77996d; ausência isolada não comprova correção. A ocorrência histórica SQ-0191, na linha 803, deixou de existir após NA0148. Não é apropriado transicionar como falso positivo um trecho substituído: confirmar resolução/identidade no novo scanner. A intenção protocolar antiga não equivale a uma ocorrência atual.",
+    "evidence": [
+      "apps/frontend/src/views/admin/SessionAuditDetailView.vue:801",
+      "docs/changes/2026/11/NA-0087-sonar-frontend/test-results.md",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json"
+    ],
+    "risk": "low"
+  },
+  {
+    "issueId": "736dba82-a117-4326-896e-1e9c27ba3254",
+    "rule": "typescript:S6324",
+    "file": "apps/frontend/src/views/admin/SessionAuditDetailView.vue",
+    "baselineLine": 801,
+    "status": "fixed",
+    "rationale": "Estado FIXED confirmado pelo scanner final. Ocorrência original ausente na análise 28a77996d; ausência isolada não comprova correção. A ocorrência histórica SQ-0192, na linha 803, deixou de existir após NA0148. Não é apropriado transicionar como falso positivo um trecho substituído: confirmar resolução/identidade no novo scanner. A intenção protocolar antiga não equivale a uma ocorrência atual.",
+    "evidence": [
+      "apps/frontend/src/views/admin/SessionAuditDetailView.vue:801",
+      "docs/changes/2026/11/NA-0087-sonar-frontend/test-results.md",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json"
+    ],
+    "risk": "low"
+  },
+  {
+    "issueId": "a87faa89-0064-4fe7-8df3-e11e90a4ff69",
+    "rule": "typescript:S6324",
+    "file": "apps/frontend/src/views/admin/SessionAuditDetailView.vue",
+    "baselineLine": 801,
+    "status": "fixed",
+    "rationale": "Estado FIXED confirmado pelo scanner final. Ocorrência original ausente na análise 28a77996d; ausência isolada não comprova correção. A ocorrência histórica SQ-0193, na linha 803, deixou de existir após NA0148. Não é apropriado transicionar como falso positivo um trecho substituído: confirmar resolução/identidade no novo scanner. A intenção protocolar antiga não equivale a uma ocorrência atual.",
+    "evidence": [
+      "apps/frontend/src/views/admin/SessionAuditDetailView.vue:801",
+      "docs/changes/2026/11/NA-0087-sonar-frontend/test-results.md",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json"
+    ],
+    "risk": "low"
+  },
+  {
+    "issueId": "fe92b416-ad6c-4791-b2b1-3b6a1861e310",
+    "rule": "typescript:S6324",
+    "file": "apps/frontend/src/views/admin/SessionAuditDetailView.vue",
+    "baselineLine": 803,
+    "status": "context_reviewed",
+    "rationale": "Falso positivo aplicado e confirmado no Sonar, com revisor temporário autorizado e desativado. ESC inicia sequências de seleção de charset em stripTerminalControlSequences; retirada quebraria a limpeza de bytes ANSI. A definição trata controles inesperados como provável engano. Nesta ocorrência o byte é parte expressa do protocolo terminal, e sua função específica está descrita acima; não se justifica apenas por ausência de exploração.",
+    "evidence": [
+      "apps/frontend/src/views/admin/SessionAuditDetailView.vue:803",
+      "docs/changes/2026/11/NA-0087-sonar-frontend/test-results.md",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/final-review.json"
+    ],
+    "risk": "low"
+  },
+  {
+    "issueId": "a367d93e-9d8c-421c-8b46-4dec0464e86b",
+    "rule": "typescript:S6324",
+    "file": "apps/frontend/src/views/admin/SessionAuditDetailView.vue",
+    "baselineLine": 804,
+    "status": "context_reviewed",
+    "rationale": "Falso positivo aplicado e confirmado no Sonar, com revisor temporário autorizado e desativado. ESC introduz a família genérica de controles ANSI de um caractere no sanitizador; contexto é processamento explícito do terminal. A definição trata controles inesperados como provável engano. Nesta ocorrência o byte é parte expressa do protocolo terminal, e sua função específica está descrita acima; não se justifica apenas por ausência de exploração.",
+    "evidence": [
+      "apps/frontend/src/views/admin/SessionAuditDetailView.vue:804",
+      "docs/changes/2026/11/NA-0087-sonar-frontend/test-results.md",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/final-review.json"
+    ],
+    "risk": "low"
+  },
+  {
+    "issueId": "9011cf17-5c88-4a04-bc04-eff61b7ef495",
+    "rule": "typescript:S6324",
+    "file": "apps/frontend/src/views/admin/SessionAuditDetailView.vue",
+    "baselineLine": 805,
+    "status": "context_reviewed",
+    "rationale": "Falso positivo aplicado e confirmado no Sonar, com revisor temporário autorizado e desativado. ESC introduz comandos curtos como salvar/restaurar cursor e modos no sanitizador; não constitui texto de controle oculto acidental. A definição trata controles inesperados como provável engano. Nesta ocorrência o byte é parte expressa do protocolo terminal, e sua função específica está descrita acima; não se justifica apenas por ausência de exploração.",
+    "evidence": [
+      "apps/frontend/src/views/admin/SessionAuditDetailView.vue:805",
+      "docs/changes/2026/11/NA-0087-sonar-frontend/test-results.md",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/final-review.json"
+    ],
+    "risk": "low"
+  },
+  {
+    "issueId": "ddad19b3-d03c-4034-a2ee-2eeb05b557c8",
+    "rule": "typescript:S8786",
+    "file": "apps/frontend/src/views/admin/SessionAuditDetailView.vue",
+    "baselineLine": 829,
+    "status": "fixed",
+    "rationale": "Estado FIXED confirmado pelo scanner final. Whitespace final remove somente espaços e tabs por varredura reversa, mantendo quebra/limpeza anterior.",
+    "evidence": [
+      "apps/frontend/src/services/text-boundaries.test.ts",
+      "docs/changes/2026/11/NA-0087-sonar-frontend/test-results.md",
+      "apps/frontend/src/views/admin/SessionAuditDetailView.vue"
+    ],
+    "risk": "medium"
+  },
+  {
+    "issueId": "7a045a72-4afc-4552-bd70-9082e6e846bd",
+    "rule": "typescript:S5852",
+    "file": "apps/frontend/src/views/admin/SessionAuditDetailView.vue",
+    "baselineLine": 834,
+    "status": "fixed",
+    "rationale": "Estado FIXED confirmado pelo scanner final. Reconhecimento de respostas de terminal usa autômato de estados limitado; resolve ambiguidade entre hex e posição sem retrocesso.",
+    "evidence": [
+      "apps/frontend/src/services/text-boundaries.test.ts",
+      "docs/changes/2026/11/NA-0087-sonar-frontend/test-results.md",
+      "apps/frontend/src/views/admin/SessionAuditDetailView.vue"
+    ],
+    "risk": "medium"
+  },
+  {
+    "issueId": "25a45bc9-4f10-4dbb-b161-37616ca58930",
+    "rule": "typescript:S6324",
+    "file": "apps/frontend/src/views/admin/SessionAuditDetailView.vue",
+    "baselineLine": 932,
+    "status": "fixed",
+    "rationale": "Estado FIXED confirmado pelo scanner final. Ocorrência original ausente na análise 28a77996d; ausência isolada não comprova correção. A ocorrência histórica SQ-0199, na linha 933, deixou de existir após NA0148. Não é apropriado transicionar como falso positivo um trecho substituído: confirmar resolução/identidade no novo scanner. A intenção protocolar antiga não equivale a uma ocorrência atual.",
+    "evidence": [
+      "apps/frontend/src/views/admin/SessionAuditDetailView.vue:932",
+      "docs/changes/2026/11/NA-0087-sonar-frontend/test-results.md",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json"
+    ],
+    "risk": "low"
+  },
+  {
+    "issueId": "4cc6162f-7900-423c-b4a6-ce8060863ebd",
+    "rule": "typescript:S6324",
+    "file": "apps/frontend/src/views/admin/SessionAuditDetailView.vue",
+    "baselineLine": 932,
+    "status": "fixed",
+    "rationale": "Estado FIXED confirmado pelo scanner final. Ocorrência original ausente na análise 28a77996d; ausência isolada não comprova correção. A ocorrência histórica SQ-0200, na linha 933, deixou de existir após NA0148. Não é apropriado transicionar como falso positivo um trecho substituído: confirmar resolução/identidade no novo scanner. A intenção protocolar antiga não equivale a uma ocorrência atual.",
+    "evidence": [
+      "apps/frontend/src/views/admin/SessionAuditDetailView.vue:932",
+      "docs/changes/2026/11/NA-0087-sonar-frontend/test-results.md",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json"
+    ],
+    "risk": "low"
+  },
+  {
+    "issueId": "6e9576d8-088d-4bb8-8356-be76a88ec569",
+    "rule": "typescript:S6324",
+    "file": "apps/frontend/src/views/admin/SessionAuditDetailView.vue",
+    "baselineLine": 932,
+    "status": "fixed",
+    "rationale": "Estado FIXED confirmado pelo scanner final. Ocorrência original ausente na análise 28a77996d; ausência isolada não comprova correção. A ocorrência histórica SQ-0201, na linha 933, deixou de existir após NA0148. Não é apropriado transicionar como falso positivo um trecho substituído: confirmar resolução/identidade no novo scanner. A intenção protocolar antiga não equivale a uma ocorrência atual.",
+    "evidence": [
+      "apps/frontend/src/views/admin/SessionAuditDetailView.vue:932",
+      "docs/changes/2026/11/NA-0087-sonar-frontend/test-results.md",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json"
+    ],
+    "risk": "low"
+  },
+  {
+    "issueId": "a1917e2b-b10b-4c35-9302-b5cf80309e78",
+    "rule": "typescript:S6324",
+    "file": "apps/frontend/src/views/admin/SessionAuditDetailView.vue",
+    "baselineLine": 932,
+    "status": "fixed",
+    "rationale": "Estado FIXED confirmado pelo scanner final. Ocorrência original ausente na análise 28a77996d; ausência isolada não comprova correção. A ocorrência histórica SQ-0202, na linha 933, deixou de existir após NA0148. Não é apropriado transicionar como falso positivo um trecho substituído: confirmar resolução/identidade no novo scanner. A intenção protocolar antiga não equivale a uma ocorrência atual.",
+    "evidence": [
+      "apps/frontend/src/views/admin/SessionAuditDetailView.vue:932",
+      "docs/changes/2026/11/NA-0087-sonar-frontend/test-results.md",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json"
+    ],
+    "risk": "low"
+  },
+  {
+    "issueId": "beeb18b0-02f9-478d-b589-226149f79c31",
+    "rule": "typescript:S6324",
+    "file": "apps/frontend/src/views/admin/SessionAuditDetailView.vue",
+    "baselineLine": 932,
+    "status": "fixed",
+    "rationale": "Estado FIXED confirmado pelo scanner final. Ocorrência original ausente na análise 28a77996d; ausência isolada não comprova correção. A ocorrência histórica SQ-0203, na linha 933, deixou de existir após NA0148. Não é apropriado transicionar como falso positivo um trecho substituído: confirmar resolução/identidade no novo scanner. A intenção protocolar antiga não equivale a uma ocorrência atual.",
+    "evidence": [
+      "apps/frontend/src/views/admin/SessionAuditDetailView.vue:932",
+      "docs/changes/2026/11/NA-0087-sonar-frontend/test-results.md",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json"
+    ],
+    "risk": "low"
+  },
+  {
+    "issueId": "cd643ed1-287f-40c8-a2bd-4e25f14160f7",
+    "rule": "typescript:S6324",
+    "file": "apps/frontend/src/views/admin/SessionAuditDetailView.vue",
+    "baselineLine": 932,
+    "status": "fixed",
+    "rationale": "Estado FIXED confirmado pelo scanner final. Ocorrência original ausente na análise 28a77996d; ausência isolada não comprova correção. A ocorrência histórica SQ-0204, na linha 933, deixou de existir após NA0148. Não é apropriado transicionar como falso positivo um trecho substituído: confirmar resolução/identidade no novo scanner. A intenção protocolar antiga não equivale a uma ocorrência atual.",
+    "evidence": [
+      "apps/frontend/src/views/admin/SessionAuditDetailView.vue:932",
+      "docs/changes/2026/11/NA-0087-sonar-frontend/test-results.md",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json"
+    ],
+    "risk": "low"
+  },
+  {
+    "issueId": "d40afe8e-6f8f-42cb-9f79-08b90a312128",
+    "rule": "typescript:S6324",
+    "file": "apps/frontend/src/views/admin/SessionAuditDetailView.vue",
+    "baselineLine": 932,
+    "status": "fixed",
+    "rationale": "Estado FIXED confirmado pelo scanner final. Ocorrência original ausente na análise 28a77996d; ausência isolada não comprova correção. A ocorrência histórica SQ-0205, na linha 933, deixou de existir após NA0148. Não é apropriado transicionar como falso positivo um trecho substituído: confirmar resolução/identidade no novo scanner. A intenção protocolar antiga não equivale a uma ocorrência atual.",
+    "evidence": [
+      "apps/frontend/src/views/admin/SessionAuditDetailView.vue:932",
+      "docs/changes/2026/11/NA-0087-sonar-frontend/test-results.md",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json"
+    ],
+    "risk": "low"
+  },
+  {
+    "issueId": "1054c9ec-6a8f-41e8-ab9d-a0e4cc3c05fc",
+    "rule": "typescript:S5852",
+    "file": "apps/frontend/src/views/admin/SessionAuditDetailView.vue",
+    "baselineLine": 961,
+    "status": "fixed",
+    "rationale": "Estado FIXED confirmado pelo scanner final. Colunas de métricas usam varredura linear de números, unidades e tempo; mantém limites de palavra e linhas.",
+    "evidence": [
+      "apps/frontend/src/services/text-boundaries.test.ts",
+      "docs/changes/2026/11/NA-0087-sonar-frontend/test-results.md",
+      "apps/frontend/src/views/admin/SessionAuditDetailView.vue"
+    ],
+    "risk": "medium"
+  },
+  {
+    "issueId": "0902a16f-55fc-4f4d-866b-3b8c1a08b0e8",
+    "rule": "typescript:S8786",
+    "file": "apps/frontend/src/views/admin/SessionAuditDetailView.vue",
+    "baselineLine": 978,
+    "status": "fixed",
+    "rationale": "Estado FIXED confirmado pelo scanner final. Prompt usa autômato com estados limitados, preservando inclusive whitespace multiline aceito anteriormente sem repartição de grupos.",
+    "evidence": [
+      "apps/frontend/src/services/text-boundaries.test.ts",
+      "docs/changes/2026/11/NA-0087-sonar-frontend/test-results.md",
+      "apps/frontend/src/views/admin/SessionAuditDetailView.vue"
+    ],
+    "risk": "medium"
+  },
+  {
+    "issueId": "fdb7b3af-bd93-4070-acfc-0697892cc40a",
+    "rule": "Web:S6853",
+    "file": "apps/frontend/src/views/admin/SettingsView.vue",
+    "baselineLine": 2104,
+    "status": "fixed",
+    "rationale": "Estado FIXED confirmado pelo scanner final. Controle checkbox (1Password) agora recebe nome no componente/input interno; wrapper externo inválido foi removido ou label passou a ter associação real. Fixture derivada desta ocorrência confirma nome e foco.",
+    "evidence": [
+      "docs/changes/2026/11/NA-0087-sonar-frontend/dom-label-evidence.json#fdb7b3af-bd93-4070-acfc-0697892cc40a",
+      "tools/frontend/sonar-frontend-review.cjs"
+    ],
+    "risk": "low"
+  },
+  {
+    "issueId": "fbe987f5-8f09-47bb-abba-4e93e365694b",
+    "rule": "typescript:S7773",
+    "file": "apps/frontend/src/services/host-view-preferences.service.ts",
+    "baselineLine": 46,
+    "status": "fixed",
+    "rationale": "Estado FIXED confirmado pelo scanner final. API explícita Number.parseInt/Number.isNaN; parsed já é number, preservando fallback e validação.",
+    "evidence": [
+      "apps/frontend/src/services/host-view-preferences.service.ts:46"
+    ],
+    "risk": "low"
+  },
+  {
+    "issueId": "037cdb9b-0e27-472c-aeba-de5ff89c7380",
+    "rule": "typescript:S7773",
+    "file": "apps/frontend/src/services/host-view-preferences.service.ts",
+    "baselineLine": 47,
+    "status": "fixed",
+    "rationale": "Estado FIXED confirmado pelo scanner final. API explícita Number.parseInt/Number.isNaN; parsed já é number, preservando fallback e validação.",
+    "evidence": [
+      "apps/frontend/src/services/host-view-preferences.service.ts:47"
+    ],
+    "risk": "low"
+  },
+  {
+    "issueId": "9582297f-f6e7-428b-aef1-c4e969758c73",
+    "rule": "Web:S6840",
+    "file": "apps/frontend/src/views/GraphicalSessionView.vue",
+    "baselineLine": 1720,
+    "status": "fixed",
+    "rationale": "Estado FIXED confirmado pelo scanner final. DOM confirmou que autocomplete no NInput raiz não chega ao input nativo. Movido para input-props, mantendo nome acessível e valor username no controle real.",
+    "evidence": [
+      "tools/frontend/sonar-frontend-review.cjs",
+      "docs/changes/2026/11/NA-0087-sonar-frontend/dom-label-evidence.json",
+      "apps/frontend/src/views/GraphicalSessionView.vue"
+    ],
+    "risk": "low"
+  },
+  {
+    "issueId": "ba8d47c8-3b80-44bf-8f69-35607b633fbb",
+    "rule": "Web:InputWithoutLabelCheck",
+    "file": "apps/frontend/src/views/PemKeysView.vue",
+    "baselineLine": 199,
+    "status": "context_reviewed",
+    "rationale": "Falso positivo aplicado e confirmado no Sonar, com revisor temporário autorizado e desativado. O input pemKeyFileInput de seleção de chave PEM usa class hidden (display:none) e não é o controle apresentado ao usuário. A seleção é aberta por acionador visível nomeado; adicionar label ao elemento oculto não corrige uma falta de nome na interface. A regra exige nome/associação para controles apresentados ao usuário; este controle com display:none não participa da árvore de acessibilidade. Não se usa tabindex=-1 isoladamente como justificativa.",
+    "evidence": [
+      "apps/frontend/src/views/PemKeysView.vue:199",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/final-review.json"
+    ],
+    "risk": "low"
+  },
+  {
+    "issueId": "32469d52-2866-4ebf-b024-8225fe5fb9be",
+    "rule": "typescript:S1313",
+    "file": "apps/frontend/src/views/admin/NativeSshGatewayView.vue",
+    "baselineLine": 37,
+    "status": "context_reviewed",
+    "rationale": "Falso positivo aplicado e confirmado no Sonar, com revisor temporário autorizado e desativado. O endereço privado é exemplo em estado inicial editável sampleTarget, exibido para copiar; não alimenta diretamente transporte SSH da aplicação. O destino é configurável na seção Parâmetros dos exemplos. A regra evita acoplamento operacional a endpoints de infraestrutura. O literal aqui é dado demonstrativo editável/exportável, não endpoint fixo usado pelo transporte. Faixas privadas não são exceção automática da regra; RFC5737 seria uma melhoria editorial separada.",
+    "evidence": [
+      "apps/frontend/src/views/admin/NativeSshGatewayView.vue:37",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/final-review.json"
+    ],
+    "risk": "low"
+  },
+  {
+    "issueId": "13f51efd-0eb5-4e93-a1eb-fcd3495f55a2",
+    "rule": "typescript:S1313",
+    "file": "apps/frontend/src/views/admin/NativeSshGatewayView.vue",
+    "baselineLine": 61,
+    "status": "context_reviewed",
+    "rationale": "Falso positivo aplicado e confirmado no Sonar, com revisor temporário autorizado e desativado. O endereço privado é exemplo em comando com usuário padrão via -l, exibido para copiar; não alimenta diretamente transporte SSH da aplicação. O destino é configurável na seção Parâmetros dos exemplos. A regra evita acoplamento operacional a endpoints de infraestrutura. O literal aqui é dado demonstrativo editável/exportável, não endpoint fixo usado pelo transporte. Faixas privadas não são exceção automática da regra; RFC5737 seria uma melhoria editorial separada.",
+    "evidence": [
+      "apps/frontend/src/views/admin/NativeSshGatewayView.vue:61",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/final-review.json"
+    ],
+    "risk": "low"
+  },
+  {
+    "issueId": "583835f7-b72e-47de-88b3-4990813c965c",
+    "rule": "typescript:S1313",
+    "file": "apps/frontend/src/views/admin/NativeSshGatewayView.vue",
+    "baselineLine": 65,
+    "status": "context_reviewed",
+    "rationale": "Falso positivo aplicado e confirmado no Sonar, com revisor temporário autorizado e desativado. O endereço privado é exemplo em comando com override de usuário via -l, exibido para copiar; não alimenta diretamente transporte SSH da aplicação. O destino é configurável na seção Parâmetros dos exemplos. A regra evita acoplamento operacional a endpoints de infraestrutura. O literal aqui é dado demonstrativo editável/exportável, não endpoint fixo usado pelo transporte. Faixas privadas não são exceção automática da regra; RFC5737 seria uma melhoria editorial separada.",
+    "evidence": [
+      "apps/frontend/src/views/admin/NativeSshGatewayView.vue:65",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/final-review.json"
+    ],
+    "risk": "low"
+  },
+  {
+    "issueId": "3572e6ae-d574-4859-8a15-09a08adcb8ec",
+    "rule": "typescript:S1313",
+    "file": "apps/frontend/src/views/admin/NativeSshGatewayView.vue",
+    "baselineLine": 70,
+    "status": "context_reviewed",
+    "rationale": "Falso positivo aplicado e confirmado no Sonar, com revisor temporário autorizado e desativado. O endereço privado é exemplo em forma inline com usuário padrão e IdentitiesOnly, exibido para copiar; não alimenta diretamente transporte SSH da aplicação. O destino é configurável na seção Parâmetros dos exemplos. A regra evita acoplamento operacional a endpoints de infraestrutura. O literal aqui é dado demonstrativo editável/exportável, não endpoint fixo usado pelo transporte. Faixas privadas não são exceção automática da regra; RFC5737 seria uma melhoria editorial separada.",
+    "evidence": [
+      "apps/frontend/src/views/admin/NativeSshGatewayView.vue:70",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/final-review.json"
+    ],
+    "risk": "low"
+  },
+  {
+    "issueId": "b41f16f6-a42c-4176-9303-6d286f19211b",
+    "rule": "typescript:S1313",
+    "file": "apps/frontend/src/views/admin/NativeSshGatewayView.vue",
+    "baselineLine": 75,
+    "status": "context_reviewed",
+    "rationale": "Falso positivo aplicado e confirmado no Sonar, com revisor temporário autorizado e desativado. O endereço privado é exemplo em forma inline com override e IdentitiesOnly, exibido para copiar; não alimenta diretamente transporte SSH da aplicação. O destino é configurável na seção Parâmetros dos exemplos. A regra evita acoplamento operacional a endpoints de infraestrutura. O literal aqui é dado demonstrativo editável/exportável, não endpoint fixo usado pelo transporte. Faixas privadas não são exceção automática da regra; RFC5737 seria uma melhoria editorial separada.",
+    "evidence": [
+      "apps/frontend/src/views/admin/NativeSshGatewayView.vue:75",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/final-review.json"
+    ],
+    "risk": "low"
+  },
+  {
+    "issueId": "af7180f2-a438-4bd1-b586-4e6e8df1af16",
+    "rule": "Web:S6853",
+    "file": "apps/frontend/src/views/admin/NativeSshGatewayView.vue",
+    "baselineLine": 365,
+    "status": "context_reviewed",
+    "rationale": "Falso positivo aplicado e confirmado no Sonar, com revisor temporário autorizado e desativado. O label envolve sampleTarget, usado para host de destino do exemplo SSH. Naive renderiza o controle nativo dentro desse ancestral; a evidência DOM desta ocorrência possui nome acessível e foco. O scanner estático não expande o componente Vue. A intenção é associação efetiva label-controle, não exigir que o analisador estático conheça a expansão do componente Vue. A evidência DOM individual anterior é reutilizada com o trecho preservado.",
+    "evidence": [
+      "docs/changes/2026/11/NA-0087-sonar-frontend/dom-label-evidence.json#af7180f2-a438-4bd1-b586-4e6e8df1af16",
+      "tools/frontend/sonar-frontend-review.cjs",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/final-review.json"
+    ],
+    "risk": "low"
+  },
+  {
+    "issueId": "965f1baa-23a6-4e19-a71f-0c9fecbc6e1a",
+    "rule": "Web:S6853",
+    "file": "apps/frontend/src/views/admin/NativeSshGatewayView.vue",
+    "baselineLine": 369,
+    "status": "context_reviewed",
+    "rationale": "Falso positivo aplicado e confirmado no Sonar, com revisor temporário autorizado e desativado. O label envolve sampleTargetUser, usado para usuário SSH opcional do exemplo. Naive renderiza o controle nativo dentro desse ancestral; a evidência DOM desta ocorrência possui nome acessível e foco. O scanner estático não expande o componente Vue. A intenção é associação efetiva label-controle, não exigir que o analisador estático conheça a expansão do componente Vue. A evidência DOM individual anterior é reutilizada com o trecho preservado.",
+    "evidence": [
+      "docs/changes/2026/11/NA-0087-sonar-frontend/dom-label-evidence.json#965f1baa-23a6-4e19-a71f-0c9fecbc6e1a",
+      "tools/frontend/sonar-frontend-review.cjs",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/final-review.json"
+    ],
+    "risk": "low"
+  },
+  {
+    "issueId": "0416ec5f-b9d7-4f35-81fa-1edf4be3d24e",
+    "rule": "typescript:S8786",
+    "file": "apps/frontend/src/views/admin/TenantsView.vue",
+    "baselineLine": 226,
+    "status": "fixed",
+    "rationale": "Estado FIXED confirmado pelo scanner final. Validação de email UI usa índices de @ e ponto, mantendo formato permissivo anterior e rejeitando espaços.",
+    "evidence": [
+      "apps/frontend/src/services/text-boundaries.test.ts",
+      "docs/changes/2026/11/NA-0087-sonar-frontend/test-results.md",
+      "apps/frontend/src/views/admin/TenantsView.vue"
+    ],
+    "risk": "medium"
+  },
+  {
+    "issueId": "70968de4-2f43-43ac-a7a2-87781cc597fe",
+    "rule": "typescript:S6324",
+    "file": "apps/frontend/src/views/HostsView.vue",
+    "baselineLine": 3294,
+    "status": "fixed",
+    "rationale": "Estado FIXED confirmado pelo scanner final. Ocorrência original ausente na análise 28a77996d; ausência isolada não comprova correção. A ocorrência histórica SQ-0245, na linha 3294, deixou de existir após NA0148. Não é apropriado transicionar como falso positivo um trecho substituído: confirmar resolução/identidade no novo scanner. A intenção protocolar antiga não equivale a uma ocorrência atual.",
+    "evidence": [
+      "apps/frontend/src/views/HostsView.vue:3294",
+      "docs/changes/2026/11/NA-0087-sonar-frontend/test-results.md",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json"
+    ],
+    "risk": "low"
+  },
+  {
+    "issueId": "13d484a7-8b98-492b-8c74-a5848d9fe620",
+    "rule": "typescript:S8786",
+    "file": "apps/frontend/src/views/SnippetsView.vue",
+    "baselineLine": 505,
+    "status": "fixed",
+    "rationale": "Estado FIXED confirmado pelo scanner final. trimEnd preserva semântica de whitespace final ao inserir separador, sem buscas não ancoradas repetidas.",
+    "evidence": [
+      "apps/frontend/src/services/text-boundaries.test.ts",
+      "docs/changes/2026/11/NA-0087-sonar-frontend/test-results.md",
+      "apps/frontend/src/views/SnippetsView.vue"
+    ],
+    "risk": "medium"
+  },
+  {
+    "issueId": "dcc6941b-6650-4a90-9de9-e014ad973474",
+    "rule": "Web:S6853",
+    "file": "apps/frontend/src/views/SnippetsView.vue",
+    "baselineLine": 741,
+    "status": "fixed",
+    "rationale": "Estado FIXED confirmado pelo scanner final. Correção inicial nomeou input interno; refinamento separa label do contêiner NSelect com for e input-props.id estável e único. DOM confirma HTMLLabelElement.control, nome acessível e foco ao clicar no label, preservando layout/teclado. Reanálise posterior ainda pendente.",
+    "evidence": [
+      "tools/frontend/sonar-frontend-review.cjs",
+      "docs/changes/2026/11/NA-0087-sonar-frontend/dom-label-evidence.json#dcc6941b-6650-4a90-9de9-e014ad973474",
+      "docs/changes/2026/11/NA-0087-sonar-frontend/followup-review.md"
+    ],
+    "risk": "low",
+    "history": [
+      {
+        "status": "fixed",
+        "rationale": "Controle textbox (snippets.kind.label) agora recebe nome no componente/input interno; wrapper externo inválido foi removido ou label passou a ter associação real. Fixture derivada desta ocorrência confirma nome e foco.",
+        "evidence": [
+          "docs/changes/2026/11/NA-0087-sonar-frontend/dom-label-evidence.json#dcc6941b-6650-4a90-9de9-e014ad973474",
+          "tools/frontend/sonar-frontend-review.cjs"
+        ],
+        "stage": "initial-remediation"
+      }
+    ],
+    "scannerAfterInitialFix": "open; integration NA-0089 follow-up"
+  },
+  {
+    "issueId": "9897e613-5ea8-4488-bbe6-13e518c2755a",
+    "rule": "Web:S6853",
+    "file": "apps/frontend/src/views/SnippetsView.vue",
+    "baselineLine": 749,
+    "status": "fixed",
+    "rationale": "Estado FIXED confirmado pelo scanner final. Correção inicial nomeou input interno; refinamento separa label do contêiner NSelect com for e input-props.id estável e único. DOM confirma HTMLLabelElement.control, nome acessível e foco ao clicar no label, preservando layout/teclado. Reanálise posterior ainda pendente.",
+    "evidence": [
+      "tools/frontend/sonar-frontend-review.cjs",
+      "docs/changes/2026/11/NA-0087-sonar-frontend/dom-label-evidence.json#9897e613-5ea8-4488-bbe6-13e518c2755a",
+      "docs/changes/2026/11/NA-0087-sonar-frontend/followup-review.md"
+    ],
+    "risk": "low",
+    "history": [
+      {
+        "status": "fixed",
+        "rationale": "Controle textbox (snippets.groups.label) agora recebe nome no componente/input interno; wrapper externo inválido foi removido ou label passou a ter associação real. Fixture derivada desta ocorrência confirma nome e foco.",
+        "evidence": [
+          "docs/changes/2026/11/NA-0087-sonar-frontend/dom-label-evidence.json#9897e613-5ea8-4488-bbe6-13e518c2755a",
+          "tools/frontend/sonar-frontend-review.cjs"
+        ],
+        "stage": "initial-remediation"
+      }
+    ],
+    "scannerAfterInitialFix": "open; integration NA-0089 follow-up"
+  },
+  {
+    "issueId": "1172d30b-f5f0-4721-9afb-a72759711101",
+    "rule": "Web:S6853",
+    "file": "apps/frontend/src/views/SnippetsView.vue",
+    "baselineLine": 757,
+    "status": "fixed",
+    "rationale": "Estado FIXED confirmado pelo scanner final. Correção inicial nomeou input interno; refinamento separa label do contêiner NSelect com for e input-props.id estável e único. DOM confirma HTMLLabelElement.control, nome acessível e foco ao clicar no label, preservando layout/teclado. Reanálise posterior ainda pendente.",
+    "evidence": [
+      "tools/frontend/sonar-frontend-review.cjs",
+      "docs/changes/2026/11/NA-0087-sonar-frontend/dom-label-evidence.json#1172d30b-f5f0-4721-9afb-a72759711101",
+      "docs/changes/2026/11/NA-0087-sonar-frontend/followup-review.md"
+    ],
+    "risk": "low",
+    "history": [
+      {
+        "status": "fixed",
+        "rationale": "Controle textbox (snippetsPage.filters.secrets) agora recebe nome no componente/input interno; wrapper externo inválido foi removido ou label passou a ter associação real. Fixture derivada desta ocorrência confirma nome e foco.",
+        "evidence": [
+          "docs/changes/2026/11/NA-0087-sonar-frontend/dom-label-evidence.json#1172d30b-f5f0-4721-9afb-a72759711101",
+          "tools/frontend/sonar-frontend-review.cjs"
+        ],
+        "stage": "initial-remediation"
+      }
+    ],
+    "scannerAfterInitialFix": "open; integration NA-0089 follow-up"
+  },
+  {
+    "issueId": "b54d82ea-3c86-4771-9ca3-a168091c06f2",
+    "rule": "css:S4656",
+    "file": "apps/frontend/src/views/SnippetsView.vue",
+    "baselineLine": 1342,
+    "status": "fixed",
+    "rationale": "Estado FIXED confirmado pelo scanner final. Removido min-width:180px sobrescrito por min-width:0 no mesmo bloco; valor computado final e responsividade preservados.",
+    "evidence": [
+      "tools/frontend/snippets-page-playwright.cjs",
+      "docs/changes/2026/11/NA-0087-sonar-frontend/screenshots/snippets-page-1.png"
+    ],
+    "risk": "low"
+  },
+  {
+    "issueId": "82e86ed8-7ffd-45a7-a0dc-27893a7e4ef0",
+    "rule": "typescript:S2245",
+    "file": "apps/frontend/src/views/TerminalView.vue",
+    "baselineLine": 1893,
+    "status": "context_reviewed",
+    "rationale": "Falso positivo aplicado e confirmado no Sonar, com revisor temporário autorizado e desativado. O fallback combina relógio e Math.random para correlação de execução de snippet; o caminho preferido já usa crypto.randomUUID. O identificador não é credencial nem concede autorização ao SSH. A definição se refere a valores aleatórios usados em contexto de segurança. A rastreabilidade deste identificador mostrou correlação, sem decisão de privilégio dependente de sua imprevisibilidade.",
+    "evidence": [
+      "apps/frontend/src/views/TerminalView.vue:1893",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/final-review.json"
+    ],
+    "risk": "low"
+  },
+  {
+    "issueId": "847b64ac-d962-4792-9f98-5780097b51a0",
+    "rule": "Web:S6853",
+    "file": "apps/frontend/src/views/admin/SettingsView.vue",
+    "baselineLine": 1912,
+    "status": "fixed",
+    "rationale": "Estado FIXED confirmado pelo scanner final. Controle checkbox (admin.settings.license.multiConnect) agora recebe nome no componente/input interno; wrapper externo inválido foi removido ou label passou a ter associação real. Fixture derivada desta ocorrência confirma nome e foco.",
+    "evidence": [
+      "docs/changes/2026/11/NA-0087-sonar-frontend/dom-label-evidence.json#847b64ac-d962-4792-9f98-5780097b51a0",
+      "tools/frontend/sonar-frontend-review.cjs"
+    ],
+    "risk": "low"
+  },
+  {
+    "issueId": "2cbebbc8-bb22-4019-84df-0c6abcf41900",
+    "rule": "Web:InputWithoutLabelCheck",
+    "file": "apps/frontend/src/views/admin/WebhooksView.vue",
+    "baselineLine": 1078,
+    "status": "context_reviewed",
+    "rationale": "Falso positivo aplicado e confirmado no Sonar, com revisor temporário autorizado e desativado. Campo auxiliar de usuário para desviar autofill em criação de webhook inbound; class hidden e tabindex=-1 retiram-no da interação visual e por Tab. Não é o campo real de credencial nem carece de label de um controle visível. A regra exige nome/associação para controles apresentados ao usuário; este controle com display:none não participa da árvore de acessibilidade. Não se usa tabindex=-1 isoladamente como justificativa.",
+    "evidence": [
+      "apps/frontend/src/views/admin/WebhooksView.vue:1078",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/final-review.json"
+    ],
+    "risk": "low"
+  },
+  {
+    "issueId": "41d12852-dd37-4c69-939b-065e369a35d8",
+    "rule": "Web:InputWithoutLabelCheck",
+    "file": "apps/frontend/src/views/admin/WebhooksView.vue",
+    "baselineLine": 1079,
+    "status": "context_reviewed",
+    "rationale": "Falso positivo aplicado e confirmado no Sonar, com revisor temporário autorizado e desativado. Campo auxiliar de senha para desviar autofill em criação de webhook inbound; class hidden e tabindex=-1 retiram-no da interação visual e por Tab. Não é o campo real de credencial nem carece de label de um controle visível. A regra exige nome/associação para controles apresentados ao usuário; este controle com display:none não participa da árvore de acessibilidade. Não se usa tabindex=-1 isoladamente como justificativa.",
+    "evidence": [
+      "apps/frontend/src/views/admin/WebhooksView.vue:1079",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/final-review.json"
+    ],
+    "risk": "low"
+  },
+  {
+    "issueId": "a1d5d460-186d-43e3-99c3-d31a28799d72",
+    "rule": "typescript:S8786",
+    "file": "apps/frontend/src/views/auth/LoginView.vue",
+    "baselineLine": 157,
+    "status": "fixed",
+    "rationale": "Estado FIXED confirmado pelo scanner final. Validação de email UI reutiliza varredura linear com testes de equivalência; validação de backend não foi alterada.",
+    "evidence": [
+      "apps/frontend/src/services/text-boundaries.test.ts",
+      "docs/changes/2026/11/NA-0087-sonar-frontend/test-results.md",
+      "apps/frontend/src/views/auth/LoginView.vue"
+    ],
+    "risk": "medium"
+  },
+  {
+    "issueId": "7dec507b-3e5e-426e-b161-00389785b295",
+    "rule": "secrets:S6697",
+    "file": "apps/frontend/src/locales/en-BACKUP-UX.json",
+    "baselineLine": 1522,
+    "status": "context_reviewed",
+    "rationale": "Falso positivo aplicado e confirmado no Sonar, com revisor temporário autorizado e desativado. A tradução de exemplo MySQL em inglês, cópia BACKUP-UX, contém sintaxe de substituição de alias do cofre (duplas chaves secret:alias), não o valor resolvido de uma credencial. A descrição ensina resolução posterior no backend e mascaramento. A regra detecta credencial MySQL incorporada. Verificação do caminho JSON snippetsPage.help.examples[4].cmd confirmou placeholder não resolvido após a opção de senha, sem valor de credencial. Não se presume que placeholders dispensem autorização posterior.",
+    "evidence": [
+      "apps/frontend/src/locales/en-BACKUP-UX.json:1522",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/final-review.json"
+    ],
+    "risk": "low"
+  },
+  {
+    "issueId": "459c43e5-ddb0-42a7-84ec-f5b4ea41a6fc",
+    "rule": "secrets:S6697",
+    "file": "apps/frontend/src/locales/en-NOTE-JEFF.json",
+    "baselineLine": 1247,
+    "status": "context_reviewed",
+    "rationale": "Falso positivo aplicado e confirmado no Sonar, com revisor temporário autorizado e desativado. A tradução de exemplo MySQL em inglês, cópia NOTE-JEFF, contém sintaxe de substituição de alias do cofre (duplas chaves secret:alias), não o valor resolvido de uma credencial. A descrição ensina resolução posterior no backend e mascaramento. A regra detecta credencial MySQL incorporada. Verificação do caminho JSON snippetsPage.help.examples[4].cmd confirmou placeholder não resolvido após a opção de senha, sem valor de credencial. Não se presume que placeholders dispensem autorização posterior.",
+    "evidence": [
+      "apps/frontend/src/locales/en-NOTE-JEFF.json:1247",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/final-review.json"
+    ],
+    "risk": "low"
+  },
+  {
+    "issueId": "304c953c-ca09-4f1b-8e01-41ae8777740d",
+    "rule": "secrets:S6697",
+    "file": "apps/frontend/src/locales/pt-BR-BACKUP-UX.json",
+    "baselineLine": 1522,
+    "status": "context_reviewed",
+    "rationale": "Falso positivo aplicado e confirmado no Sonar, com revisor temporário autorizado e desativado. A tradução de exemplo MySQL em português, cópia BACKUP-UX, contém sintaxe de substituição de alias do cofre (duplas chaves secret:alias), não o valor resolvido de uma credencial. A descrição ensina resolução posterior no backend e mascaramento. A regra detecta credencial MySQL incorporada. Verificação do caminho JSON snippetsPage.help.examples[4].cmd confirmou placeholder não resolvido após a opção de senha, sem valor de credencial. Não se presume que placeholders dispensem autorização posterior.",
+    "evidence": [
+      "apps/frontend/src/locales/pt-BR-BACKUP-UX.json:1522",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/final-review.json"
+    ],
+    "risk": "low"
+  },
+  {
+    "issueId": "32464ed2-e9a3-4645-87b0-1f2a38f05a88",
+    "rule": "secrets:S6697",
+    "file": "apps/frontend/src/locales/pt-BR-NOTE-JEFF.json",
+    "baselineLine": 1247,
+    "status": "context_reviewed",
+    "rationale": "Falso positivo aplicado e confirmado no Sonar, com revisor temporário autorizado e desativado. A tradução de exemplo MySQL em português, cópia NOTE-JEFF, contém sintaxe de substituição de alias do cofre (duplas chaves secret:alias), não o valor resolvido de uma credencial. A descrição ensina resolução posterior no backend e mascaramento. A regra detecta credencial MySQL incorporada. Verificação do caminho JSON snippetsPage.help.examples[4].cmd confirmou placeholder não resolvido após a opção de senha, sem valor de credencial. Não se presume que placeholders dispensem autorização posterior.",
+    "evidence": [
+      "apps/frontend/src/locales/pt-BR-NOTE-JEFF.json:1247",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/final-review.json"
+    ],
+    "risk": "low"
+  },
+  {
+    "issueId": "6d8eac17-82da-46aa-99b8-df216b4f8e18",
+    "rule": "typescript:S8786",
+    "file": "apps/frontend/src/views/DiagnosticRunDetailView.vue",
+    "baselineLine": 321,
+    "status": "fixed",
+    "rationale": "Estado FIXED confirmado pelo scanner final. Nome de exportação remove somente hífens das bordas por índices; limite de 60 e fallback preservados.",
+    "evidence": [
+      "apps/frontend/src/services/text-boundaries.test.ts",
+      "docs/changes/2026/11/NA-0087-sonar-frontend/test-results.md",
+      "apps/frontend/src/views/DiagnosticRunDetailView.vue"
+    ],
+    "risk": "medium"
+  },
+  {
+    "issueId": "833480a6-62e9-43a8-98dd-1750989ac29e",
+    "rule": "Web:InputWithoutLabelCheck",
+    "file": "apps/frontend/src/views/HostsView-BACKUP-UX.vue",
+    "baselineLine": 2264,
+    "status": "context_reviewed",
+    "rationale": "Falso positivo aplicado e confirmado no Sonar, com revisor temporário autorizado e desativado. Campo auxiliar de usuário para desviar autofill em formulário de host na cópia BACKUP-UX; class hidden e tabindex=-1 retiram-no da interação visual e por Tab. Não é o campo real de credencial nem carece de label de um controle visível. A regra exige nome/associação para controles apresentados ao usuário; este controle com display:none não participa da árvore de acessibilidade. Não se usa tabindex=-1 isoladamente como justificativa.",
+    "evidence": [
+      "apps/frontend/src/views/HostsView-BACKUP-UX.vue:2264",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/final-review.json"
+    ],
+    "risk": "low"
+  },
+  {
+    "issueId": "cbe3d036-1644-4461-b7fa-af1e068b29ca",
+    "rule": "Web:InputWithoutLabelCheck",
+    "file": "apps/frontend/src/views/HostsView-BACKUP-UX.vue",
+    "baselineLine": 2265,
+    "status": "context_reviewed",
+    "rationale": "Falso positivo aplicado e confirmado no Sonar, com revisor temporário autorizado e desativado. Campo auxiliar de senha para desviar autofill em formulário de host na cópia BACKUP-UX; class hidden e tabindex=-1 retiram-no da interação visual e por Tab. Não é o campo real de credencial nem carece de label de um controle visível. A regra exige nome/associação para controles apresentados ao usuário; este controle com display:none não participa da árvore de acessibilidade. Não se usa tabindex=-1 isoladamente como justificativa.",
+    "evidence": [
+      "apps/frontend/src/views/HostsView-BACKUP-UX.vue:2265",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/final-review.json"
+    ],
+    "risk": "low"
+  },
+  {
+    "issueId": "f625cc4f-4415-4aa0-bfba-7a4615c3a498",
+    "rule": "Web:InputWithoutLabelCheck",
+    "file": "apps/frontend/src/views/HostsView-NOTE-JEFF.vue",
+    "baselineLine": 2007,
+    "status": "context_reviewed",
+    "rationale": "Falso positivo aplicado e confirmado no Sonar, com revisor temporário autorizado e desativado. Campo auxiliar de usuário para desviar autofill em formulário de host na cópia NOTE-JEFF; class hidden e tabindex=-1 retiram-no da interação visual e por Tab. Não é o campo real de credencial nem carece de label de um controle visível. A regra exige nome/associação para controles apresentados ao usuário; este controle com display:none não participa da árvore de acessibilidade. Não se usa tabindex=-1 isoladamente como justificativa.",
+    "evidence": [
+      "apps/frontend/src/views/HostsView-NOTE-JEFF.vue:2007",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/final-review.json"
+    ],
+    "risk": "low"
+  },
+  {
+    "issueId": "d12d496d-68ac-4023-8b3f-d8a798a0a3ff",
+    "rule": "Web:InputWithoutLabelCheck",
+    "file": "apps/frontend/src/views/HostsView-NOTE-JEFF.vue",
+    "baselineLine": 2008,
+    "status": "context_reviewed",
+    "rationale": "Falso positivo aplicado e confirmado no Sonar, com revisor temporário autorizado e desativado. Campo auxiliar de senha para desviar autofill em formulário de host na cópia NOTE-JEFF; class hidden e tabindex=-1 retiram-no da interação visual e por Tab. Não é o campo real de credencial nem carece de label de um controle visível. A regra exige nome/associação para controles apresentados ao usuário; este controle com display:none não participa da árvore de acessibilidade. Não se usa tabindex=-1 isoladamente como justificativa.",
+    "evidence": [
+      "apps/frontend/src/views/HostsView-NOTE-JEFF.vue:2008",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/final-review.json"
+    ],
+    "risk": "low"
+  },
+  {
+    "issueId": "7a5be6fd-4922-493e-80cc-090573d395b5",
+    "rule": "typescript:S8988",
+    "file": "apps/frontend/src/views/admin/DashboardView.vue",
+    "baselineLine": 278,
+    "status": "fixed",
+    "rationale": "Estado FIXED confirmado pelo scanner final. Computed ordena cópia de attentionCaches, evitando mutar ordem do snapshot compartilhado durante renderização.",
+    "evidence": [
+      "apps/frontend/src/views/admin/DashboardView.vue:278"
+    ],
+    "risk": "low"
+  },
+  {
+    "issueId": "4874e763-35aa-492d-adeb-0856a703d6f6",
+    "rule": "typescript:S8786",
+    "file": "apps/frontend/src/views/admin/SessionAuditDetailView.vue",
+    "baselineLine": 667,
+    "status": "fixed",
+    "rationale": "Estado FIXED confirmado pelo scanner final. Classificação rm -r...f usa busca por segmento delimitado e limites de palavra, evitando repartição greedy repetida.",
+    "evidence": [
+      "apps/frontend/src/services/text-boundaries.test.ts",
+      "docs/changes/2026/11/NA-0087-sonar-frontend/test-results.md",
+      "apps/frontend/src/views/admin/SessionAuditDetailView.vue"
+    ],
+    "risk": "medium"
+  },
+  {
+    "issueId": "3055120b-d7ad-4c17-ac84-8624b3c0c299",
+    "rule": "Web:S6853",
+    "file": "apps/frontend/src/views/admin/SettingsView.vue",
+    "baselineLine": 1938,
+    "status": "fixed",
+    "rationale": "Estado FIXED confirmado pelo scanner final. Controle checkbox (admin.settings.license.sessionAuditAi) agora recebe nome no componente/input interno; wrapper externo inválido foi removido ou label passou a ter associação real. Fixture derivada desta ocorrência confirma nome e foco.",
+    "evidence": [
+      "docs/changes/2026/11/NA-0087-sonar-frontend/dom-label-evidence.json#3055120b-d7ad-4c17-ac84-8624b3c0c299",
+      "tools/frontend/sonar-frontend-review.cjs"
+    ],
+    "risk": "low"
+  },
+  {
+    "issueId": "20ab972e-b889-41eb-b648-0b1b7a240cd4",
+    "rule": "Web:S6853",
+    "file": "apps/frontend/src/views/admin/SettingsView.vue",
+    "baselineLine": 1962,
+    "status": "fixed",
+    "rationale": "Estado FIXED confirmado pelo scanner final. Controle checkbox (admin.settings.license.sessionAuditAiAutoSummary) agora recebe nome no componente/input interno; wrapper externo inválido foi removido ou label passou a ter associação real. Fixture derivada desta ocorrência confirma nome e foco.",
+    "evidence": [
+      "docs/changes/2026/11/NA-0087-sonar-frontend/dom-label-evidence.json#20ab972e-b889-41eb-b648-0b1b7a240cd4",
+      "tools/frontend/sonar-frontend-review.cjs"
+    ],
+    "risk": "low"
+  },
+  {
+    "issueId": "3a3e153c-30e9-46e6-9c0c-fe0b1e0d565a",
+    "rule": "Web:S6853",
+    "file": "apps/frontend/src/views/admin/SettingsView.vue",
+    "baselineLine": 1976,
+    "status": "fixed",
+    "rationale": "Estado FIXED confirmado pelo scanner final. Controle checkbox (admin.settings.license.agents) agora recebe nome no componente/input interno; wrapper externo inválido foi removido ou label passou a ter associação real. Fixture derivada desta ocorrência confirma nome e foco.",
+    "evidence": [
+      "docs/changes/2026/11/NA-0087-sonar-frontend/dom-label-evidence.json#3a3e153c-30e9-46e6-9c0c-fe0b1e0d565a",
+      "tools/frontend/sonar-frontend-review.cjs"
+    ],
+    "risk": "low"
+  },
+  {
+    "issueId": "230de2de-165a-4214-8e31-98feb9895477",
+    "rule": "Web:S6853",
+    "file": "apps/frontend/src/views/admin/SettingsView.vue",
+    "baselineLine": 2024,
+    "status": "fixed",
+    "rationale": "Estado FIXED confirmado pelo scanner final. Controle checkbox (admin.settings.license.localAi) agora recebe nome no componente/input interno; wrapper externo inválido foi removido ou label passou a ter associação real. Fixture derivada desta ocorrência confirma nome e foco.",
+    "evidence": [
+      "docs/changes/2026/11/NA-0087-sonar-frontend/dom-label-evidence.json#230de2de-165a-4214-8e31-98feb9895477",
+      "tools/frontend/sonar-frontend-review.cjs"
+    ],
+    "risk": "low"
+  },
+  {
+    "issueId": "4cc20835-5e8a-4c0f-8c51-ae596047d1cc",
+    "rule": "Web:S6853",
+    "file": "apps/frontend/src/views/admin/SettingsView.vue",
+    "baselineLine": 2032,
+    "status": "fixed",
+    "rationale": "Estado FIXED confirmado pelo scanner final. Controle checkbox (Autocomplete do terminal) agora recebe nome no componente/input interno; wrapper externo inválido foi removido ou label passou a ter associação real. Fixture derivada desta ocorrência confirma nome e foco.",
+    "evidence": [
+      "docs/changes/2026/11/NA-0087-sonar-frontend/dom-label-evidence.json#4cc20835-5e8a-4c0f-8c51-ae596047d1cc",
+      "tools/frontend/sonar-frontend-review.cjs"
+    ],
+    "risk": "low"
+  },
+  {
+    "issueId": "e6cc98b9-be98-4c18-8195-cd457358c3fb",
+    "rule": "Web:S6853",
+    "file": "apps/frontend/src/views/admin/SettingsView.vue",
+    "baselineLine": 2051,
+    "status": "fixed",
+    "rationale": "Estado FIXED confirmado pelo scanner final. Controle checkbox (admin.settings.license.aiSshActions) agora recebe nome no componente/input interno; wrapper externo inválido foi removido ou label passou a ter associação real. Fixture derivada desta ocorrência confirma nome e foco.",
+    "evidence": [
+      "docs/changes/2026/11/NA-0087-sonar-frontend/dom-label-evidence.json#e6cc98b9-be98-4c18-8195-cd457358c3fb",
+      "tools/frontend/sonar-frontend-review.cjs"
+    ],
+    "risk": "low"
+  },
+  {
+    "issueId": "2fc01788-1448-4cbd-80e4-8aa88ddcd828",
+    "rule": "Web:InputWithoutLabelCheck",
+    "file": "apps/frontend/src/views/SecretsView.vue",
+    "baselineLine": 483,
+    "status": "context_reviewed",
+    "rationale": "Falso positivo aplicado e confirmado no Sonar, com revisor temporário autorizado e desativado. Campo auxiliar de usuário para desviar autofill em criação/edição de segredo; class hidden e tabindex=-1 retiram-no da interação visual e por Tab. Não é o campo real de credencial nem carece de label de um controle visível. A regra exige nome/associação para controles apresentados ao usuário; este controle com display:none não participa da árvore de acessibilidade. Não se usa tabindex=-1 isoladamente como justificativa.",
+    "evidence": [
+      "apps/frontend/src/views/SecretsView.vue:483",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/final-review.json"
+    ],
+    "risk": "low"
+  },
+  {
+    "issueId": "a9f5d014-437d-4323-ae23-0a4944ac8ef0",
+    "rule": "Web:InputWithoutLabelCheck",
+    "file": "apps/frontend/src/views/SecretsView.vue",
+    "baselineLine": 484,
+    "status": "context_reviewed",
+    "rationale": "Falso positivo aplicado e confirmado no Sonar, com revisor temporário autorizado e desativado. Campo auxiliar de senha para desviar autofill em criação/edição de segredo; class hidden e tabindex=-1 retiram-no da interação visual e por Tab. Não é o campo real de credencial nem carece de label de um controle visível. A regra exige nome/associação para controles apresentados ao usuário; este controle com display:none não participa da árvore de acessibilidade. Não se usa tabindex=-1 isoladamente como justificativa.",
+    "evidence": [
+      "apps/frontend/src/views/SecretsView.vue:484",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/final-review.json"
+    ],
+    "risk": "low"
+  },
+  {
+    "issueId": "d588759e-235d-4423-9039-a401b0b93bfd",
+    "rule": "Web:InputWithoutLabelCheck",
+    "file": "apps/frontend/src/views/SecretsView.vue",
+    "baselineLine": 540,
+    "status": "context_reviewed",
+    "rationale": "Falso positivo aplicado e confirmado no Sonar, com revisor temporário autorizado e desativado. Campo auxiliar de usuário para desviar autofill em rotação de segredo; class hidden e tabindex=-1 retiram-no da interação visual e por Tab. Não é o campo real de credencial nem carece de label de um controle visível. A regra exige nome/associação para controles apresentados ao usuário; este controle com display:none não participa da árvore de acessibilidade. Não se usa tabindex=-1 isoladamente como justificativa.",
+    "evidence": [
+      "apps/frontend/src/views/SecretsView.vue:540",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/final-review.json"
+    ],
+    "risk": "low"
+  },
+  {
+    "issueId": "b813dac2-d404-4ced-904b-95be0a919162",
+    "rule": "Web:InputWithoutLabelCheck",
+    "file": "apps/frontend/src/views/SecretsView.vue",
+    "baselineLine": 541,
+    "status": "context_reviewed",
+    "rationale": "Falso positivo aplicado e confirmado no Sonar, com revisor temporário autorizado e desativado. Campo auxiliar de senha para desviar autofill em rotação de segredo; class hidden e tabindex=-1 retiram-no da interação visual e por Tab. Não é o campo real de credencial nem carece de label de um controle visível. A regra exige nome/associação para controles apresentados ao usuário; este controle com display:none não participa da árvore de acessibilidade. Não se usa tabindex=-1 isoladamente como justificativa.",
+    "evidence": [
+      "apps/frontend/src/views/SecretsView.vue:541",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/final-review.json"
+    ],
+    "risk": "low"
+  },
+  {
+    "issueId": "ab179744-77cd-409e-ae21-88ad3f57423c",
+    "rule": "Web:S6853",
+    "file": "apps/frontend/src/views/admin/SettingsView.vue",
+    "baselineLine": 1890,
+    "status": "fixed",
+    "rationale": "Estado FIXED confirmado pelo scanner final. Controle checkbox (admin.settings.license.editor.limitHostsEnabled) agora recebe nome no componente/input interno; wrapper externo inválido foi removido ou label passou a ter associação real. Fixture derivada desta ocorrência confirma nome e foco.",
+    "evidence": [
+      "docs/changes/2026/11/NA-0087-sonar-frontend/dom-label-evidence.json#ab179744-77cd-409e-ae21-88ad3f57423c",
+      "tools/frontend/sonar-frontend-review.cjs"
+    ],
+    "risk": "low"
+  },
+  {
+    "issueId": "3be5ca28-ce11-460b-83b1-d380f8e22393",
+    "rule": "Web:S6853",
+    "file": "apps/frontend/src/views/admin/SettingsView.vue",
+    "baselineLine": 1930,
+    "status": "fixed",
+    "rationale": "Estado FIXED confirmado pelo scanner final. Controle checkbox (admin.settings.license.sessionAudit) agora recebe nome no componente/input interno; wrapper externo inválido foi removido ou label passou a ter associação real. Fixture derivada desta ocorrência confirma nome e foco.",
+    "evidence": [
+      "docs/changes/2026/11/NA-0087-sonar-frontend/dom-label-evidence.json#3be5ca28-ce11-460b-83b1-d380f8e22393",
+      "tools/frontend/sonar-frontend-review.cjs"
+    ],
+    "risk": "low"
+  },
+  {
+    "issueId": "b998c9a3-ffd3-4187-97ad-3a7f83d5213a",
+    "rule": "Web:S6853",
+    "file": "apps/frontend/src/views/admin/SettingsView.vue",
+    "baselineLine": 1984,
+    "status": "fixed",
+    "rationale": "Estado FIXED confirmado pelo scanner final. Controle checkbox (admin.settings.license.secrets) agora recebe nome no componente/input interno; wrapper externo inválido foi removido ou label passou a ter associação real. Fixture derivada desta ocorrência confirma nome e foco.",
+    "evidence": [
+      "docs/changes/2026/11/NA-0087-sonar-frontend/dom-label-evidence.json#b998c9a3-ffd3-4187-97ad-3a7f83d5213a",
+      "tools/frontend/sonar-frontend-review.cjs"
+    ],
+    "risk": "low"
+  },
+  {
+    "issueId": "441bc334-d3cd-4bdb-a3e4-d01f890e2b7b",
+    "rule": "Web:S6853",
+    "file": "apps/frontend/src/views/admin/SettingsView.vue",
+    "baselineLine": 1992,
+    "status": "fixed",
+    "rationale": "Estado FIXED confirmado pelo scanner final. Controle checkbox (admin.settings.license.snippets) agora recebe nome no componente/input interno; wrapper externo inválido foi removido ou label passou a ter associação real. Fixture derivada desta ocorrência confirma nome e foco.",
+    "evidence": [
+      "docs/changes/2026/11/NA-0087-sonar-frontend/dom-label-evidence.json#441bc334-d3cd-4bdb-a3e4-d01f890e2b7b",
+      "tools/frontend/sonar-frontend-review.cjs"
+    ],
+    "risk": "low"
+  },
+  {
+    "issueId": "92e1fa62-f411-4e87-917a-646fb52c6b4d",
+    "rule": "Web:S6853",
+    "file": "apps/frontend/src/views/admin/SettingsView.vue",
+    "baselineLine": 2000,
+    "status": "fixed",
+    "rationale": "Estado FIXED confirmado pelo scanner final. Controle checkbox (admin.settings.license.sshTunnels) agora recebe nome no componente/input interno; wrapper externo inválido foi removido ou label passou a ter associação real. Fixture derivada desta ocorrência confirma nome e foco.",
+    "evidence": [
+      "docs/changes/2026/11/NA-0087-sonar-frontend/dom-label-evidence.json#92e1fa62-f411-4e87-917a-646fb52c6b4d",
+      "tools/frontend/sonar-frontend-review.cjs"
+    ],
+    "risk": "low"
+  },
+  {
+    "issueId": "c6fa7a1e-153e-483f-a2ae-209f69d691ab",
+    "rule": "Web:S6853",
+    "file": "apps/frontend/src/views/admin/SettingsView.vue",
+    "baselineLine": 2008,
+    "status": "fixed",
+    "rationale": "Estado FIXED confirmado pelo scanner final. Controle checkbox (admin.settings.license.integrations) agora recebe nome no componente/input interno; wrapper externo inválido foi removido ou label passou a ter associação real. Fixture derivada desta ocorrência confirma nome e foco.",
+    "evidence": [
+      "docs/changes/2026/11/NA-0087-sonar-frontend/dom-label-evidence.json#c6fa7a1e-153e-483f-a2ae-209f69d691ab",
+      "tools/frontend/sonar-frontend-review.cjs"
+    ],
+    "risk": "low"
+  },
+  {
+    "issueId": "d860d4cd-0edb-475f-81af-87afb0402cf4",
+    "rule": "Web:S6853",
+    "file": "apps/frontend/src/views/admin/SettingsView.vue",
+    "baselineLine": 2016,
+    "status": "fixed",
+    "rationale": "Estado FIXED confirmado pelo scanner final. Controle checkbox (admin.settings.license.feedback) agora recebe nome no componente/input interno; wrapper externo inválido foi removido ou label passou a ter associação real. Fixture derivada desta ocorrência confirma nome e foco.",
+    "evidence": [
+      "docs/changes/2026/11/NA-0087-sonar-frontend/dom-label-evidence.json#d860d4cd-0edb-475f-81af-87afb0402cf4",
+      "tools/frontend/sonar-frontend-review.cjs"
+    ],
+    "risk": "low"
+  },
+  {
+    "issueId": "e19b23d8-6b59-4a55-b90b-0221fc102961",
+    "rule": "Web:S6853",
+    "file": "apps/frontend/src/views/admin/SettingsView.vue",
+    "baselineLine": 2071,
+    "status": "fixed",
+    "rationale": "Estado FIXED confirmado pelo scanner final. Controle checkbox (JIRA) agora recebe nome no componente/input interno; wrapper externo inválido foi removido ou label passou a ter associação real. Fixture derivada desta ocorrência confirma nome e foco.",
+    "evidence": [
+      "docs/changes/2026/11/NA-0087-sonar-frontend/dom-label-evidence.json#e19b23d8-6b59-4a55-b90b-0221fc102961",
+      "tools/frontend/sonar-frontend-review.cjs"
+    ],
+    "risk": "low"
+  },
+  {
+    "issueId": "33598464-9f28-4592-a5d5-f6cddffc8b90",
+    "rule": "Web:S6853",
+    "file": "apps/frontend/src/views/admin/SettingsView.vue",
+    "baselineLine": 2082,
+    "status": "fixed",
+    "rationale": "Estado FIXED confirmado pelo scanner final. Controle checkbox (Google) agora recebe nome no componente/input interno; wrapper externo inválido foi removido ou label passou a ter associação real. Fixture derivada desta ocorrência confirma nome e foco.",
+    "evidence": [
+      "docs/changes/2026/11/NA-0087-sonar-frontend/dom-label-evidence.json#33598464-9f28-4592-a5d5-f6cddffc8b90",
+      "tools/frontend/sonar-frontend-review.cjs"
+    ],
+    "risk": "low"
+  },
+  {
+    "issueId": "7d670c6f-4c11-46e0-a1f6-073b27b07218",
+    "rule": "Web:S6853",
+    "file": "apps/frontend/src/views/admin/SettingsView.vue",
+    "baselineLine": 2093,
+    "status": "fixed",
+    "rationale": "Estado FIXED confirmado pelo scanner final. Controle checkbox (LDAP) agora recebe nome no componente/input interno; wrapper externo inválido foi removido ou label passou a ter associação real. Fixture derivada desta ocorrência confirma nome e foco.",
+    "evidence": [
+      "docs/changes/2026/11/NA-0087-sonar-frontend/dom-label-evidence.json#7d670c6f-4c11-46e0-a1f6-073b27b07218",
+      "tools/frontend/sonar-frontend-review.cjs"
+    ],
+    "risk": "low"
+  },
+  {
+    "issueId": "fa7a0d89-e19c-46e6-9ab8-8774a0fec3e0",
+    "rule": "Web:InputWithoutLabelCheck",
+    "file": "apps/frontend/src/components/CommandPalette.vue",
+    "baselineLine": 219,
+    "status": "fixed",
+    "rationale": "Estado FIXED confirmado pelo scanner final. Campo nativo visível em CommandPalette.vue:219 recebeu aria-label correspondente ao propósito (porta, validade, protocolo, bind ou busca); placeholder deixa de ser única identificação.",
+    "evidence": [
+      "apps/frontend/src/components/CommandPalette.vue:219",
+      "docs/changes/2026/11/NA-0087-sonar-frontend/test-results.md"
+    ],
+    "risk": "low"
+  },
+  {
+    "issueId": "9544d766-94f7-43c5-98a1-fe323358dbd8",
+    "rule": "typescript:S8786",
+    "file": "apps/frontend/src/components/TerminalPane.vue",
+    "baselineLine": 754,
+    "status": "fixed",
+    "rationale": "Estado FIXED confirmado pelo scanner final. Contagem de linhas normaliza CRLF/CR e remove somente LF final com varredura linear.",
+    "evidence": [
+      "apps/frontend/src/services/text-boundaries.test.ts",
+      "docs/changes/2026/11/NA-0087-sonar-frontend/test-results.md",
+      "apps/frontend/src/components/TerminalPane.vue"
+    ],
+    "risk": "medium"
+  },
+  {
+    "issueId": "a330cd3b-b4f9-4cd4-9b1a-1614d8f626ed",
+    "rule": "Web:S6845",
+    "file": "apps/frontend/src/components/TerminalPane.vue",
+    "baselineLine": 1735,
+    "status": "context_reviewed",
+    "rationale": "Falso positivo aplicado e confirmado no Sonar, com revisor temporário autorizado e desativado. O tabindex está no buffer de texto com rolagem overflow-auto, limitado pela área absoluta do terminal. Receber foco permite seleção e rolagem por teclado; não acrescenta uma parada em texto estático sem ação. A indicação focus-visible foi acrescentada em NA0148. A restrição genérica de S6845 não distingue esse uso legítimo de região rolável.",
+    "evidence": [
+      "tools/frontend/terminal-experience-playwright.cjs",
+      "apps/frontend/src/components/TerminalPane.vue",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/final-review.json"
+    ],
+    "risk": "low"
+  },
+  {
+    "issueId": "3df234cb-c29c-4117-a0d7-e235411deb56",
+    "rule": "Web:InputWithoutLabelCheck",
+    "file": "apps/frontend/src/components/TunnelManager.vue",
+    "baselineLine": 448,
+    "status": "fixed",
+    "rationale": "Estado FIXED confirmado pelo scanner final. Campo nativo visível em TunnelManager.vue:448 recebeu aria-label correspondente ao propósito (porta, validade, protocolo, bind ou busca); placeholder deixa de ser única identificação.",
+    "evidence": [
+      "apps/frontend/src/components/TunnelManager.vue:448",
+      "docs/changes/2026/11/NA-0087-sonar-frontend/test-results.md"
+    ],
+    "risk": "low"
+  },
+  {
+    "issueId": "720ecf3d-b7ab-4b91-a01d-0bc7e9b065a3",
+    "rule": "Web:InputWithoutLabelCheck",
+    "file": "apps/frontend/src/components/TunnelManager.vue",
+    "baselineLine": 469,
+    "status": "fixed",
+    "rationale": "Estado FIXED confirmado pelo scanner final. Campo nativo visível em TunnelManager.vue:469 recebeu aria-label correspondente ao propósito (porta, validade, protocolo, bind ou busca); placeholder deixa de ser única identificação.",
+    "evidence": [
+      "apps/frontend/src/components/TunnelManager.vue:469",
+      "docs/changes/2026/11/NA-0087-sonar-frontend/test-results.md"
+    ],
+    "risk": "low"
+  }
+]

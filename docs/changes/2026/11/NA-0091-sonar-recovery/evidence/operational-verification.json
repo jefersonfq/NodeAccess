@@ -1,0 +1,32 @@
+{
+  "verifiedAt": "2026-11-03T19:27:57.930Z",
+  "sourceSha": "a8e201bdb",
+  "credentials": {
+    "uid": 1000,
+    "gid": 1000,
+    "mode": "600",
+    "expires": "2026-12-03",
+    "retiring": 2,
+    "earliestRetirement": "2026-11-05T19:25:44.144Z"
+  },
+  "oldTokensStillValid": {
+    "analysis": true,
+    "review": true
+  },
+  "release": {
+    "uid": 0,
+    "mode": "700",
+    "allFourModulesMatchReviewedSource": true
+  },
+  "cron": {
+    "uid": 0,
+    "mode": "644",
+    "pointsToRelease": true,
+    "daemonRunning": true
+  },
+  "restoreResourcesRemaining": {
+    "containers": 0,
+    "volumes": 0,
+    "networks": 0
+  }
+}

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { isAxiosError } from 'axios'
-import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch, useId } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import {
@@ -165,6 +165,11 @@ const isFullscreen = ref(false)
 const fullscreenSupported = ref(false)
 const sessionRootRef = ref<HTMLElement | null>(null)
 const canvasRef = ref<HTMLCanvasElement | null>(null)
+const keyboardReturnRef = ref<HTMLButtonElement | null>(null)
+const canvasFocused = ref(false)
+const localKeyboardMode = ref(false)
+const keyboardHintId = useId()
+const pressedRemoteKeys = new Set<number>()
 const displayShellRef = ref<HTMLElement | null>(null)
 const guacdBuffer = new GuacdInstructionBuffer()
 const guacdDisplayDecoder = new GuacdDisplayCommandDecoder()
@@ -436,6 +441,7 @@ async function refreshTokenIfNeeded(): Promise<boolean> {
 }
 
 function closeSocket(): void {
+  releaseRemoteKeys()
   clearRdpActivationWakeups()
   ws?.close(1000)
   ws = null
@@ -1117,7 +1123,7 @@ function handleFullscreenChange(): void {
     requestAnimationFrame(() => {
       requestAnimationFrame(() => {
         updateDisplaySize()
-        focusCanvas()
+        if (!localKeyboardMode.value) focusCanvas()
       })
     })
   })
@@ -1267,11 +1273,33 @@ function handleCanvasWheel(event: WheelEvent): void {
   sendMouseEvent(event, mouseButtonMask)
 }
 
+function releaseRemoteKeys(): void {
+  if (status.value === 'connected') {
+    for (const keysym of pressedRemoteKeys) sendUserInputGuacd(encodeGuacdKey(keysym, false))
+  }
+  pressedRemoteKeys.clear()
+}
+
+function handleCanvasBlur(): void {
+  canvasFocused.value = false
+  releaseRemoteKeys()
+}
+
 function handleCanvasKey(event: KeyboardEvent, pressed: boolean): void {
   if (status.value !== 'connected') return
+  if (pressed && event.ctrlKey && event.altKey && event.shiftKey && !event.metaKey
+    && ['Control', 'Alt', 'Shift'].includes(event.key)) {
+    event.preventDefault()
+    releaseRemoteKeys()
+    localKeyboardMode.value = true
+    void nextTick(() => keyboardReturnRef.value?.focus())
+    return
+  }
   const keysym = keysymFromKeyboardEvent(event)
   if (keysym === null) return
   event.preventDefault()
+  if (pressed) pressedRemoteKeys.add(keysym)
+  else pressedRemoteKeys.delete(keysym)
   inputEventCount.value += 1
   sendUserInputGuacd(encodeGuacdKey(keysym, pressed))
 }
@@ -1719,7 +1747,7 @@ onBeforeUnmount(() => {
         >
           <NInput
             v-model:value="rdpCredentialForm.username"
-            autocomplete="username"
+            :input-props="{ autocomplete: 'username', 'aria-label': 'Usuário' }"
             placeholder="usuario ou DOMINIO\\usuario"
           />
         </NFormItem>
@@ -1978,8 +2006,11 @@ onBeforeUnmount(() => {
               ref="canvasRef"
               class="absolute touch-none select-none outline-hidden focus:ring-2 focus:ring-emerald-500"
               tabindex="0"
-              role="img"
+              role="application"
               :aria-label="$t('graphicalSession.displayLabel')"
+              :aria-describedby="keyboardHintId"
+              @focus="canvasFocused = true; localKeyboardMode = false"
+              @blur="handleCanvasBlur"
               @pointerdown="handleCanvasPointerDown"
               @pointerup="handleCanvasPointerUp"
               @pointermove="handleCanvasPointerMove"
@@ -1989,6 +2020,22 @@ onBeforeUnmount(() => {
               @keyup="handleCanvasKey($event, false)"
               @paste="handleCanvasPaste"
             />
+            <p
+              :id="keyboardHintId"
+              class="pointer-events-none absolute top-12 left-2 right-2 z-30 m-0 w-fit max-w-[calc(100%-1rem)] rounded bg-black/85 px-2 py-1 text-xs text-white"
+              :class="canvasFocused && status === 'connected' ? '' : 'sr-only'"
+            >
+              {{ $t('graphicalSession.keyboardExitHint') }}
+            </p>
+            <button
+              v-if="localKeyboardMode && status === 'connected'"
+              ref="keyboardReturnRef"
+              type="button"
+              class="absolute top-12 left-2 z-30 max-w-[calc(100%-1rem)] rounded border border-emerald-400 bg-gray-950 px-3 py-2 text-sm text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-300"
+              @click="focusCanvas"
+            >
+              {{ $t('graphicalSession.keyboardReturn') }}
+            </button>
           </div>
 
           <div

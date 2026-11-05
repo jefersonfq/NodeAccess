@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+const { artifactPath } = require('../shared/private-artifacts.cjs')
 /*
  * Real terminal dimensions/fidelity check via Chromium CDP.
  *
@@ -34,7 +35,7 @@ const HOST_ID = Number(process.env.HOST_ID || '0')
 const RUN_COMMANDS = process.env.RUN_COMMANDS === '1'
 const RUN_HTOP = process.env.RUN_HTOP === '1'
 const INTERACTIVE_COMMAND = process.env.INTERACTIVE_COMMAND || 'htop'
-const REPORT_PATH = process.env.REPORT_PATH || '/tmp/nodeaccess-terminal-cdp-real.json'
+const REPORT_PATH = process.env.REPORT_PATH || artifactPath('nodeaccess-terminal-cdp-real.json')
 
 function readJwtSecret() {
   const envPath = process.env.BACKEND_ENV_PATH || path.join(REPO_ROOT, 'apps/backend/.env')
@@ -352,7 +353,7 @@ async function main() {
       }
     })()`)
     const screenshot = await cdp.send('Page.captureScreenshot', { format: 'png' })
-    fs.writeFileSync('/tmp/nodeaccess-terminal-htop-retest.png', Buffer.from(screenshot.data, 'base64'))
+    fs.writeFileSync(artifactPath('nodeaccess-terminal-htop-retest.png'), Buffer.from(screenshot.data, 'base64'))
     const settledAt = Date.now()
     await evaluate(cdp, `window.dispatchEvent(new CustomEvent('nodeaccess:terminal-send-input', { detail: { text: 'q' } }))`)
     htopTiming = {

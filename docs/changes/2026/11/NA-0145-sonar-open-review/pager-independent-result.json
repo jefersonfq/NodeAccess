@@ -1,0 +1,6 @@
+{
+  "kind": "regex extracted from current source, subprocess deadline; not end-to-end SSH",
+  "inputDigits": 60000,
+  "deadlineMs": 1500,
+  "result": "TIMEOUT"
+}

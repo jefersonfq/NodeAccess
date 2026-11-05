@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+const { artifactPath } = require('../shared/private-artifacts.cjs')
 const { chromium } = require('playwright')
 
 const ROYALTS = process.env.IMPORT_TEST_SOURCE === 'royalts'
@@ -151,7 +152,7 @@ async function main() {
     if (await validate.count() && await validate.isEnabled()) throw new Error('Empty file can be imported')
     if (previewCalls || commitCalls) throw new Error('Validation-only flow wrote to API')
     if (errors.length) throw new Error(errors.join(' | '))
-    await page.screenshot({ path: '/tmp/nodeaccess-royalts-validation-' + (process.env.IMPORT_TEST_WIDTH || '1440') + '.png', fullPage: true })
+    await page.screenshot({ path: artifactPath('nodeaccess-royalts-validation-') + (process.env.IMPORT_TEST_WIDTH || '1440') + '.png', fullPage: true })
     console.log(JSON.stringify({ ok: true, source: 'royalts', invalidFiles: true, utf16: true, protocolRequired: true, correctedPort: true, oversizedAndReadErrorRecovery: true }))
     return
   }
@@ -192,7 +193,7 @@ async function main() {
 
   await modal.locator('.na-status-success').filter({ hasText: /2 prontos|2 ready/ }).waitFor()
   if (ROYALTS) {
-    await page.screenshot({ path: '/tmp/nodeaccess-royalts-preview-' + (process.env.UI_THEME || 'dark') + '-' + (process.env.IMPORT_TEST_WIDTH || '1440') + '.png', fullPage: true })
+    await page.screenshot({ path: artifactPath('nodeaccess-royalts-preview-') + (process.env.UI_THEME || 'dark') + '-' + (process.env.IMPORT_TEST_WIDTH || '1440') + '.png', fullPage: true })
     const overflow = await modal.evaluate(el => el.getBoundingClientRect().right > window.innerWidth + 1)
     if (overflow) throw new Error('Royal TS modal overflows viewport')
   }
@@ -262,7 +263,7 @@ async function main() {
   const exported = JSON.parse(await page.evaluate(() => window.__importReport))
   if (exported.rows.find(row => row.hostId === 101)?.name !== 'Servidor novo') throw new Error('Report lost the persisted host identifier')
   if (errors.length) throw new Error(`Erros no browser: ${errors.join(' | ')}`)
-  if (ROYALTS) await page.screenshot({ path: '/tmp/nodeaccess-royalts-' + OUTCOME + '-' + (process.env.IMPORT_TEST_WIDTH || '1440') + '.png', fullPage: true })
+  if (ROYALTS) await page.screenshot({ path: artifactPath('nodeaccess-royalts-') + OUTCOME + '-' + (process.env.IMPORT_TEST_WIDTH || '1440') + '.png', fullPage: true })
   console.log(JSON.stringify({ ok: true, source: ROYALTS ? 'royalts' : 'mobaxterm', outcome: OUTCOME, exportedHostId: true, serverPreviewAuthoritative: true, authoritativeDuplicateFilter: true, sshUserIsPartOfIdentity: true, jumpHostIsExplicitlyExcluded: true, duplicateIsNotBlocked: true, duplicateExcludedFromSessionsPreview: true, expiredPreviewPreservesEdits: true, keyboardConfirmation: true, stickyDecisionSummary: true, skippedIsNotFailure: true }, null, 2))
   await context.close()
   } finally { await browser.close() }

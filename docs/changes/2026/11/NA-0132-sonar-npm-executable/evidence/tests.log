@@ -1,0 +1,42 @@
+SonarQube preflight failed: Only --check is accepted; analysis options are reviewed in project properties
+SonarQube preflight failed: SONAR_TOKEN must be supplied through the environment
+{
+  "status": "ready",
+  "host": "http://127.0.0.1:9000",
+  "scannerVersion": "5.0.2",
+  "sources": [
+    "src"
+  ],
+  "coverage": "coverage/lcov.info"
+}
+✔ real Node executes explicit npm CLI despite a poisoned PATH and preserves pinned argv/environment (59.164038ms)
+✔ standard runtime-relative fallback resolves without searching PATH (3.050728ms)
+✔ relative, missing, directory and unexpected CLI paths fail closed (3.812644ms)
+✔ explicit symlink resolves to the real regular npm CLI (2.226525ms)
+✔ scanner exit status and process failure remain failures (106.517972ms)
+✔ argument and preflight guards prevent any CLI execution; check remains read-only (13.03725ms)
+✔ local-only destination rejects external hosts, userinfo, paths and query secrets (2.014959ms)
+✔ preflight requires supported runtime, env token, real LCOV and existing sources (5.081546ms)
+✔ full orchestration uses fresh artifacts and least-privilege tokens; real loopback export verifies reviewed findings (293.474994ms)
+✔ failed coverage remains failed despite complete analysis (117.935119ms)
+✔ new finding is blocked (100.114014ms)
+✔ new hotspot is blocked even with green gate (219.093408ms)
+✔ stale task cannot approve failed scanner (140.453846ms)
+✔ malformed metadata and compute response without task IDs cannot approve candidate (106.855452ms)
+✔ failed compute task cannot approve candidate (126.358209ms)
+✔ concurrent replacement during export invalidates result (139.282865ms)
+✔ same analysis/read token is rejected before executing tests (62.669229ms)
+✔ coverage integrity blocks scanner: {"staleCoverage":true} (94.440254ms)
+✔ coverage integrity blocks scanner: {"wrongFingerprint":true} (80.424864ms)
+✔ coverage integrity blocks scanner: {"pipelineError":true} (87.85203ms)
+✔ coverage integrity blocks scanner: {"invalidLcov":true} (113.008253ms)
+✔ source or HEAD drift during scanner prevents approval: {"changedDuringScan":true} (208.216867ms)
+✔ source or HEAD drift during scanner prevents approval: {"changedHead":true} (197.946788ms)
+ℹ tests 23
+ℹ suites 0
+ℹ pass 23
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2274.911148

@@ -1,0 +1,39 @@
+{
+  "source": "apps/backend/src/modules/mcp/mcp.service.ts",
+  "scope": "targeted observation, not integrated gate",
+  "newTests": 45,
+  "moduleTestsPassed": 82,
+  "existingOptInSkipped": 3,
+  "coverage": {
+    "lines": {
+      "total": 335,
+      "covered": 326,
+      "skipped": 0,
+      "pct": 97.31
+    },
+    "statements": {
+      "total": 384,
+      "covered": 369,
+      "skipped": 0,
+      "pct": 96.09
+    },
+    "functions": {
+      "total": 84,
+      "covered": 84,
+      "skipped": 0,
+      "pct": 100
+    },
+    "branches": {
+      "total": 480,
+      "covered": 400,
+      "skipped": 0,
+      "pct": 83.33
+    },
+    "branchesTrue": {
+      "total": 0,
+      "covered": 0,
+      "skipped": 0,
+      "pct": "Unknown"
+    }
+  }
+}

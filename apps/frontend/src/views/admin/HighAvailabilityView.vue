@@ -12,6 +12,8 @@ import HaSetupWizard from '@/components/ha/HaSetupWizard.vue'
 import CollapsibleSection from '@/components/CollapsibleSection.vue'
 import { haService, type HaNode, type HaOperation, type HaStatus } from '@/services/ha.service'
 
+type HaRequestFailure = { response?: { status?: number; data?: { message?: string } } } | null | undefined
+
 const message = useMessage()
 const loading = ref(true)
 const saving = ref(false)
@@ -141,14 +143,6 @@ const canReconcileRoles = computed(() =>
 const overallHealthy = computed(() =>
   promotionCandidates.value.length > 0 && unhealthyNodes.value.length === 0,
 )
-const haSetupComplete = computed(() =>
-  licensed.value
-  && nodes.value.length === 2
-  && nodes.value.every((node) => node.heartbeatState === 'CURRENT')
-  && nodes.value.filter((node) => node.observedRole === 'PRIMARY' && node.ownsVip).length === 1
-  && nodes.value.filter((node) => node.observedRole === 'STANDBY' && !node.ownsVip && node.inventory).length === 1
-  && nodes.value.every((node) => node.desiredRole === node.observedRole)
-)
 const nodesWithReadyProvisioningPlan = computed(() => new Set(
   operations.value
     .filter((operation) => operation.type === 'PROVISION_PLAN' && operation.status === 'READY')
@@ -204,7 +198,7 @@ const plannedWitnessCopyCommand = computed(() => {
     `  root@${standbyEndpoint}:/opt/nodeaccess/shared/ha/witness/`,
   ].join('\n')
 })
-const shellArg = (value: string) => `'${value.replace(/'/g, `'\\''`)}'`
+const shellArg = (value: string): string => `'${value.replace(/'/g, `'\\''`)}'`
 const guidedCommand = computed(() => {
   const action = guidedAction.value
   if (!action) return ''
@@ -276,7 +270,7 @@ onUnmounted(() => {
   if (refreshTimer) clearInterval(refreshTimer)
 })
 
-async function load(showSpinner = true) {
+async function load(showSpinner = true): Promise<void> {
   if (showSpinner) loading.value = true
   error.value = null
   try {
@@ -287,37 +281,37 @@ async function load(showSpinner = true) {
     nodes.value = nodesResponse.data
     operations.value = operationsResponse.data
     licensed.value = true
-  } catch (cause: any) {
-    if (cause?.response?.status === 403) licensed.value = false
-    else error.value = cause?.response?.data?.message ?? 'Não foi possível consultar a topologia HA.'
+  } catch (cause: unknown) {
+    if ((cause as HaRequestFailure)?.response?.status === 403) licensed.value = false
+    else error.value = (cause as HaRequestFailure)?.response?.data?.message ?? 'Não foi possível consultar a topologia HA.'
   } finally {
     loading.value = false
   }
 }
 
-async function reconcileObservedRoles() {
+async function reconcileObservedRoles(): Promise<void> {
   roleReconciliationSaving.value = true
   try {
     await haService.reconcileObservedRoles()
     await load(false)
     message.success('Papéis configurados alinhados. Aguardando o próximo heartbeat confirmar a saúde.')
-  } catch (cause: any) {
-    message.error(cause?.response?.data?.message ?? 'Não foi possível reconciliar os papéis HA.')
+  } catch (cause: unknown) {
+    message.error((cause as HaRequestFailure)?.response?.data?.message ?? 'Não foi possível reconciliar os papéis HA.')
   } finally {
     roleReconciliationSaving.value = false
   }
 }
 
-function scrollToOperations() {
+function scrollToOperations(): void {
   document.querySelector('#ha-operational-topology')?.scrollIntoView({
     behavior: 'smooth',
     block: 'start',
   })
 }
 
-function openGuidedAction(type: 'PROMOTE' | 'REJOIN', node: HaNode) {
+function openGuidedAction(type: 'PROMOTE' | 'REJOIN', node: HaNode): void {
   guidedOperationId.value = type === 'PROMOTE'
-    ? `switchover-${new Date().toISOString().replace(/[-:]/g, '').replace(/\..+$/, 'Z')}`
+    ? `switchover-${new Date().toISOString().replace(/[-:]/g, '').replace(/\.\d{3}Z$/, 'Z')}`
     : ''
   guidedAction.value = { type, node }
   switchoverForm.value = {
@@ -328,15 +322,15 @@ function openGuidedAction(type: 'PROMOTE' | 'REJOIN', node: HaNode) {
   guidedActionOpen.value = true
 }
 
-function closeGuidedAction() {
+function closeGuidedAction(): void {
   guidedActionOpen.value = false
 }
 
-function clearGuidedAction() {
+function clearGuidedAction(): void {
   guidedAction.value = null
 }
 
-async function copyGuidedCommand(command: string, successMessage: string) {
+async function copyGuidedCommand(command: string, successMessage: string): Promise<void> {
   if (!command) return
   try {
     await navigator.clipboard.writeText(command)
@@ -346,7 +340,7 @@ async function copyGuidedCommand(command: string, successMessage: string) {
   }
 }
 
-async function runPreflight(node: HaNode) {
+async function runPreflight(node: HaNode): Promise<void> {
   preflightNodeId.value = node.id
   try {
     const { data } = await haService.runPreflight(node.id)
@@ -356,14 +350,14 @@ async function runPreflight(node: HaNode) {
     } else {
       message.warning(data.errorMessage ?? 'Preflight bloqueado.')
     }
-  } catch (cause: any) {
-    message.error(cause?.response?.data?.message ?? 'Não foi possível executar o preflight.')
+  } catch (cause: unknown) {
+    message.error((cause as HaRequestFailure)?.response?.data?.message ?? 'Não foi possível executar o preflight.')
   } finally {
     preflightNodeId.value = null
   }
 }
 
-async function startPlannedSwitchover() {
+async function startPlannedSwitchover(): Promise<void> {
   const action = guidedAction.value
   if (action?.type !== 'PROMOTE' || !plannedSwitchoverValid.value) return
   switchoverSaving.value = true
@@ -375,14 +369,14 @@ async function startPlannedSwitchover() {
     closeGuidedAction()
     await load(false)
     message.success('Troca planejada iniciada. O painel acompanhará o quiesce e a promoção.')
-  } catch (cause: any) {
-    message.error(cause?.response?.data?.message ?? 'Não foi possível iniciar a troca planejada.')
+  } catch (cause: unknown) {
+    message.error((cause as HaRequestFailure)?.response?.data?.message ?? 'Não foi possível iniciar a troca planejada.')
   } finally {
     switchoverSaving.value = false
   }
 }
 
-async function runRejoinPreflight(node: HaNode) {
+async function runRejoinPreflight(node: HaNode): Promise<void> {
   rejoinNodeId.value = node.id
   try {
     const { data } = await haService.runRejoinPreflight(node.id)
@@ -392,14 +386,14 @@ async function runRejoinPreflight(node: HaNode) {
     } else {
       message.warning(data.errorMessage ?? 'Retorno bloqueado.')
     }
-  } catch (cause: any) {
-    message.error(cause?.response?.data?.message ?? 'Não foi possível validar o retorno do nó.')
+  } catch (cause: unknown) {
+    message.error((cause as HaRequestFailure)?.response?.data?.message ?? 'Não foi possível validar o retorno do nó.')
   } finally {
     rejoinNodeId.value = null
   }
 }
 
-async function createProvisioningPlan(node: HaNode) {
+async function createProvisioningPlan(node: HaNode): Promise<void> {
   provisioningPlanNodeId.value = node.id
   try {
     const { data } = await haService.createProvisioningPlan(node.id)
@@ -409,32 +403,32 @@ async function createProvisioningPlan(node: HaNode) {
     } else {
       message.warning(data.errorMessage ?? 'O inventário ainda não permite preparar o provisionamento.')
     }
-  } catch (cause: any) {
-    message.error(cause?.response?.data?.message ?? 'Não foi possível avaliar o provisionamento.')
+  } catch (cause: unknown) {
+    message.error((cause as HaRequestFailure)?.response?.data?.message ?? 'Não foi possível avaliar o provisionamento.')
   } finally {
     provisioningPlanNodeId.value = null
   }
 }
 
-async function validateAgentExecutor(node: HaNode) {
+async function validateAgentExecutor(node: HaNode): Promise<void> {
   executorNodeId.value = node.id
   try {
     await haService.queueInventoryRefresh(node.id)
     await load(false)
     message.success('Ação enfileirada. O agente concluirá a validação no próximo ciclo.')
-  } catch (cause: any) {
-    message.error(cause?.response?.data?.message ?? 'Não foi possível validar o executor do agente.')
+  } catch (cause: unknown) {
+    message.error((cause as HaRequestFailure)?.response?.data?.message ?? 'Não foi possível validar o executor do agente.')
   } finally {
     executorNodeId.value = null
   }
 }
 
-function openReleaseProvisioning(node: HaNode) {
+function openReleaseProvisioning(node: HaNode): void {
   releaseNode.value = node
   releaseForm.value = { releaseUrl: '', sha256: '' }
 }
 
-async function installRelease() {
+async function installRelease(): Promise<void> {
   const node = releaseNode.value
   if (!node || !releaseFormValid.value) return
   releaseActionNodeId.value = node.id
@@ -446,19 +440,19 @@ async function installRelease() {
     releaseNode.value = null
     await load(false)
     message.success('Instalação enfileirada. O agente validará o checksum antes de promover a release.')
-  } catch (cause: any) {
-    message.error(cause?.response?.data?.message ?? 'Não foi possível enfileirar a instalação da release.')
+  } catch (cause: unknown) {
+    message.error((cause as HaRequestFailure)?.response?.data?.message ?? 'Não foi possível enfileirar a instalação da release.')
   } finally {
     releaseActionNodeId.value = null
   }
 }
 
-function openSharedSecretsProvisioning(node: HaNode) {
+function openSharedSecretsProvisioning(node: HaNode): void {
   secretsNode.value = node
   sharedSecrets.value = Object.fromEntries(secretFields.map(([key]) => [key, '']))
 }
 
-async function applySharedSecrets() {
+async function applySharedSecrets(): Promise<void> {
   const node = secretsNode.value
   if (!node || !sharedSecretsValid.value) return
   secretsActionNodeId.value = node.id
@@ -468,66 +462,66 @@ async function applySharedSecrets() {
     sharedSecrets.value = Object.fromEntries(secretFields.map(([key]) => [key, '']))
     await load(false)
     message.success('Envelope cifrado enfileirado. O agente aplicará a configuração no próximo ciclo.')
-  } catch (cause: any) {
-    message.error(cause?.response?.data?.message ?? 'Não foi possível enfileirar os segredos compartilhados.')
+  } catch (cause: unknown) {
+    message.error((cause as HaRequestFailure)?.response?.data?.message ?? 'Não foi possível enfileirar os segredos compartilhados.')
   } finally {
     secretsActionNodeId.value = null
   }
 }
 
-async function rollbackSharedSecrets(node: HaNode) {
+async function rollbackSharedSecrets(node: HaNode): Promise<void> {
   secretsActionNodeId.value = node.id
   try {
     await haService.rollbackSharedSecrets(node.id)
     await load(false)
     message.success('Rollback enfileirado. O agente restaurará o último backup local sem reiniciar serviços.')
-  } catch (cause: any) {
-    message.error(cause?.response?.data?.message ?? 'Não foi possível enfileirar o rollback da configuração.')
+  } catch (cause: unknown) {
+    message.error((cause as HaRequestFailure)?.response?.data?.message ?? 'Não foi possível enfileirar o rollback da configuração.')
   } finally {
     secretsActionNodeId.value = null
   }
 }
 
-async function prepareStorageDirectories(node: HaNode) {
+async function prepareStorageDirectories(node: HaNode): Promise<void> {
   storageActionNodeId.value = node.id
   try {
     await haService.prepareStorageDirectories(node.id)
     await load(false)
     message.success('Preparação enfileirada. O agente atuará somente nos diretórios permitidos do standby.')
-  } catch (cause: any) {
-    message.error(cause?.response?.data?.message ?? 'Não foi possível preparar os diretórios de dados.')
+  } catch (cause: unknown) {
+    message.error((cause as HaRequestFailure)?.response?.data?.message ?? 'Não foi possível preparar os diretórios de dados.')
   } finally {
     storageActionNodeId.value = null
   }
 }
 
-async function rollbackStorageDirectories(node: HaNode) {
+async function rollbackStorageDirectories(node: HaNode): Promise<void> {
   storageActionNodeId.value = node.id
   try {
     await haService.rollbackStorageDirectories(node.id)
     await load(false)
     message.success('Rollback enfileirado. Diretórios com arquivos serão preservados.')
-  } catch (cause: any) {
-    message.error(cause?.response?.data?.message ?? 'Não foi possível reverter a preparação dos diretórios.')
+  } catch (cause: unknown) {
+    message.error((cause as HaRequestFailure)?.response?.data?.message ?? 'Não foi possível reverter a preparação dos diretórios.')
   } finally {
     storageActionNodeId.value = null
   }
 }
 
-async function validateStorageWriteAccess(node: HaNode) {
+async function validateStorageWriteAccess(node: HaNode): Promise<void> {
   storageActionNodeId.value = node.id
   try {
     await haService.validateStorageWriteAccess(node.id)
     await load(false)
     message.success('Validação enfileirada. Os probes serão removidos no mesmo ciclo do agente.')
-  } catch (cause: any) {
-    message.error(cause?.response?.data?.message ?? 'Não foi possível validar a escrita nos diretórios.')
+  } catch (cause: unknown) {
+    message.error((cause as HaRequestFailure)?.response?.data?.message ?? 'Não foi possível validar a escrita nos diretórios.')
   } finally {
     storageActionNodeId.value = null
   }
 }
 
-async function setEntitlement(enabled: boolean) {
+async function setEntitlement(enabled: boolean): Promise<void> {
   entitlementSaving.value = true
   try {
     await haService.setEntitlement(enabled)
@@ -540,14 +534,14 @@ async function setEntitlement(enabled: boolean) {
       operations.value = []
       message.success('Alta disponibilidade desabilitada.')
     }
-  } catch (cause: any) {
-    message.error(cause?.response?.data?.message ?? 'Não foi possível alterar a habilitação de alta disponibilidade.')
+  } catch (cause: unknown) {
+    message.error((cause as HaRequestFailure)?.response?.data?.message ?? 'Não foi possível alterar a habilitação de alta disponibilidade.')
   } finally {
     entitlementSaving.value = false
   }
 }
 
-async function attachNode() {
+async function attachNode(): Promise<void> {
   if (!form.value.name.trim() || !form.value.virtualIp.trim()) return
   saving.value = true
   try {
@@ -569,19 +563,19 @@ async function attachNode() {
     form.value = { name: '', endpoint: '', virtualIp: '', desiredRole: 'STANDBY' }
     await load(false)
     message.success('Matrícula criada. Execute o comando no nó secundário em até 15 minutos.')
-  } catch (cause: any) {
-    message.error(cause?.response?.data?.message ?? 'Não foi possível criar a matrícula HA.')
+  } catch (cause: unknown) {
+    message.error((cause as HaRequestFailure)?.response?.data?.message ?? 'Não foi possível criar a matrícula HA.')
   } finally {
     saving.value = false
   }
 }
 
-async function copyCommand() {
+async function copyCommand(): Promise<void> {
   await navigator.clipboard.writeText(enrollmentCommand.value)
   message.success('Comando copiado.')
 }
 
-async function removeNode(node: HaNode) {
+async function removeNode(node: HaNode): Promise<void> {
   try {
     await haService.removeNode(node.id)
     await load(false)
@@ -591,11 +585,11 @@ async function removeNode(node: HaNode) {
   }
 }
 
-function formatDate(value: string | null) {
+function formatDate(value: string | null): string {
   return value ? new Intl.DateTimeFormat('pt-BR', { dateStyle: 'short', timeStyle: 'medium' }).format(new Date(value)) : 'Nunca'
 }
 
-function heartbeatText(node: HaNode) {
+function heartbeatText(node: HaNode): string {
   if (node.heartbeatAgeSeconds == null) return 'Nunca recebido'
   if (node.heartbeatAgeSeconds < 10) return 'Agora'
   if (node.heartbeatAgeSeconds < 60) return `Há ${node.heartbeatAgeSeconds}s`
@@ -603,14 +597,14 @@ function heartbeatText(node: HaNode) {
   return `Há ${minutes} min · ${formatDate(node.lastSeenAt)}`
 }
 
-function operationProgress(operation: HaOperation) {
+function operationProgress(operation: HaOperation): number {
   if (operation.status === 'COMPLETED' || operation.status === 'READY') return 100
   const total = operation.steps.length
   if (total === 0) return operation.status === 'RUNNING' ? 10 : 0
   return Math.round(operation.steps.filter((step) => step.status === 'ok').length / total * 100)
 }
 
-function componentText(key: string, component: HaNode['components'][string]) {
+function componentText(key: string, component: HaNode['components'][string]): string {
   const label = componentLabel[key] ?? key
   const lag = key === 'mysql' && Number.isFinite(component.lagSeconds)
     ? ` · lag ${component.lagSeconds}s`
@@ -618,7 +612,7 @@ function componentText(key: string, component: HaNode['components'][string]) {
   return `${label}: ${component.status}${lag}`
 }
 
-function operationLabel(operation: HaOperation) {
+function operationLabel(operation: HaOperation): string {
   if (operation.type === 'FAILBACK') return 'Validação de retorno'
   if (operation.type === 'PROVISION_PLAN') return 'Plano de provisionamento'
   if (operation.steps.some((step) => step.key === 'install-release')) return 'Instalação de release'
@@ -629,13 +623,13 @@ function operationLabel(operation: HaOperation) {
   return 'Preflight'
 }
 
-function operationStatusType(operation: HaOperation) {
+function operationStatusType(operation: HaOperation): 'success' | 'info' | 'error' {
   if (operation.status === 'READY' || operation.status === 'COMPLETED') return 'success'
   if (operation.status === 'RUNNING') return 'info'
   return 'error'
 }
 
-function operationStatusLabel(operation: HaOperation) {
+function operationStatusLabel(operation: HaOperation): string {
   if (operation.status === 'READY' && operation.type === 'PROVISION_PLAN') return 'Plano disponível'
   if (operation.status === 'READY') return 'Pronto'
   if (operation.status === 'RUNNING') return 'Em execução'
@@ -653,30 +647,65 @@ function operationStatusLabel(operation: HaOperation) {
         <p>Topologia, replicação e prontidão para failover.</p>
       </div>
       <NSpace>
-        <NPopconfirm v-if="licensed" @positive-click="setEntitlement(false)">
+        <NPopconfirm
+          v-if="licensed"
+          @positive-click="setEntitlement(false)"
+        >
           <template #trigger>
-            <NButton secondary :loading="entitlementSaving">Desabilitar HA</NButton>
+            <NButton
+              secondary
+              :loading="entitlementSaving"
+            >
+              Desabilitar HA
+            </NButton>
           </template>
           Desabilitar alta disponibilidade? Esta ação só será aceita quando não houver nós anexados.
         </NPopconfirm>
-        <NButton v-if="licensed" type="primary" @click="showAttach = true">Anexar nó</NButton>
-        <NButton v-else type="primary" :loading="entitlementSaving" @click="setEntitlement(true)">
+        <NButton
+          v-if="licensed"
+          type="primary"
+          @click="showAttach = true"
+        >
+          Anexar nó
+        </NButton>
+        <NButton
+          v-else
+          type="primary"
+          :loading="entitlementSaving"
+          @click="setEntitlement(true)"
+        >
           Habilitar alta disponibilidade
         </NButton>
       </NSpace>
     </header>
 
-    <NAlert v-if="!licensed" type="warning" title="Recurso não habilitado na licença">
+    <NAlert
+      v-if="!licensed"
+      type="warning"
+      title="Recurso não habilitado na licença"
+    >
       Alta disponibilidade é um módulo comercial opcional. Como SuperAdmin, você pode habilitá-lo para este ambiente.
     </NAlert>
-    <NAlert v-else-if="hasConfirmedSplitBrain" type="error" title="Mais de um nó confirmou a VIP">
+    <NAlert
+      v-else-if="hasConfirmedSplitBrain"
+      type="error"
+      title="Mais de um nó confirmou a VIP"
+    >
       Interrompa a operação e isole um dos nós. Esta condição pode causar split-brain e não é tratada como uma transferência normal.
     </NAlert>
-    <NAlert v-else-if="transitionActive" type="info" title="Alteração da topologia em andamento">
+    <NAlert
+      v-else-if="transitionActive"
+      type="info"
+      title="Alteração da topologia em andamento"
+    >
       A VIP, os papéis e alguns serviços podem aparecer temporariamente em transição. O painel continuará atualizando
       os heartbeats e manterá o histórico das etapas; bloqueadores de segurança continuam ativos.
     </NAlert>
-    <NAlert v-else-if="hasRoleMismatch" type="warning" title="Papéis configurados divergem da topologia observada">
+    <NAlert
+      v-else-if="hasRoleMismatch"
+      type="warning"
+      title="Papéis configurados divergem da topologia observada"
+    >
       <div class="role-reconciliation-alert">
         <span>
           Confirme a topologia somente se a troca já terminou: um PRIMARY deve possuir a VIP e o outro nó deve estar
@@ -700,17 +729,30 @@ function operationStatusLabel(operation: HaOperation) {
         </NPopconfirm>
       </div>
     </NAlert>
-    <NAlert v-else-if="unhealthyNodes.length" type="error" title="Há nós que não podem ser promovidos">
+    <NAlert
+      v-else-if="unhealthyNodes.length"
+      type="error"
+      title="Há nós que não podem ser promovidos"
+    >
       Revise os bloqueadores abaixo. Uma promoção deve permanecer bloqueada enquanto existir componente crítico com falha.
     </NAlert>
-    <NAlert v-else-if="overallHealthy" type="success" title="Standby pronto para failover">
+    <NAlert
+      v-else-if="overallHealthy"
+      type="success"
+      title="Standby pronto para failover"
+    >
       Todos os componentes reportados estão saudáveis. A promoção ainda depende de isolamento seguro do nó ativo.
       <HaHelpTooltip
         label="Fencing e witness"
         text="Fencing isola o nó antigo para impedir duas instâncias ativas. Witness é um terceiro ponto de decisão que confirma qual nó pode assumir com segurança."
       />
     </NAlert>
-    <NAlert v-if="error" type="error">{{ error }}</NAlert>
+    <NAlert
+      v-if="error"
+      type="error"
+    >
+      {{ error }}
+    </NAlert>
 
     <HaIncidentGuide
       :nodes="nodes"
@@ -726,393 +768,556 @@ function operationStatusLabel(operation: HaOperation) {
       @open-operations="scrollToOperations"
     />
 
-    <div id="ha-operational-topology" class="ha-scroll-anchor" />
-    <CollapsibleSection title="Configurações e operação dos nós" :default-open="true" body-class="mt-2 ha-section-body">
-    <NSpin :show="loading">
-      <NEmpty v-if="licensed && !loading && nodes.length === 0" description="Nenhum nó HA anexado." />
-      <HaTopologyMap
-        v-else-if="licensed && nodes.length > 0"
-        :nodes="nodes"
-        :access-endpoint="currentAccessEndpoint"
-        :transition-active="transitionActive"
-      />
-      <section v-if="licensed && nodes.length > 0" class="node-details" aria-labelledby="ha-node-details-title">
-        <div class="node-details-heading">
-          <div>
-            <h2 id="ha-node-details-title">Detalhes e ações por nó</h2>
-            <p>Consulte telemetria, inventário e operações disponíveis em cada servidor.</p>
-          </div>
-          <NTag size="small">{{ nodes.length }} nós monitorados</NTag>
-        </div>
-        <div class="node-grid">
-        <NCard v-for="node in nodes" :key="node.id" :title="node.name" size="small">
-          <template #header-extra>
-            <NTag :type="statusType[node.status]">{{ statusLabel[node.status] }}</NTag>
-          </template>
-          <NDescriptions :column="1" label-placement="left" size="small">
-            <NDescriptionsItem label="Papel observado">{{ node.observedRole ?? 'Não informado' }}</NDescriptionsItem>
-            <NDescriptionsItem label="IP administrativo">{{ node.endpoint ?? 'Não informado' }}</NDescriptionsItem>
-            <NDescriptionsItem label="VIP">
-              {{ node.virtualIp ?? currentAccessEndpoint }}
-              <NTag v-if="node.ownsVip" type="success" size="small">Neste nó</NTag>
-            </NDescriptionsItem>
-            <NDescriptionsItem label="Último heartbeat">
-              <NTag
-                size="small"
-                :type="node.heartbeatState === 'CURRENT' ? 'success' : node.heartbeatState === 'DELAYED' ? 'warning' : 'error'"
-              >
-                {{ heartbeatText(node) }}
-              </NTag>
-            </NDescriptionsItem>
-            <NDescriptionsItem label="Pronto para promoção">
-              <HaHelpTooltip
-                label="Pronto para promoção"
-                text="Indica que replicação, serviços e heartbeat passaram nos gates. Ainda é necessário isolar o nó ativo antes da troca."
-              />
-              <NTag :type="node.observedRole === 'PRIMARY' ? 'default' : node.promotionReady ? 'success' : 'error'">
-                {{ node.observedRole === 'PRIMARY' ? 'Não se aplica · nó ativo' : node.promotionReady ? 'Sim' : 'Não' }}
-              </NTag>
-            </NDescriptionsItem>
-          </NDescriptions>
-          <section class="inventory" aria-label="Inventário do servidor">
-            <div class="inventory-title">
-              <strong>Inventário do agente</strong>
-              <NTag :type="node.inventory ? 'success' : 'default'" size="small">
-                {{ node.inventory ? 'Recebido' : 'Aguardando' }}
-              </NTag>
+    <div
+      id="ha-operational-topology"
+      class="ha-scroll-anchor"
+    />
+    <CollapsibleSection
+      title="Configurações e operação dos nós"
+      :default-open="true"
+      body-class="mt-2 ha-section-body"
+    >
+      <NSpin :show="loading">
+        <NEmpty
+          v-if="licensed && !loading && nodes.length === 0"
+          description="Nenhum nó HA anexado."
+        />
+        <HaTopologyMap
+          v-else-if="licensed && nodes.length > 0"
+          :nodes="nodes"
+          :access-endpoint="currentAccessEndpoint"
+          :transition-active="transitionActive"
+        />
+        <section
+          v-if="licensed && nodes.length > 0"
+          class="node-details"
+          aria-labelledby="ha-node-details-title"
+        >
+          <div class="node-details-heading">
+            <div>
+              <h2 id="ha-node-details-title">
+                Detalhes e ações por nó
+              </h2>
+              <p>Consulte telemetria, inventário e operações disponíveis em cada servidor.</p>
             </div>
-            <NDescriptions v-if="node.inventory" :column="1" label-placement="left" size="small">
-              <NDescriptionsItem label="Servidor">{{ node.inventory.hostname }}</NDescriptionsItem>
-              <NDescriptionsItem label="Sistema">
-                {{ node.inventory.operatingSystem }} · {{ node.inventory.architecture }}
-              </NDescriptionsItem>
-              <NDescriptionsItem label="Capacidade">
-                {{ node.inventory.cpuCores }} CPU · {{ node.inventory.memoryTotalMb }} MB RAM ·
-                {{ node.inventory.diskFreeMb }} MB livres
-              </NDescriptionsItem>
-              <NDescriptionsItem label="Containers">
-                Docker {{ node.inventory.dockerInstalled ? node.inventory.dockerVersion || 'instalado' : 'ausente' }} ·
-                Compose {{ node.inventory.composeInstalled ? 'instalado' : 'ausente' }}
-              </NDescriptionsItem>
-            </NDescriptions>
-            <p v-else class="inventory-empty">
-              O agente ainda não enviou os pré-requisitos deste servidor.
-            </p>
-          </section>
-          <div class="components" aria-label="Estado dos componentes">
-            <NTag
-              v-for="(component, key) in node.components"
-              :key="key"
-              :type="component.status === 'ok' ? 'success' : component.status === 'degraded' ? 'warning' : 'error'"
-              size="small"
-            >
-              {{ componentText(key, component) }}
+            <NTag size="small">
+              {{ nodes.length }} nós monitorados
             </NTag>
           </div>
-          <NAlert v-if="node.blockers.length" type="warning" title="Bloqueadores" class="blockers">
-            <ul><li v-for="blocker in node.blockers" :key="blocker">{{ blocker }}</li></ul>
-          </NAlert>
-          <NAlert v-if="node.notices.length" type="info" title="Operação em andamento" class="blockers">
-            <ul><li v-for="notice in node.notices" :key="notice">{{ notice }}</li></ul>
-          </NAlert>
-          <template #footer>
-            <div class="node-actions">
-              <div class="node-primary-action">
-                <NButton
-                  v-if="node.observedRole === 'STANDBY' && node.desiredRole !== 'PRIMARY'"
-                  type="primary"
-                  :disabled="!node.promotionReady || transitionActive"
-                  @click="openGuidedAction('PROMOTE', node)"
-                >
-                  Promover este nó
-                </NButton>
-                <NButton
-                  v-else-if="node.observedRole === 'STANDBY'"
-                  type="primary"
-                  :disabled="node.ownsVip || transitionActive"
-                  @click="openGuidedAction('REJOIN', node)"
-                >
-                  Retornar como standby
-                </NButton>
-                <span v-else class="active-node-note">
-                  Nó ativo com a VIP · escolha um standby para iniciar uma troca.
-                </span>
-                <small v-if="node.observedRole === 'STANDBY' && !node.promotionReady" class="action-disabled-reason">
-                  Resolva os bloqueadores antes de iniciar a promoção.
-                </small>
-              </div>
-              <details class="advanced-actions">
-                <summary>Validações e opções avançadas</summary>
-                <div class="advanced-actions-body">
-            <NSpace justify="space-between" align="center">
-              <NSpace>
-                <span class="action-with-help">
-                  <NButton
+          <div class="node-grid">
+            <NCard
+              v-for="node in nodes"
+              :key="node.id"
+              :title="node.name"
+              size="small"
+            >
+              <template #header-extra>
+                <NTag :type="statusType[node.status]">
+                  {{ statusLabel[node.status] }}
+                </NTag>
+              </template>
+              <NDescriptions
+                :column="1"
+                label-placement="left"
+                size="small"
+              >
+                <NDescriptionsItem label="Papel observado">
+                  {{ node.observedRole ?? 'Não informado' }}
+                </NDescriptionsItem>
+                <NDescriptionsItem label="IP administrativo">
+                  {{ node.endpoint ?? 'Não informado' }}
+                </NDescriptionsItem>
+                <NDescriptionsItem label="VIP">
+                  {{ node.virtualIp ?? currentAccessEndpoint }}
+                  <NTag
+                    v-if="node.ownsVip"
+                    type="success"
                     size="small"
-                    ghost
-                    :loading="provisioningPlanNodeId === node.id"
-                    @click="createProvisioningPlan(node)"
                   >
-                    Avaliar provisionamento
-                  </NButton>
-                  <HaHelpTooltip
-                    label="Avaliar provisionamento"
-                    text="Lê o inventário enviado pelo agente e cria um plano. Não instala pacotes, não altera serviços e não move a VIP."
-                  />
-                </span>
-                <NPopconfirm
-                  v-if="node.observedRole !== 'PRIMARY'"
-                  :disabled="!nodesWithReadyProvisioningPlan.has(node.id) || node.ownsVip"
-                  positive-text="Restaurar configuração"
-                  negative-text="Cancelar"
-                  @positive-click="rollbackSharedSecrets(node)"
-                >
-                  <template #trigger>
-                    <NButton
-                      size="small"
-                      ghost
-                      :disabled="!nodesWithReadyProvisioningPlan.has(node.id) || node.ownsVip"
-                      :loading="secretsActionNodeId === node.id"
-                    >
-                      Reverter configuração
-                    </NButton>
-                  </template>
-                  Restaurar o último .env preservado pelo agente? Os serviços não serão reiniciados automaticamente.
-                </NPopconfirm>
-                <span v-if="node.observedRole !== 'PRIMARY'" class="action-with-help">
-                  <NButton
+                    Neste nó
+                  </NTag>
+                </NDescriptionsItem>
+                <NDescriptionsItem label="Último heartbeat">
+                  <NTag
                     size="small"
-                    :disabled="!nodesWithReadyProvisioningPlan.has(node.id) || node.ownsVip || !node.secureProvisioningReady || !secureTransport"
-                    :loading="secretsActionNodeId === node.id"
-                    @click="openSharedSecretsProvisioning(node)"
+                    :type="node.heartbeatState === 'CURRENT' ? 'success' : node.heartbeatState === 'DELAYED' ? 'warning' : 'error'"
                   >
-                    Aplicar configuração segura
-                  </NButton>
+                    {{ heartbeatText(node) }}
+                  </NTag>
+                </NDescriptionsItem>
+                <NDescriptionsItem label="Pronto para promoção">
                   <HaHelpTooltip
-                    label="Aplicar configuração segura"
-                    :text="!secureTransport
-                      ? 'Configure HTTPS no painel antes de transportar segredos.'
-                      : node.secureProvisioningReady
-                        ? 'Cifra cada segredo para a chave exclusiva deste agente. O banco e o journal não recebem valores em texto aberto.'
-                        : 'Atualize o agente e aguarde o heartbeat publicar a chave pública de provisionamento.'"
+                    label="Pronto para promoção"
+                    text="Indica que replicação, serviços e heartbeat passaram nos gates. Ainda é necessário isolar o nó ativo antes da troca."
                   />
-                </span>
-                <NPopconfirm
-                  :disabled="!nodesWithReadyProvisioningPlan.has(node.id)"
-                  positive-text="Confirmar"
-                  negative-text="Cancelar"
-                  @positive-click="validateAgentExecutor(node)"
-                >
-                  <template #trigger>
-                    <NButton
-                      size="small"
-                      ghost
-                      :disabled="!nodesWithReadyProvisioningPlan.has(node.id)"
-                      :loading="executorNodeId === node.id"
-                    >
-                      Validar executor
-                    </NButton>
-                  </template>
-                  Enfileirar a ação segura REFRESH_INVENTORY? Ela não instala pacotes nem executa shell arbitrário.
-                </NPopconfirm>
-                <template v-if="node.observedRole !== 'PRIMARY'">
-                <span class="action-with-help">
-                  <NButton
+                  <NTag :type="node.observedRole === 'PRIMARY' ? 'default' : node.promotionReady ? 'success' : 'error'">
+                    {{ node.observedRole === 'PRIMARY' ? 'Não se aplica · nó ativo' : node.promotionReady ? 'Sim' : 'Não' }}
+                  </NTag>
+                </NDescriptionsItem>
+              </NDescriptions>
+              <section
+                class="inventory"
+                aria-label="Inventário do servidor"
+              >
+                <div class="inventory-title">
+                  <strong>Inventário do agente</strong>
+                  <NTag
+                    :type="node.inventory ? 'success' : 'default'"
                     size="small"
-                    type="primary"
-                    :disabled="!nodesWithReadyProvisioningPlan.has(node.id) || node.ownsVip"
-                    :loading="releaseActionNodeId === node.id"
-                    @click="openReleaseProvisioning(node)"
                   >
-                    Instalar release
-                  </NButton>
-                  <HaHelpTooltip
-                    label="Instalar release"
-                    text="O agente baixa o pacote, confere SHA-256, carrega as imagens offline e promove a release. Banco, réplicas e VIP permanecem bloqueados."
-                  />
-                </span>
-                <NPopconfirm
-                  v-if="!nodesWithPreparedStorage.has(node.id)"
-                  :disabled="!nodesWithReadyProvisioningPlan.has(node.id) || node.ownsVip"
-                  positive-text="Preparar diretórios"
-                  negative-text="Cancelar"
-                  @positive-click="prepareStorageDirectories(node)"
-                >
-                  <template #trigger>
-                    <NButton
-                      size="small"
-                      type="primary"
-                      :disabled="!nodesWithReadyProvisioningPlan.has(node.id) || node.ownsVip"
-                      :loading="storageActionNodeId === node.id"
-                    >
-                      Preparar diretórios
-                    </NButton>
-                  </template>
-                  Criar somente os diretórios ausentes em /srv/nodeaccess-replica? Nenhum arquivo existente será alterado ou removido.
-                </NPopconfirm>
-                <NPopconfirm
-                  v-else
-                  positive-text="Reverter diretórios vazios"
-                  negative-text="Cancelar"
-                  @positive-click="rollbackStorageDirectories(node)"
-                >
-                  <template #trigger>
-                    <NButton
-                      size="small"
-                      type="warning"
-                      ghost
-                      :disabled="node.ownsVip"
-                      :loading="storageActionNodeId === node.id"
-                    >
-                      Reverter preparação
-                    </NButton>
-                  </template>
-                  Remover somente diretórios vazios que o agente registrou como criados por ele? Diretórios com arquivos serão preservados e a operação indicará falha segura.
-                </NPopconfirm>
-                <NPopconfirm
-                  v-if="nodesWithPreparedStorage.has(node.id)"
-                  positive-text="Validar escrita"
-                  negative-text="Cancelar"
-                  @positive-click="validateStorageWriteAccess(node)"
-                >
-                  <template #trigger>
-                    <NButton
-                      size="small"
-                      ghost
-                      :disabled="node.ownsVip"
-                      :loading="storageActionNodeId === node.id"
-                    >
-                      Validar escrita
-                    </NButton>
-                  </template>
-                  Criar e remover um arquivo temporário em cada diretório de dados? Links simbólicos serão recusados e nenhum probe será mantido.
-                </NPopconfirm>
-                <span class="action-with-help">
-                  <NButton
-                    size="small"
-                    type="primary"
-                    ghost
-                    :loading="preflightNodeId === node.id"
-                    @click="runPreflight(node)"
-                  >
-                    Executar preflight
-                  </NButton>
-                  <HaHelpTooltip
-                    label="Executar preflight"
-                    text="Preflight é uma verificação somente leitura. Confere heartbeat, replicação e serviços; não promove o nó e não move a VIP."
-                  />
-                </span>
-                <span class="action-with-help">
-                  <NButton
-                    size="small"
-                    ghost
-                    :loading="rejoinNodeId === node.id"
-                    @click="runRejoinPreflight(node)"
-                  >
-                    Validar retorno
-                  </NButton>
-                  <HaHelpTooltip
-                    label="Validar retorno"
-                    text="Confere se um nó que voltou está sincronizado e seguro para atuar como réplica. Não altera a direção da replicação nem move a VIP."
-                  />
-                </span>
-                </template>
-              </NSpace>
-              <NPopconfirm @positive-click="removeNode(node)">
-                <template #trigger><NButton size="small" type="error" ghost>Remover nó</NButton></template>
-                Remover {{ node.name }} da topologia HA?
-              </NPopconfirm>
-            </NSpace>
+                    {{ node.inventory ? 'Recebido' : 'Aguardando' }}
+                  </NTag>
                 </div>
-              </details>
+                <NDescriptions
+                  v-if="node.inventory"
+                  :column="1"
+                  label-placement="left"
+                  size="small"
+                >
+                  <NDescriptionsItem label="Servidor">
+                    {{ node.inventory.hostname }}
+                  </NDescriptionsItem>
+                  <NDescriptionsItem label="Sistema">
+                    {{ node.inventory.operatingSystem }} · {{ node.inventory.architecture }}
+                  </NDescriptionsItem>
+                  <NDescriptionsItem label="Capacidade">
+                    {{ node.inventory.cpuCores }} CPU · {{ node.inventory.memoryTotalMb }} MB RAM ·
+                    {{ node.inventory.diskFreeMb }} MB livres
+                  </NDescriptionsItem>
+                  <NDescriptionsItem label="Containers">
+                    Docker {{ node.inventory.dockerInstalled ? node.inventory.dockerVersion || 'instalado' : 'ausente' }} ·
+                    Compose {{ node.inventory.composeInstalled ? 'instalado' : 'ausente' }}
+                  </NDescriptionsItem>
+                </NDescriptions>
+                <p
+                  v-else
+                  class="inventory-empty"
+                >
+                  O agente ainda não enviou os pré-requisitos deste servidor.
+                </p>
+              </section>
+              <div
+                class="components"
+                aria-label="Estado dos componentes"
+              >
+                <NTag
+                  v-for="(component, key) in node.components"
+                  :key="key"
+                  :type="component.status === 'ok' ? 'success' : component.status === 'degraded' ? 'warning' : 'error'"
+                  size="small"
+                >
+                  {{ componentText(key, component) }}
+                </NTag>
+              </div>
+              <NAlert
+                v-if="node.blockers.length"
+                type="warning"
+                title="Bloqueadores"
+                class="blockers"
+              >
+                <ul>
+                  <li
+                    v-for="blocker in node.blockers"
+                    :key="blocker"
+                  >
+                    {{ blocker }}
+                  </li>
+                </ul>
+              </NAlert>
+              <NAlert
+                v-if="node.notices.length"
+                type="info"
+                title="Operação em andamento"
+                class="blockers"
+              >
+                <ul>
+                  <li
+                    v-for="notice in node.notices"
+                    :key="notice"
+                  >
+                    {{ notice }}
+                  </li>
+                </ul>
+              </NAlert>
+              <template #footer>
+                <div class="node-actions">
+                  <div class="node-primary-action">
+                    <NButton
+                      v-if="node.observedRole === 'STANDBY' && node.desiredRole !== 'PRIMARY'"
+                      type="primary"
+                      :disabled="!node.promotionReady || transitionActive"
+                      @click="openGuidedAction('PROMOTE', node)"
+                    >
+                      Promover este nó
+                    </NButton>
+                    <NButton
+                      v-else-if="node.observedRole === 'STANDBY'"
+                      type="primary"
+                      :disabled="node.ownsVip || transitionActive"
+                      @click="openGuidedAction('REJOIN', node)"
+                    >
+                      Retornar como standby
+                    </NButton>
+                    <span
+                      v-else
+                      class="active-node-note"
+                    >
+                      Nó ativo com a VIP · escolha um standby para iniciar uma troca.
+                    </span>
+                    <small
+                      v-if="node.observedRole === 'STANDBY' && !node.promotionReady"
+                      class="action-disabled-reason"
+                    >
+                      Resolva os bloqueadores antes de iniciar a promoção.
+                    </small>
+                  </div>
+                  <details class="advanced-actions">
+                    <summary>Validações e opções avançadas</summary>
+                    <div class="advanced-actions-body">
+                      <NSpace
+                        justify="space-between"
+                        align="center"
+                      >
+                        <NSpace>
+                          <span class="action-with-help">
+                            <NButton
+                              size="small"
+                              ghost
+                              :loading="provisioningPlanNodeId === node.id"
+                              @click="createProvisioningPlan(node)"
+                            >
+                              Avaliar provisionamento
+                            </NButton>
+                            <HaHelpTooltip
+                              label="Avaliar provisionamento"
+                              text="Lê o inventário enviado pelo agente e cria um plano. Não instala pacotes, não altera serviços e não move a VIP."
+                            />
+                          </span>
+                          <NPopconfirm
+                            v-if="node.observedRole !== 'PRIMARY'"
+                            :disabled="!nodesWithReadyProvisioningPlan.has(node.id) || node.ownsVip"
+                            positive-text="Restaurar configuração"
+                            negative-text="Cancelar"
+                            @positive-click="rollbackSharedSecrets(node)"
+                          >
+                            <template #trigger>
+                              <NButton
+                                size="small"
+                                ghost
+                                :disabled="!nodesWithReadyProvisioningPlan.has(node.id) || node.ownsVip"
+                                :loading="secretsActionNodeId === node.id"
+                              >
+                                Reverter configuração
+                              </NButton>
+                            </template>
+                            Restaurar o último .env preservado pelo agente? Os serviços não serão reiniciados automaticamente.
+                          </NPopconfirm>
+                          <span
+                            v-if="node.observedRole !== 'PRIMARY'"
+                            class="action-with-help"
+                          >
+                            <NButton
+                              size="small"
+                              :disabled="!nodesWithReadyProvisioningPlan.has(node.id) || node.ownsVip || !node.secureProvisioningReady || !secureTransport"
+                              :loading="secretsActionNodeId === node.id"
+                              @click="openSharedSecretsProvisioning(node)"
+                            >
+                              Aplicar configuração segura
+                            </NButton>
+                            <HaHelpTooltip
+                              label="Aplicar configuração segura"
+                              :text="!secureTransport
+                                ? 'Configure HTTPS no painel antes de transportar segredos.'
+                                : node.secureProvisioningReady
+                                  ? 'Cifra cada segredo para a chave exclusiva deste agente. O banco e o journal não recebem valores em texto aberto.'
+                                  : 'Atualize o agente e aguarde o heartbeat publicar a chave pública de provisionamento.'"
+                            />
+                          </span>
+                          <NPopconfirm
+                            :disabled="!nodesWithReadyProvisioningPlan.has(node.id)"
+                            positive-text="Confirmar"
+                            negative-text="Cancelar"
+                            @positive-click="validateAgentExecutor(node)"
+                          >
+                            <template #trigger>
+                              <NButton
+                                size="small"
+                                ghost
+                                :disabled="!nodesWithReadyProvisioningPlan.has(node.id)"
+                                :loading="executorNodeId === node.id"
+                              >
+                                Validar executor
+                              </NButton>
+                            </template>
+                            Enfileirar a ação segura REFRESH_INVENTORY? Ela não instala pacotes nem executa shell arbitrário.
+                          </NPopconfirm>
+                          <template v-if="node.observedRole !== 'PRIMARY'">
+                            <span class="action-with-help">
+                              <NButton
+                                size="small"
+                                type="primary"
+                                :disabled="!nodesWithReadyProvisioningPlan.has(node.id) || node.ownsVip"
+                                :loading="releaseActionNodeId === node.id"
+                                @click="openReleaseProvisioning(node)"
+                              >
+                                Instalar release
+                              </NButton>
+                              <HaHelpTooltip
+                                label="Instalar release"
+                                text="O agente baixa o pacote, confere SHA-256, carrega as imagens offline e promove a release. Banco, réplicas e VIP permanecem bloqueados."
+                              />
+                            </span>
+                            <NPopconfirm
+                              v-if="!nodesWithPreparedStorage.has(node.id)"
+                              :disabled="!nodesWithReadyProvisioningPlan.has(node.id) || node.ownsVip"
+                              positive-text="Preparar diretórios"
+                              negative-text="Cancelar"
+                              @positive-click="prepareStorageDirectories(node)"
+                            >
+                              <template #trigger>
+                                <NButton
+                                  size="small"
+                                  type="primary"
+                                  :disabled="!nodesWithReadyProvisioningPlan.has(node.id) || node.ownsVip"
+                                  :loading="storageActionNodeId === node.id"
+                                >
+                                  Preparar diretórios
+                                </NButton>
+                              </template>
+                              Criar somente os diretórios ausentes em /srv/nodeaccess-replica? Nenhum arquivo existente será alterado ou removido.
+                            </NPopconfirm>
+                            <NPopconfirm
+                              v-else
+                              positive-text="Reverter diretórios vazios"
+                              negative-text="Cancelar"
+                              @positive-click="rollbackStorageDirectories(node)"
+                            >
+                              <template #trigger>
+                                <NButton
+                                  size="small"
+                                  type="warning"
+                                  ghost
+                                  :disabled="node.ownsVip"
+                                  :loading="storageActionNodeId === node.id"
+                                >
+                                  Reverter preparação
+                                </NButton>
+                              </template>
+                              Remover somente diretórios vazios que o agente registrou como criados por ele? Diretórios com arquivos serão preservados e a operação indicará falha segura.
+                            </NPopconfirm>
+                            <NPopconfirm
+                              v-if="nodesWithPreparedStorage.has(node.id)"
+                              positive-text="Validar escrita"
+                              negative-text="Cancelar"
+                              @positive-click="validateStorageWriteAccess(node)"
+                            >
+                              <template #trigger>
+                                <NButton
+                                  size="small"
+                                  ghost
+                                  :disabled="node.ownsVip"
+                                  :loading="storageActionNodeId === node.id"
+                                >
+                                  Validar escrita
+                                </NButton>
+                              </template>
+                              Criar e remover um arquivo temporário em cada diretório de dados? Links simbólicos serão recusados e nenhum probe será mantido.
+                            </NPopconfirm>
+                            <span class="action-with-help">
+                              <NButton
+                                size="small"
+                                type="primary"
+                                ghost
+                                :loading="preflightNodeId === node.id"
+                                @click="runPreflight(node)"
+                              >
+                                Executar preflight
+                              </NButton>
+                              <HaHelpTooltip
+                                label="Executar preflight"
+                                text="Preflight é uma verificação somente leitura. Confere heartbeat, replicação e serviços; não promove o nó e não move a VIP."
+                              />
+                            </span>
+                            <span class="action-with-help">
+                              <NButton
+                                size="small"
+                                ghost
+                                :loading="rejoinNodeId === node.id"
+                                @click="runRejoinPreflight(node)"
+                              >
+                                Validar retorno
+                              </NButton>
+                              <HaHelpTooltip
+                                label="Validar retorno"
+                                text="Confere se um nó que voltou está sincronizado e seguro para atuar como réplica. Não altera a direção da replicação nem move a VIP."
+                              />
+                            </span>
+                          </template>
+                        </NSpace>
+                        <NPopconfirm @positive-click="removeNode(node)">
+                          <template #trigger>
+                            <NButton
+                              size="small"
+                              type="error"
+                              ghost
+                            >
+                              Remover nó
+                            </NButton>
+                          </template>
+                          Remover {{ node.name }} da topologia HA?
+                        </NPopconfirm>
+                      </NSpace>
+                    </div>
+                  </details>
+                </div>
+              </template>
+            </NCard>
+          </div>
+        </section>
+      </NSpin>
+
+      <CollapsibleSection
+        v-if="licensed"
+        title="Journal de operações"
+        body-class="mt-2 journal-section-body"
+      >
+        <NEmpty
+          v-if="operations.length === 0"
+          description="Nenhuma operação executada."
+        />
+        <div
+          v-else
+          class="operation-list"
+        >
+          <article
+            v-for="operation in operations"
+            :key="operation.id"
+            class="operation-item"
+          >
+            <div class="operation-heading">
+              <div>
+                <strong>
+                  {{ operation.nodeName }} · {{ operationLabel(operation) }}
+                </strong>
+                <div class="operation-date">
+                  {{ formatDate(operation.startedAt) }}
+                </div>
+              </div>
+              <NTag :type="operationStatusType(operation)">
+                {{ operationStatusLabel(operation) }}
+              </NTag>
             </div>
-          </template>
-        </NCard>
+            <NProgress
+              v-if="operation.status === 'RUNNING'"
+              type="line"
+              :percentage="operationProgress(operation)"
+              :show-indicator="true"
+              processing
+              aria-label="Progresso da operação HA"
+            />
+            <p
+              v-if="operation.status === 'RUNNING'"
+              class="operation-stage"
+            >
+              Etapa atual: {{ operation.currentStage }}
+            </p>
+            <div class="components">
+              <NTag
+                v-for="step in operation.steps"
+                :key="step.key"
+                :type="step.status === 'ok' ? 'success' : step.status === 'required' ? 'warning' : 'error'"
+                size="small"
+                :title="step.message"
+              >
+                {{ step.label }}: {{ step.status === 'ok' ? 'ok' : step.status === 'required' ? 'pendente' : 'falhou' }}
+              </NTag>
+            </div>
+            <ol
+              v-if="operation.steps.length"
+              class="operation-log"
+              aria-label="Registro das etapas"
+            >
+              <li
+                v-for="step in operation.steps"
+                :key="`${operation.id}-${step.key}`"
+              >
+                <span
+                  class="operation-log-status"
+                  :data-status="step.status"
+                >
+                  {{ step.status === 'ok' ? 'Concluída' : step.status === 'required' ? 'Pendente' : 'Falhou' }}
+                </span>
+                <strong>{{ step.label }}</strong>
+                <span v-if="step.message">{{ step.message }}</span>
+              </li>
+            </ol>
+            <p
+              v-if="operation.errorMessage"
+              class="operation-error"
+            >
+              Camada {{ operation.errorLayer }}: {{ operation.errorMessage }}
+            </p>
+          </article>
         </div>
-      </section>
-    </NSpin>
+      </CollapsibleSection>
+
+      <NCard
+        v-if="enrollmentCommand"
+        title="Instalar agente no nó secundário"
+        class="install-card"
+      >
+        <NAlert
+          type="info"
+          title="O agente inicia a validação e pode instalar a release"
+        >
+          Este comando instala o agente, registra a VIP e envia inventário e heartbeat. Docker, Compose,
+          MySQL/Redis, replicação, Keepalived e certificados precisam existir ou ser preparados nas etapas
+          seguintes. Após revisar o plano, a release offline pode ser instalada pelo próprio agente.
+        </NAlert>
+        <p>O token expira em 15 minutos e autoriza somente relatórios HA deste nó.</p>
+        <NInput
+          :value="enrollmentCommand"
+          type="textarea"
+          readonly
+          :autosize="{ minRows: 3, maxRows: 6 }"
+          aria-label="Comando de instalação do agente HA"
+        />
+        <NButton
+          class="copy-button"
+          @click="copyCommand"
+        >
+          Copiar comando
+        </NButton>
+      </NCard>
+    </CollapsibleSection>
 
     <CollapsibleSection
-      v-if="licensed"
-      title="Journal de operações"
-      body-class="mt-2 journal-section-body"
+      title="Política de promoção e falhas"
+      :default-open="true"
+      body-class="mt-2 ha-section-body"
     >
-      <NEmpty v-if="operations.length === 0" description="Nenhuma operação executada." />
-      <div v-else class="operation-list">
-        <article v-for="operation in operations" :key="operation.id" class="operation-item">
-          <div class="operation-heading">
-            <div>
-              <strong>
-                {{ operation.nodeName }} · {{ operationLabel(operation) }}
-              </strong>
-              <div class="operation-date">{{ formatDate(operation.startedAt) }}</div>
-            </div>
-            <NTag :type="operationStatusType(operation)">
-              {{ operationStatusLabel(operation) }}
-            </NTag>
-          </div>
-          <NProgress
-            v-if="operation.status === 'RUNNING'"
-            type="line"
-            :percentage="operationProgress(operation)"
-            :show-indicator="true"
-            processing
-            aria-label="Progresso da operação HA"
-          />
-          <p v-if="operation.status === 'RUNNING'" class="operation-stage">
-            Etapa atual: {{ operation.currentStage }}
-          </p>
-          <div class="components">
-            <NTag
-              v-for="step in operation.steps"
-              :key="step.key"
-              :type="step.status === 'ok' ? 'success' : step.status === 'required' ? 'warning' : 'error'"
-              size="small"
-              :title="step.message"
-            >
-              {{ step.label }}: {{ step.status === 'ok' ? 'ok' : step.status === 'required' ? 'pendente' : 'falhou' }}
-            </NTag>
-          </div>
-          <ol v-if="operation.steps.length" class="operation-log" aria-label="Registro das etapas">
-            <li v-for="step in operation.steps" :key="`${operation.id}-${step.key}`">
-              <span class="operation-log-status" :data-status="step.status">
-                {{ step.status === 'ok' ? 'Concluída' : step.status === 'required' ? 'Pendente' : 'Falhou' }}
-              </span>
-              <strong>{{ step.label }}</strong>
-              <span v-if="step.message">{{ step.message }}</span>
-            </li>
-          </ol>
-          <p v-if="operation.errorMessage" class="operation-error">
-            Camada {{ operation.errorLayer }}: {{ operation.errorMessage }}
-          </p>
-        </article>
-      </div>
-    </CollapsibleSection>
-
-    <NCard v-if="enrollmentCommand" title="Instalar agente no nó secundário" class="install-card">
-      <NAlert type="info" title="O agente inicia a validação e pode instalar a release">
-        Este comando instala o agente, registra a VIP e envia inventário e heartbeat. Docker, Compose,
-        MySQL/Redis, replicação, Keepalived e certificados precisam existir ou ser preparados nas etapas
-        seguintes. Após revisar o plano, a release offline pode ser instalada pelo próprio agente.
-      </NAlert>
-      <p>O token expira em 15 minutos e autoriza somente relatórios HA deste nó.</p>
-      <NInput :value="enrollmentCommand" type="textarea" readonly :autosize="{ minRows: 3, maxRows: 6 }" aria-label="Comando de instalação do agente HA" />
-      <NButton class="copy-button" @click="copyCommand">Copiar comando</NButton>
-    </NCard>
-    </CollapsibleSection>
-
-    <CollapsibleSection title="Política de promoção e falhas" :default-open="true" body-class="mt-2 ha-section-body">
       <HaFailurePolicyGuide />
     </CollapsibleSection>
 
-    <CollapsibleSection title="Guia de configuração" body-class="mt-2 ha-section-body">
+    <CollapsibleSection
+      title="Guia de configuração"
+      body-class="mt-2 ha-section-body"
+    >
       <div class="guide-list">
-        <article v-for="item in guideSteps" :key="item.title" class="guide-item">
+        <article
+          v-for="item in guideSteps"
+          :key="item.title"
+          class="guide-item"
+        >
           <strong>{{ item.title }}</strong>
           <p>{{ item.description }}</p>
         </article>
       </div>
-      <NAlert type="warning" title="O que continua manual" class="manual-alert">
+      <NAlert
+        type="warning"
+        title="O que continua manual"
+        class="manual-alert"
+      >
         O painel não presume o isolamento físico do primário. Confirme o fencing no hypervisor/rede e emita
         a evidência pelo witness. Se o standby assumir a VIP antes da promoção, interrompa o Keepalived local
         conforme a etapa indicada; o script persistirá as novas prioridades após concluir. DNS ou balanceador
@@ -1121,9 +1326,16 @@ function operationStatusLabel(operation: HaOperation) {
       </NAlert>
     </CollapsibleSection>
 
-    <CollapsibleSection title="Casos práticos que resolve" body-class="mt-2 ha-section-body">
+    <CollapsibleSection
+      title="Casos práticos que resolve"
+      body-class="mt-2 ha-section-body"
+    >
       <div class="use-case-grid">
-        <article v-for="item in useCases" :key="item.title" class="guide-item">
+        <article
+          v-for="item in useCases"
+          :key="item.title"
+          class="guide-item"
+        >
           <strong>{{ item.title }}</strong>
           <p>{{ item.description }}</p>
         </article>
@@ -1140,12 +1352,18 @@ function operationStatusLabel(operation: HaOperation) {
       @update:show="(show) => { if (!show) closeGuidedAction() }"
       @after-leave="clearGuidedAction"
     >
-      <NAlert type="info" title="Execução assistida">
+      <NAlert
+        type="info"
+        title="Execução assistida"
+      >
         Na troca planejada, os agentes executam somente as ações privilegiadas fechadas de quiesce e promoção.
         Em falha não planejada, o fencing externo continua obrigatório e não é executado pelo painel.
       </NAlert>
 
-      <ol v-if="guidedAction?.type === 'PROMOTE'" class="guided-steps">
+      <ol
+        v-if="guidedAction?.type === 'PROMOTE'"
+        class="guided-steps"
+      >
         <li>
           <strong>Validar o candidato</strong>
           <span>Execute o preflight e confirme réplica, backup, serviços e ausência da VIP neste nó.</span>
@@ -1163,7 +1381,10 @@ function operationStatusLabel(operation: HaOperation) {
           <span>Confirme health profundo, VIP única e depois alinhe os papéis observados no painel.</span>
         </li>
       </ol>
-      <ol v-else class="guided-steps">
+      <ol
+        v-else
+        class="guided-steps"
+      >
         <li>
           <strong>Manter o nó antigo sem VIP</strong>
           <span>Ele não pode retornar automaticamente como primário.</span>
@@ -1199,14 +1420,24 @@ function operationStatusLabel(operation: HaOperation) {
       </NAlert>
 
       <template v-if="guidedAction?.type === 'PROMOTE'">
-        <NForm label-placement="top" class="switchover-form" @submit.prevent="startPlannedSwitchover">
-          <NAlert type="info" title="O que é o witness?">
+        <NForm
+          label-placement="top"
+          class="switchover-form"
+          @submit.prevent="startPlannedSwitchover"
+        >
+          <NAlert
+            type="info"
+            title="O que é o witness?"
+          >
             É uma terceira máquina independente dos dois nós. Ela guarda a chave privada e autoriza a troca,
             impedindo que os dois servidores se tornem PRIMARY ao mesmo tempo. Em troca planejada, a evidência
             é uma autorização curta e assinada; ela não desliga o nó ativo. Em uma falha real, o witness
             confirma o fencing antes da promoção automática.
           </NAlert>
-          <dl class="witness-locations" aria-label="Origem e destino dos arquivos witness">
+          <dl
+            class="witness-locations"
+            aria-label="Origem e destino dos arquivos witness"
+          >
             <div>
               <dt>Onde o comando é executado</dt>
               <dd>Na terceira máquina que executa o serviço witness — nunca no PRIMARY ou no STANDBY.</dd>
@@ -1228,7 +1459,11 @@ function operationStatusLabel(operation: HaOperation) {
               </dd>
             </div>
           </dl>
-          <NAlert type="default" title="Neste laboratório" class="witness-lab-note">
+          <NAlert
+            type="default"
+            title="Neste laboratório"
+            class="witness-lab-note"
+          >
             O witness é o localhost Windows. A chave privada fica na área local protegida do serviço
             <code>NodeAccessHAWitness</code>. Em Linux, o caminho padrão é
             <code>/var/lib/nodeaccess-ha-witness/keys/witness-private.pem</code>.
@@ -1367,7 +1602,10 @@ function operationStatusLabel(operation: HaOperation) {
         aria-label="Comando assistido para operação HA"
         class="guided-command"
       />
-      <NSpace justify="space-between" class="guided-actions">
+      <NSpace
+        justify="space-between"
+        class="guided-actions"
+      >
         <NButton
           v-if="guidedAction?.type === 'PROMOTE'"
           :loading="preflightNodeId === guidedAction.node.id"
@@ -1383,7 +1621,9 @@ function operationStatusLabel(operation: HaOperation) {
           Validar retorno
         </NButton>
         <NSpace>
-          <NButton @click="closeGuidedAction">Fechar</NButton>
+          <NButton @click="closeGuidedAction">
+            Fechar
+          </NButton>
           <NButton
             v-if="guidedAction?.type !== 'PROMOTE'"
             type="primary"
@@ -1395,20 +1635,43 @@ function operationStatusLabel(operation: HaOperation) {
       </NSpace>
     </NModal>
 
-    <NModal v-model:show="showAttach" preset="card" title="Anexar nó standby" style="width: min(520px, calc(100vw - 32px))">
-      <NForm label-placement="top" @submit.prevent="attachNode">
-        <NFormItem label="Nome do nó" required>
-          <NInput v-model:value="form.name" placeholder="Ex.: nodeaccess-b" :input-props="{ 'aria-label': 'Nome do nó' }" />
+    <NModal
+      v-model:show="showAttach"
+      preset="card"
+      title="Anexar nó standby"
+      style="width: min(520px, calc(100vw - 32px))"
+    >
+      <NForm
+        label-placement="top"
+        @submit.prevent="attachNode"
+      >
+        <NFormItem
+          label="Nome do nó"
+          required
+        >
+          <NInput
+            v-model:value="form.name"
+            placeholder="Ex.: nodeaccess-b"
+            :input-props="{ 'aria-label': 'Nome do nó' }"
+          />
         </NFormItem>
         <NFormItem label="Endereço administrativo (opcional)">
-          <NInput v-model:value="form.endpoint" placeholder="Ex.: 192.168.1.101" :input-props="{ 'aria-label': 'Endereço administrativo' }" />
+          <NInput
+            v-model:value="form.endpoint"
+            placeholder="Ex.: 192.168.1.101"
+            :input-props="{ 'aria-label': 'Endereço administrativo' }"
+          />
         </NFormItem>
         <NFormItem
           label="Endereço virtual (VIP)"
           required
           feedback="Informe o IP livre que será compartilhado pelos dois nós, sem máscara. Use exatamente a mesma VIP nas duas matrículas."
         >
-          <NInput v-model:value="form.virtualIp" placeholder="Ex.: 192.168.1.105" :input-props="{ 'aria-label': 'Endereço virtual (VIP)' }" />
+          <NInput
+            v-model:value="form.virtualIp"
+            placeholder="Ex.: 192.168.1.105"
+            :input-props="{ 'aria-label': 'Endereço virtual (VIP)' }"
+          />
         </NFormItem>
         <NFormItem label="Papel deste nó">
           <NSelect
@@ -1420,7 +1683,9 @@ function operationStatusLabel(operation: HaOperation) {
           />
         </NFormItem>
         <NSpace justify="end">
-          <NButton @click="showAttach = false">Cancelar</NButton>
+          <NButton @click="showAttach = false">
+            Cancelar
+          </NButton>
           <NButton
             type="primary"
             attr-type="submit"
@@ -1440,12 +1705,22 @@ function operationStatusLabel(operation: HaOperation) {
       style="width: min(600px, calc(100vw - 32px))"
       @update:show="(show) => { if (!show) releaseNode = null }"
     >
-      <NAlert type="warning" title="Instalação controlada">
+      <NAlert
+        type="warning"
+        title="Instalação controlada"
+      >
         A release será baixada pelo nó, validada pelo SHA-256 e promovida sem iniciar banco, réplicas ou VIP.
         Use uma URL HTTPS acessível pelo servidor. HTTP é aceito somente em laboratório explicitamente habilitado.
       </NAlert>
-      <NForm label-placement="top" class="release-form" @submit.prevent="installRelease">
-        <NFormItem label="URL do pacote da release" required>
+      <NForm
+        label-placement="top"
+        class="release-form"
+        @submit.prevent="installRelease"
+      >
+        <NFormItem
+          label="URL do pacote da release"
+          required
+        >
           <NInput
             v-model:value="releaseForm.releaseUrl"
             placeholder="https://releases.exemplo/nodeaccess-release-2.0.28.tar.gz"
@@ -1464,7 +1739,9 @@ function operationStatusLabel(operation: HaOperation) {
           />
         </NFormItem>
         <NSpace justify="end">
-          <NButton @click="releaseNode = null">Cancelar</NButton>
+          <NButton @click="releaseNode = null">
+            Cancelar
+          </NButton>
           <NButton
             type="primary"
             attr-type="submit"
@@ -1484,11 +1761,18 @@ function operationStatusLabel(operation: HaOperation) {
       style="width: min(640px, calc(100vw - 32px))"
       @update:show="(show) => { if (!show) secretsNode = null }"
     >
-      <NAlert type="warning" title="Segredos compartilhados">
+      <NAlert
+        type="warning"
+        title="Segredos compartilhados"
+      >
         Use exatamente os mesmos valores do primário. Cada campo será cifrado para este agente antes de
         entrar na fila. A ação atualiza o arquivo .env e preserva um backup local, mas não reinicia serviços.
       </NAlert>
-      <NForm label-placement="top" class="release-form" @submit.prevent="applySharedSecrets">
+      <NForm
+        label-placement="top"
+        class="release-form"
+        @submit.prevent="applySharedSecrets"
+      >
         <NFormItem
           v-for="[key, label] in secretFields"
           :key="key"
@@ -1507,7 +1791,9 @@ function operationStatusLabel(operation: HaOperation) {
           ou alterar Keepalived/VIP.
         </NAlert>
         <NSpace justify="end">
-          <NButton @click="secretsNode = null">Cancelar</NButton>
+          <NButton @click="secretsNode = null">
+            Cancelar
+          </NButton>
           <NButton
             type="primary"
             attr-type="submit"

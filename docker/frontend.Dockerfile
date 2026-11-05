@@ -1,7 +1,8 @@
-FROM node:24.21.0-alpine@sha256:ebfe2f90462722a7a4de65e91990e97fe0d401c70e0e762c5b53302f905ec1c1 AS node-runtime
+FROM node:24.22.1-alpine@sha256:06d7adf3e0ef61a13f1d28682726366f97a15aa1888c934d3ecec86c33918b53 AS node-runtime
 FROM node-runtime AS base
 WORKDIR /app
 COPY package*.json ./
+COPY scripts/dependency-patches/typedoc-minimatch.mjs ./scripts/dependency-patches/typedoc-minimatch.mjs
 COPY apps/frontend/package*.json ./apps/frontend/
 COPY packages/shared/package*.json ./packages/shared/
 RUN npm ci --no-audit --no-fund --workspace=apps/frontend --workspace=packages/shared
@@ -64,9 +65,13 @@ RUN sed -i 's/dl-cdn.alpinelinux.org/dl-4.alpinelinux.org/g' /etc/apk/repositori
   && python3 -m pip --python /opt/certbot/bin/python install --no-cache-dir --only-binary=:all: -r /tmp/tls-requirements.txt \
   && apk --no-network del .certbot-build \
   && rm /tmp/tls-requirements.txt
+# SQLite 3.54.1 fixes the reviewed FTS5/session memory errors; pin only this APK.
+ADD --checksum=sha256:5dfd76936e795efd988d6bad4949b8d20c410d6dc9dd256da884111f668f3915 https://dl-4.alpinelinux.org/alpine/edge/main/x86_64/sqlite-libs-3.54.1-r0.apk /tmp/sqlite-libs-3.54.1-r0.apk
+RUN apk add --no-cache /tmp/sqlite-libs-3.54.1-r0.apk && rm /tmp/sqlite-libs-3.54.1-r0.apk && test ! -e /usr/bin/sqlite3
 ENV PATH="/opt/certbot/bin:${PATH}"
 COPY --from=node-runtime /usr/local/bin/node /usr/local/bin/node
 COPY docker/nginx.https.conf /etc/nginx/nginx.conf
 COPY tools/tls /opt/nodeaccess-tls
+COPY tools/shared/trusted-executable.cjs /opt/shared/trusted-executable.cjs
 STOPSIGNAL SIGTERM
 ENTRYPOINT ["sh", "/opt/nodeaccess-tls/entrypoint.sh"]

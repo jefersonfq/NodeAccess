@@ -1,0 +1,14 @@
+{
+  "startedAt": "2026-11-03T19:26:13.401Z",
+  "passed": true,
+  "backup": "backup-2026-11-03T19-26-13.794Z-c26d7c36-9165-434f-8813-16da324b9fd1",
+  "rotation": {
+    "renewalDue": false
+  },
+  "retirement": {
+    "revoked": 0,
+    "remaining": 2,
+    "currentScopesVerified": true
+  },
+  "finishedAt": "2026-11-03T19:26:25.064Z"
+}

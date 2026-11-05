@@ -1,0 +1,76 @@
+{
+  "ok": true,
+  "dashboardFallback": {
+    "metadataFailure": true,
+    "foldersFailure": true,
+    "removeFavoriteWithoutConnecting": true,
+    "emptyFavorites": true
+  },
+  "desktop": {
+    "viewport": {
+      "width": 1440,
+      "height": 960
+    },
+    "dashboardGeometry": {
+      "scrollWidth": 1440,
+      "clientWidth": 1440
+    },
+    "hostsGeometry": {
+      "scrollWidth": 1440,
+      "clientWidth": 1440
+    },
+    "quickAccessCalls": 1
+  },
+  "tablet": null,
+  "mobile": {
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "dashboardGeometry": {
+      "scrollWidth": 390,
+      "clientWidth": 390
+    },
+    "hostsGeometry": {
+      "scrollWidth": 390,
+      "clientWidth": 390
+    },
+    "quickAccessCalls": 1
+  },
+  "folders": {
+    "avatar404": 2,
+    "bootstrapFailures": [
+      404,
+      503
+    ],
+    "inventory404Recovered": true,
+    "permissionDeniedClearsFolders": true,
+    "initial404Recovered": true,
+    "searchCleared": true,
+    "runtimeErrors": []
+  },
+  "protocols": [
+    {
+      "protocol": "ssh",
+      "height": 62
+    },
+    {
+      "protocol": "rdp",
+      "height": 62
+    },
+    {
+      "protocol": "telnet",
+      "height": 62
+    },
+    {
+      "protocol": "vnc",
+      "height": 62
+    }
+  ],
+  "folderPaths": {
+    "corporate": true,
+    "personal": true,
+    "partialAncestry": true
+  },
+  "screenshots": "<private-artifact-root>/nodeaccess-recent-host-access"
+}

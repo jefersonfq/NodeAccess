@@ -1,0 +1,47 @@
+{
+  "result": "passed",
+  "layout": {
+    "rows": 35,
+    "cols": 149,
+    "container": {
+      "width": 1364,
+      "height": 640
+    },
+    "screen": {
+      "width": 1346,
+      "height": 630
+    },
+    "viewport": {
+      "width": 1364,
+      "height": 630
+    },
+    "bottomGap": 10,
+    "lastResize": {
+      "type": "resize",
+      "cols": 149,
+      "rows": 35,
+      "at": 50497.30000001192
+    },
+    "errors": []
+  },
+  "cacheInvalidation": {
+    "path": "/var",
+    "before": 3,
+    "after": 4
+  },
+  "autocompleteGeometry": {
+    "placement": "above",
+    "gap": 6.40625,
+    "cursorUnobstructed": true,
+    "inside": true
+  },
+  "mobileGeometry": {
+    "placement": "above",
+    "gap": 5.8125,
+    "cursorUnobstructed": true,
+    "inside": true,
+    "width": 298,
+    "containerWidth": 314
+  },
+  "cdpAnomalies": []
+}

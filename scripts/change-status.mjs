@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { resolveExecutable } from '../tools/shared/trusted-executable.cjs'
 import { execFileSync } from 'node:child_process'
 import { deriveDeliveryStatus, DELIVERY_STATES } from './change-status-lib.mjs'
 
@@ -102,7 +103,7 @@ function upstream(branchName) {
 
 function isAncestor(ancestor, descendant) {
   try {
-    execFileSync('git', ['merge-base', '--is-ancestor', ancestor, descendant], {
+    execFileSync(resolveExecutable('git'), ['merge-base', '--is-ancestor', ancestor, descendant], {
       cwd: root,
       stdio: 'ignore',
     })
@@ -133,7 +134,7 @@ function findWorktree(targetBranch) {
 }
 
 function gitAt(cwd, values, options = {}) {
-  const output = execFileSync('git', values, {
+  const output = execFileSync(resolveExecutable('git'), values, {
     cwd,
     encoding: 'utf8',
     stdio: ['ignore', 'pipe', 'pipe'],
@@ -142,7 +143,7 @@ function gitAt(cwd, values, options = {}) {
 }
 
 function git(values, options = {}) {
-  const output = execFileSync('git', values, {
+  const output = execFileSync(resolveExecutable('git'), values, {
     cwd: root,
     encoding: 'utf8',
     stdio: ['ignore', 'pipe', 'pipe'],

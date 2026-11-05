@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+const { artifactPath } = require('../shared/private-artifacts.cjs')
 const fs = require('node:fs')
 const assert = require('node:assert/strict')
 const { chromium } = require('playwright')
@@ -67,7 +68,7 @@ async function main() {
         const page = context.pages()[0]
         if (page) await page.screenshot({ path: `/tmp/nodeaccess-highlights-failure-${index}.png`, fullPage: true }).catch(() => {})
       }
-      fs.writeFileSync('/tmp/nodeaccess-highlights-failure.json', JSON.stringify({ scenario: name, errors, message: error.message }, null, 2))
+      fs.writeFileSync(artifactPath('nodeaccess-highlights-failure.json'), JSON.stringify({ scenario: name, errors, message: error.message }, null, 2))
       throw error
     }
   }
@@ -146,6 +147,7 @@ async function main() {
       assert.equal(await button(user, 'Editar e vincular').count(), 0)
       await user.getByLabel('Simular com uma linha de exemplo').fill('ERROR e OK')
       assert.match(await user.locator('[data-effective-preview]').innerText(), /ERROR e OK/)
+      await user.waitForFunction(() => { const node = document.querySelector('[data-effective-preview] span'); return node && getComputedStyle(node).color === 'rgb(248, 113, 113)' })
       assert.equal(await user.locator('[data-effective-preview] span').first().evaluate(e => getComputedStyle(e).color), 'rgb(248, 113, 113)')
       await user.getByRole('switch', { name: 'Aplicar destaques no terminal', exact: true }).click()
       await button(user, 'Salvar personalização').click(); await user.getByText('Destaques desativados pelo usuário.', { exact: false }).waitFor()
@@ -218,12 +220,14 @@ async function main() {
       assert.deepEqual(templates[0].userIds, [])
       await user.reload(); await user.locator('[data-effective-rule]').first().waitFor()
       assert.match(await user.locator('[data-effective-rule]').first().innerText(), /Por grupo/)
+      await user.waitForFunction(() => { const node = document.querySelector('[data-effective-preview] span'); return node && getComputedStyle(node).color === 'rgb(248, 113, 113)' })
       assert.equal(await user.locator('[data-effective-preview] span').first().evaluate(e => getComputedStyle(e).color), 'rgb(248, 113, 113)')
       await button(admin, 'Editar e vincular').click(); modal = admin.locator('.n-modal:visible').last()
       await modal.locator('.n-form-item').filter({ hasText: 'Status' }).getByRole('switch').click()
       await button(modal, 'Salvar e aplicar').click(); await modal.waitFor({ state: 'hidden' })
       await user.reload(); await user.getByText('Nenhum template atribuído.', { exact: true }).waitFor()
       assert.equal(await user.locator('[data-effective-rule]').count(), 1)
+      await user.waitForFunction(() => { const node = document.querySelector('[data-effective-preview] span'); return node && getComputedStyle(node).color === 'rgb(251, 191, 36)' })
       assert.equal(await user.locator('[data-effective-preview] span').first().evaluate(e => getComputedStyle(e).color), 'rgb(251, 191, 36)')
       await button(admin, 'Editar e vincular').click(); modal = admin.locator('.n-modal:visible').last()
       await modal.locator('.n-form-item').filter({ hasText: 'Status' }).getByRole('switch').click()
@@ -277,6 +281,7 @@ async function main() {
       for (const name of ['Clássico', 'Linux e infraestrutura', 'Redes / NOC', 'Logs de aplicações', 'Discreto']) {
         await button(picker, name).click()
         assert.ok((await picker.locator('[data-highlight-preset-preview]').innerText()).length > 0)
+        await picker.locator('[data-highlight-preset-preview] span[style*=color]').first().waitFor()
         assert.ok(await picker.locator('[data-highlight-preset-preview] span[style*=color]').count())
       }
       await button(picker, 'Clássico').focus(); await button(picker, 'Clássico').press('Enter')
@@ -311,7 +316,7 @@ async function main() {
       assert.equal(preference.rules[0].name,'Meu ERROR')
     })
     assert.deepEqual(errors, [])
-    fs.writeFileSync('/tmp/nodeaccess-terminal-highlights-report.json', JSON.stringify({ result: 'passed', frontend: FRONTEND, mockedApi: true, checks, errors }, null, 2))
+    fs.writeFileSync(artifactPath('nodeaccess-terminal-highlights-report.json'), JSON.stringify({ result: 'passed', frontend: FRONTEND, mockedApi: true, checks, errors }, null, 2))
     console.log(JSON.stringify({ result: 'passed', checks: checks.length, errors }))
   } finally { await browser.close() }
 }

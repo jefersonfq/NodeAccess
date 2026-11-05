@@ -16,7 +16,8 @@ const hovered = ref(false)
       <span
         class="inline-flex items-center align-middle focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-400"
         tabindex="0"
-        role="img"
+        role="button"
+        :aria-expanded="focused || hovered"
         :aria-label="detail || label"
         @focus="focused = true"
         @blur="focused = false"

@@ -1,13 +1,14 @@
+import { readTrialBoundary, verifyDisposableSsh } from './trial-live-boundaries.cjs'
+import { artifactPath } from '../shared/private-artifacts.cjs'
 /** Opt-in live browser/API/MySQL/Redis/SSH test. SMTP + provisioner are explicit doubles. */
 import assert from 'node:assert/strict'
-import { createHash, randomUUID } from 'node:crypto'
+import { randomBytes, randomUUID } from 'node:crypto'
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import dotenv from 'dotenv'
 import { PrismaClient } from '@prisma/client'
 import Fastify from 'fastify'
 import fastifyJwt from '@fastify/jwt'
 import { Redis } from 'ioredis'
-import { Client } from 'ssh2'
 import { chromium } from 'playwright'
 import speakeasy from 'speakeasy'
 import bcrypt from 'bcrypt'
@@ -17,13 +18,11 @@ dotenv.config({ path: process.env.TRIAL_LIVE_ENV, override: true })
 const databaseUrl = new URL(process.env.DATABASE_URL!)
 assert.ok(['127.0.0.1', 'localhost'].includes(databaseUrl.hostname) && databaseUrl.pathname === '/na0068', 'Disposable local database required')
 const frontend = process.env.TRIAL_LIVE_FRONTEND || 'http://127.0.0.1:5190'
-const sshHost = process.env.TRIAL_LIVE_SSH_HOST || '10.206.8.10'
-const sshPort = Number(process.env.TRIAL_LIVE_SSH_PORT || 2222)
-const sshUser = process.env.TRIAL_LIVE_SSH_USER || 'trial'
-const sshPassword = process.env.TRIAL_LIVE_SSH_PASSWORD
-assert.ok(sshPassword, 'Set disposable SSH password')
-const output = '/tmp/na0068-live-browser'
+const boundary = readTrialBoundary(process.env)
+const { port: sshPort, username: sshUser, password: sshPassword } = boundary
+const output = artifactPath('na0068-live-browser')
 await mkdir(output, { recursive: true })
+const fingerprint = await verifyDisposableSsh(boundary)
 const { TrialService } = await import('../../apps/backend/src/modules/trials/trial.service.js')
 const { trialRoutes } = await import('../../apps/backend/src/modules/trials/trial.routes.js')
 const { AuthRateLimitService } = await import('../../apps/backend/src/modules/auth/auth-rate-limit.service.js')
@@ -35,18 +34,11 @@ const messages = new Map<string, string>()
 const run = randomUUID().slice(0, 8)
 const visitorEmail = `live-trial-${run}@example.test`
 const normalEmail = `live-normal-${run}@example.test`
-const password = 'Live-Browser-Fixture-2026'
-let fingerprint = ''
-await new Promise<void>((resolve, reject) => {
-  const client = new Client()
-  client.on('ready', () => { client.end(); resolve() }).on('error', reject)
-  client.connect({ host: sshHost, port: sshPort, username: sshUser, password: sshPassword,
-    hostVerifier: key => { fingerprint = `SHA256:${createHash('sha256').update(key).digest('base64').replace(/=+$/, '')}`; return true } })
-})
+const password = `Aa1!${randomBytes(24).toString('base64url')}`
 console.log('Disposable SSH handshake verified.')
-const service = new TrialService(db, { registrationsEnabled: true, publicUrl: frontend, protectedAddresses: ['177.153.202.21'],
+const service = new TrialService(db, { registrationsEnabled: true, publicUrl: frontend, protectedAddresses: boundary.protectedAddresses,
   mailer: { send: async (to, link) => { messages.set(to, link) } },
-  provisioner: { ensure: async (id, profile) => ({ trialId: id, state: 'ready', isolated: true, hosts: Array.from({ length: profile.machineCount }, (_, index) => ({ name: index === 0 ? `Live SSH ${run}` : `Demo expansion ${index} ${run}`, ip: index === 0 ? sshHost : `10.206.8.${20 + index}`, port: sshPort, sshUser, password: sshPassword!, fingerprint })) }), remove: async () => {} },
+  provisioner: { ensure: async (id, profile) => ({ trialId: id, state: 'ready', isolated: true, hosts: Array.from({ length: profile.machineCount }, (_, index) => ({ name: index === 0 ? `Live SSH ${run}` : `Demo expansion ${index} ${run}`, ip: boundary.demoHosts[index], port: sshPort, sshUser, password: sshPassword!, fingerprint })) }), remove: async () => {} },
 })
 if (process.env.TRIAL_LIVE_CLEAN_PREVIOUS === '1') {
   const previous = JSON.parse(await readFile(`${output}/fixture.json`, 'utf8'))
@@ -63,7 +55,7 @@ const normalTenant = await new TenantRepository(db).create({ name: 'Normal Live 
 const normalUser = await db.user.findFirstOrThrow({ where: { tenantId: normalTenant.id, email: normalEmail } })
 await db.user.update({ where: { id: normalUser.id }, data: { forcePasswordChange: false } })
 await service.updateProfile({ name: 'Live Trial Fixture', durationDays: 1, maxUsers: 2, maxHosts: 4, machineCount: 1, maxMachines: 3, allowCustomHosts: true, maxCustomHosts: 1, maxSessions: 2,
-  templateId: 'trusted-ssh-fixture', networkCidr: '10.206.8.0/24', maxActiveTrials: 10, retentionDays: 30,
+  templateId: 'trusted-ssh-fixture', networkCidr: boundary.networkCidr, maxActiveTrials: 10, retentionDays: 30,
   privacyUrl: 'https://example.test/privacy', termsUrl: 'https://example.test/terms', privacyVersion: 'live-test-v1', resources: ['ssh', 'sftp', 'sharing'] }, normalUser.id)
 const api = Fastify({ logger: false })
 await api.register(fastifyJwt, { secret: process.env.JWT_SECRET! })
@@ -145,7 +137,7 @@ try {
   assert.ok(token)
   const headers = { authorization: `Bearer ${token}` }
   const rootNode = await db.inventoryNode.findFirstOrThrow({ where: { rootTenantId: trial.tenantId! } })
-  assert.equal((await page.request.post(`${frontend}/api/v1/hosts`, { headers, data: { name: 'Forbidden destination', ip: '10.206.8.99', port: 22, sshUser: 'visitor', authType: 'password', password: 'Never-used-fixture-2026', connectionMode: 'direct', scope: 'personal', inventoryParentId: rootNode.id } })).status(), 403)
+  assert.equal((await page.request.post(`${frontend}/api/v1/hosts`, { headers, data: { name: 'Forbidden destination', ip: boundary.forbiddenHost, port: 22, sshUser: 'visitor', authType: 'password', password: randomBytes(32).toString('hex'), connectionMode: 'direct', scope: 'personal', inventoryParentId: rootNode.id } })).status(), 403)
   console.log('Checking machine expansion and own-host CRUD through actual trial routes.')
   await page.getByLabel('Quantidade total desejada de máquinas de demonstração').fill('3')
   await page.getByRole('button', { name: 'Solicitar máquinas', exact: true }).click()

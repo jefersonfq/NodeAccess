@@ -1887,14 +1887,18 @@ function resetCacheTtl(name: string): void {
 
             <div class="grid gap-4 md:grid-cols-2">
               <div class="na-item rounded-lg border p-3">
-                <label class="flex items-center gap-2 text-sm text-zinc-200">
-                  <NCheckbox v-model:checked="licenseForm.limitHostsEnabled" />
-                  <span>{{ $t('admin.settings.license.editor.limitHostsEnabled') }}</span>
+                <div class="flex items-center gap-2 text-sm text-zinc-200">
+                  <NCheckbox
+                    v-model:checked="licenseForm.limitHostsEnabled"
+                    :label="$t('admin.settings.license.editor.limitHostsEnabled')"
+                  />
                   <NTooltip trigger="hover">
-                    <template #trigger><span class="cursor-help text-xs text-zinc-500">?</span></template>
+                    <template #trigger>
+                      <span class="cursor-help text-xs text-zinc-500">?</span>
+                    </template>
                     {{ licenseHelp.maxHosts }}
                   </NTooltip>
-                </label>
+                </div>
                 <div class="mt-3">
                   <div class="mb-1 text-xs text-zinc-400">
                     {{ $t('admin.settings.license.editor.maxHostsLabel') }}
@@ -1909,14 +1913,18 @@ function resetCacheTtl(name: string): void {
                     {{ $t('admin.settings.license.editor.maxHostsHelp') }}
                   </div>
                 </div>
-                <label class="mt-4 flex items-center gap-2 text-sm text-zinc-200">
-                  <NCheckbox v-model:checked="licenseForm.multiConnect" />
-                  <span>{{ $t('admin.settings.license.multiConnect') }}</span>
+                <div class="mt-4 flex items-center gap-2 text-sm text-zinc-200">
+                  <NCheckbox
+                    v-model:checked="licenseForm.multiConnect"
+                    :label="$t('admin.settings.license.multiConnect')"
+                  />
                   <NTooltip trigger="hover">
-                    <template #trigger><span class="cursor-help text-xs text-zinc-500">?</span></template>
+                    <template #trigger>
+                      <span class="cursor-help text-xs text-zinc-500">?</span>
+                    </template>
                     {{ licenseHelp.multiConnect }}
                   </NTooltip>
-                </label>
+                </div>
                 <div class="mt-1 text-xs text-zinc-500">
                   {{ $t('admin.settings.license.editor.multiConnectHelp') }}
                 </div>
@@ -1927,25 +1935,31 @@ function resetCacheTtl(name: string): void {
                   {{ $t('admin.settings.license.editor.featuresTitle') }}
                 </div>
                 <div class="flex flex-col gap-2 text-sm text-zinc-200">
-                  <label class="flex items-center gap-2">
-                    <NCheckbox v-model:checked="licenseForm.sessionAudit" />
-                    <span>{{ $t('admin.settings.license.sessionAudit') }}</span>
+                  <div class="flex items-center gap-2">
+                    <NCheckbox
+                      v-model:checked="licenseForm.sessionAudit"
+                      :label="$t('admin.settings.license.sessionAudit')"
+                    />
                     <NTooltip trigger="hover">
-                      <template #trigger><span class="cursor-help text-xs text-zinc-500">?</span></template>
+                      <template #trigger>
+                        <span class="cursor-help text-xs text-zinc-500">?</span>
+                      </template>
                       {{ licenseHelp.sessionAudit }}
                     </NTooltip>
-                  </label>
-                  <label class="flex items-center gap-2">
+                  </div>
+                  <div class="flex items-center gap-2">
                     <NCheckbox
                       v-model:checked="licenseForm.sessionAuditAi"
                       :disabled="!licenseForm.sessionAudit"
+                      :label="$t('admin.settings.license.sessionAuditAi')"
                     />
-                    <span>{{ $t('admin.settings.license.sessionAuditAi') }}</span>
                     <NTooltip trigger="hover">
-                      <template #trigger><span class="cursor-help text-xs text-zinc-500">?</span></template>
+                      <template #trigger>
+                        <span class="cursor-help text-xs text-zinc-500">?</span>
+                      </template>
                       {{ licenseHelp.sessionAuditAi }}
                     </NTooltip>
-                  </label>
+                  </div>
                   <div class="pl-6">
                     <div class="mb-1 text-xs text-zinc-400">
                       {{ $t('admin.settings.license.auditAiProvider') }}
@@ -1959,103 +1973,143 @@ function resetCacheTtl(name: string): void {
                       {{ $t('admin.settings.license.editor.auditAiProviderHelp') }}
                     </div>
                   </div>
-                  <label class="flex items-center gap-2 pl-6">
+                  <div class="flex items-center gap-2 pl-6">
                     <NCheckbox
                       v-model:checked="licenseForm.sessionAuditAiAutoSummary"
                       :disabled="!licenseForm.sessionAudit || !licenseForm.sessionAuditAi"
+                      :label="$t('admin.settings.license.sessionAuditAiAutoSummary')"
                     />
-                    <span>{{ $t('admin.settings.license.sessionAuditAiAutoSummary') }}</span>
                     <NTooltip trigger="hover">
-                      <template #trigger><span class="cursor-help text-xs text-zinc-500">?</span></template>
+                      <template #trigger>
+                        <span class="cursor-help text-xs text-zinc-500">?</span>
+                      </template>
                       {{ licenseHelp.sessionAuditAiAutoSummary }}
                     </NTooltip>
-                  </label>
+                  </div>
                   <div class="pl-12 -mt-1 text-xs text-zinc-500">
                     {{ $t('admin.settings.license.editor.auditAiAutoSummaryHelp') }}
                   </div>
-                  <label class="flex items-center gap-2">
-                    <NCheckbox v-model:checked="licenseForm.agents" />
-                    <span>{{ $t('admin.settings.license.agents') }}</span>
+                  <div class="flex items-center gap-2">
+                    <NCheckbox
+                      v-model:checked="licenseForm.agents"
+                      :label="$t('admin.settings.license.agents')"
+                    />
                     <NTooltip trigger="hover">
-                      <template #trigger><span class="cursor-help text-xs text-zinc-500">?</span></template>
+                      <template #trigger>
+                        <span class="cursor-help text-xs text-zinc-500">?</span>
+                      </template>
                       {{ licenseHelp.agents }}
                     </NTooltip>
-                  </label>
-                  <label class="flex items-center gap-2">
-                    <NCheckbox v-model:checked="licenseForm.secrets" />
-                    <span>{{ $t('admin.settings.license.secrets') }}</span>
+                  </div>
+                  <div class="flex items-center gap-2">
+                    <NCheckbox
+                      v-model:checked="licenseForm.secrets"
+                      :label="$t('admin.settings.license.secrets')"
+                    />
                     <NTooltip trigger="hover">
-                      <template #trigger><span class="cursor-help text-xs text-zinc-500">?</span></template>
+                      <template #trigger>
+                        <span class="cursor-help text-xs text-zinc-500">?</span>
+                      </template>
                       {{ licenseHelp.secrets }}
                     </NTooltip>
-                  </label>
-                  <label class="flex items-center gap-2">
-                    <NCheckbox v-model:checked="licenseForm.snippets" />
-                    <span>{{ $t('admin.settings.license.snippets') }}</span>
+                  </div>
+                  <div class="flex items-center gap-2">
+                    <NCheckbox
+                      v-model:checked="licenseForm.snippets"
+                      :label="$t('admin.settings.license.snippets')"
+                    />
                     <NTooltip trigger="hover">
-                      <template #trigger><span class="cursor-help text-xs text-zinc-500">?</span></template>
+                      <template #trigger>
+                        <span class="cursor-help text-xs text-zinc-500">?</span>
+                      </template>
                       {{ licenseHelp.snippets }}
                     </NTooltip>
-                  </label>
-                  <label class="flex items-center gap-2">
-                    <NCheckbox v-model:checked="licenseForm.portForwarding" />
-                    <span>{{ $t('admin.settings.license.sshTunnels') }}</span>
+                  </div>
+                  <div class="flex items-center gap-2">
+                    <NCheckbox
+                      v-model:checked="licenseForm.portForwarding"
+                      :label="$t('admin.settings.license.sshTunnels')"
+                    />
                     <NTooltip trigger="hover">
-                      <template #trigger><span class="cursor-help text-xs text-zinc-500">?</span></template>
+                      <template #trigger>
+                        <span class="cursor-help text-xs text-zinc-500">?</span>
+                      </template>
                       {{ licenseHelp.portForwarding }}
                     </NTooltip>
-                  </label>
-                  <label class="flex items-center gap-2">
-                    <NCheckbox v-model:checked="licenseForm.integrations" />
-                    <span>{{ $t('admin.settings.license.integrations') }}</span>
+                  </div>
+                  <div class="flex items-center gap-2">
+                    <NCheckbox
+                      v-model:checked="licenseForm.integrations"
+                      :label="$t('admin.settings.license.integrations')"
+                    />
                     <NTooltip trigger="hover">
-                      <template #trigger><span class="cursor-help text-xs text-zinc-500">?</span></template>
+                      <template #trigger>
+                        <span class="cursor-help text-xs text-zinc-500">?</span>
+                      </template>
                       {{ licenseHelp.integrations }}
                     </NTooltip>
-                  </label>
-                  <label class="flex items-center gap-2">
-                    <NCheckbox v-model:checked="licenseForm.feedback" />
-                    <span>{{ $t('admin.settings.license.feedback') }}</span>
+                  </div>
+                  <div class="flex items-center gap-2">
+                    <NCheckbox
+                      v-model:checked="licenseForm.feedback"
+                      :label="$t('admin.settings.license.feedback')"
+                    />
                     <NTooltip trigger="hover">
-                      <template #trigger><span class="cursor-help text-xs text-zinc-500">?</span></template>
+                      <template #trigger>
+                        <span class="cursor-help text-xs text-zinc-500">?</span>
+                      </template>
                       {{ licenseHelp.feedback }}
                     </NTooltip>
-                  </label>
-                  <label class="flex items-center gap-2">
-                    <NCheckbox v-model:checked="licenseForm.localAi" />
-                    <span>{{ $t('admin.settings.license.localAi') }}</span>
+                  </div>
+                  <div class="flex items-center gap-2">
+                    <NCheckbox
+                      v-model:checked="licenseForm.localAi"
+                      :label="$t('admin.settings.license.localAi')"
+                    />
                     <NTooltip trigger="hover">
-                      <template #trigger><span class="cursor-help text-xs text-zinc-500">?</span></template>
+                      <template #trigger>
+                        <span class="cursor-help text-xs text-zinc-500">?</span>
+                      </template>
                       {{ licenseHelp.localAi }}
                     </NTooltip>
-                  </label>
-                  <label class="flex items-center gap-2">
-                    <NCheckbox v-model:checked="licenseForm.terminalAutocomplete" />
-                    <span>Autocomplete do terminal</span>
-                  </label>
-                  <label class="flex items-center gap-2">
+                  </div>
+                  <div class="flex items-center gap-2">
+                    <NCheckbox
+                      v-model:checked="licenseForm.terminalAutocomplete"
+                      label="Autocomplete do terminal"
+                    />
+                  </div>
+                  <div class="flex items-center gap-2">
                     <NCheckbox
                       v-model:checked="licenseForm.terminalAi"
                       :disabled="!licenseForm.localAi"
+                      label="Copiloto IA no terminal"
                     />
-                    <span>Copiloto IA no terminal</span>
-                  </label>
-                  <label class="flex items-center gap-2">
-                    <NCheckbox v-model:checked="licenseForm.mcp" />
-                    <span>{{ $t('admin.settings.license.mcp') }}</span>
+                  </div>
+                  <div class="flex items-center gap-2">
+                    <NCheckbox
+                      v-model:checked="licenseForm.mcp"
+                      :label="$t('admin.settings.license.mcp')"
+                    />
                     <NTooltip trigger="hover">
-                      <template #trigger><span class="cursor-help text-xs text-zinc-500">?</span></template>
+                      <template #trigger>
+                        <span class="cursor-help text-xs text-zinc-500">?</span>
+                      </template>
                       {{ licenseHelp.mcp }}
                     </NTooltip>
-                  </label>
-                  <label class="flex items-center gap-2">
-                    <NCheckbox v-model:checked="licenseForm.aiSshActions" />
-                    <span>{{ $t('admin.settings.license.aiSshActions') }}</span>
+                  </div>
+                  <div class="flex items-center gap-2">
+                    <NCheckbox
+                      v-model:checked="licenseForm.aiSshActions"
+                      :label="$t('admin.settings.license.aiSshActions')"
+                    />
                     <NTooltip trigger="hover">
-                      <template #trigger><span class="cursor-help text-xs text-zinc-500">?</span></template>
+                      <template #trigger>
+                        <span class="cursor-help text-xs text-zinc-500">?</span>
+                      </template>
                       {{ licenseHelp.aiSshActions }}
                     </NTooltip>
-                  </label>
+                  </div>
                 </div>
               </div>
             </div>
@@ -2068,72 +2122,84 @@ function resetCacheTtl(name: string): void {
                 {{ $t('admin.settings.license.editor.providersHelp') }}
               </div>
               <div class="flex flex-wrap gap-4 text-sm text-zinc-200">
-                <label class="flex items-center gap-2">
+                <div class="flex items-center gap-2">
                   <NCheckbox
                     v-model:checked="licenseForm.jira"
                     :disabled="!canEditIntegrationProviders"
+                    label="JIRA"
                   />
-                  <span>JIRA</span>
                   <NTooltip trigger="hover">
-                    <template #trigger><span class="cursor-help text-xs text-zinc-500">?</span></template>
+                    <template #trigger>
+                      <span class="cursor-help text-xs text-zinc-500">?</span>
+                    </template>
                     {{ licenseHelp.providers }}
                   </NTooltip>
-                </label>
-                <label class="flex items-center gap-2">
+                </div>
+                <div class="flex items-center gap-2">
                   <NCheckbox
                     v-model:checked="licenseForm.google"
                     :disabled="!canEditIntegrationProviders"
+                    label="Google"
                   />
-                  <span>Google</span>
                   <NTooltip trigger="hover">
-                    <template #trigger><span class="cursor-help text-xs text-zinc-500">?</span></template>
+                    <template #trigger>
+                      <span class="cursor-help text-xs text-zinc-500">?</span>
+                    </template>
                     {{ licenseHelp.providers }}
                   </NTooltip>
-                </label>
-                <label class="flex items-center gap-2">
+                </div>
+                <div class="flex items-center gap-2">
                   <NCheckbox
                     v-model:checked="licenseForm.ldap"
                     :disabled="!canEditIntegrationProviders"
+                    label="LDAP"
                   />
-                  <span>LDAP</span>
                   <NTooltip trigger="hover">
-                    <template #trigger><span class="cursor-help text-xs text-zinc-500">?</span></template>
+                    <template #trigger>
+                      <span class="cursor-help text-xs text-zinc-500">?</span>
+                    </template>
                     {{ licenseHelp.providers }}
                   </NTooltip>
-                </label>
-                <label class="flex items-center gap-2">
+                </div>
+                <div class="flex items-center gap-2">
                   <NCheckbox
                     v-model:checked="licenseForm.onepassword"
                     :disabled="!canEditIntegrationProviders"
+                    label="1Password"
                   />
-                  <span>1Password</span>
                   <NTooltip trigger="hover">
-                    <template #trigger><span class="cursor-help text-xs text-zinc-500">?</span></template>
+                    <template #trigger>
+                      <span class="cursor-help text-xs text-zinc-500">?</span>
+                    </template>
                     {{ licenseHelp.providers }}
                   </NTooltip>
-                </label>
-                <label class="flex items-center gap-2">
+                </div>
+                <div class="flex items-center gap-2">
                   <NCheckbox
                     v-model:checked="licenseForm.oidc"
                     :disabled="!canEditIntegrationProviders"
+                    label="OIDC / SSO"
                   />
-                  <span>OIDC / SSO</span>
                   <NTooltip trigger="hover">
-                    <template #trigger><span class="cursor-help text-xs text-zinc-500">?</span></template>
+                    <template #trigger>
+                      <span class="cursor-help text-xs text-zinc-500">?</span>
+                    </template>
                     {{ licenseHelp.providers }}
                   </NTooltip>
-                </label>
-                <label class="flex items-center gap-2">
+                </div>
+                <div class="flex items-center gap-2">
                   <NCheckbox
                     v-model:checked="licenseForm.scim"
                     :disabled="!canEditIntegrationProviders"
+                    label="SCIM 2.0"
                   />
-                  <span>SCIM 2.0</span>
                   <NTooltip trigger="hover">
-                    <template #trigger><span class="cursor-help text-xs text-zinc-500">?</span></template>
+                    <template #trigger>
+                      <span class="cursor-help text-xs text-zinc-500">?</span>
+                    </template>
                     {{ licenseHelp.providers }}
                   </NTooltip>
-                </label>
+                </div>
               </div>
             </div>
 

@@ -9,7 +9,7 @@ const error = ref('')
 const saved = ref(false)
 const loaded = ref(false)
 let requestVersion = 0
-async function load() {
+async function load(): Promise<void> {
   const version = ++requestVersion
   busy.value = true; saved.value = false; error.value = ''; loaded.value = false
   try {
@@ -21,7 +21,7 @@ async function load() {
 }
 watch(() => props.userId, load, { immediate: true })
 watch(enabled, () => { saved.value = false })
-async function save() {
+async function save(): Promise<void> {
   if (!loaded.value || busy.value) return
   const version = requestVersion
   busy.value = true; error.value = ''; saved.value = false
@@ -35,11 +35,43 @@ async function save() {
 </script>
 <template>
   <section class="mb-4 rounded border p-3">
-    <label class="flex items-center gap-3"><NSwitch aria-label="Pode supervisionar sessões SSH" v-model:value="enabled" :disabled="busy || !loaded" />Pode supervisionar sessões SSH</label>
-    <p class="my-2 text-xs">Somente leitura, limitada aos hosts autorizados. Não avisa o operador a cada observação. Toda supervisão exige justificativa e fica auditada. A organização deve informar sua política de monitoramento.</p>
-    <NAlert v-if="error" type="error">{{ error }}</NAlert>
-    <NButton v-if="!loaded && error" size="small" :loading="busy" @click="load">Tentar novamente</NButton>
-    <NAlert v-if="saved" type="success">Permissão de supervisão salva.</NAlert>
-    <NButton size="small" :disabled="!loaded" :loading="busy" @click="save">Salvar permissão de supervisão</NButton>
+    <div class="flex items-center gap-3">
+      <NSwitch
+        v-model:value="enabled"
+        aria-label="Pode supervisionar sessões SSH"
+        :disabled="busy || !loaded"
+      />Pode supervisionar sessões SSH
+    </div>
+    <p class="my-2 text-xs">
+      Somente leitura, limitada aos hosts autorizados. Não avisa o operador a cada observação. Toda supervisão exige justificativa e fica auditada. A organização deve informar sua política de monitoramento.
+    </p>
+    <NAlert
+      v-if="error"
+      type="error"
+    >
+      {{ error }}
+    </NAlert>
+    <NButton
+      v-if="!loaded && error"
+      size="small"
+      :loading="busy"
+      @click="load"
+    >
+      Tentar novamente
+    </NButton>
+    <NAlert
+      v-if="saved"
+      type="success"
+    >
+      Permissão de supervisão salva.
+    </NAlert>
+    <NButton
+      size="small"
+      :disabled="!loaded"
+      :loading="busy"
+      @click="save"
+    >
+      Salvar permissão de supervisão
+    </NButton>
   </section>
 </template>

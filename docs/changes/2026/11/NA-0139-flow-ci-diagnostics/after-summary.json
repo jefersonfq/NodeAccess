@@ -1,0 +1,31 @@
+{
+  "schemaVersion": 1,
+  "baseSha": "2ce54c08887a7de4e194fdcb97a8f33c55655419",
+  "status": "passed",
+  "startedAt": "2026-11-04T00:17:38.679Z",
+  "finishedAt": "2026-11-04T00:18:15.731Z",
+  "exitCode": 0,
+  "fixture": "Corrected navigation payloads for hosts/sidebar-bootstrap, paginated users/hosts/sessions and session filter options",
+  "editorialNote": "Description corrected in this derived summary: the private runner inherited an obsolete before-fixture description. Original report, result and timestamps were preserved; this is not another execution.",
+  "runtime": {
+    "node": "24.22.1",
+    "chromium": 1248,
+    "cpus": 2,
+    "network": "none"
+  },
+  "sources": [
+    {
+      "file": "tools/frontend/sonar-flow-coverage.cjs",
+      "sha256": "2c11723b1f9fb1a26973eff4faba4bdde8711c0b1ae40c2131a82d146b5e5a8e"
+    },
+    {
+      "file": "tools/frontend/sonar-flow-fixtures.cjs",
+      "sha256": "f9adea7327aecdde8d0ca88a7e66761f89b9269c1d34ac081ef7575b1a1b27ba"
+    },
+    {
+      "file": "tools/frontend/sonar-flow-diagnostics.cjs",
+      "sha256": "c74bcf3cf47844efa9d74d6839cd8f3b022469f456bbec3fcd3365daf02445ee"
+    }
+  ],
+  "evidence": "flow-report.json"
+}

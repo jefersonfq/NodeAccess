@@ -1,17 +1,21 @@
 #!/usr/bin/env node
+const { artifactPath } = require('../shared/private-artifacts.cjs')
 const fs = require('node:fs')
 const { chromium } = require('playwright')
+const { assertFreshSftpListing } = require('./terminal-sftp-assertions.cjs')
+const { observeTerminalZoom } = require('./terminal-zoom-observer.cjs')
+const { attachBrowserCoverage } = require('../coverage/playwright-coverage.cjs')
 
 const FRONTEND = (process.env.FRONTEND_BASE || 'http://127.0.0.1:5174').replace(/\/$/, '')
-const REPORT_PATH = process.env.REPORT_PATH || '/tmp/nodeaccess-terminal-experience.json'
-const SCREENSHOT_PATH = process.env.SCREENSHOT_PATH || '/tmp/nodeaccess-terminal-htop.png'
-const AUTOCOMPLETE_SCREENSHOT_PATH = process.env.AUTOCOMPLETE_SCREENSHOT_PATH || '/tmp/nodeaccess-terminal-autocomplete.png'
-const AUTOCOMPLETE_MOBILE_SCREENSHOT_PATH = process.env.AUTOCOMPLETE_MOBILE_SCREENSHOT_PATH || '/tmp/nodeaccess-terminal-autocomplete-mobile.png'
+const REPORT_PATH = process.env.REPORT_PATH || artifactPath('nodeaccess-terminal-experience.json')
+const SCREENSHOT_PATH = process.env.SCREENSHOT_PATH || artifactPath('nodeaccess-terminal-htop.png')
+const AUTOCOMPLETE_SCREENSHOT_PATH = process.env.AUTOCOMPLETE_SCREENSHOT_PATH || artifactPath('nodeaccess-terminal-autocomplete.png')
+const AUTOCOMPLETE_MOBILE_SCREENSHOT_PATH = process.env.AUTOCOMPLETE_MOBILE_SCREENSHOT_PATH || artifactPath('nodeaccess-terminal-autocomplete-mobile.png')
 const EXECUTABLE_PATH = process.env.PLAYWRIGHT_EXECUTABLE_PATH || '/usr/bin/chromium-browser'
 const CDP_URL = process.env.CHROMIUM_CDP_URL || ''
 const UI_THEME = process.env.UI_THEME === 'light' ? 'light' : 'dark'
 const THEME_SCREENSHOT_PATH = process.env.THEME_SCREENSHOT_PATH || `/tmp/nodeaccess-terminal-sessions-${UI_THEME}.png`
-const HIGHLIGHT_SCREENSHOT_PATH = process.env.HIGHLIGHT_SCREENSHOT_PATH || '/tmp/nodeaccess-terminal-highlight-warning.png'
+const HIGHLIGHT_SCREENSHOT_PATH = process.env.HIGHLIGHT_SCREENSHOT_PATH || artifactPath('nodeaccess-terminal-highlight-warning.png')
 const NETWORK_PROFILE = process.env.NETWORK_DEVICE_PROFILE || null
 const host = {
   ...(NETWORK_PROFILE ? { deviceProfile: NETWORK_PROFILE } : {}),
@@ -178,6 +182,7 @@ async function main() {
   let failNextSnippetRequest = false
   let highlightEffectiveRequests = 0
   let highlightColor = 'amber'
+  let highlightAdversarial = false
   await context.route('**/api/v1/**', async (route) => {
     const path = new URL(route.request().url()).pathname
     let body = {}
@@ -233,7 +238,7 @@ async function main() {
       version: 'test:1',
       templates: [{ id: 71, name: 'Operação', version: 1 }],
       limits: { maxRules: 40, budgetMs: 8, maxMatchesPerPass: 120 },
-      rules: [{ id: '08dff7ec-57a8-4b18-a44c-7ed30068f15d', name: 'Avisos', pattern: 'WARNING', mode: 'literal', caseSensitive: false, wholeWord: true, foreground: highlightColor, background: null, bold: true, enabled: true, priority: 50, source: 'template', templateId: 71, templateName: 'Operação' }],
+      rules: [{ id: '08dff7ec-57a8-4b18-a44c-7ed30068f15d', name: 'Avisos', pattern: highlightAdversarial ? '(a|aa)+$' : 'WARNING', mode: highlightAdversarial ? 'regex' : 'literal', caseSensitive: false, wholeWord: true, foreground: highlightColor, background: null, bold: true, enabled: true, priority: 50, source: 'template', templateId: 71, templateName: 'Operação' }],
     } }
     else if (path === '/api/v1/terminal-highlights/telemetry') { await route.fulfill({ status: 204, body: '' }); return }
     else if (path.includes('/preferences')) body = null
@@ -265,6 +270,7 @@ async function main() {
   })
 
   const page = await context.newPage()
+  await attachBrowserCoverage(page, browser)
   const cdp = await context.newCDPSession(page)
   await Promise.all([cdp.send('Runtime.enable'), cdp.send('Log.enable'), cdp.send('Network.enable'), cdp.send('Performance.enable')])
   const cdpAnomalies = []
@@ -330,8 +336,8 @@ async function main() {
   }
   if (process.env.FILE_UTILITIES_REVIEW === '1') {
     const review = await require('./file-utilities-playwright.cjs')({ page, context }).catch(async error => {
-      await page.screenshot({ path: '/tmp/nodeaccess-file-utilities-ui/failure.png' })
-      fs.writeFileSync('/tmp/nodeaccess-file-utilities-ui/failure.json', JSON.stringify({ message: error.message, body: await page.locator('body').innerText(), runtime: await page.evaluate(() => ({ sockets: window.__terminalExperience.sockets.map(socket => socket.url), messages: window.__terminalExperience.sent })) }, null, 2))
+      await page.screenshot({ path: artifactPath('nodeaccess-file-utilities-ui/failure.png') })
+      fs.writeFileSync(artifactPath('nodeaccess-file-utilities-ui/failure.json'), JSON.stringify({ message: error.message, body: await page.locator('body').innerText(), runtime: await page.evaluate(() => ({ sockets: window.__terminalExperience.sockets.map(socket => socket.url), messages: window.__terminalExperience.sent })) }, null, 2))
       throw error
     })
     fs.writeFileSync(REPORT_PATH, JSON.stringify(review, null, 2)); console.log(JSON.stringify(review, null, 2)); await browser.close(); return
@@ -428,7 +434,7 @@ async function main() {
   await highlightPanel.waitFor()
   const panelBox = await highlightPanel.boundingBox()
   if (!panelBox || panelBox.x < 0 || panelBox.x + panelBox.width > 391) throw new Error('Highlight controls overflow mobile viewport')
-  await page.screenshot({path:'/tmp/nodeaccess-highlight-toolbar-mobile.png'})
+  await page.screenshot({path:artifactPath('nodeaccess-highlight-toolbar-mobile.png')})
   await highlightButton.click()
   await page.setViewportSize({width:1440,height:900})
   await highlightButton.click()
@@ -896,6 +902,9 @@ async function main() {
   await terminalInput.press('Tab')
   const orphanRecoveryBytes = await page.evaluate((offset) => window.__terminalExperience.sent.join('').slice(offset), sentBeforeOrphanRecovery)
   if (orphanRecoveryBytes !== '\u0005\u0015cd /var/log/anaconda/') throw new Error(`Autocomplete preservou byte órfão no caminho: ${JSON.stringify(orphanRecoveryBytes)}`)
+  // Completing a directory schedules the next listing asynchronously. Observe
+  // that request before taking the cache baseline, rather than racing its timer.
+  await page.waitForFunction(() => window.__terminalExperience.sftpMessages.includes('/var/log/anaconda'))
   const sessionSftpRequests = await page.evaluate(() => window.__terminalExperience.sftpMessages)
   if (sessionSftpRequests.length < 2 || sessionSftpRequests[0] !== '/' || sessionSftpRequests[1] !== '/var' || autocompleteSftpRequests.length !== 0) throw new Error(`Autocomplete não reutilizou exclusivamente o SFTP da sessão: ${JSON.stringify({ sessionSftpRequests, autocompleteSftpRequests })}`)
   await terminalInput.press('Control+U')
@@ -904,7 +913,7 @@ async function main() {
   await terminalInput.pressSequentially('cd /var/lo', { delay: 8 })
   await inlineAutocomplete.getByText('cd /var/local/', { exact: true }).waitFor()
   const sessionSftpAfterMutation = await page.evaluate(() => window.__terminalExperience.sftpMessages)
-  if (sessionSftpAfterMutation.length !== sessionSftpRequests.length + 1) throw new Error(`Comando mutável não invalidou o cache SFTP da sessão: ${JSON.stringify(sessionSftpAfterMutation)}`)
+  const sessionCacheInvalidation = assertFreshSftpListing(sessionSftpRequests, sessionSftpAfterMutation, '/var')
   await terminalInput.press('Escape')
   await terminalInput.press('Control+U')
   await terminalInput.pressSequentially('disco', { delay: 8 })
@@ -1056,7 +1065,26 @@ async function main() {
   await inlineAi.getByRole('button', { name: 'Fechar assistente' }).click()
   await inlineAi.waitFor({ state: 'detached' })
 
-  const before = await container.evaluate((element) => ({ rows: Number(element.dataset.terminalRows), cols: Number(element.dataset.terminalCols), rect: element.getBoundingClientRect().toJSON() }))
+  const copyGeometry = await container.evaluate(element => ({ rows: element.dataset.terminalRows, cols: element.dataset.terminalCols }))
+  await page.locator('[data-terminal-action="copy-mode"]').click()
+  const copyText = page.locator('[data-terminal-copy-mode] pre')
+  await copyText.waitFor()
+  await page.locator('[data-terminal-action="close-copy-mode"]').focus()
+  await page.keyboard.press('Tab')
+  const copyFocus = await copyText.evaluate(element => ({ focused: document.activeElement === element, shadow: getComputedStyle(element).boxShadow, editable: element.isContentEditable }))
+  if (!copyFocus.focused || copyFocus.shadow === 'none' || copyFocus.editable) throw new Error('Modo texto deve ter foco visível e permanecer somente leitura')
+  const copyValue = await copyText.textContent()
+  await page.keyboard.type('COPY_MODE_READ_ONLY')
+  if (await copyText.textContent() !== copyValue) throw new Error('Modo texto alterou conteúdo durante digitação')
+  await page.screenshot({ path: artifactPath('nodeaccess-terminal-copy-focus.png'), fullPage: true })
+  await page.keyboard.press('Shift+Tab')
+  if (!await page.locator('[data-terminal-action="close-copy-mode"]').evaluate(element => document.activeElement === element)) throw new Error('Modo texto não permite voltar ao botão Fechar por teclado')
+  await page.keyboard.press('Enter')
+  await copyText.waitFor({ state: 'detached' })
+  const afterCopyGeometry = await container.evaluate(element => ({ rows: element.dataset.terminalRows, cols: element.dataset.terminalCols }))
+  if (JSON.stringify(copyGeometry) !== JSON.stringify(afterCopyGeometry)) throw new Error('Modo texto alterou área útil do terminal')
+
+  const before = await container.evaluate((element) => ({ rows: Number(element.dataset.terminalRows), cols: Number(element.dataset.terminalCols), rect: element.getBoundingClientRect().toJSON(), resizeCount: window.__terminalExperience.resizeMessages.length }))
   const initialFont = await page.evaluate(() => Number(localStorage.getItem('na_term_fontSize') || 14))
   const box = await container.boundingBox()
   await page.keyboard.down('Control')
@@ -1065,9 +1093,10 @@ async function main() {
   await page.keyboard.up('Control')
   await page.getByText(`Zoom do terminal: ${initialFont + 1}px`, { exact: true }).waitFor()
   await page.waitForFunction((font) => Number(localStorage.getItem('na_term_fontSize')) === font, initialFont + 1)
-  await page.waitForFunction(() => window.__terminalExperience.resizeMessages.length >= 2)
-
-  const zoomedRows = await container.evaluate((element) => Number(element.dataset.terminalRows))
+  const zoomHandle = await page.waitForFunction(observeTerminalZoom, { resizeCount: before.resizeCount, rowsBefore: before.rows, expectedFont: initialFont + 1 })
+  const zoomSnapshot = await zoomHandle.jsonValue()
+  await zoomHandle.dispose()
+  const zoomedRows = zoomSnapshot.rows
   const resizeBeforeAlternateScreen = await page.evaluate(() => window.__terminalExperience.resizeMessages.length)
   const htopStartedAt = Date.now()
   await page.evaluate((rows) => window.__emitHtopFrame(rows), zoomedRows)
@@ -1130,6 +1159,35 @@ async function main() {
   })
   await page.waitForFunction(() => Number(localStorage.getItem('na_term_fontSize')) === 10)
 
+  // The final adversarial fixture intentionally suspends highlights until reload.
+  if (!await page.locator('[data-terminal-action="highlights"]').count()) await page.locator('[data-terminal-action="show-toolbar"]').click()
+  await page.keyboard.press('Escape')
+  highlightAdversarial = true
+  const faultLoadCount = await page.evaluate(() => window.__NODEACCESS_TERMINAL_HARNESS__.events.filter(event => event.name === 'terminal-highlights-loaded').length)
+  await page.evaluate(() => window.dispatchEvent(new Event('nodeaccess:terminal-highlights-changed')))
+  await page.waitForFunction(count => window.__NODEACCESS_TERMINAL_HARNESS__.events.filter(event => event.name === 'terminal-highlights-loaded').length > count, faultLoadCount)
+  const beforeHighlightFault = await container.boundingBox()
+  await page.evaluate(() => window.__emitLatestSshBytes('\u001b[?1049l\r\n' + 'a'.repeat(60) + '!\r\n'))
+  const pausedHighlights = page.getByRole('button', { name: 'Destaques · pausados', exact: true })
+  await pausedHighlights.waitFor().catch(async error => {
+    await page.screenshot({ path: artifactPath('nodeaccess-highlight-paused-terminal-failure.png') })
+    console.error(JSON.stringify(await page.evaluate(() => ({ buttons: [...document.querySelectorAll('[data-terminal-action="highlights"]')].map(element => ({ text: element.textContent, title: element.title })), tail: document.querySelector('[data-terminal-container]')?.textContent?.slice(-500), events: window.__NODEACCESS_TERMINAL_HARNESS__?.events.slice(-8) }))))
+    throw error
+  })
+  if (await page.locator('[data-terminal-highlight-controls]').isVisible()) throw new Error('Pause status required an open popover')
+  if (JSON.stringify(await container.boundingBox()) !== JSON.stringify(beforeHighlightFault)) throw new Error('Highlight pause resized terminal')
+  const inputsBeforePause = await page.evaluate(() => window.__terminalExperience.inputSent.length)
+  await container.locator('.xterm-helper-textarea').focus()
+  await page.keyboard.type('alive_after_highlight_timeout')
+  await page.waitForFunction(before => window.__terminalExperience.inputSent.length > before, inputsBeforePause)
+  await page.screenshot({ path: artifactPath('nodeaccess-highlight-paused-terminal-desktop.png') })
+  await page.setViewportSize({ width: 390, height: 844 })
+  await pausedHighlights.waitFor()
+  const pausedBox = await pausedHighlights.boundingBox()
+  if (!pausedBox || pausedBox.x < 0 || pausedBox.x + pausedBox.width > 390) throw new Error('Pause label overflowed mobile viewport')
+  await page.screenshot({ path: artifactPath('nodeaccess-highlight-paused-terminal-mobile.png') })
+  await page.setViewportSize({ width: 1440, height: 900 })
+
   await page.goto(`${FRONTEND}/hosts?presenceExperience=${Date.now()}`, { waitUntil: 'domcontentloaded' })
   const presencePill = page.locator('[data-host-presence-pill="true"]')
   await presencePill.waitFor({ timeout: 10_000 }).catch(async () => {
@@ -1142,7 +1200,7 @@ async function main() {
   const performanceMetrics = await cdp.send('Performance.getMetrics')
   if (expectedCdpHttpErrors !== 0) throw new Error(`Falha HTTP esperada não foi observada pelo CDP: ${expectedCdpHttpErrors}`)
   if (cdpAnomalies.length) throw new Error(`Anomalias CDP: ${cdpAnomalies.join('; ')}`)
-  const report = { changeId: 'NA-0014', frontend: FRONTEND, result: 'passed', highlights: { matchCount: highlightPass.matchCount, liveRefresh: highlightRefresh, screenshot: HIGHLIGHT_SCREENSHOT_PATH }, snippets: { refreshedOnOpen: true, transientFailureRecovered: true, requestCount: snippetRequestCount }, sessionsNavigator: { lazyScaleRows: 20, totalHosts: 237, retryRecovered: true, staleSearchIgnored: true, deniedHostDisabled: true, doubleClickDeduplicated: true, focusReturnedFromPagination: true, mobileGeometry: mobileSessionsGeometry, modeCycles: modeCycleStats }, autocomplete: { review: autocompleteReview, literalPrefix: true, remotePath: true, escapedRemotePath: true, optionLikePathNeutralized: true, unicodePathSupported: true, orphanPathByteRecovered: orphanRecoveryBytes === '\u0005\u0015cd /var/log/anaconda/', cursorAwareEditing: true, sessionEntitiesLearned: true, successfulCommandLearning: true, failedCommandIgnored: true, contextualProviders: true, safeHistory: true, nonBlockingFailure: true, transientRetryRecovered: flakyAttempts === 2, sessionSftpReuse: true, restSftpRequestCount: autocompleteSftpRequests.length, intentionalAliasDiscovery: true, insertionWithoutExecution: true, keyboardNavigation: true, accessibleActiveOption: true, remoteRequestCount: sessionSftpAfterMutation.length, stressCycles: 1000, stressMs: autocompleteStressMs, geometry: autocompleteGeometry, mobileGeometry: mobileAutocompleteGeometry, screenshot: AUTOCOMPLETE_SCREENSHOT_PATH, mobileScreenshot: AUTOCOMPLETE_MOBILE_SCREENSHOT_PATH }, resilience: resilienceSnapshot, initialFont, zoomedFont: initialFont + 1, zoomBounds: { min: 10, max: 24 }, before, layout, htopRenderMs, hostEdit: { updates: hostUpdates, nameOnlyKeptSession: true, connectionChangeReconnected: true, mobileModalFits: true }, cdp: { anomalies: cdpAnomalies, metrics: Object.fromEntries(performanceMetrics.metrics.filter((metric) => ['JSHeapUsedSize', 'Nodes', 'LayoutCount', 'RecalcStyleCount'].includes(metric.name)).map((metric) => [metric.name, metric.value])) }, presenceEndedImmediately: true, screenshot: SCREENSHOT_PATH }
+  const report = { changeId: 'NA-0014', frontend: FRONTEND, result: 'passed', highlights: { pausedLabelVisible: true, pausedInputContinues: true, pausedTerminalGeometryPreserved: true, matchCount: highlightPass.matchCount, liveRefresh: highlightRefresh, screenshot: HIGHLIGHT_SCREENSHOT_PATH }, snippets: { refreshedOnOpen: true, transientFailureRecovered: true, requestCount: snippetRequestCount }, sessionsNavigator: { lazyScaleRows: 20, totalHosts: 237, retryRecovered: true, staleSearchIgnored: true, deniedHostDisabled: true, doubleClickDeduplicated: true, focusReturnedFromPagination: true, mobileGeometry: mobileSessionsGeometry, modeCycles: modeCycleStats }, autocomplete: { review: autocompleteReview, literalPrefix: true, remotePath: true, escapedRemotePath: true, optionLikePathNeutralized: true, unicodePathSupported: true, orphanPathByteRecovered: orphanRecoveryBytes === '\u0005\u0015cd /var/log/anaconda/', cursorAwareEditing: true, sessionEntitiesLearned: true, successfulCommandLearning: true, failedCommandIgnored: true, contextualProviders: true, safeHistory: true, nonBlockingFailure: true, transientRetryRecovered: flakyAttempts === 2, sessionSftpReuse: true, sessionCacheInvalidation, restSftpRequestCount: autocompleteSftpRequests.length, intentionalAliasDiscovery: true, insertionWithoutExecution: true, keyboardNavigation: true, accessibleActiveOption: true, remoteRequestCount: sessionSftpAfterMutation.length, stressCycles: 1000, stressMs: autocompleteStressMs, geometry: autocompleteGeometry, mobileGeometry: mobileAutocompleteGeometry, screenshot: AUTOCOMPLETE_SCREENSHOT_PATH, mobileScreenshot: AUTOCOMPLETE_MOBILE_SCREENSHOT_PATH }, resilience: resilienceSnapshot, initialFont, zoomedFont: initialFont + 1, zoomBounds: { min: 10, max: 24 }, before, layout, htopRenderMs, hostEdit: { updates: hostUpdates, nameOnlyKeptSession: true, connectionChangeReconnected: true, mobileModalFits: true }, cdp: { anomalies: cdpAnomalies, metrics: Object.fromEntries(performanceMetrics.metrics.filter((metric) => ['JSHeapUsedSize', 'Nodes', 'LayoutCount', 'RecalcStyleCount'].includes(metric.name)).map((metric) => [metric.name, metric.value])) }, presenceEndedImmediately: true, screenshot: SCREENSHOT_PATH }
   report.theme = UI_THEME
   report.themeSelection = { ...themeSelection, screenshot: THEME_SCREENSHOT_PATH }
   report.middleClickPaste = { singlePaste: true, remoteMouseTrackingPreserved: true, ...middlePasteSafety }

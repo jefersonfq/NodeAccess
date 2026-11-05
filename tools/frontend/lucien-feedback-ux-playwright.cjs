@@ -1,12 +1,13 @@
 #!/usr/bin/env node
 'use strict'
+const { artifactPath } = require('../shared/private-artifacts.cjs')
 // Real Vue pages/components and Chromium; all API/WS traffic is simulated, no customer data.
 const { chromium } = require('playwright')
 const assert = require('node:assert/strict')
 const fs = require('node:fs/promises')
 const path = require('node:path')
 const base = process.env.FRONTEND_BASE || 'http://127.0.0.1:5174'
-const output = process.env.UX_REPORT_DIR || '/tmp/nodeaccess-lucien-ux'
+const output = process.env.UX_REPORT_DIR || artifactPath('nodeaccess-lucien-ux')
 const token = `e30.${Buffer.from(JSON.stringify({ sub: '9', tenantId: 7, role: 'admin', name: 'Auditor de laboratório', stage: 'authenticated', exp: 4102444800 })).toString('base64url')}.simulation`
 const session = { id: 42, hostId: 2, startedAt: new Date().toISOString(), host: { name: 'Servidor financeiro de homologação' }, user: { name: 'Operador de teste' } }
 

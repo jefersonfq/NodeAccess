@@ -1,0 +1,24 @@
+{
+  "baseSha": "ee436402db8bcce7fab4378d6ba28c1673b282b5",
+  "files": {
+    "apps/backend/src/modules/terminal-highlights/terminal-highlight.service.test.ts": "923e7430efc1b2e9f41130745a0af1cc2450946501be0682ca00852563205f83",
+    "apps/backend/src/modules/terminal-highlights/terminal-highlight.service.ts": "3286ac135fa43b3bb9e8273f29c6de3c1104bd70491112acb558e56914c5c453",
+    "apps/frontend/public/manual-assets/terminal.png": "87135256257df33dac64b24483a45292e35b3634579d644a4f2b6ac6d27e453a",
+    "apps/frontend/src/components/TerminalHighlightEffectiveRules.vue": "920fdf14ff5953bfa52be837056f1794ec5e59e6dd1c73e3810bc4871b0875b0",
+    "apps/frontend/src/components/TerminalHighlightPresetPicker.vue": "1ddc5e13256d3775e05d3b8b9985acf1361787440ebb08784245263cb028a0be",
+    "apps/frontend/src/components/TerminalHighlightRuleEditor.vue": "9942f18d290632aeafe130a551ab4bab331492726c5cf9192dad829dae3fbde4",
+    "apps/frontend/src/components/TerminalPane.vue": "ba7e2feca4a27329e7677c368e25348cbf4e0b90df7f43c6db06bf836cc9e344",
+    "apps/frontend/src/composables/useTerminal.ts": "a9a9eb2bc6b0aa99176250b973322597c9cea4adab115465fd37eabd61264c53",
+    "apps/frontend/src/terminal/terminal-highlighter.test.ts": "a150be04be17b67c297afcedef47afcfbc0f41c210083007c479c4609212a392",
+    "apps/frontend/src/terminal/terminal-highlighter.ts": "263321ebced5088d0ea379a183def804806990c491a873fc08ce184856228dc9",
+    "apps/frontend/src/views/admin/SessionAuditDetailView.vue": "90cd9086ef6e8ac934d46f36f57f8ea98d7f0cd1de79c8e841abad4623b9132b",
+    "tools/frontend/terminal-highlights-playwright.cjs": "92d90aca3e3d07a0edc3fcbe8011e348ad8a7c09f4b02665ac301e7bbe98d4e5",
+    "apps/frontend/src/composables/useHighlightPreview.ts": "534f4b061325dc024d9afa0c827a6ba4daa0e68fe618dc13d3a6e57b1f0d0d1f",
+    "apps/frontend/src/terminal/terminal-highlight-client.test.ts": "ad94d1adab9ba35ca194b7bccb289257d46dcb516d4fad81dc09339e87fe9d14",
+    "apps/frontend/src/terminal/terminal-highlight-client.ts": "d27813afcf260da313f8a46841d10c8c9f12115fefafdf1b02094509b1787c77",
+    "apps/frontend/src/terminal/terminal-highlight-engine.ts": "02ff804271ec7914e2953f17c581770b5cb4df299b68820ac8ad5f3662aa5f91",
+    "apps/frontend/src/terminal/terminal-highlight.worker.ts": "a5846f5e0b40e190934e5525643fbf647bcf07129e76ef842784fca11560f6d2",
+    "tools/frontend/terminal-highlight-budget.mjs": "c5e1ceba59d2f22dff13c6294cf1896167e46a804aa50e70aff1ac86ae16d23d",
+    "tools/frontend/terminal-experience-playwright.cjs": "5b3102d9620041045d3bda30e4d9d0c40bfedaf9026cfefb7f158e3d8c88b1dc"
+  }
+}

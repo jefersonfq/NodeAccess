@@ -1,3 +1,4 @@
+const { artifactPath } = require('../shared/private-artifacts.cjs')
 // Opt-in: disposable records in the local development API; never opens SSH sessions.
 const fs = require('node:fs'), crypto = require('node:crypto'), assert = require('node:assert/strict')
 const base = process.env.IMPORT_TEST_API || 'http://127.0.0.1:3000/api/v1'
@@ -59,7 +60,7 @@ async function main() {
   report.scenarios.push('revert restores persisted bastion and metadata')
   report.ok = true
  } catch (error) { report.failure = error.message; throw error } finally {
-  fs.writeFileSync('/tmp/nodeaccess-host-import-live.json', JSON.stringify(report, null, 2))
+  fs.writeFileSync(artifactPath('nodeaccess-host-import-live.json'), JSON.stringify(report, null, 2))
   // Only resources tracked from this uniquely named batch are touched.
   for (const id of importIds.reverse()) { try { await api('/host-imports/'+id+'/revert', 'POST') } catch (error) { report.cleanupError = error.message } }
   for (const id of ownedIds) {
@@ -72,9 +73,9 @@ async function main() {
    for (const child of children) await api('/inventory/folders/'+child.id, 'DELETE')
    await api('/inventory/folders/'+folder.id, 'DELETE')
   }
-  fs.writeFileSync('/tmp/nodeaccess-host-import-live.json', JSON.stringify(report, null, 2))
+  fs.writeFileSync(artifactPath('nodeaccess-host-import-live.json'), JSON.stringify(report, null, 2))
  }
  assert.ok(!report.cleanupError, report.cleanupError)
- console.log(JSON.stringify({ ok: report.ok, scenarios: report.scenarios, report: '/tmp/nodeaccess-host-import-live.json' }))
+ console.log(JSON.stringify({ ok: report.ok, scenarios: report.scenarios, report: artifactPath('nodeaccess-host-import-live.json') }))
 }
 main().catch(error => { console.error(error.message); process.exitCode = 1 })

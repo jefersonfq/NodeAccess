@@ -434,8 +434,15 @@ function defaultPortForProtocol(protocol: 'http' | 'https'): number {
 }
 
 function buildProxyUrl(token: string, path: string): string {
-  const normalizedPath = path.startsWith('/') ? path : `/${path}`
-  return `/api/v1/web-access/proxy${normalizedPath}?token=${encodeURIComponent(token)}`
+  const hashIndex = path.indexOf('#')
+  const fragment = hashIndex < 0 ? '' : path.slice(hashIndex)
+  const resource = hashIndex < 0 ? path : path.slice(0, hashIndex)
+  const queryIndex = resource.indexOf('?')
+  const pathname = queryIndex < 0 ? resource : resource.slice(0, queryIndex)
+  const query = new URLSearchParams(queryIndex < 0 ? '' : resource.slice(queryIndex + 1))
+  query.set('token', token)
+  const normalizedPath = pathname.startsWith('/') ? pathname : `/${pathname}`
+  return `/api/v1/web-access/proxy${normalizedPath}?${query.toString()}${fragment}`
 }
 
 function buildUpstreamPath(requestUrl: string, pathSuffix: string): string {
@@ -490,8 +497,14 @@ function injectCompatibilityScript(html: string, token: string): string {
     if (!url.startsWith('/')) return url;
     if (url.startsWith('//')) return url;
     if (url.startsWith('/api/v1/web-access/proxy')) return url;
-    var joiner = url.indexOf('?') === -1 ? '?' : '&';
-    return '/api/v1/web-access/proxy' + url + joiner + 'token=' + encodeURIComponent(token);
+    var hashIndex = url.indexOf('#');
+    var fragment = hashIndex < 0 ? '' : url.slice(hashIndex);
+    var resource = hashIndex < 0 ? url : url.slice(0, hashIndex);
+    var queryIndex = resource.indexOf('?');
+    var pathname = queryIndex < 0 ? resource : resource.slice(0, queryIndex);
+    var query = new URLSearchParams(queryIndex < 0 ? '' : resource.slice(queryIndex + 1));
+    query.set('token', token);
+    return '/api/v1/web-access/proxy' + pathname + '?' + query.toString() + fragment;
   }
   function patchAttributeSetter(proto, attrName) {
     if (!proto || typeof proto.setAttribute !== 'function') return;

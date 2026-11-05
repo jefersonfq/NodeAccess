@@ -1,0 +1,149 @@
+{
+  "success": true,
+  "cases": [
+    {
+      "profile": "http",
+      "path": "/",
+      "status": 403,
+      "securityHeaders": true
+    },
+    {
+      "profile": "http",
+      "path": "/index.html",
+      "status": 403,
+      "securityHeaders": true
+    },
+    {
+      "profile": "http",
+      "path": "/assets/test.js",
+      "status": 403,
+      "securityHeaders": true
+    },
+    {
+      "profile": "http",
+      "path": "/assets/missing.js",
+      "status": 403,
+      "securityHeaders": true
+    },
+    {
+      "profile": "http",
+      "path": "/api/v1/fixture",
+      "status": 502,
+      "securityHeaders": true
+    },
+    {
+      "profile": "http",
+      "path": "/health/ready",
+      "status": 502,
+      "securityHeaders": true
+    },
+    {
+      "profile": "https",
+      "path": "/",
+      "status": 403,
+      "securityHeaders": true
+    },
+    {
+      "profile": "https",
+      "path": "/index.html",
+      "status": 403,
+      "securityHeaders": true
+    },
+    {
+      "profile": "https",
+      "path": "/assets/test.js",
+      "status": 403,
+      "securityHeaders": true
+    },
+    {
+      "profile": "https",
+      "path": "/assets/missing.js",
+      "status": 403,
+      "securityHeaders": true
+    },
+    {
+      "profile": "https",
+      "path": "/api/v1/fixture",
+      "status": 502,
+      "securityHeaders": true
+    },
+    {
+      "profile": "https",
+      "path": "/health/ready",
+      "status": 502,
+      "securityHeaders": true
+    },
+    {
+      "profile": "prod",
+      "path": "/",
+      "status": 403,
+      "securityHeaders": true
+    },
+    {
+      "profile": "prod",
+      "path": "/index.html",
+      "status": 403,
+      "securityHeaders": true
+    },
+    {
+      "profile": "prod",
+      "path": "/assets/test.js",
+      "status": 403,
+      "securityHeaders": true
+    },
+    {
+      "profile": "prod",
+      "path": "/assets/missing.js",
+      "status": 403,
+      "securityHeaders": true
+    },
+    {
+      "profile": "prod",
+      "path": "/api/v1/fixture",
+      "status": 502,
+      "securityHeaders": true
+    },
+    {
+      "profile": "prod",
+      "path": "/health/ready",
+      "status": 502,
+      "securityHeaders": true
+    },
+    {
+      "profile": "k8s",
+      "path": "/",
+      "status": 500,
+      "securityHeaders": true
+    },
+    {
+      "profile": "k8s",
+      "path": "/index.html",
+      "status": 500,
+      "securityHeaders": true
+    },
+    {
+      "profile": "k8s",
+      "path": "/assets/test.js",
+      "status": 403,
+      "securityHeaders": true
+    },
+    {
+      "profile": "k8s",
+      "path": "/assets/missing.js",
+      "status": 403,
+      "securityHeaders": true
+    },
+    {
+      "profile": "k8s",
+      "path": "/api/v1/fixture",
+      "status": 502,
+      "securityHeaders": true
+    },
+    {
+      "profile": "k8s",
+      "path": "/health/ready",
+      "status": 502,
+      "securityHeaders": true
+    }
+  ]
+}

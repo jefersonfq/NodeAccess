@@ -1,0 +1,48 @@
+✔ isolated browser orchestration uses loopback fixtures and private outputs without app/backend proxy (132.937588ms)
+✔ browser phase fails closed and cleans server on harness nonzero (22.983383ms)
+✔ browser phase fails closed and cleans server on harness deadline (14.807465ms)
+✔ browser phase fails closed and cleans server on non-loopback server (3.639826ms)
+✔ browser phase fails closed and cleans server on cleanup failure (12.956723ms)
+✔ browser setup errors remain explicit without claiming a harness ran (3.599623ms)
+✔ module readiness tolerates startup response then rejects an unavailable fixture within a deadline (204.876185ms)
+✔ real harness subprocesses retain logs, nonzero exits and forced termination (165.597404ms)
+✔ timeout kills resistant descendant when parent exits on SIGTERM (1016.764101ms)
+✔ timeout kills resistant descendant when parent also resists (6019.482111ms)
+✔ normal parent exit does not signal its descendant group (120.442707ms)
+✔ refuses symlinked coverage before chmod or removal outside the checkout (2.940453ms)
+✔ refuses symlinked coverage/browser before chmod or removal outside the checkout (2.211578ms)
+✔ all five children share managed Chromium without a system fallback (13.208308ms)
+✔ all five children share managed Chromium without a system fallback (10.162316ms)
+✔ all five children share explicit Chromium without a system fallback (11.946829ms)
+✔ missing explicit browser stays explicit and failure cannot fall back to another executable (40.183859ms)
+✔ flow diagnostics are current, sanitized and never turn a failed run into success (15.56048ms)
+✔ failed frontend retains bounded stack coordinates without private text or changing failure (16.849665ms)
+✔ all allowed script frames yield only class and bounded coordinates (2.835153ms)
+✔ unexpected names, malformed frames and injected diagnostic fields cannot escape the allowlist (0.33935ms)
+✔ bounded reader refuses symlink, directory, absent and excessive logs (2.565674ms)
+✔ real failed child assertion stays failed while its stack is safely projected (44.619516ms)
+✔ timeout headers preserve positive and negative cases across log lines (0.705016ms)
+✔ long failed markers and digit runs finish within a bounded real child process (97.726177ms)
+✔ missing, empty and nonregular artifacts are explicit without paths (4.559519ms)
+✔ collector codes and counts survive while tokens, paths and arbitrary messages do not (2.486834ms)
+✔ malicious status, numeric strings and error objects never propagate (2.248851ms)
+✔ diagnostic maps known error category FILE_ACCESS_DENIED (1.631917ms)
+✔ diagnostic maps known error category FILE_ACCESS_DENIED (1.854652ms)
+✔ diagnostic maps known error category BROWSER_COVERAGE_MISSING (5.089553ms)
+✔ diagnostic maps known error category BROWSER_PROVENANCE_INVALID (1.389721ms)
+✔ diagnostic maps known error category UNCLASSIFIED (1.024439ms)
+✔ invalid or excessive JSON does not publish bytes or block cleanup (11.096099ms)
+✔ browser phases and five known harnesses retain actionable facts without free text (2.410747ms)
+✔ browser error maps exact category BROWSER_DEPENDENCIES_NOT_READY (1.042182ms)
+✔ browser error maps exact category BROWSER_BIND_NOT_LOOPBACK (0.696545ms)
+✔ browser error maps exact category BROWSER_CLEANUP_FAILED (1.347539ms)
+✔ flow failure retains only known stage and class through CI projection (1.788272ms)
+✔ CI revalidates generic stack coordinates and keeps structured flow failure independently (1.31118ms)
+ℹ tests 40
+ℹ suites 0
+ℹ pass 40
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 8710.546928

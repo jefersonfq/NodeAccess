@@ -1,0 +1,7 @@
+{
+  "base": "02e7521cbe69e72cb5c8c3f5f951dcdc6e1c5fec",
+  "parserChecks": 89887,
+  "timestampChecks": 1006,
+  "result": "passed",
+  "limits": "Finite source-extracted differential; no execution of user commands, no SSH/DB/API. Browser separately covers real Vue component."
+}

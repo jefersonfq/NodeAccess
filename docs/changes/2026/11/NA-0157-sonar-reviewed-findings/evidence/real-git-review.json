@@ -1,0 +1,149 @@
+{
+  "project": "nodeaccess-review-lab-d8fc0bde-5810-4e8f-aaac-4ba71760f90b",
+  "root": "/tmp/na0157-git-lab-cekKXW",
+  "startedAt": "2026-11-04T15:57:17.535Z",
+  "checks": [
+    "real Git source blobs and clean HEAD bound to installed rule, issue range and analysis",
+    "partial real batch fails, retry preserves existing decision and avoids duplicate comment",
+    "live project gate ERROR to OK without rescan; historical analysis remains separately reported",
+    "actual replacement analysis invalidates prior batch; no subsequent write"
+  ],
+  "passed": true,
+  "base": "6f6d62bc8856bdc32220efc46cce61c2b4b093f7",
+  "revision": "af9ec2e7bd0e59d49eb8f0093b557ca15aa62481",
+  "beforeGate": {
+    "projectStatus": {
+      "status": "ERROR",
+      "conditions": [
+        {
+          "status": "OK",
+          "metricKey": "new_coverage",
+          "comparator": "LT",
+          "errorThreshold": "80",
+          "actualValue": "0.0"
+        },
+        {
+          "status": "OK",
+          "metricKey": "new_duplicated_lines_density",
+          "comparator": "GT",
+          "errorThreshold": "3",
+          "actualValue": "0.0"
+        },
+        {
+          "status": "ERROR",
+          "metricKey": "new_violations",
+          "comparator": "GT",
+          "errorThreshold": "0",
+          "actualValue": "2"
+        }
+      ],
+      "ignoredConditions": true,
+      "period": {
+        "mode": "SPECIFIC_ANALYSIS",
+        "date": "2026-11-04T15:57:23+0000",
+        "parameter": "1f24ac79-61c7-4f32-b481-de8da830820e"
+      },
+      "caycStatus": "compliant"
+    }
+  },
+  "dryRun": {
+    "status": "dry_run",
+    "proposed": 2,
+    "changed": 0,
+    "absent": 0,
+    "unchanged": 0
+  },
+  "recovered": {
+    "status": "applied",
+    "proposed": 1,
+    "changed": 1,
+    "absent": 0,
+    "unchanged": 1
+  },
+  "idempotent": {
+    "status": "applied",
+    "proposed": 0,
+    "changed": 0,
+    "absent": 0,
+    "unchanged": 2
+  },
+  "afterReviewHistoricalGate": {
+    "projectStatus": {
+      "status": "ERROR",
+      "conditions": [
+        {
+          "status": "OK",
+          "metricKey": "new_coverage",
+          "comparator": "LT",
+          "errorThreshold": "80",
+          "actualValue": "0.0"
+        },
+        {
+          "status": "OK",
+          "metricKey": "new_duplicated_lines_density",
+          "comparator": "GT",
+          "errorThreshold": "3",
+          "actualValue": "0.0"
+        },
+        {
+          "status": "ERROR",
+          "metricKey": "new_violations",
+          "comparator": "GT",
+          "errorThreshold": "0",
+          "actualValue": "2"
+        }
+      ],
+      "ignoredConditions": true,
+      "period": {
+        "mode": "SPECIFIC_ANALYSIS",
+        "date": "2026-11-04T15:57:23+0000",
+        "parameter": "1f24ac79-61c7-4f32-b481-de8da830820e"
+      },
+      "caycStatus": "compliant"
+    }
+  },
+  "afterReviewGate": {
+    "projectStatus": {
+      "status": "OK",
+      "conditions": [
+        {
+          "status": "OK",
+          "metricKey": "new_coverage",
+          "comparator": "LT",
+          "errorThreshold": "80",
+          "actualValue": "0.0"
+        },
+        {
+          "status": "OK",
+          "metricKey": "new_duplicated_lines_density",
+          "comparator": "GT",
+          "errorThreshold": "3",
+          "actualValue": "0.0"
+        },
+        {
+          "status": "OK",
+          "metricKey": "new_security_hotspots_reviewed",
+          "comparator": "LT",
+          "errorThreshold": "100"
+        },
+        {
+          "status": "OK",
+          "metricKey": "new_violations",
+          "comparator": "GT",
+          "errorThreshold": "0",
+          "actualValue": "0"
+        }
+      ],
+      "ignoredConditions": true,
+      "period": {
+        "mode": "SPECIFIC_ANALYSIS",
+        "date": "2026-11-04T15:57:23+0000",
+        "parameter": "1f24ac79-61c7-4f32-b481-de8da830820e"
+      },
+      "caycStatus": "compliant"
+    }
+  },
+  "actorDeactivated": true,
+  "projectDeleted": true,
+  "finishedAt": "2026-11-04T15:58:18.920Z"
+}

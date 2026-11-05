@@ -252,3 +252,29 @@ Complemento da mesma revisão: flags explicitamente desligadas no full ocultam s
 ### 2026-10-28T09:01:44-03:00 — NA-0079 Hosts, disponibilidade e dashboard
 
 Manual de Hosts atualizado para ícones acessíveis, disponibilidade de Agent/conector, conexão pelo dashboard e investigação de atenção/auditoria. Mapeados novos helpers, indicador e HostDashboard no manifesto. `manual:capture` passou em frontend local5284 com versão2.1.0: cinco capítulos, ajuda, compartilhamento60estados e troca de tenant. Cinco PNGs sintéticos inspecionados quanto a enquadramento/leitura; nenhuma captura de produção. `test:manual` passou (2Node+18Vitest), `test:terminal-experience:web` passou. Browser Hosts quatro cenários mobile/desktop cobriu rota obrigatória, DIRECT/AUTO, ACL, erro/retry e nova invalidação do cache após503; essa última correção não altera geometria. Hash de Hosts recalculado por `loadManual()` depois da revisão; `manual:check-reviewed` passou para os cinco capítulos. Transporte/resize não foram alterados; não se executou PTYSSH como parte desta revisão editorial. Reprodução de Ctrl+R em BashPTY local consta nas evidências NA0079.
+
+### 2026-11-03 — NA-0087 / revisão Sonar frontend
+
+Revalidados Hosts, terminal e tenants no worktree `/tmp/nodeaccess-NA-0087`, base `3aa5513789d63ef24b3e268c5f2077fde7db616e`. Texto mantido: os procedimentos não mudaram. Ajustes tratam associação acessível, papel do indicador de acesso e varreduras de texto; nenhum transporte/resize remoto foi alterado.
+
+`manual:capture` passou com frontend local 5197 e `MANUAL_EXPECTED_VERSION=dev`: ajuda, busca, mobile, falha/retry, compartilhamento e retorno de tenant sem reconexão. Cinco PNGs reais da simulação foram revistos (legibilidade, enquadramento e ausência de dados reais); `test:manual` passou (Node TAP e 18 testes Vitest). `test:terminal-experience:web` e fluxo de licenças desktop/mobile passaram. Hashes editoriais dos três capítulos atualizados após revisão; nenhuma homologação humana ou publicação foi inferida.
+
+### 2026-11-03 — NA-0113 / saneamento de lint frontend
+
+Capítulo terminal relido e revalidado no worktree `/tmp/nodeaccess-NA-0113`, base `47f06b51e693d91f5ed724b7b86e5362af75bc35`. Texto mantido: as alterações de tipos dos helpers geram JavaScript idêntico e não mudam procedimentos. Terminal experience completo e plataforma/licença desktop/mobile passaram. `manual:capture` passou em Vite isolado5198 com `MANUAL_EXPECTED_VERSION=dev`, após corrigir a expectativa de versão do primeiro ensaio; validou ajuda, busca, mobile, erros/retry, compartilhamento e retorno de tenant sem reconexão. Cinco imagens demonstrativas reais da simulação revistas por legibilidade e enquadramento, sem dados de produção. Hash editorial terminal atualizado por `loadManual()` após evidências; `manual:check-reviewed` passou. Nenhum transporte/resize remoto alterado; PTYreal não aplicável. Integração/publicação e homologação humana não inferidas.
+
+
+## NA-0148 — 2026-11-04
+
+Revalidados Hosts (IPv6 completo e feedback parcial) e Terminal (modo texto somente leitura com foco visível). Execução em /tmp/nodeaccess-NA-0148, Vite5198 versão dev, Chromium1234; manual:capture passou após versão esperada explícita, cinco imagens abertas e revisadas. test:manual:2Node+18Vitest PASS; manual:check-reviewed:5 capítulos PASS. Terminal web completo PASS com geometria invariável do modo texto. API/SSH simulados; sem homologação humana ou leitor de tela real. Hashes hosts/terminal atualizados após revisão; integração com NA0147 exige recalcular hash combinado.
+
+
+## NA-0093 — revisão integrada NA-0147 + NA-0148 — 2026-11-04T13:36:15.554Z
+
+Fontes congeladas em /tmp/nodeaccess-NA-0093 após integração das duas frentes. Vite local5310, versão dev, Nodev24.22.1, Chromium1234 e dados de demonstração. manual:capture passou (ajuda/busca/mobile/erro-retry,60 estados de geometria/compartilhamento,2 ciclos tenant com sessão restaurada sem reconexão). Cinco PNGs foram abertos e revisados: legibilidade, enquadramento e controles preservados, nenhum dado de produção. test:manual passou:2 testes Node+18Vitest. Hashes dos arquivos mapeados permaneceram iguais antes/depois da captura; somente o hash editorial terminal precisava atualização, aplicada após revisão. Texto combinado dos capítulos Hosts/Terminal conferido, sem nova edição de procedimento. Nenhuma fonte de produto, build ou scanner alterado/executado por esta validação. API/SSH simulados; sem homologação humana ou leitor de tela formal. Registros privados: /tmp/NA0093-integrated-manual-{capture,tests,reviewed}.log e /tmp/NA0093-integrated-manual-summary.json.
+
+manual:check-reviewed final passou nos cinco capítulos após a atualização editorial.
+
+### 2026-11-04T11:22:45-03:00 — NA0093 integração final dos destaques
+
+Ran: nova captura conjunta após rótulo visível de pausa NA0147 (53d136fbb), cinco imagens abertas/revisadas pela raiz; 2 contratos Node e18 Vitest manual PASS, check-reviewed cinco capítulos PASS. Apenas hash editorial do terminal atualizado após validação. API/SSH simulados; prints são demonstrações, não homologação humana nem teste de produção.

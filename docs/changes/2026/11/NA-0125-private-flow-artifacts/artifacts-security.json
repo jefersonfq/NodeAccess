@@ -1,0 +1,14 @@
+{
+  "directoryMode": "0o700",
+  "reportMode": "0o600",
+  "files": [
+    "dashboard-desktop.png",
+    "dashboard-mobile.png",
+    "diagnostic-desktop.png",
+    "diagnostic-mobile.png",
+    "report.json"
+  ],
+  "negativeExecutableTests": 3,
+  "helperContracts": 3,
+  "allPassed": true
+}

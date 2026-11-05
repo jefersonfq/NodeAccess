@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import {
   buildCommandTimeline,
+  collapseNoise,
+  extractPromptCwd,
+  replayInlineBackspaces,
   cleanCommandOutput,
   collapseConsecutivePrompts,
   isLikelyInteractiveCommand,
@@ -1527,4 +1530,68 @@ describe('audit transport fragmentation', () => {
   const commands = buildCommandTimeline([stdin('htop\r', 1), stdout('\x1b[?1049h', 2), stdin('q/secret\r', 3), ended(4)])
   expect(commands.map(c => c.command)).toEqual(['htop'])
  })
+})
+
+
+describe('linear audit normalization regressions', () => {
+  it('preserves backspace edits and control-free text exactly', () => {
+    expect(replayInlineBackspaces('a\nb\r')).toBe('a\nb\r')
+    expect(replayInlineBackspaces('abc\bX\x7fZ')).toBe('abZ')
+  })
+  it('trims horizontal whitespace before line feeds but preserves the last line', () => {
+    expect(collapseNoise('a  \n\n\nb\t\nlast  ')).toBe('a\n\nb\nlast  ')
+    expect(collapseNoise('x' + ' '.repeat(100_000))).toHaveLength(100_001)
+  })
+  it('extracts bracketed paths without retries on malformed long lines', () => {
+    expect(extractPromptCwd('[user@host ~/project]$')).toBe('~/project')
+    expect(extractPromptCwd('[user@host /srv/app]#')).toBe('/srv/app')
+    expect(extractPromptCwd('[user@host' + ' '.repeat(100_000))).toBeNull()
+  })
+})
+
+
+describe('bracket prompt separator compatibility', () => {
+  it.each([' ', '\t', '\r ', '\n ', '\r\n  ', '\u2028 ', '\n\t\n '])(
+    'preserves the legacy whitespace separator %j', separator => {
+      const value = `[u@h${separator}/srv]$`
+      const legacy = value.match(/(?:^|\r?\n)\[[^\]@\r\n]+@[^\]\s\r\n]+\s+([^\]\r\n]+)\][#>$%]/)?.[1]?.trim()
+      expect(legacy).toBe('/srv')
+      expect(extractPromptCwd(value)).toBe(legacy)
+    },
+  )
+  it('retains first-match behavior for a whitespace-only path', () => {
+    expect(extractPromptCwd('[u@h  ]$\n[u@h /later]$')).toBeNull()
+  })
+  it('does not accept CR/LF inside the actual path', () => {
+    expect(extractPromptCwd('[u@h /srv\n/app]$')).toBeNull()
+  })
+})
+
+it('matches legacy bracket extraction across bounded separator and delimiter combinations', () => {
+  for (const user of ['u', 'u u', 'u\r', 'u\n', '', ']u', 'u@u']) {
+    for (const host of ['h', 'h@h', '', 'h]', 'h h']) {
+      for (const separator of [' ', '\r ', '\n ', '\r\n\t', '  ', '\n\n', '\t']) {
+        for (const path of ['/srv', '~/x', 'x', ' ', '', '/a\nb', '/a\rb', '/x]z']) {
+          const value = `[${user}@${host}${separator}${path}]$`
+          const matched = value.match(/(?:^|\r?\n)\[[^\]@\r\n]+@[^\]\s\r\n]+\s+([^\]\r\n]+)\][#>$%]/)?.[1]?.trim()
+          const expected = matched?.startsWith('/') || matched?.startsWith('~') ? matched : null
+          expect(extractPromptCwd(value), JSON.stringify(value)).toBe(expected)
+        }
+      }
+    }
+  }
+})
+
+
+describe('inline first-prompt anchored contract', () => {
+  it('preserves leading whitespace and first separator across valid repeated prompts', () => {
+    const prompts = ['root@host:~$', '[user@host /srv]#', '[中😀]>', 'router%', 'db#']
+    const whitespace = ['', ' ', '\t', '\r', '\u00a0', '\u2028', '\u2029', '\ufeff']
+    for (const first of prompts) for (const second of prompts) for (const leading of whitespace) for (const separator of whitespace) {
+      expect(collapseConsecutivePrompts(leading + first + separator + second)).toBe(first + separator)
+    }
+  })
+  it.each(['prompt$ ordinary output', '[unterminated'.repeat(10000), 'a'.repeat(100000), '  root$ text root$  '])('leaves non-repeated-prompt lines untouched %#', line => {
+    expect(collapseConsecutivePrompts(line)).toBe(line)
+  })
 })

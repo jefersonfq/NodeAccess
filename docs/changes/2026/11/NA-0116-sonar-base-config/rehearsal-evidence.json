@@ -1,0 +1,149 @@
+{
+  "fixture": true,
+  "startedAt": "2026-11-03T20:49:40.265Z",
+  "passed": true,
+  "privateProjectVerified": true,
+  "scannerConfiguration": {
+    "sha256": "434a01bf65cfe268753e1746e753d0f3d82d48fe85602f706e3b4ff6a8472f98",
+    "base": {
+      "sha256": "434a01bf65cfe268753e1746e753d0f3d82d48fe85602f706e3b4ff6a8472f98",
+      "effectiveProperties": {
+        "sonar.projectKey": "nodeaccess",
+        "sonar.sourceEncoding": "UTF-8",
+        "sonar.sources": "src",
+        "sonar.tests": "tests",
+        "sonar.test.inclusions": "**/*.test.js",
+        "sonar.exclusions": "src/excluded.js",
+        "sonar.javascript.lcov.reportPaths": "coverage/lcov.info"
+      },
+      "contextVerified": true
+    },
+    "covered": {
+      "sha256": "434a01bf65cfe268753e1746e753d0f3d82d48fe85602f706e3b4ff6a8472f98",
+      "effectiveProperties": {
+        "sonar.projectKey": "nodeaccess",
+        "sonar.sourceEncoding": "UTF-8",
+        "sonar.sources": "src",
+        "sonar.tests": "tests",
+        "sonar.test.inclusions": "**/*.test.js",
+        "sonar.exclusions": "src/excluded.js",
+        "sonar.javascript.lcov.reportPaths": "coverage/lcov.info"
+      },
+      "contextVerified": true
+    },
+    "uncovered": {
+      "sha256": "434a01bf65cfe268753e1746e753d0f3d82d48fe85602f706e3b4ff6a8472f98",
+      "effectiveProperties": {
+        "sonar.projectKey": "nodeaccess",
+        "sonar.sourceEncoding": "UTF-8",
+        "sonar.sources": "src",
+        "sonar.tests": "tests",
+        "sonar.test.inclusions": "**/*.test.js",
+        "sonar.exclusions": "src/excluded.js",
+        "sonar.javascript.lcov.reportPaths": "coverage/lcov.info"
+      },
+      "contextVerified": true
+    }
+  },
+  "covered": {
+    "gate": {
+      "status": "OK",
+      "conditions": [
+        {
+          "status": "OK",
+          "metricKey": "new_coverage",
+          "comparator": "LT",
+          "errorThreshold": "80",
+          "actualValue": "100.0"
+        },
+        {
+          "status": "OK",
+          "metricKey": "new_duplicated_lines_density",
+          "comparator": "GT",
+          "errorThreshold": "3",
+          "actualValue": "0.0"
+        },
+        {
+          "status": "OK",
+          "metricKey": "new_violations",
+          "comparator": "GT",
+          "errorThreshold": "0",
+          "actualValue": "0"
+        }
+      ],
+      "ignoredConditions": false,
+      "period": {
+        "mode": "SPECIFIC_ANALYSIS",
+        "date": "2026-11-03T20:51:41+0000",
+        "parameter": "b71f0b53-acb0-4a2f-bb2a-aae049ec3993"
+      },
+      "caycStatus": "compliant"
+    },
+    "measures": [
+      {
+        "metric": "new_lines",
+        "period": {
+          "index": 1,
+          "value": "5"
+        }
+      },
+      {
+        "metric": "new_coverage",
+        "period": {
+          "index": 1,
+          "value": "100.0",
+          "bestValue": true
+        }
+      },
+      {
+        "metric": "new_lines_to_cover",
+        "period": {
+          "index": 1,
+          "value": "3"
+        }
+      }
+    ]
+  },
+  "uncovered": {
+    "gate": {
+      "status": "ERROR",
+      "conditions": [
+        {
+          "status": "ERROR",
+          "metricKey": "new_coverage",
+          "comparator": "LT",
+          "errorThreshold": "80",
+          "actualValue": "42.9"
+        },
+        {
+          "status": "OK",
+          "metricKey": "new_duplicated_lines_density",
+          "comparator": "GT",
+          "errorThreshold": "3",
+          "actualValue": "0.0"
+        },
+        {
+          "status": "OK",
+          "metricKey": "new_violations",
+          "comparator": "GT",
+          "errorThreshold": "0",
+          "actualValue": "0"
+        }
+      ],
+      "ignoredConditions": false,
+      "period": {
+        "mode": "SPECIFIC_ANALYSIS",
+        "date": "2026-11-03T20:51:41+0000",
+        "parameter": "b71f0b53-acb0-4a2f-bb2a-aae049ec3993"
+      },
+      "caycStatus": "compliant"
+    }
+  },
+  "analysisIds": {
+    "base": "b71f0b53-acb0-4a2f-bb2a-aae049ec3993",
+    "covered": "191474ba-cb87-4ba6-b9c0-c46b338bf7c8",
+    "uncovered": "b8b3a403-5be8-4529-b860-059fede0a643"
+  },
+  "cleanup": "complete",
+  "finishedAt": "2026-11-03T20:52:43.245Z"
+}

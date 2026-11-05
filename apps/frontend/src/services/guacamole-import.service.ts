@@ -39,15 +39,15 @@ const SUPPORTED_PROTOCOLS = new Set<HostAccessProtocol>(['ssh', 'rdp', 'vnc', 't
 const DEFAULT_PORTS: Record<string, number> = { ssh: 22, rdp: 3389, vnc: 5900, telnet: 23 }
 const SECRET_PARAMETERS = new Set(['password', 'private-key', 'passphrase'])
 const PRESERVED_PARAMETERS = new Set(['hostname', 'host', 'port', 'username'])
-const emptyCredentials = () => ({ plaintextPasswords: 0, externalReferences: 0, privateKeys: 0, passphrases: 0 })
-const isCredentialReference = (value: string) => /^\$\{[^}]+}$/.test(value.trim()) || /^(?:op|secret|keeper):\/\//i.test(value.trim())
+const emptyCredentials = (): GuacamoleImportResult['credentials'] => ({ plaintextPasswords: 0, externalReferences: 0, privateKeys: 0, passphrases: 0 })
+const isCredentialReference = (value: string): boolean => /^\$\{[^}]+}$/.test(value.trim()) || /^(?:op|secret|keeper):\/\//i.test(value.trim())
 
 const parser = new XMLParser({
   ignoreAttributes: false,
   attributeNamePrefix: '@_',
   trimValues: true,
   parseTagValue: false,
-  isArray: (_name, jPath) => typeof jPath === 'string' && /\.(authorize|connection|param)$/.test(jPath),
+  isArray: (_name, jPath): boolean => typeof jPath === 'string' && /\.(authorize|connection|param)$/.test(jPath),
 })
 
 function asObject(value: unknown): XmlNode | null {
@@ -169,9 +169,9 @@ export function parseGuacamoleUserMapping(content: string): GuacamoleImportResul
   return {
     hosts: [...hostsByEndpoint.values()],
     invalidConnections,
-    unsupportedProtocols: [...unsupportedProtocols].sort(),
+    unsupportedProtocols: [...unsupportedProtocols].sort(compareCodeUnits),
     unmappedPermissions: authorizationLinks,
-    sourcePrincipals: [...sourcePrincipals].sort(),
+    sourcePrincipals: [...sourcePrincipals].sort(compareCodeUnits),
     credentials,
   }
 }
@@ -298,11 +298,11 @@ export function parseGuacamoleJdbcExport(content: string): GuacamoleImportResult
   return {
     hosts,
     invalidConnections,
-    unsupportedProtocols: [...unsupportedProtocols].sort(),
+    unsupportedProtocols: [...unsupportedProtocols].sort(compareCodeUnits),
     unmappedPermissions: permissionRows.length,
     sourcePrincipals: [...new Set(permissionRows
       .map(row => entityNames.get(text(field(row, 'entity_id', 'entityId'))) ?? '')
-      .filter(Boolean))].sort(),
+      .filter(Boolean))].sort(compareCodeUnits),
     credentials,
   }
 }
@@ -313,10 +313,10 @@ export function parseGuacamoleExport(content: string): GuacamoleImportResult {
     : parseGuacamoleUserMapping(content)
 }
 
-export function anonymizeGuacamoleImport(result: GuacamoleImportResult) {
+export function anonymizeGuacamoleImport(result: GuacamoleImportResult): Omit<GuacamoleImportResult, 'credentials'> & { format: string } {
   const folderAliases = new Map<string, string>()
   const principalAliases = new Map<string, string>()
-  const alias = (map: Map<string, string>, value: string, prefix: string) => {
+  const alias = (map: Map<string, string>, value: string, prefix: string): string => {
     if (!map.has(value)) map.set(value, `${prefix}-${String(map.size + 1).padStart(3, '0')}`)
     return map.get(value)!
   }
@@ -336,4 +336,11 @@ export function anonymizeGuacamoleImport(result: GuacamoleImportResult) {
     unmappedPermissions: result.unmappedPermissions,
     sourcePrincipals: result.sourcePrincipals.map(principal => alias(principalAliases, principal, 'principal')),
   }
+}
+
+// Preserve the native string sort order used by canonical output and digests.
+function compareCodeUnits(left: string, right: string): number {
+  if (left < right) return -1
+  if (left > right) return 1
+  return 0
 }

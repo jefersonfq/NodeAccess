@@ -496,7 +496,7 @@ export class SftpController {
       ? rawCode
       : typeof rawCode === 'string' && rawCode.trim() !== ''
         ? Number(rawCode)
-        : NaN
+        : Number.NaN
     const message = this.errorMessage(err)
     const normalizedMessage = message.toLowerCase()
 
@@ -625,7 +625,7 @@ export class SftpController {
       ? rawCode
       : typeof rawCode === 'string' && rawCode.trim() !== ''
         ? Number(rawCode)
-        : NaN
+        : Number.NaN
     const message = this.errorMessage(err).toLowerCase()
     if (/permission denied|access denied|eacces|eperm/.test(message)) return false
     return numericCode === 4 || /^failure$/.test(message) || /failure/i.test(message)
@@ -812,9 +812,11 @@ export class SftpController {
   }
 
   private maskSensitiveLine(line: string): string {
-    return line
-      .replace(/((?:["']?(?:password|passwd|pwd|secret|token|api[_-]?key|private[_-]?key)["']?)\s*[:=]\s*).*$/ig, '$1[MASKED]')
-      .replace(/(Bearer\s+)[A-Za-z0-9._~+/=-]+/ig, '$1[MASKED]')
+    const secretPrefix = /(?:["']?(?:password|passwd|pwd|secret|token|api[_-]?key|private[_-]?key)["']?)\s*[:=]\s*/i.exec(line)
+    const masked = secretPrefix
+      ? `${line.slice(0, secretPrefix.index + secretPrefix[0].length)}[MASKED]`
+      : line
+    return masked.replace(/(Bearer\s+)[A-Za-z0-9._~+/=-]+/ig, '$1[MASKED]')
   }
 
   private sessionIdFromRequest(req: FastifyRequest): number | undefined {

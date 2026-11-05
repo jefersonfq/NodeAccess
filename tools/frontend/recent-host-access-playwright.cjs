@@ -1,12 +1,14 @@
 #!/usr/bin/env node
 'use strict'
+const { containsYearAndTime } = require('../shared/linear-harness-text.cjs')
+const { artifactPath } = require('../shared/private-artifacts.cjs')
 
 const assert = require('node:assert/strict')
 const fs = require('node:fs/promises')
 const { chromium } = require('playwright')
 
 const base = (process.env.FRONTEND_BASE || 'http://127.0.0.1:5174').replace(/\/$/, '')
-const screenshotDir = process.env.RECENT_HOST_SCREENSHOT_DIR || '/tmp/nodeaccess-recent-host-access'
+const screenshotDir = process.env.RECENT_HOST_SCREENSHOT_DIR || artifactPath('nodeaccess-recent-host-access')
 
 const hosts = [
   { id: 21, name: 'Servidor de aplicacao com nome extenso', ip: '172.20.10.21', port: 22, sshUser: 'ops', accessProtocol: 'ssh', authType: 'password', connectionMode: 'direct', scope: 'global', folderId: null, inventoryParentName: 'Produção / Aplicações com nome longo', tags: [], associatedLinks: [], accessPermissions: { view: true, connect: true, edit: true } },
@@ -94,7 +96,7 @@ async function validate(browser, viewport, name) {
   assert.equal(await page.locator('[data-quick-access-favorite="true"]').count(), 2)
   await dashboardAccess.first().hover()
   await page.getByTestId('quick-access-time-tooltip').waitFor()
-  assert.match(await page.getByTestId('quick-access-time-tooltip').innerText(), /\d{4}.*\d{2}:\d{2}/)
+  assert.ok(containsYearAndTime(await page.getByTestId('quick-access-time-tooltip').innerText()), 'Tooltip must include year and time on the same line')
   assert.equal(await dashboardAccess.first().getAttribute('title'), '')
   await page.mouse.move(0, 0)
   const dashboardGeometry = await assertNoOverflow(page, `${name}/dashboard`)

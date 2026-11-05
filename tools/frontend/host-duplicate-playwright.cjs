@@ -1,4 +1,6 @@
 #!/usr/bin/env node
+const { resolveExecutable } = require('../shared/trusted-executable.cjs')
+const { artifactPath } = require('../shared/private-artifacts.cjs')
 // Isolated browser acceptance: every API and WebSocket is mocked; never touches client hosts.
 const assert = require('node:assert/strict')
 const fs = require('node:fs/promises')
@@ -7,7 +9,7 @@ const { execFileSync } = require('node:child_process')
 const { chromium } = require('playwright')
 
 const base = (process.env.FRONTEND_BASE || 'http://127.0.0.1:5173').replace(/\/$/, '')
-const output = process.env.HOST_FORM_ARTIFACTS || '/tmp/nodeaccess-host-duplicate'
+const output = process.env.HOST_FORM_ARTIFACTS || artifactPath('nodeaccess-host-duplicate')
 const timestamp = '2026-10-22T12:00:00.000Z'
 const original = { id: 21, tenantId: 7, name: 'Host de demonstração', ip: '192.0.2.21', port: 2222,
   accessProtocol: 'ssh', operatingSystem: 'linux', sshUser: 'ops', authType: 'password', connectionMode: 'direct',
@@ -20,7 +22,7 @@ const tabKeys = ['connection', 'access', 'organization', 'resources']
 const results = []
 const startedAt = new Date().toISOString()
 function gitRef(...args) {
-  try { return execFileSync('git', args, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim() }
+  try { return execFileSync(resolveExecutable('git'), args, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim() }
   catch { return null }
 }
 const revision = {

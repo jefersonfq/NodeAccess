@@ -1,0 +1,71 @@
+{
+  "method": "One baseline and one current run after build finished; baseline exact ee436 SFC supplied by private Vite load hook; shared machine, not isolated CPU or causal experiment",
+  "controls": [
+    {
+      "kind": "baseline-ee436",
+      "result": {
+        "logicalDurationMs": 300000,
+        "events": 1787,
+        "commands": 600,
+        "timelineLength": 1155,
+        "displayedMarkers": 121,
+        "renderedCommandRows": 100,
+        "failures": {
+          "connectionDrops": 6,
+          "timeouts": 11,
+          "permissionDenied": 14,
+          "stderr": 16
+        },
+        "openMs": 5486,
+        "renderEndMs": 150,
+        "commandListRenderMs": 1029,
+        "pageTurnMs": 4753,
+        "longTasks": 15,
+        "longTaskTotalMs": 6358,
+        "longTaskMaxMs": 910,
+        "liveDomNodes": 993,
+        "selectedMetrics": {
+          "Nodes": 2515,
+          "LayoutCount": 0,
+          "RecalcStyleCount": 5,
+          "TaskDuration": 0.264,
+          "JSHeapUsedSize": 49558768
+        },
+        "screenshot": "/tmp/nodeaccess-harness-0-4c073eedfc82/nodeaccess-session-playback-artifacts/scale-600-commands.png"
+      }
+    },
+    {
+      "kind": "current-NA0148",
+      "result": {
+        "logicalDurationMs": 300000,
+        "events": 1787,
+        "commands": 600,
+        "timelineLength": 1155,
+        "displayedMarkers": 121,
+        "renderedCommandRows": 100,
+        "failures": {
+          "connectionDrops": 6,
+          "timeouts": 11,
+          "permissionDenied": 14,
+          "stderr": 16
+        },
+        "openMs": 3622,
+        "renderEndMs": 182,
+        "commandListRenderMs": 959,
+        "pageTurnMs": 4269,
+        "longTasks": 13,
+        "longTaskTotalMs": 5749,
+        "longTaskMaxMs": 823,
+        "liveDomNodes": 993,
+        "selectedMetrics": {
+          "Nodes": 2515,
+          "LayoutCount": 0,
+          "RecalcStyleCount": 2,
+          "TaskDuration": 0.216,
+          "JSHeapUsedSize": 49571892
+        },
+        "screenshot": "/tmp/nodeaccess-harness-0-4c073eedfc82/nodeaccess-session-playback-artifacts/scale-600-commands.png"
+      }
+    }
+  ]
+}

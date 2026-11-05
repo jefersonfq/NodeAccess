@@ -1,3 +1,4 @@
+import { resolveExecutable } from '../shared/trusted-executable.cjs'
 // Opt-in laboratory only. Requires a disposable SSH server on loopback.
 import assert from 'node:assert/strict'
 import { createHash, randomUUID } from 'node:crypto'
@@ -56,7 +57,7 @@ try {
   await db.user.update({ where: { id: user.id }, data: { active: true } })
   await db.agent.update({ where: { id: record.id }, data: { agentMode: 'USER_BOUND' } })
   const key = join(root, 'tls.key'), cert = join(root, 'tls.crt')
-  execFileSync('openssl', ['req', '-x509', '-newkey', 'rsa:3072', '-nodes', '-keyout', key, '-out', cert, '-days', '1', '-subj', '/CN=localhost', '-addext', 'subjectAltName=IP:127.0.0.1'], { stdio: 'ignore' })
+  execFileSync(resolveExecutable('openssl'), ['req', '-x509', '-newkey', 'rsa:3072', '-nodes', '-keyout', key, '-out', cert, '-days', '1', '-subj', '/CN=localhost', '-addext', 'subjectAltName=IP:127.0.0.1'], { stdio: 'ignore' })
   server = createServer({ key: readFileSync(key), cert: readFileSync(cert) })
   wss = new WebSocketServer({ server, maxPayload: 262144 })
   const gateway = new AgentGateway({ authenticate: (...args) => service.authenticate(...args), markConnected: async () => {}, markDisconnected: async () => {}, logConnected: async () => {}, logDisconnected: async () => {}, touch: async () => {} }, registry)

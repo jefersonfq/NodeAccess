@@ -1,0 +1,26 @@
+✔ Sonar analyzes coverage collector sources while excluding generated root reports (15.030964ms)
+✔ ESLint sees collector sources and ignores generated root reports (1433.694452ms)
+✔ aggregate pipeline writes fresh LCOV, preserves legacy gates and strips Sonar credentials (110.235598ms)
+✔ aggregate never overrides Vitest failure (72.809739ms)
+✔ aggregate never overrides Node failure (66.986414ms)
+✔ aggregate never overrides browser failure (70.352252ms)
+✔ aggregate never overrides unverified browser result (79.466388ms)
+✔ aggregate never overrides source drift (89.495207ms)
+fatal: Needed a single revision
+✔ aggregate never overrides legacy deficit (73.418724ms)
+✔ invalid base is rejected before collectors and command options cannot override thresholds (118.553283ms)
+✔ rejects unverifiable test results {"success":false} (168.44883ms)
+✔ rejects unverifiable test results {"numPassedTests":0} (95.467172ms)
+✔ rejects unverifiable test results {"numPassedTests":null} (48.28356ms)
+✔ base-aware run fails on uncovered additions and records a verified passing diff (143.905122ms)
+✔ missing Node suites and corrupted artifacts fail closed (138.747307ms)
+✔ real subprocess collector failures remain visible and produce a failure summary (273.992782ms)
+✔ Vite JSON import data is explicitly listed separately, while every executable source remains required (80.620817ms)
+ℹ tests 17
+ℹ suites 0
+ℹ pass 17
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2321.03492

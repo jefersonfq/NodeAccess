@@ -1,0 +1,37 @@
+[
+  {
+    "case": "caught-async-assertion",
+    "exit": 1,
+    "bytes": 290,
+    "diagnostic": null,
+    "syntheticFrames": [
+      "    at main (/PRIVATE/sonar-frontend-review.cjs:1:77) {"
+    ]
+  },
+  {
+    "case": "caught-async-timeout",
+    "exit": 1,
+    "bytes": 123,
+    "diagnostic": {
+      "category": "OTHER",
+      "line": 1,
+      "column": 55
+    },
+    "syntheticFrames": [
+      "    at main (/PRIVATE/sonar-frontend-review.cjs:1:55)"
+    ]
+  },
+  {
+    "case": "caught-async-type",
+    "exit": 1,
+    "bytes": 109,
+    "diagnostic": {
+      "category": "OTHER",
+      "line": 1,
+      "column": 53
+    },
+    "syntheticFrames": [
+      "    at main (/PRIVATE/sonar-frontend-review.cjs:1:53)"
+    ]
+  }
+]

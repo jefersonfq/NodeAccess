@@ -502,7 +502,7 @@ function secretPlaceholder(alias: string): string {
 }
 
 function appendWithSeparator(current: string, value: string, separator: string): string {
-  const trimmedRight = current.replace(/\s+$/, '')
+  const trimmedRight = current.trimEnd()
   return trimmedRight ? `${trimmedRight}${separator}${value}` : value
 }
 
@@ -738,30 +738,36 @@ async function copySecretPlaceholder(alias: string): Promise<void> {
           </div>
 
           <div class="snippet-filter-row">
-            <label class="snippet-filter-field">
-              <span>{{ $t('snippets.kind.label') }}</span>
+            <div class="snippet-filter-field">
+              <label for="snippet-kind-filter"><span>{{ $t('snippets.kind.label') }}</span></label>
               <NSelect
                 v-model:value="kindFilter"
+                filterable
+                :input-props="{ id: 'snippet-kind-filter', 'aria-label': $t('snippets.kind.label') }"
                 :options="kindFilterOptions"
                 size="small"
               />
-            </label>
-            <label class="snippet-filter-field">
-              <span>{{ $t('snippets.groups.label') }}</span>
+            </div>
+            <div class="snippet-filter-field">
+              <label for="snippet-group-filter"><span>{{ $t('snippets.groups.label') }}</span></label>
               <NSelect
                 v-model:value="groupFilter"
+                filterable
+                :input-props="{ id: 'snippet-group-filter', 'aria-label': $t('snippets.groups.label') }"
                 :options="filterGroupOptions"
                 size="small"
               />
-            </label>
-            <label class="snippet-filter-field">
-              <span>{{ $t('snippetsPage.filters.secrets') }}</span>
+            </div>
+            <div class="snippet-filter-field">
+              <label for="snippet-secret-filter"><span>{{ $t('snippetsPage.filters.secrets') }}</span></label>
               <NSelect
                 v-model:value="secretFilter"
+                filterable
+                :input-props="{ id: 'snippet-secret-filter', 'aria-label': $t('snippetsPage.filters.secrets') }"
                 :options="secretFilterOptions"
                 size="small"
               />
-            </label>
+            </div>
             <NButton
               v-if="activeFilterCount > 0"
               size="small"
@@ -1339,7 +1345,6 @@ async function copySecretPlaceholder(alias: string): Promise<void> {
 .snippet-filter-field {
   display: grid;
   gap: 4px;
-  min-width: 180px;
   flex: 1;
   min-width: 0;
 }

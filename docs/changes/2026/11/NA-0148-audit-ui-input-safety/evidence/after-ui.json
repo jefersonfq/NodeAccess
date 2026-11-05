@@ -1,0 +1,13 @@
+{
+  "output": "/tmp/nodeaccess-audit-input-safety-RRNSS5",
+  "startedAt": "2026-11-04T13:22:49.118Z",
+  "checks": [
+    "Playback stays read-only; Tab leaves and Shift+Tab returns with visible focus",
+    "Closed canvas hides local return action and forwards no keyboard input",
+    "Canvas preserves remote Tab/Escape; exit chord releases modifiers, moves focus and offers return; mobile hint fits",
+    "IPv6 typing feedback, incomplete save blocked with focus, repeated compression rejected, mapped IPv4 accepted"
+  ],
+  "transport": "intercepted API/WebSocket; actual Vue and keyboard events",
+  "status": "passed",
+  "finishedAt": "2026-11-04T13:22:59.463Z"
+}

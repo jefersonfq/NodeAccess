@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+const { artifactPath } = require('../shared/private-artifacts.cjs')
 /*
  * HA admin UI validation against a real NodeAccess API.
  *
@@ -18,8 +19,8 @@ const { chromium, request } = require('playwright')
 
 const FRONTEND = (process.env.FRONTEND_BASE || 'https://192.168.1.105').replace(/\/$/, '')
 const API_BASE = (process.env.API_BASE || `${FRONTEND}/api/v1`).replace(/\/$/, '')
-const REPORT_PATH = process.env.REPORT_PATH || '/tmp/nodeaccess-ha-playwright-live-readonly.json'
-const ARTIFACTS_DIR = process.env.ARTIFACTS_DIR || '/tmp/nodeaccess-ha-playwright-live-artifacts'
+const REPORT_PATH = process.env.REPORT_PATH || artifactPath('nodeaccess-ha-playwright-live-readonly.json')
+const ARTIFACTS_DIR = process.env.ARTIFACTS_DIR || artifactPath('nodeaccess-ha-playwright-live-artifacts')
 const EXECUTABLE_PATH = process.env.PLAYWRIGHT_EXECUTABLE_PATH || '/usr/bin/chromium-browser'
 const HEADLESS = process.env.HEADLESS !== '0'
 const VIEWPORT_WIDTH = Number(process.env.VIEWPORT_WIDTH || 1440)

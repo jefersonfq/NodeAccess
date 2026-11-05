@@ -44,7 +44,6 @@ interface BookmarkSection {
 
 function folderPath(value: string): string[] {
   return value
-    .replace(/^\\+|\\+$/g, '')
     .split(/[\\/]+/)
     .map(part => part.trim())
     .filter(Boolean)
@@ -212,7 +211,7 @@ export function parseMobaXtermSessions(content: string): MobaXtermImportResult {
     hosts,
     invalidSessions,
     unsupportedSessions,
-    unsupportedSessionTypes: [...unsupportedSessionTypes].sort(),
+    unsupportedSessionTypes: [...unsupportedSessionTypes].sort(compareCodeUnits),
     folders,
     fieldCounts: [...fieldCounts].sort((a, b) => a - b),
     bookmarkSections: sections.length,
@@ -221,4 +220,11 @@ export function parseMobaXtermSessions(content: string): MobaXtermImportResult {
     encryptedCredentialsDetected,
     masterPasswordConfigured,
   }
+}
+
+// Preserve the native string sort order used by canonical output and digests.
+function compareCodeUnits(left: string, right: string): number {
+  if (left < right) return -1
+  if (left > right) return 1
+  return 0
 }

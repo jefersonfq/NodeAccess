@@ -29,8 +29,10 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 24.21.0
+          node-version: 24.22.1
           cache: npm
+      - name: Use npm with workspace override support
+        run: npm install --global npm@12.2.1
       - run: npm ci
       - run: npm run db:generate -w apps/backend
       - run: npm run build -w packages/shared
@@ -55,9 +57,9 @@ jobs:
         with:
           name: manual-preview
           path: |
-            /tmp/nodeaccess-manual-review/
-            /tmp/nodeaccess-manual-capture-*.json
-            /tmp/nodeaccess-shared-viewer-review/
-            /tmp/nodeaccess-host-form-tabs/
+            /tmp/nodeaccess-harness-*/nodeaccess-manual-review/
+            /tmp/nodeaccess-harness-*/nodeaccess-manual-capture-*.json
+            /tmp/nodeaccess-harness-*/nodeaccess-shared-viewer-review/
+            /tmp/nodeaccess-harness-*/nodeaccess-host-form-tabs/
             /tmp/nodeaccess-manual-vite.log
             apps/frontend/dist/manual-version.json

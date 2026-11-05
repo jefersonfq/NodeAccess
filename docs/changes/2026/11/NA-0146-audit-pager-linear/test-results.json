@@ -1,0 +1,38 @@
+{
+  "baseSha": "ee436402db8bcce7fab4378d6ba28c1673b282b5",
+  "recordedAt": "2026-11-04T10:05:58-03:00",
+  "baseline": {
+    "normalizerTests": 159,
+    "passed": true,
+    "newRegressionBeforeFix": {
+      "passed": false,
+      "reason": "ETIMEDOUT",
+      "childDeadlineMs": 3000
+    }
+  },
+  "after": {
+    "normalizerAndNewRegressionPassed": 160,
+    "reconstructionAndRoutesPassed": 40,
+    "lintFiles": 2,
+    "lintPassed": true,
+    "differentialCases": 69180,
+    "differences": 0,
+    "adversarialSize": 1000000,
+    "unicodeSeparators": [
+      "U+2028",
+      "U+2029"
+    ],
+    "childDeadlineMs": 3000,
+    "legitimateStatusControls": 7
+  },
+  "independent": {
+    "result": "PASS_WITH_WARNINGS",
+    "testsReproduced": 160,
+    "differentialCases": 69180,
+    "scannerRun": false
+  },
+  "limitations": [
+    "No real SSH or browser simulation for a backend-only recognition change.",
+    "Final Sonar and aggregate coverage are required on the integrated candidate."
+  ]
+}

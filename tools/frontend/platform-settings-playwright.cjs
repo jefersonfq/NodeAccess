@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 const { chromium } = require('playwright')
+const { attachBrowserCoverage } = require('../coverage/playwright-coverage.cjs')
 
 const FRONTEND = (process.env.FRONTEND_BASE || 'http://127.0.0.1:5173').replace(/\/$/, '')
 const CDP_URL = process.env.CHROMIUM_CDP_URL || ''
@@ -40,7 +41,9 @@ async function newContext(browser, isPlatformAdmin, state) {
     const request = route.request()
     const path = new URL(request.url()).pathname
     let body = []
-    if (path === '/api/v1/settings') body = tenantSettings
+    if (path === '/api/v1/hosts/sidebar-bootstrap') body = { folders: [], groups: [], tags: [], summary: { all: 0, global: 0, unfiled: 0, maxHosts: 20, folders: {}, groups: {}, tags: {} } }
+    else if (path === '/api/v1/hosts') body = { data: [], page: 1, limit: 200, total: 0, totalPages: 0 }
+    else if (path === '/api/v1/settings') body = tenantSettings
     else if (path === '/api/v1/settings/platform') body = {
       features: { sessionAudit: true, sessionAuditAiSummary: true, sessionAuditAiAutoSummary: false, localAi: false, nativeSshGateway: true, mcp: true },
       cache: { hostDashboardTtlSeconds: 45, userDashboardTtlSeconds: 45, hostSidebarTtlSeconds: 30, observabilityTtlMs: 5000, sessionAuditPolicyTtlSeconds: 30, runtime: [] },
@@ -73,7 +76,10 @@ async function main() {
   const state = { license: structuredClone(license), savedPayloads: [], failNextSave: false }
 
   const tenantAdmin = await newContext(browser, false, state)
+  const adminErrors = []
   const adminPage = await tenantAdmin.newPage()
+  adminPage.on('pageerror', error => adminErrors.push(error.message))
+  await attachBrowserCoverage(adminPage, browser)
   await adminPage.goto(`${FRONTEND}/admin/settings`, { waitUntil: 'networkidle' })
   await adminPage.getByRole('heading', { name: /Configurações do tenant|Tenant settings/i }).waitFor()
   await adminPage.getByText(/Administração|Administration/i, { exact: true }).waitFor()
@@ -82,10 +88,12 @@ async function main() {
   if (await adminPage.getByTestId('tenant-license-editor').count()) throw new Error('Admin do tenant recebeu editor de licença')
   await adminPage.goto(`${FRONTEND}/platform/settings`, { waitUntil: 'domcontentloaded' })
   await adminPage.waitForURL((url) => !url.pathname.startsWith('/platform/settings'))
+  if (adminErrors.length) throw new Error(`Erros de UI no perfil tenant: ${adminErrors.join(' | ')}`)
   await tenantAdmin.close()
 
   const platform = await newContext(browser, true, state)
   const platformPage = await platform.newPage()
+  await attachBrowserCoverage(platformPage, browser)
   const pageErrors = []
   platformPage.on('pageerror', (error) => pageErrors.push(error.message))
   await platformPage.goto(`${FRONTEND}/platform/settings`, { waitUntil: 'networkidle' })
@@ -156,6 +164,7 @@ async function main() {
   await platformPage.locator('.n-message').getByText(/já estão em vigor/i).waitFor()
   if (state.savedPayloads.length !== 1) throw new Error('Licença não foi persistida exatamente uma vez')
   const saved = state.savedPayloads[0]
+  if (!saved || !saved.featureEntitlements || !saved.integrationEntitlements) throw new Error('License payload was not captured with required entitlements')
   if (saved.maxUsers !== 40 || saved.featureEntitlements.integrations !== false || saved.integrationEntitlements.jira !== false || saved.integrationEntitlements.oidc !== false || saved.featureEntitlements.localAi !== true || saved.featureEntitlements.terminalAi !== true) {
     throw new Error(`Dependências da licença incorretas: ${JSON.stringify(saved)}`)
   }

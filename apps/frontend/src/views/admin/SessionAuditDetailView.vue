@@ -1,4 +1,7 @@
 <script setup lang="ts">
+import { stripDcsSequences, countTerminalControlSequences } from '@/services/terminal-audit-controls.service'
+import { trimTrailingCharacters } from '@/services/text-boundaries'
+import { hasRecursiveForceRemoval, hasProcessMetricColumns, isOnlyShellMarkers, isLikelyShellPrompt, isOnlyTerminalResponses } from '@/services/audit-text-patterns'
 import { isAxiosError } from 'axios'
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
@@ -14,7 +17,7 @@ import { integrationService } from '@/services/integration.service'
 import { sessionAuditService } from '@/services/sessionAudit.service'
 import { settingsService, type SettingsData } from '@/services/settings.service'
 import { terminalHighlightService } from '@/services/terminal-highlight.service'
-import { compileHighlightRules, matchTerminalLine } from '@/terminal/terminal-highlighter'
+import { createHighlightClient, highlightErrorMessage } from '@/terminal/terminal-highlight-client'
 
 type SessionAuditAiPromptTemplate = 'summary-v1' | 'cab-v1' | 'risk-v1'
 type CommandCategory = 'highRisk' | 'service' | 'permission' | 'user' | 'network' | 'interactive' | 'file' | 'inspection' | 'other'
@@ -664,7 +667,7 @@ function commandConfidenceTagType(value: string): "default" | "success" | "warni
 
 function classifyCommand(command: string): CommandCategory {
   const normalized = command.trim().toLowerCase()
-  if (/\b(rm\s+-[^;&|]*r[^;&|]*f|mkfs|dd\s+if=|shutdown|reboot|halt|poweroff|wipefs|parted|fdisk|userdel)\b/.test(normalized)) {
+  if (hasRecursiveForceRemoval(normalized) || /\b(mkfs|dd\s+if=|shutdown|reboot|halt|poweroff|wipefs|parted|fdisk|userdel)\b/.test(normalized)) {
     return 'highRisk'
   }
   if (/\b(systemctl|service|journalctl|supervisorctl|docker\s+(restart|stop|rm|logs)|kubectl\s+(delete|rollout|logs|describe))\b/.test(normalized)) {
@@ -796,9 +799,9 @@ function normalizeEscapeGlyphs(value: string): string {
 }
 
 function stripTerminalControlSequences(value: string): string {
-  return normalizeEscapeGlyphs(value)
+  const withoutOsc = normalizeEscapeGlyphs(value)
     .replace(/\x1b\][^\x07\x1b]*(?:\x07|\x1b\\)/g, '')
-    .replace(/\x1bP[\s\S]*?(?:\x1b\\|\x07)/g, '')
+  return stripDcsSequences(withoutOsc)
     .replace(/\x1b\[[0-9;?]*[ -/]*[@-~]/g, '')
     .replace(/\x1b[()*+\-./][0-?]*[ -/]*[@-~]/g, '')
     .replace(/\x1b[@-_][0-?]*[ -/]*[@-~]/g, '')
@@ -822,16 +825,15 @@ function normalizePlaybackWhitespace(value: string): string {
     .replace(/\r\n/g, '\n')
     .split('\n')
     .map((line) => (line.includes('\r') ? line.split('\r').at(-1) ?? '' : line))
-    .map((line) => line
+    .map((line) => trimTrailingCharacters(line
       .replace(/\d{1,4},\d{1,3}Topo/g, '')
       .replace(/\d{1,4},\d{1,3}%/g, '')
-      .replace(/(?:\^\[|~@k)+/g, '')
-      .replace(/[ \t]+$/g, ''))
+      .replace(/(?:\^\[|~@k)+/g, ''), ' \t'))
     .filter((line) => {
       const trimmed = line.trim()
       if (!trimmed) return true
-      if (/^(?:\$\s*)+$/.test(trimmed)) return false
-      if (/^(?:OB|OA|OC|OD|P\+q[0-9a-f]+|[0-9]+;[0-9]+R)+$/i.test(trimmed)) return false
+      if (isOnlyShellMarkers(trimmed)) return false
+      if (isOnlyTerminalResponses(trimmed)) return false
       if (/^(?:\^\[|~@k|O[A-D])+$/.test(trimmed)) return false
       if (/^\d{1,4},\d{1,3}%$/.test(trimmed)) return false
       if (/^[\d\s.,:%MGK\t-]+$/.test(trimmed)) return false
@@ -929,8 +931,7 @@ function playbackPreludeLines(): string[] {
 
 function isLikelyTerminalRedrawFrame(value: string): boolean {
   const normalized = normalizeEscapeGlyphs(value)
-  const controlMatches = normalized.match(/\x1b(?:\[[0-9;?]*[ -/]*[@-~]|\][^\x07\x1b]*(?:\x07|\x1b\\)|P[\s\S]*?(?:\x1b\\|\x07)|[()*+\-./][0-?]*[ -/]*[@-~]|[@-_][0-?]*[ -/]*[@-~]|[=>78<MNOPQRS])/g)
-  const controlCount = controlMatches?.length ?? 0
+  const controlCount = countTerminalControlSequences(normalized)
   const hasCursorRedraw = /\x1b\[\?1049h|\x1b\[\?1049l|\x1b\[[0-9]+;[0-9]+[HGd]|\x1b\[[0-9]+G|\x1b\[[JK]/.test(normalized)
   const looksLikeLogContent = /\d{4}-\d{2}-\d{2}T|\b(DEBUG|DDEBUG|INFO|WARN|ERROR|Command:|Installroot:|Releasever:|cachedir:)\b|\.log"/i.test(normalized)
   const isProcessMonitorFrame = /\b(htop|top|PID\s+USER|CPU%|MEM%|Command|java -jar|mysqld|containerd|systemd|journald)\b/i.test(normalized)
@@ -958,7 +959,7 @@ function isLikelyInputEcho(cleanOutput: string, pendingInput: string): boolean {
 
 function isNoisyProcessMonitorLine(line: string): boolean {
   const hasProcessName = /(?:java\s+-jar|\/java\b|java\s+-D|mysql|mysqld|containerd|systemd|journald|PrePaidEngine|CdrsBilling|platform-python|tuned)/i.test(line)
-  const hasMetricColumns = /(?:\d+(?:\.\d+)?[MGK]\b.*){2,}|\b\d+(?:\.\d+)?\s+\d+(?:\.\d+)?\s+(?:\d{1,2}:|\d+h\d{1,2}:)/.test(line)
+  const hasMetricColumns = hasProcessMetricColumns(line)
   const looksLikeLogContent = /\d{4}-\d{2}-\d{2}T|\b(DEBUG|DDEBUG|INFO|WARN|ERROR|Command:|Installroot:|Releasever:|cachedir:)\b/i.test(line)
   return hasProcessName && hasMetricColumns && !looksLikeLogContent
 }
@@ -972,10 +973,6 @@ function isLikelyCleanProcessMonitorNoise(value: string): boolean {
 
 function looksLikePlaybackLogContent(value: string): boolean {
   return /\d{4}-\d{2}-\d{2}T|\b(DEBUG|DDEBUG|INFO|WARN|ERROR|Command:|Installroot:|Releasever:|cachedir:)\b/i.test(value)
-}
-
-function isLikelyShellPrompt(value: string): boolean {
-  return /(?:^|\n)\[[^\]\n]+@[^\]\n]+\s+[^\]\n]+\]\$\s*$/.test(value) || /(?:^|\n)[#$]\s*$/.test(value)
 }
 
 function isLikelyTuiContinuation(value: string): boolean {
@@ -1337,21 +1334,30 @@ async function download(): Promise<void> {
   }
 }
 
+const exportHighlightClient = createHighlightClient()
+onBeforeUnmount(() => exportHighlightClient.dispose())
 async function downloadWithHighlightAnalysis(): Promise<void> {
   if (!row.value || exportingHighlights.value) return
   exportingHighlights.value = true
   try {
     const { data: templates } = await terminalHighlightService.listTemplates()
     const rules = templates.filter((template) => template.active).flatMap((template) => template.rules.filter((rule) => rule.enabled).map((rule) => ({ ...rule, templateId: template.id, templateName: template.name }))).slice(0, 40)
-    const compiledRules = rules.map((rule) => ({ rule, compiled: compileHighlightRules([rule]) }))
-    const matches = commands.value.flatMap((command) => compiledRules.flatMap(({ rule, compiled }) => {
-      const text = `${command.command}\n${command.output}`
-      const count = text.split(/\r?\n/).reduce((total, line) => total + matchTerminalLine(line, compiled).length, 0)
-      return count ? [{ commandIndex: command.index, ruleId: rule.id, ruleName: rule.name, templateId: rule.templateId, templateName: rule.templateName, count }] : []
-    }))
-    const payload = { format: 'nodeaccess-session-highlight-analysis-v1', generatedAt: new Date().toISOString(), session: { id: row.value.sessionId, host: row.value.hostNameSnapshot }, note: 'Análise visual derivada. A auditoria original permanece inalterada.', templates: templates.map(({ id, name, version }) => ({ id, name, version })), matches }
+    const session = { id: row.value.sessionId, host: row.value.hostNameSnapshot }
+    const matches: Array<{ commandIndex: number; ruleId: string; ruleName: string; templateId: number; templateName: string; count: number }> = []
+    for (const command of commands.value) {
+      if (!rules.length) break
+      const lines = `${command.command}\n${command.output}`.split(/\r?\n/)
+      const counts: Record<string, number> = {}
+      for (let offset = 0; offset < lines.length; offset += 40) {
+        const result = await exportHighlightClient.run({ rows: lines.slice(offset, offset + 40).map((text, index) => ({ key: String(index), text, rules, independent: true })) })
+        if (row.value?.sessionId !== session.id) throw new Error('Session changed')
+        for (const line of result.rows) for (const [id, count] of Object.entries(line.counts)) counts[id] = (counts[id] ?? 0) + count
+      }
+      for (const rule of rules) if (counts[rule.id]) matches.push({ commandIndex: command.index, ruleId: rule.id, ruleName: rule.name, templateId: rule.templateId, templateName: rule.templateName, count: counts[rule.id] })
+    }
+    const payload = { format: 'nodeaccess-session-highlight-analysis-v1', generatedAt: new Date().toISOString(), session, note: 'Análise visual derivada. A auditoria original permanece inalterada.', templates: templates.map(({ id, name, version }) => ({ id, name, version })), matches }
     sessionAuditService.saveBlobAs(new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' }), `session-audit-${row.value.sessionId}-highlights.json`)
-  } catch { message.error('Não foi possível exportar a análise de destaques.') }
+  } catch (error) { message.error(highlightErrorMessage(error)) }
   finally { exportingHighlights.value = false }
 }
 
@@ -2393,10 +2399,9 @@ function resolveLocalAiProvider(config: LocalAiConfigPublic | null): 'ollama' | 
                       :data-playback-mode="showRawPlaybackStream ? 'raw' : 'clean'"
                       :data-playback-cursor-index="playbackCursorIndex"
                       :data-playback-timeline-length="playbackTimelineLength"
-                      class="min-h-[360px] max-h-[560px] max-w-full overflow-auto whitespace-pre font-mono text-[12px] leading-5 text-emerald-100 outline-hidden"
+                      class="min-h-[360px] max-h-[560px] max-w-full overflow-auto whitespace-pre font-mono text-[12px] leading-5 text-emerald-100 outline-hidden focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-emerald-400"
                       tabindex="0"
                       @scroll="handlePlaybackTerminalScroll"
-                      @keydown.prevent
                       @paste.prevent
                     >
                       {{ playbackRenderedText || $t('admin.sessionAudit.playback.empty') }}

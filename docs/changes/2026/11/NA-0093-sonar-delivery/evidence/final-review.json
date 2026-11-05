@@ -1,0 +1,89 @@
+{
+  "revision": "554790c3081b4f345a5b9f754c0199e685f2644d",
+  "analysisId": "6168dd15-05df-4b5c-93c9-82230698d37e",
+  "startedAt": "2026-11-04T17:42:33.109Z",
+  "authorized": true,
+  "scope": 206,
+  "changed": 206,
+  "actorDeactivated": true,
+  "passed": true,
+  "preflight": {
+    "status": "dry_run",
+    "proposed": 206,
+    "changed": 0,
+    "absent": 0,
+    "unchanged": 0
+  },
+  "applied": {
+    "status": "applied",
+    "proposed": 206,
+    "changed": 206,
+    "absent": 0,
+    "unchanged": 0
+  },
+  "verify": {
+    "status": "dry_run",
+    "proposed": 0,
+    "changed": 0,
+    "absent": 0,
+    "unchanged": 206
+  },
+  "gate": {
+    "status": "OK",
+    "conditions": [
+      {
+        "status": "OK",
+        "metricKey": "new_coverage",
+        "comparator": "LT",
+        "errorThreshold": "80",
+        "actualValue": "80.4"
+      },
+      {
+        "status": "OK",
+        "metricKey": "new_duplicated_lines_density",
+        "comparator": "GT",
+        "errorThreshold": "3",
+        "actualValue": "0.07589"
+      },
+      {
+        "status": "OK",
+        "metricKey": "new_security_hotspots_reviewed",
+        "comparator": "LT",
+        "errorThreshold": "100"
+      },
+      {
+        "status": "OK",
+        "metricKey": "new_violations",
+        "comparator": "GT",
+        "errorThreshold": "0",
+        "actualValue": "0"
+      }
+    ],
+    "ignoredConditions": false,
+    "period": {
+      "mode": "PREVIOUS_VERSION",
+      "date": "2026-11-03T16:48:47+0000"
+    },
+    "caycStatus": "compliant"
+  },
+  "remaining": [
+    {
+      "rule": "typescript:S4790",
+      "file": "apps/backend/src/modules/network-access/tacacs-protocol.ts",
+      "status": "OPEN"
+    },
+    {
+      "rule": "typescript:S5443",
+      "file": "apps/backend/src/config/env.ts",
+      "status": "OPEN"
+    },
+    {
+      "rule": "typescript:S5443",
+      "file": "apps/backend/src/config/env.ts",
+      "status": "OPEN"
+    }
+  ],
+  "remainingTotal": 3,
+  "readTokenUnchanged": true,
+  "finishedAt": "2026-11-04T17:48:13.204Z"
+}

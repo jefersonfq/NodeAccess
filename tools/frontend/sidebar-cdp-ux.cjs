@@ -201,7 +201,11 @@ async function waitFor(cdp, expression, timeoutMs = 10000, intervalMs = 100) {
 }
 
 function sanitizeFilePart(value) {
-  return String(value).replace(/[^a-z0-9._-]+/gi, '-').replace(/^-+|-+$/g, '').slice(0, 80) || 'shot'
+  const safe = String(value).replace(/[^a-z0-9._-]+/gi, '-')
+  let start = 0, end = safe.length
+  while (start < end && safe[start] === '-') start++
+  while (end > start && safe[end - 1] === '-') end--
+  return safe.slice(start, Math.min(end, start + 80)) || 'shot'
 }
 
 async function captureScreenshot(cdp, label) {

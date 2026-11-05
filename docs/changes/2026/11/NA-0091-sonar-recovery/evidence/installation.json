@@ -1,0 +1,6 @@
+{
+  "installed": true,
+  "schedule": "03:20 daily (host timezone)",
+  "runtime": "/usr/local/lib/nodeaccess-sonarqube-maintenance/release-ec1a31dd-4ee9-4230-bbaa-c2fdc7aa1e57",
+  "status": "/home/jeferson/services/sonarqube/maintenance-status.json"
+}

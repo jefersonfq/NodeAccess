@@ -17,14 +17,24 @@ usando seu transporte separado.
   oficial via HTTPS; não se presume uma cadeia independente de confiança PGP.
   O Dockerfile fixa os bytes revisados com `ADD --checksum` e preserva LICENSE/NOTICE
   da distribuição em `/opt/guacamole/licenses/`.
-- Base Alpine 3.24.3 por digest no Dockerfile; bibliotecas FreeRDP 3.32.1-r0,
+- Base Alpine 3.24.3 por digest no Dockerfile; bibliotecas FreeRDP 3.32.2-r0,
   libvncserver 0.9.15-r0 e OpenSSL 3.5.9-r0 provenientes do APK oficial.
+  Desenvolvimento e runtime fixam a mesma revisão FreeRDP: dependências por SONAME
+  sozinhas não invalidam uma camada runtime antiga no cache Docker.
   O mirror oficial `dl-4.alpinelinux.org` mantém verificação normal de assinaturas.
-- ALSA 1.2.16.1-r0: único pacote oficial do branch edge necessário para corrigir
+- ALSA 1.2.16.1-r0: pacote oficial do branch edge necessário para corrigir
   CVE-2026-56109. SHA256 `e9d92102c6537a036cc3f4e27f97fe860f944f3b26565d9991bfdbe21c2a4caa`.
-  Sua dependência é apenas o SONAME musl já presente; o build comprovou atualização
+  Sua dependência é apenas o SONAME musl já presente; a validação original comprovou atualização
   de exatamente um pacote. Não adicionamos edge aos repositórios nem desativamos
   assinatura APK. Revisar disponibilidade, ABI e vulnerabilidades a cada rebuild.
+
+- GLib 2.90.0-r0: APK oficial edge com release estável corrigido para
+  CVE-2026-58016; SHA256 `b5d0ad79a8e73c3e0f8e9749fbb407bb4f2bf089cdaceffbff9fed25edc33dd0`.
+  [Correção upstream MR5156](https://gitlab.gnome.org/GNOME/glib/-/merge_requests/5156)
+  está presente no código fonte da tag2.90.0. Alpine3.24 oferece2.88.1-r1 sem esse
+  backport. A transação simulada atualiza apenas GLib; SONAMEs requeridos já estão
+  na base. Esse pacote mistura releases e exige nova verificação de ABI e scanner
+  em rebuilds; não adiciona edge aos repositórios nem relaxa assinatura.
 
 ## Backport Apache
 

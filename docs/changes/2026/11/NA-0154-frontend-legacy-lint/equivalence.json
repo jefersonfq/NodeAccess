@@ -1,0 +1,63 @@
+{
+  "base": "02e7521cbe69e72cb5c8c3f5f951dcdc6e1c5fec",
+  "results": [
+    {
+      "file": "apps/frontend/src/services/terminal-path-autocomplete.service.ts",
+      "jsIdenticalExceptConstBinding": true
+    },
+    {
+      "file": "apps/frontend/src/views/admin/HighAvailabilityView.vue",
+      "scriptsIdenticalExcludingUnusedLazyComputed": true,
+      "renderIdentical": false,
+      "textEdgeChanges": [
+        {
+          "before": "Desabilitar HA",
+          "after": " Desabilitar HA "
+        },
+        {
+          "before": "Anexar nó",
+          "after": " Anexar nó "
+        },
+        {
+          "before": "Detalhes e ações por nó",
+          "after": " Detalhes e ações por nó "
+        },
+        {
+          "before": " nós monitorados",
+          "after": " nós monitorados "
+        },
+        {
+          "before": "Remover nó",
+          "after": " Remover nó "
+        },
+        {
+          "before": "Neste nó",
+          "after": " Neste nó "
+        },
+        {
+          "before": "Copiar comando",
+          "after": " Copiar comando "
+        },
+        {
+          "before": "Fechar",
+          "after": " Fechar "
+        },
+        {
+          "before": "Cancelar",
+          "after": " Cancelar "
+        },
+        {
+          "before": "Cancelar",
+          "after": " Cancelar "
+        },
+        {
+          "before": "Cancelar",
+          "after": " Cancelar "
+        }
+      ],
+      "stylesIdentical": true,
+      "compileErrors": 0
+    }
+  ],
+  "limits": "Unused lazy computed removed; cache local binding let to const. No change in observed expression order or event handlers. Compiler render comparison includes normalized JS strings, not screenshot proof."
+}

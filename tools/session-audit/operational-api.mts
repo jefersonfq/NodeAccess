@@ -1,3 +1,4 @@
+import { artifactPath } from '../shared/private-artifacts.cjs'
 /** Local test API: real audit routes/services/renderers with synthetic in-memory storage. */
 import Fastify from 'fastify'
 import jwt from '@fastify/jwt'
@@ -24,6 +25,6 @@ app.setErrorHandler((error,_request,reply)=>reply.code(error.statusCode??500).se
 await app.register(instance=>sessionAuditRoutes(instance,new SessionAuditController(service)),{prefix:'/api/v1/session-audit'})
 const token=app.jwt.sign({sub:'1',tenantId:1,role:'admin',stage:'authenticated'},{expiresIn:'1h'})
 await app.listen({host:'127.0.0.1',port:3191})
-writeFileSync('/tmp/nodeaccess-operational-api.json',JSON.stringify({base:'http://127.0.0.1:3191',token,scenarios:corpus.map(({content,...scenario})=>scenario)}),{mode:0o600})
+writeFileSync(artifactPath('nodeaccess-operational-api.json'),JSON.stringify({base:'http://127.0.0.1:3191',token,scenarios:corpus.map(({content,...scenario})=>scenario)}),{mode:0o600})
 console.log('Operational audit test API ready on 127.0.0.1:3191 (synthetic storage only)')
 for(const signal of ['SIGINT','SIGTERM'])process.on(signal,()=>{void app.close().then(()=>process.exit(0))})

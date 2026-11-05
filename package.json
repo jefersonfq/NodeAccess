@@ -165,23 +165,39 @@
     "test:host-duplicate": "vitest run apps/frontend/src/services/host-duplicate.test.ts apps/backend/src/modules/hosts/host.service.test.ts apps/backend/src/modules/hosts/host.routes-profile.test.ts",
     "test:auth-access-origin": "vitest run apps/frontend/src/utils/auth-access-origin.test.ts apps/backend/src/modules/logs/log.service.test.ts",
     "test:auth-access-origin:web": "node tools/frontend/auth-access-origin-playwright.cjs",
-    "test:host-duplicate:web": "node tools/frontend/host-duplicate-playwright.cjs"
+    "test:host-duplicate:web": "node tools/frontend/host-duplicate-playwright.cjs",
+    "sonar:check": "node tools/sonarqube/analyze.mjs --check",
+    "sonar:analyze": "node tools/sonarqube/analyze.mjs",
+    "sonar:export": "node tools/sonarqube/export.mjs",
+    "test:sonar": "node --test tools/sonarqube/*.test.mjs",
+    "validate:sonar": "node tools/sonarqube/validate.mjs",
+    "sonar:ci": "node tools/sonarqube/ci-run.mjs",
+    "sonar:catalog": "node tools/sonarqube/ledger.mjs",
+    "test:coverage": "node tools/coverage/run.mjs",
+    "postinstall": "node scripts/dependency-patches/typedoc-minimatch.mjs",
+    "test:dependency-compatibility": "node --test scripts/dependency-patches/dependency-compatibility.test.cjs scripts/dependency-patches/typedoc-minimatch.test.mjs",
+    "quality:context": "node tools/quality/context.mjs"
   },
   "devDependencies": {
+    "@bcoe/v8-coverage": "1.0.2",
+    "@prisma/client": "6.19.3",
     "@typescript-eslint/eslint-plugin": "8.71.1",
     "@typescript-eslint/parser": "8.71.1",
     "@vitest/coverage-v8": "4.1.12",
+    "ast-v8-to-istanbul": "1.0.7",
     "concurrently": "^8.2.2",
     "eslint": "10.12.0",
     "eslint-plugin-vue": "10.11.1",
+    "istanbul-lib-coverage": "3.2.2",
+    "istanbul-lib-report": "3.0.1",
+    "istanbul-reports": "3.2.0",
     "playwright": "^1.61.1",
+    "prisma": "6.19.3",
     "typedoc": "0.28.20",
     "typescript": "^5.4.5",
     "vitest": "4.1.12",
     "vue-eslint-parser": "10.4.0",
-    "wait-on": "^9.0.4",
-    "@prisma/client": "6.19.3",
-    "prisma": "6.19.3"
+    "wait-on": "^9.0.4"
   },
   "engines": {
     "node": ">=24.21.0 <25",
@@ -190,6 +206,10 @@
   "overrides": {
     "@prisma/config": {
       "deepmerge-ts": "8.0.2"
+    },
+    "minimatch": "11.0.1",
+    "@fastify/static": {
+      "glob": "14.0.2"
     }
   },
   "allowScripts": {
@@ -201,5 +221,6 @@
     "vue-demi@0.14.10": true,
     "@prisma/client@6.19.3": true,
     "@prisma/engines@6.19.3": true
-  }
+  },
+  "packageManager": "npm@12.2.1"
 }

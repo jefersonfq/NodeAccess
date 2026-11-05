@@ -8,14 +8,14 @@ const emit = defineEmits<{ openRun: [runId: number] }>()
 
 const recentTrend = computed(() => props.history?.trend.slice(-12) ?? [])
 
-function riskType(risk: 'low' | 'medium' | 'high' | null) {
+function riskType(risk: 'low' | 'medium' | 'high' | null): "error" | "warning" | "success" | "default" {
   if (risk === 'high') return 'error'
   if (risk === 'medium') return 'warning'
   if (risk === 'low') return 'success'
   return 'default'
 }
 
-function formatDate(value: string) {
+function formatDate(value: string): string {
   return new Date(value).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
 }
 </script>
@@ -30,7 +30,10 @@ function formatDate(value: string) {
     </div>
 
     <template v-if="history?.totals.runs">
-      <div class="history-totals" aria-label="Resumo histórico dos diagnósticos">
+      <div
+        class="history-totals"
+        aria-label="Resumo histórico dos diagnósticos"
+      >
         <div><span>Execuções</span><strong>{{ history.totals.runs }}</strong></div>
         <div><span>Concluídas</span><strong>{{ history.totals.completed }}</strong></div>
         <div><span>Execuções falhas</span><strong :class="{ danger: history.totals.failed > 0 }">{{ history.totals.failed }}</strong></div>
@@ -38,45 +41,98 @@ function formatDate(value: string) {
         <div><span>Risco alto</span><strong :class="{ danger: history.totals.highRisk > 0 }">{{ history.totals.highRisk }}</strong></div>
       </div>
 
-      <NAlert v-for="warning in history.warnings" :key="warning" type="warning" :show-icon="false" class="history-warning">
+      <NAlert
+        v-for="warning in history.warnings"
+        :key="warning"
+        type="warning"
+        :show-icon="false"
+        class="history-warning"
+      >
         {{ warning }}
       </NAlert>
 
       <section aria-labelledby="diagnostic-history-trend-title">
-        <h3 id="diagnostic-history-trend-title">Linha do tempo recente</h3>
-        <div class="history-trend" role="list">
+        <h3 id="diagnostic-history-trend-title">
+          Linha do tempo recente
+        </h3>
+        <div
+          class="history-trend"
+          role="group"
+          aria-labelledby="diagnostic-history-trend-title"
+        >
           <button
             v-for="point in recentTrend"
             :key="point.runId"
             type="button"
             class="history-point"
-            role="listitem"
             :aria-label="`Abrir execução ${point.runId}, ${point.failedCommands} comandos falhos, risco ${point.riskLevel ?? 'indisponível'}`"
             @click="emit('openRun', point.runId)"
           >
             <span class="history-point-date">{{ formatDate(point.createdAt) }}</span>
             <strong>#{{ point.runId }}</strong>
-            <NTag size="tiny" :type="point.failedCommands ? 'error' : point.status === 'completed' ? 'success' : 'default'">
+            <NTag
+              size="tiny"
+              :type="point.failedCommands ? 'error' : point.status === 'completed' ? 'success' : 'default'"
+            >
               {{ point.failedCommands }} falha(s)
             </NTag>
-            <NTag size="tiny" :type="riskType(point.riskLevel)">Risco {{ point.riskLevel ?? 'n/d' }}</NTag>
-            <NText depth="3" class="history-playbook">{{ point.playbookName }}</NText>
+            <NTag
+              size="tiny"
+              :type="riskType(point.riskLevel)"
+            >
+              Risco {{ point.riskLevel ?? 'n/d' }}
+            </NTag>
+            <NText
+              depth="3"
+              class="history-playbook"
+            >
+              {{ point.playbookName }}
+            </NText>
           </button>
         </div>
       </section>
 
       <section aria-labelledby="diagnostic-recurring-findings-title">
-        <h3 id="diagnostic-recurring-findings-title">Achados recorrentes</h3>
-        <div v-if="history.recurringFindings.length" class="recurring-findings">
-          <div v-for="finding in history.recurringFindings" :key="finding.finding" class="recurring-finding">
-            <div><strong>{{ finding.finding }}</strong><NText depth="3" class="block text-xs">Última ocorrência: {{ formatDate(finding.lastSeenAt) }}</NText></div>
-            <NTag type="warning" size="small">{{ finding.occurrences }} ocorrências</NTag>
+        <h3 id="diagnostic-recurring-findings-title">
+          Achados recorrentes
+        </h3>
+        <div
+          v-if="history.recurringFindings.length"
+          class="recurring-findings"
+        >
+          <div
+            v-for="finding in history.recurringFindings"
+            :key="finding.finding"
+            class="recurring-finding"
+          >
+            <div>
+              <strong>{{ finding.finding }}</strong><NText
+                depth="3"
+                class="block text-xs"
+              >
+                Última ocorrência: {{ formatDate(finding.lastSeenAt) }}
+              </NText>
+            </div>
+            <NTag
+              type="warning"
+              size="small"
+            >
+              {{ finding.occurrences }} ocorrências
+            </NTag>
           </div>
         </div>
-        <NEmpty v-else description="Nenhum achado textual apareceu em duas ou mais execuções." class="py-4" />
+        <NEmpty
+          v-else
+          description="Nenhum achado textual apareceu em duas ou mais execuções."
+          class="py-4"
+        />
       </section>
     </template>
-    <NEmpty v-else description="Execute ao menos um diagnóstico para formar o histórico deste host." class="py-5" />
+    <NEmpty
+      v-else
+      description="Execute ao menos um diagnóstico para formar o histórico deste host."
+      class="py-5"
+    />
   </div>
 </template>
 

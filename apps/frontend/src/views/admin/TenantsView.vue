@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { hasEmailShape } from '@/services/text-boundaries'
 import ManualLink from '@/components/manual/ManualLink.vue'
 import { computed, h, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -223,7 +224,7 @@ function isValidTenantSlug(value: string): boolean {
 }
 
 function isValidEmail(value: string): boolean {
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim())
+  return hasEmailShape(value)
 }
 
 function slugValidationStatus(value: string): "error" | "success" | undefined {

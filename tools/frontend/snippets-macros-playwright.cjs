@@ -1,10 +1,11 @@
 #!/usr/bin/env node
+const { artifactPath } = require('../shared/private-artifacts.cjs')
 const fs = require('node:fs')
 const { chromium } = require('playwright')
 
 const FRONTEND = (process.env.FRONTEND_BASE || 'http://127.0.0.1:5174').replace(/\/$/, '')
 const EXECUTABLE_PATH = process.env.PLAYWRIGHT_EXECUTABLE_PATH || '/usr/bin/chromium-browser'
-const REPORT_PATH = process.env.REPORT_PATH || '/tmp/nodeaccess-snippets-page.json'
+const REPORT_PATH = process.env.REPORT_PATH || artifactPath('nodeaccess-snippets-page.json')
 const BUDGETS = { taskDurationMs: 2500, scriptDurationMs: 700, layoutDurationMs: 350, longestTaskMs: 200, cumulativeLayoutShift: 0.1, liveDomNodes: 12000 }
 
 const groups = [{ id: 10, name: 'Operação', description: null, scope: 'TEAM', createdById: 1, createdAt: '2026-08-18T00:00:00.000Z', updatedAt: '2026-08-18T00:00:00.000Z' }]
@@ -114,7 +115,7 @@ async function main() {
   await wait.getByRole('textbox',{name:/Texto ou padrão esperado|Expected text or pattern/}).fill('READY')
   await editor.getByRole('button',{name:/^\+ (Pausa|Pause)$/}).click()
   await editor.locator('[data-macro-step="2"]').getByRole('button',{name:/Mover passo para cima|Move step up/}).click()
-  const output=process.env.SCREENSHOT_DIR || '/tmp/nodeaccess-snippets-implemented'
+  const output=process.env.SCREENSHOT_DIR || artifactPath('nodeaccess-snippets-implemented')
   fs.mkdirSync(output,{recursive:true})
   for(const width of [1440,768,390]){
     await page.setViewportSize({width,height:1000})

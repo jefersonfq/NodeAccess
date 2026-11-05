@@ -1,6 +1,15 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { TerminalHighlightRule, TerminalHighlightTelemetryDto } from '@nodeaccess/shared'
 import { compileHighlightRules, matchTerminalLine, TerminalHighlighter } from './terminal-highlighter'
+import { HighlightError } from './terminal-highlight-client'
+import { evaluateHighlights } from './terminal-highlight-engine'
+// Test the terminal orchestration against the real pure engine behind its async boundary.
+vi.mock('./terminal-highlight-client', async importOriginal => {
+  const actual = await importOriginal<typeof import('./terminal-highlight-client')>()
+  return { ...actual, createHighlightClient: () => ({ run: (request: Parameters<typeof evaluateHighlights>[0]) => Promise.resolve(evaluateHighlights(request)), cancel: () => {}, dispose: () => {} }) }
+})
+async function settle(): Promise<void> { for (let index = 0; index < 20; index++) await Promise.resolve() }
+
 
 function rule(patch: Partial<TerminalHighlightRule> = {}): TerminalHighlightRule {
   return { id: crypto.randomUUID(), name: 'Avisos', pattern: 'WARNING', mode: 'literal', caseSensitive: false, wholeWord: true, foreground: 'amber', background: null, bold: true, enabled: true, priority: 50, ...patch }
@@ -70,7 +79,7 @@ describe('terminal highlighter', () => {
     expect(performance.now() - started).toBeLessThan(50)
   })
 
-  it('reports a pass that exceeds its rendering budget', () => {
+  it('reports a pass that exceeds its rendering budget', async () => {
     const frames: FrameRequestCallback[] = []
     vi.stubGlobal('requestAnimationFrame', (callback: FrameRequestCallback) => { frames.push(callback); return frames.length })
     const samples: Array<{ budgetExceeded: boolean; matchCount: number }> = []
@@ -82,12 +91,12 @@ describe('terminal highlighter', () => {
     const highlighter = new TerminalHighlighter(adapter as never, (sample) => samples.push(sample), -1, 120)
     highlighter.setRules([rule()])
     highlighter.schedule(2048)
-    frames[0](performance.now())
+    frames[0](performance.now()); await settle()
     expect(samples).toEqual([expect.objectContaining({ budgetExceeded: true, matchCount: 1 })])
     highlighter.dispose()
   })
 
-  it('coalesces output bursts into one render pass and preserves byte accounting', () => {
+  it('coalesces output bursts into one render pass and preserves byte accounting', async () => {
     const callbacks: FrameRequestCallback[] = []
     vi.stubGlobal('requestAnimationFrame', vi.fn((callback: FrameRequestCallback) => { callbacks.push(callback); return callbacks.length }))
     const samples: TerminalHighlightTelemetryDto[] = []
@@ -103,7 +112,7 @@ describe('terminal highlighter', () => {
     highlighter.schedule(256)
     highlighter.schedule(512)
     expect(callbacks).toHaveLength(1)
-    callbacks[0](performance.now())
+    callbacks[0](performance.now()); await settle()
     expect(samples).toEqual([expect.objectContaining({ bytesProcessed: 896, matchCount: 1, templateIds: [9], matchedRuleIds: [expect.any(String)] })])
     expect(setLineHighlights).toHaveBeenCalledTimes(1)
     highlighter.dispose()
@@ -142,13 +151,13 @@ describe('terminal experience invariants during highlight updates', () => {
     return { adapter, highlighter, telemetry, frames, lines, flush: () => frames.shift()?.(0) }
   }
 
-  it('keeps input, output, focus, selection, scrolling, size and source buffer untouched across repeated changes', () => {
+  it('keeps input, output, focus, selection, scrolling, size and source buffer untouched across repeated changes', async () => {
     const { adapter, highlighter, lines, flush } = fixture()
     const original = [...lines]
     for (let i = 0; i < 50; i++) {
       highlighter.setRules([rule({ foreground: i % 2 ? 'red' : 'amber' })])
       highlighter.schedule(128)
-      flush()
+      flush(); await settle()
     }
     highlighter.dispose()
     expect(lines).toEqual(original)
@@ -164,66 +173,66 @@ describe('terminal experience invariants during highlight updates', () => {
     expect(telemetry).not.toHaveBeenCalled()
   })
 
-  it('uses the latest rules if several changes arrive before the queued frame', () => {
+  it('uses the latest rules if several changes arrive before the queued frame', async () => {
     const { adapter, highlighter, frames, flush } = fixture()
     highlighter.setRules([rule({ foreground: 'amber' })])
     highlighter.schedule(128)
     highlighter.setRules([rule({ foreground: 'red' })])
     highlighter.schedule(256)
     expect(frames).toHaveLength(1)
-    flush()
+    flush(); await settle()
     expect(adapter.setLineHighlights.mock.calls.every(([, ranges]) => ranges[0].foreground === '#f87171')).toBe(true)
   })
 
-  it('clears stale decorations on opt-out and never reapplies queued colors', () => {
+  it('clears stale decorations on opt-out and never reapplies queued colors', async () => {
     const { adapter, highlighter, telemetry, flush } = fixture()
     highlighter.setRules([rule()]); highlighter.schedule(100)
-    highlighter.setRules([]); flush()
+    highlighter.setRules([]); flush(); await settle()
     expect(adapter.clearHighlights).toHaveBeenCalledTimes(2)
     expect(adapter.setLineHighlights.mock.calls.every(([, ranges]) => ranges.length === 0)).toBe(true)
     expect(telemetry).not.toHaveBeenCalled()
   })
 
-  it('ignores queued output after disposal and does not dispose the terminal itself', () => {
+  it('ignores queued output after disposal and does not dispose the terminal itself', async () => {
     const { adapter, highlighter, telemetry, flush } = fixture()
-    highlighter.setRules([rule()]); highlighter.schedule(100); highlighter.dispose(); flush(); highlighter.schedule(100)
+    highlighter.setRules([rule()]); highlighter.schedule(100); highlighter.dispose(); flush(); await settle(); highlighter.schedule(100)
     expect(adapter.getBufferLine).not.toHaveBeenCalled()
     expect(adapter.setLineHighlights).not.toHaveBeenCalled()
     expect(adapter.dispose).not.toHaveBeenCalled()
     expect(telemetry).not.toHaveBeenCalled()
   })
 
-  it('skips a frame if vim/htop enters the alternate buffer after scheduling, and resumes on normal output', () => {
+  it('skips a frame if vim/htop enters the alternate buffer after scheduling, and resumes on normal output', async () => {
     const { adapter, highlighter, flush } = fixture()
     highlighter.setRules([rule()]); highlighter.schedule(100)
-    adapter.isAlternateBuffer = true; flush()
+    adapter.isAlternateBuffer = true; flush(); await settle()
     expect(adapter.getBufferLine).not.toHaveBeenCalled()
-    adapter.isAlternateBuffer = false; highlighter.schedule(100); flush()
+    adapter.isAlternateBuffer = false; highlighter.schedule(100); flush(); await settle()
     expect(adapter.setLineHighlights).toHaveBeenCalled()
   })
 
-  it('reads only the bounded tail near the cursor, including after scrolling the buffer', () => {
+  it('reads only the bounded tail near the cursor, including after scrolling the buffer', async () => {
     const { adapter, highlighter, flush } = fixture()
     adapter.cursorLine = 10000; adapter.bufferLength = 10001
-    highlighter.setRules([rule()]); highlighter.schedule(100); flush()
-    expect(adapter.getBufferLine.mock.calls.map(([index]) => index)).toEqual([9996, 9997, 9998, 9999, 10000])
+    highlighter.setRules([rule()]); highlighter.schedule(100); flush(); await settle()
+    expect(adapter.getBufferLine.mock.calls.map(([index]) => index)).toEqual([9996, 9996, 9997, 9997, 9998, 9998, 9999, 9999, 10000, 10000])
   })
 
-  it('stops after the rendering budget and reports metadata without source text', () => {
+  it('stops after the rendering budget and reports metadata without source text', async () => {
     const { adapter, highlighter, telemetry, flush } = fixture()
     vi.spyOn(performance, 'now').mockReturnValueOnce(0).mockReturnValue(9)
-    highlighter.setRules([rule()]); highlighter.schedule(80); flush()
-    expect(adapter.getBufferLine).toHaveBeenCalledTimes(1)
+    highlighter.setRules([rule()]); highlighter.schedule(80); flush(); await settle()
+    expect(adapter.getBufferLine).toHaveBeenCalledTimes(2)
     expect(telemetry).toHaveBeenCalledWith(expect.objectContaining({ budgetExceeded: true, bytesProcessed: 80, matchCount: 1 }))
     expect(JSON.stringify(telemetry.mock.calls)).not.toContain('WARNING line')
   })
 
-  it('caps matches across multiple lines and omits low-cost telemetry', () => {
+  it('caps matches across multiple lines and omits low-cost telemetry', async () => {
     const { adapter, highlighter, telemetry, flush } = fixture()
     adapter.getBufferLine.mockReturnValue('WARNING '.repeat(200))
-    highlighter.setRules([rule()]); highlighter.schedule(800); flush()
+    highlighter.setRules([rule()]); highlighter.schedule(800); flush(); await settle()
     expect(adapter.setLineHighlights.mock.calls.flatMap(([, ranges]) => ranges)).toHaveLength(120)
-    expect(adapter.getBufferLine).toHaveBeenCalledTimes(1)
+    expect(adapter.getBufferLine).toHaveBeenCalledTimes(2)
     expect(telemetry).not.toHaveBeenCalled()
   })
 
@@ -239,5 +248,32 @@ describe('terminal experience invariants during highlight updates', () => {
     const compiled = compileHighlightRules([rule({ pattern: '[error].*+$', wholeWord: false })])
     expect(matchTerminalLine('prefix [error].*+$ suffix', compiled)).toEqual([expect.objectContaining({ x: 7, width: 11 })])
     expect(matchTerminalLine('error anything', compiled)).toEqual([])
+  })
+})
+
+
+it('skips zero-width matches by Unicode codepoint and does not execute at zero budget', () => {
+  const compiled = compileHighlightRules([rule({ mode: 'regex', pattern: '(?=😀)', wholeWord: false })])
+  expect(matchTerminalLine('😀😀', compiled)).toEqual([])
+  const spy = vi.spyOn(compiled[0].regex, 'exec')
+  expect(matchTerminalLine('😀', compiled, 0)).toEqual([])
+  expect(spy).not.toHaveBeenCalled()
+})
+
+
+describe('highlight failure telemetry', () => {
+  afterEach(() => { vi.restoreAllMocks(); vi.unstubAllGlobals() })
+  it.each(['unavailable', 'input-limit', 'capacity', 'timeout'] as const)('does not invent computation duration for %s', async code => {
+    const frames: FrameRequestCallback[] = []
+    vi.stubGlobal('requestAnimationFrame', (callback: FrameRequestCallback) => { frames.push(callback); return frames.length })
+    const telemetry = vi.fn(), status = vi.fn()
+    const adapter = { isAlternateBuffer: false, cursorLine: 0, bufferLength: 1, getBufferLine: () => 'WARNING', clearHighlights: vi.fn(), setLineHighlights: vi.fn() }
+    const client = { run: () => Promise.reject(new HighlightError(code)), cancel: vi.fn(), dispose: vi.fn() }
+    const highlighter = new TerminalHighlighter(adapter as never, telemetry, 8, 120, client, status)
+    highlighter.setRules([rule()]); highlighter.schedule(7); frames[0](0); await settle()
+    expect(telemetry).toHaveBeenCalledWith(expect.objectContaining({ durationMs: 0, budgetExceeded: code === 'timeout', matchCount: 0 }))
+    expect(status).toHaveBeenLastCalledWith(expect.any(String))
+    expect(adapter.setLineHighlights).not.toHaveBeenCalled()
+    highlighter.dispose()
   })
 })

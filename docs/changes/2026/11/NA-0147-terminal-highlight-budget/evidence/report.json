@@ -1,0 +1,64 @@
+{
+  "passed": true,
+  "reports": [
+    {
+      "rate": 1,
+      "validMatches": 120,
+      "validWorkerMs": 1.699999988079071,
+      "failure": "timeout",
+      "elapsedMs": 53,
+      "ticks": 16,
+      "healthy": 2,
+      "literal": 1,
+      "wildcard": 1,
+      "unicode": 0,
+      "rejectedReconfigs": [
+        "timeout",
+        "timeout",
+        "timeout",
+        "timeout",
+        "timeout",
+        "timeout",
+        "timeout",
+        "timeout",
+        "timeout",
+        "timeout"
+      ],
+      "freshOwnerFailure": "timeout",
+      "terminatedAt": 1793798261078,
+      "workerCount": 1,
+      "zeroWorkersObservedAfterTerminateMs": 2005
+    },
+    {
+      "rate": 4,
+      "validMatches": 120,
+      "validWorkerMs": 1.399999976158142,
+      "failure": "timeout",
+      "elapsedMs": 55.30000001192093,
+      "ticks": 16,
+      "healthy": 2,
+      "literal": 1,
+      "wildcard": 1,
+      "unicode": 0,
+      "rejectedReconfigs": [
+        "timeout",
+        "timeout",
+        "timeout",
+        "timeout",
+        "timeout",
+        "timeout",
+        "timeout",
+        "timeout",
+        "timeout",
+        "timeout"
+      ],
+      "freshOwnerFailure": "timeout",
+      "terminatedAt": 1793798263422,
+      "workerCount": 1,
+      "zeroWorkersObservedAfterTerminateMs": 2007
+    }
+  ],
+  "limitations": "Real Chromium workers and Vue editor with synthetic data; no SSH/VPS. Watchdog requests termination at50ms; physical cancellation is browser-controlled, not a50msCPU guarantee.",
+  "browser": "151.0.7922.34",
+  "editorTimeoutRequiresReload": true
+}

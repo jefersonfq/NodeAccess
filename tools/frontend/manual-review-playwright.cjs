@@ -1,8 +1,9 @@
+const { artifactPath } = require('../shared/private-artifacts.cjs')
 const assert = require('node:assert/strict')
 const fs = require('node:fs/promises')
 const path = require('node:path')
 module.exports = async ({page,context}) => {
-  const out='/tmp/nodeaccess-manual-review';await fs.mkdir(out,{recursive:true})
+  const out=artifactPath('nodeaccess-manual-review');await fs.mkdir(out,{recursive:true})
   let enabled=false,failSave=false,failRead=false
   const errors=[];page.on('pageerror',error=>errors.push(error.message))
   await context.route('**/api/v1/settings/manual',route=>{

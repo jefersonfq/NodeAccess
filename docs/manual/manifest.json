@@ -3,7 +3,7 @@
     "id": "hosts",
     "title": "Hosts e sessões abertas",
     "summary": "Encontre o equipamento certo e retome seu trabalho com segurança.",
-    "reviewedAt": "2026-10-28",
+    "reviewedAt": "2026-11-04",
     "sourceFiles": [
       "apps/frontend/src/views/HostsView.vue",
       "apps/frontend/src/components/TrialResourcesPanel.vue",
@@ -32,13 +32,13 @@
       "Conferir o destino",
       "Conectar ou retomar"
     ],
-    "reviewedSourceHash": "f37780b62827e6c895cfb7d71101b2dc7a7166170c226393a905d6d9bd192ff0"
+    "reviewedSourceHash": "5b7ef2d9f80d54eac4aa03618cc514a379d0c52d369632007e7951262546b63c"
   },
   {
     "id": "terminal",
     "title": "Terminal e organização das abas",
     "summary": "Trabalhe com várias conexões mantendo o destino e o estado de cada aba claros.",
-    "reviewedAt": "2026-10-28",
+    "reviewedAt": "2026-11-04T14:22:30.098Z",
     "sourceFiles": [
       "apps/frontend/src/views/TerminalView.vue",
       "apps/frontend/src/components/TerminalPane.vue",
@@ -82,7 +82,7 @@
       "Organizar as abas",
       "Retomar o trabalho"
     ],
-    "reviewedSourceHash": "661e9bae89ad5d6bd26b8d4c2356ca27299e5a1e28aabe7a9b6c2732fb4ca827"
+    "reviewedSourceHash": "eaa9ccc33622ffd63b7bd24ad4dd1cb3b54f9734b5e33503110b55777d6a9e98"
   },
   {
     "id": "sharing",
@@ -127,7 +127,7 @@
     "id": "tenants",
     "title": "Troca de tenant e modo delegado",
     "summary": "Gerencie outra organização e retorne à sua identidade original.",
-    "reviewedAt": "2026-10-10",
+    "reviewedAt": "2026-11-03",
     "sourceFiles": [
       "apps/frontend/src/stores/auth.ts",
       "apps/frontend/src/views/admin/TenantsView.vue"
@@ -137,6 +137,6 @@
       "Gerenciamento delegado",
       "Retorno à origem"
     ],
-    "reviewedSourceHash": "8fcb5e74c12fc2f88ac7b09a06612f5edf5b631fbda5da1bfbfad2f875b597cb"
+    "reviewedSourceHash": "f87038b7c6fc4ff5c4da360669e795d28d23fb5e7dcff836146b5a540537fad7"
   }
 ]

@@ -1,0 +1,58 @@
+[
+  {
+    "issueId": "da6d6f1c-c9f3-4df7-8fed-8f25c395c022",
+    "status": "fixed",
+    "rationale": "Estado FIXED confirmado pelo scanner final. Ordenação de estados da tabela passou a usar comparação explícita com locale fixo; preserva valores e filtros.",
+    "evidence": [
+      "tools/sonarqube/ledger.test.mjs",
+      "tools/sonarqube/table-review.cjs"
+    ],
+    "risk": "baixo; somente ordem do filtro",
+    "branch": "chore/NA-0089-20261103-sonar-integration"
+  },
+  {
+    "issueId": "43a6dcde-006b-4c2d-ada3-e946f1a48c09",
+    "rule": "javascript:S1523",
+    "file": "tools/frontend/sonar-frontend-review.cjs",
+    "baselineLine": 21,
+    "status": "fixed",
+    "rationale": "Estado FIXED confirmado pelo scanner final. Removido Function/eval: parser literal limitado a strings, objetos de props, t/$t e option.label; não executa código do checkout. Testes rejeitam chamadas arbitrárias, sufixos executáveis, sintaxe inválida e profundidade excessiva.",
+    "evidence": [
+      "tools/frontend/sonar-fixture-expression.test.cjs",
+      "tools/frontend/sonar-frontend-review.cjs",
+      "docs/changes/2026/11/NA-0087-sonar-frontend/followup-review.md"
+    ],
+    "risk": "low",
+    "branch": "fix/NA-0087-20261103-sonar-frontend"
+  },
+  {
+    "issueId": "c074a7a1-304a-4a7d-a05c-e7ec95b7392a",
+    "rule": "javascript:S4036",
+    "file": "tools/frontend/sonar-frontend-review.cjs",
+    "baselineLine": 42,
+    "status": "fixed",
+    "rationale": "Estado FIXED confirmado pelo scanner final. execFileSync utiliza /usr/bin/git absoluto no ambiente WSL de teste, eliminando resolução do executável por PATH. Sem shell e argumentos continuam estruturados.",
+    "evidence": [
+      "tools/frontend/sonar-fixture-expression.test.cjs",
+      "tools/frontend/sonar-frontend-review.cjs",
+      "docs/changes/2026/11/NA-0087-sonar-frontend/followup-review.md"
+    ],
+    "risk": "low",
+    "branch": "fix/NA-0087-20261103-sonar-frontend"
+  },
+  {
+    "issueId": "9b8d5d63-255f-466f-9560-0f18ffd9b7c5",
+    "rule": "javascript:S4036",
+    "file": "tools/frontend/sonar-frontend-review.cjs",
+    "baselineLine": 65,
+    "status": "fixed",
+    "rationale": "Estado FIXED confirmado pelo scanner final. execFileSync utiliza /usr/bin/git absoluto no ambiente WSL de teste, eliminando resolução do executável por PATH. Sem shell e argumentos continuam estruturados.",
+    "evidence": [
+      "tools/frontend/sonar-fixture-expression.test.cjs",
+      "tools/frontend/sonar-frontend-review.cjs",
+      "docs/changes/2026/11/NA-0087-sonar-frontend/followup-review.md"
+    ],
+    "risk": "low",
+    "branch": "fix/NA-0087-20261103-sonar-frontend"
+  }
+]

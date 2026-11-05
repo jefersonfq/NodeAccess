@@ -343,7 +343,7 @@ export class TrialService {
         const createdHost = await tx.host.create({ data: { name: host.name, ip: host.ip, port: host.port, sshUser: host.sshUser,
           authType: 'PASSWORD', passwordEncrypted: JSON.stringify(encrypt(host.password)),
           scope: 'GLOBAL', ownerId: user.id, tenantId: tenant.id,
-          trustedHostKeyFingerprint: `${host.fingerprint.replace(/=+$/, '')}=`, operatingSystem: 'LINUX' } })
+          trustedHostKeyFingerprint: `${host.fingerprint.replace(/=$/, '')}=`, operatingSystem: 'LINUX' } })
         await tx.$executeRaw(Prisma.sql`INSERT INTO inventory_nodes
           (tenant_id, parent_id, type, host_id, name, path, depth, updated_at)
           SELECT ${tenant.id}, id, 'HOST', ${createdHost.id}, ${host.name}, '', 1, CURRENT_TIMESTAMP(3)

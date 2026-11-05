@@ -1,9 +1,10 @@
+const { artifactPath } = require('../shared/private-artifacts.cjs')
 const assert = require('node:assert/strict')
 const fs = require('node:fs/promises')
 const { chromium } = require('playwright')
 const { fakeJwt, mockApi } = require('./observability-cdp-harness.cjs')
 const frontend = process.env.FRONTEND_BASE || 'http://127.0.0.1:5178'
-const dir = '/tmp/nodeaccess-shared-viewer-review'
+const dir = artifactPath('nodeaccess-shared-viewer-review')
 async function main() {
  await fs.mkdir(dir,{recursive:true})
  const browser=await chromium.launch({executablePath:process.env.PLAYWRIGHT_EXECUTABLE_PATH || '/usr/bin/chromium-browser',headless:true})

@@ -50,7 +50,7 @@ export function resolveHostLinkTemplate(template: string, context: HostLinkTempl
 }
 
 export function findUnknownHostLinkVariables(template: string): string[] {
-  const matches = template.match(/\{\{[^}]+\}\}/g) ?? []
+  const matches = findHostLinkTemplateTokens(template)
   const known = new Set(listHostLinkVariables({ includeAliases: true }))
   return [...new Set(matches.filter((token) => !known.has(token)))]
 }
@@ -81,4 +81,21 @@ export function validateHostLinkTemplate(
     invalidScheme,
     invalidResolvedUrl,
   }
+}
+
+/** Scan once, including malformed nested openers without regex retries. */
+export function findHostLinkTemplateTokens(template: string): string[] {
+  const tokens: string[] = []
+  let cursor = 0
+  while (cursor < template.length) {
+    const start = template.indexOf('{{', cursor)
+    if (start < 0) break
+    const end = template.indexOf('}', start + 2)
+    if (end < 0) break
+    if (end > start + 2 && template[end + 1] === '}') {
+      tokens.push(template.slice(start, end + 2))
+      cursor = end + 2
+    } else cursor = end + 1
+  }
+  return tokens
 }

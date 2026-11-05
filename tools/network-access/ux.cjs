@@ -1,3 +1,4 @@
+const { artifactPath } = require('../shared/private-artifacts.cjs')
 // Opt-in local browser review. All network-module writes are intercepted and simulated.
 const assert=require('node:assert/strict'),fs=require('node:fs'),{chromium}=require('playwright'),jwt=require('jsonwebtoken')
 const frontend=process.env.FRONTEND_BASE||'http://127.0.0.1:5187'
@@ -86,13 +87,13 @@ if(process.env.RUN_NETWORK_UX!=='true')throw Error('Set RUN_NETWORK_UX=true agai
   await card.getByLabel('Comandos completos permitidos',{exact:true}).fill('show version\nconfigure terminal\nunknown-command')
   await card.getByText('Consulta (indicativo):',{exact:false}).waitFor()
   await card.getByText('Alteração de configuração:',{exact:false}).waitFor()
-  await page.screenshot({path:'/tmp/nodeaccess-network-ux-desktop.png',fullPage:true})
+  await page.screenshot({path:artifactPath('nodeaccess-network-ux-desktop.png'),fullPage:true})
   await page.setViewportSize({width:390,height:844})
   await page.waitForTimeout(300)
   assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth+1),false,'page must not overflow horizontally on mobile')
   await card.getByLabel('Login AAA',{exact:true}).focus();await page.keyboard.press('Tab')
   assert.ok(await page.evaluate(()=>document.activeElement!==document.body),'keyboard retains an interactive focus target')
-  await page.screenshot({path:'/tmp/nodeaccess-network-ux-mobile.png',fullPage:true})
+  await page.screenshot({path:artifactPath('nodeaccess-network-ux-mobile.png'),fullPage:true})
   overview.settings.defaultProfile='cisco_ios'
   await page.setViewportSize({width:1440,height:1000})
   await page.goto(frontend+'/hosts?cdp_perf=network-profile')
@@ -108,7 +109,7 @@ if(process.env.RUN_NETWORK_UX!=='true')throw Error('Set RUN_NETWORK_UX=true agai
   await page.getByText('Equipamento de rede (genérico)',{exact:true}).click()
   assert.equal(await page.evaluate(()=>window.__nodeAccessHostsPerf.startupSnippetFormState().startupSnippetAvailable),false)
   assert.deepEqual(errors,[])
-  fs.writeFileSync('/tmp/nodeaccess-network-ux.json',JSON.stringify({ok:true,healthStatesAndRetry:true,healthFailurePreservesForm:true,healthFailureClearsReadyState:true,loadFailureRetry:true,emptyStates:true,invalidFormActionsDisabled:true,explicitActivationConfirmation:true,saveFailureFeedback:true,commandClassification:true,mobileNoOverflow:true,keyboardFocus:true,auditOutcomeAndTargetReadable:true,grantEditConfirmationAndSave:true,tenantDefaultAndHostProfileCapabilities:true,errors},null,2))
+  fs.writeFileSync(artifactPath('nodeaccess-network-ux.json'),JSON.stringify({ok:true,healthStatesAndRetry:true,healthFailurePreservesForm:true,healthFailureClearsReadyState:true,loadFailureRetry:true,emptyStates:true,invalidFormActionsDisabled:true,explicitActivationConfirmation:true,saveFailureFeedback:true,commandClassification:true,mobileNoOverflow:true,keyboardFocus:true,auditOutcomeAndTargetReadable:true,grantEditConfirmationAndSave:true,tenantDefaultAndHostProfileCapabilities:true,errors},null,2))
   console.log('Network UX simulation passed')
  }finally{await context.close();await browser.close()}
 })().catch(e=>{console.error(e);process.exitCode=1})

@@ -110,3 +110,16 @@ describe('internal provisioner transport', () => {
     expect(pulls).toBeLessThan(20)
   })
 })
+
+
+describe('provider fingerprint shape', () => {
+  it.each(['', '='])('accepts exactly SHA256 base64 with optional single padding %s', async padding => {
+    const fingerprint = `SHA256:${'a'.repeat(43)}${padding}`
+    const { provider: provisioner } = fixture({ ...lab, hosts: [{ ...host, fingerprint }] })
+    expect((await provisioner.ensure(id, profile)).hosts[0]?.fingerprint).toBe(fingerprint)
+  })
+  it.each(['==', '='.repeat(100000), 'a', '\n'])('rejects malformed padding before returning a lab %#', async padding => {
+    const { provider: provisioner } = fixture({ ...lab, hosts: [{ ...host, fingerprint: `SHA256:${'a'.repeat(43)}${padding}` }] })
+    await expect(provisioner.ensure(id, profile)).rejects.toThrow()
+  })
+})

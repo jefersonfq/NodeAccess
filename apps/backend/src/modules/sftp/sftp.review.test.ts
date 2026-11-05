@@ -181,3 +181,12 @@ it('blocks restoration and removes the temporary file when strict metadata prese
     expect(service.upload.mock.calls.every(call => call[6]?.mode === 0o600 && call[6]?.flags === 'wx')).toBe(true)
   } finally { await app.close() }
 })
+
+describe('SFTP masking adversarial lines', () => {
+  it('masks through Unicode line separators and long whitespace', () => {
+    const controller = new SftpController({} as never)
+    expect(controller['maskSensitiveLine']('token=' + ' '.repeat(100_000) + 'synthetic\u2028tail')).not.toContain('synthetic')
+    expect(controller['maskSensitiveLine']('token=' + ' '.repeat(100_000) + 'synthetic\u2028tail')).not.toContain('tail')
+    expect(controller['maskSensitiveLine']('token' + ' '.repeat(100_000))).toHaveLength(100_005)
+  })
+})

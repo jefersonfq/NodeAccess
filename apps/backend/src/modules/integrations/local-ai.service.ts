@@ -1,3 +1,5 @@
+import { jsonFenceBody } from '../../shared/linear-text.js'
+import { trimTrailingSlashes } from '../../shared/linear-text.js'
 import { trialAiFetch } from '../trials/trial-outbound.js'
 import { z } from 'zod'
 import { env } from '../../config/env.js'
@@ -55,7 +57,7 @@ export class LocalAiIntegrationService {
 
   normalizeBaseUrl(value?: string | null): string | undefined {
     if (!value) return undefined
-    return value.replace(/\/+$/, '')
+    return trimTrailingSlashes(value)
   }
 
   async proxyLocalEndpoint(baseUrl: string, path = '/', tenantId?: number): Promise<{
@@ -607,9 +609,9 @@ function extractJsonObject(text: string): string {
     return trimmed
   }
 
-  const fencedMatch = trimmed.match(/```(?:json)?\s*([\s\S]*?)```/i)
-  if (fencedMatch?.[1]) {
-    return fencedMatch[1].trim()
+  const fencedBody = jsonFenceBody(trimmed)
+  if (fencedBody) {
+    return fencedBody
   }
 
   const start = trimmed.indexOf('{')

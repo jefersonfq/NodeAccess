@@ -831,3 +831,7 @@ Procedimentos, pré-requisitos e recuperação: [operação da degustação](doc
 Escopo e evidências: [NA-0068](docs/changes/2026/10/NA-0068-trial-review/plan.md).
 
 O cadastro de degustação também oferece telefone opcional para contato solicitado sobre a avaliação, visível apenas ao administrador da plataforma. A coleta não autoriza marketing por telefone; o dado é cifrado e segue a retenção do ambiente de teste. A página usa a identidade visual do NodeAccess e o site orienta a confirmação de e-mail antes da preparação do laboratório (NA-0072).
+
+## Análise estática local (SonarQube)
+
+A frente NA-0085 prepara análise local e exportação de achados para revisão supervisionada. Instalação, comandos, credenciais, limites de cobertura e estado real: [guia operacional](docs/OPERATIONS-sonarqube.md). A configuração está em worktree enquanto LOCAL_WIP; não implica enforcement no CI nem certificação de segurança do produto.

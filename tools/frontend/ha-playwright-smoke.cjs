@@ -1,4 +1,6 @@
 #!/usr/bin/env node
+const { artifactPath } = require('../shared/private-artifacts.cjs')
+const { attachBrowserCoverage } = require('../coverage/playwright-coverage.cjs')
 /*
  * HA admin UI smoke via Playwright.
  *
@@ -16,8 +18,8 @@ const crypto = require('node:crypto')
 const { chromium } = require('playwright')
 
 const FRONTEND = (process.env.FRONTEND_BASE || 'http://127.0.0.1:5173').replace(/\/$/, '')
-const REPORT_PATH = process.env.REPORT_PATH || '/tmp/nodeaccess-ha-playwright-smoke.json'
-const ARTIFACTS_DIR = process.env.ARTIFACTS_DIR || '/tmp/nodeaccess-ha-playwright-artifacts'
+const REPORT_PATH = process.env.REPORT_PATH || artifactPath('nodeaccess-ha-playwright-smoke.json')
+const ARTIFACTS_DIR = process.env.ARTIFACTS_DIR || artifactPath('nodeaccess-ha-playwright-artifacts')
 const EXECUTABLE_PATH = process.env.PLAYWRIGHT_EXECUTABLE_PATH || '/usr/bin/chromium-browser'
 const HEADLESS = process.env.HEADLESS !== '0'
 const LOADING_DELAY_MS = 1_000
@@ -338,6 +340,7 @@ async function runScenario(browser, scenario, viewport, captured) {
     localStorage.setItem('na_refresh_token', 'ha-smoke-refresh')
   }, fakeJwt())
   const page = await context.newPage()
+  await attachBrowserCoverage(page, browser)
   const consoleErrors = []
   const pageErrors = []
   page.on('console', (message) => {

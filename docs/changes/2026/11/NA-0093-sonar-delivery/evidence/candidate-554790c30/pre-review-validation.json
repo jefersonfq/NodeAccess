@@ -1,0 +1,120 @@
+{
+  "schemaVersion": 1,
+  "startedAt": "2026-11-04T17:28:45.667Z",
+  "finishedAt": "2026-11-04T17:42:01.266Z",
+  "passed": false,
+  "failures": [
+    "SCANNER_OR_GATE_FAILED",
+    "REVIEWED_FINDINGS_NOT_VERIFIED",
+    "UNREVIEWED_FINDINGS",
+    "QUALITY_GATE_NOT_OK"
+  ],
+  "warnings": [],
+  "base": "f4a44b4b7ae87a8f688b1246d9e52a31f9a104bc",
+  "head": "554790c3081b4f345a5b9f754c0199e685f2644d",
+  "toolingExit": 0,
+  "coverageExit": 0,
+  "scannerExit": 1,
+  "analysisId": "6168dd15-05df-4b5c-93c9-82230698d37e",
+  "analysisVerified": true,
+  "comparison": {
+    "passed": false,
+    "reviewed": 200,
+    "unexpected": [
+      {
+        "rule": "typescript:S6324",
+        "file": "apps/frontend/src/services/terminal-audit-controls.service.ts",
+        "line": 31,
+        "issueId": "218e14d9-5eba-4907-af26-509994afe393"
+      },
+      {
+        "rule": "typescript:S6324",
+        "file": "apps/frontend/src/services/terminal-audit-controls.service.ts",
+        "line": 31,
+        "issueId": "57ea3afd-860c-411b-9cfe-87f7967397c0"
+      },
+      {
+        "rule": "typescript:S6324",
+        "file": "apps/frontend/src/services/terminal-audit-controls.service.ts",
+        "line": 31,
+        "issueId": "a9113693-139d-4665-bfc0-93c8c351cd99"
+      },
+      {
+        "rule": "typescript:S6324",
+        "file": "apps/frontend/src/services/terminal-audit-controls.service.ts",
+        "line": 31,
+        "issueId": "d30db800-5820-47e1-916c-ed74ec9df457"
+      },
+      {
+        "rule": "typescript:S6324",
+        "file": "apps/frontend/src/services/terminal-audit-controls.service.ts",
+        "line": 31,
+        "issueId": "fdfae5d6-21d1-4434-8d5f-94228779c6f8"
+      },
+      {
+        "rule": "javascript:S3403",
+        "file": "tools/deploy/restore-mysql-env.cjs",
+        "line": 48,
+        "issueId": "b6bc4250-7710-485f-bc2d-50664e1d42e2"
+      },
+      {
+        "rule": "javascript:S1313",
+        "file": "tools/frontend/audit-input-safety-playwright.cjs",
+        "line": 149,
+        "issueId": "34c6e542-39f8-4476-b7da-50a538e41f0f"
+      },
+      {
+        "rule": "javascript:S2612",
+        "file": "tools/tls/challenge-files.mjs",
+        "line": 27,
+        "issueId": "ffe9aafb-c316-43ca-8184-608aed467c4a"
+      },
+      {
+        "rule": "javascript:S2612",
+        "file": "tools/tls/challenge-files.mjs",
+        "line": 32,
+        "issueId": "9db2139f-246d-4122-890c-37141d038405"
+      }
+    ],
+    "absentReviewedOccurrences": 95
+  },
+  "gate": {
+    "status": "ERROR",
+    "conditions": [
+      {
+        "status": "OK",
+        "metricKey": "new_coverage",
+        "comparator": "LT",
+        "errorThreshold": "80",
+        "actualValue": "80.4"
+      },
+      {
+        "status": "OK",
+        "metricKey": "new_duplicated_lines_density",
+        "comparator": "GT",
+        "errorThreshold": "3",
+        "actualValue": "0.07589"
+      },
+      {
+        "status": "ERROR",
+        "metricKey": "new_violations",
+        "comparator": "GT",
+        "errorThreshold": "0",
+        "actualValue": "9"
+      }
+    ],
+    "ignoredConditions": false,
+    "period": {
+      "mode": "PREVIOUS_VERSION",
+      "date": "2026-11-03T16:48:47+0000"
+    },
+    "caycStatus": "compliant"
+  },
+  "hotspotsToReview": 0,
+  "error": "REVIEW_DECISION_CONFLICT",
+  "reviewedFalsePositives": null,
+  "reviewsVerified": false,
+  "reports": "/tmp/nodeaccess-NA-0093/.sonar-reports/2026-11-04T17-41-55.152Z-2a34d6ea-05ca-4e53-9e47-e32ac072825b",
+  "output": "/tmp/nodeaccess-NA-0093/.sonar-reports/validation-1793813325666-34a1d8e1-e99c-4a17-9d2d-860fae43b4a6",
+  "evidenceNormalization": "Issue key field renamed to issueId in this public evidence copy; original private validation report retained unchanged."
+}

@@ -1,0 +1,35 @@
+{
+  "status": "passed",
+  "phase": "complete",
+  "captureRunId": "71403162-c329-4886-8ab0-73b28a7e550e",
+  "startedAt": "2026-11-04T00:18:55.999Z",
+  "kind": "real Chromium; Node and mapped browser coverage are collected separately",
+  "harnesses": [
+    {
+      "name": "frontend",
+      "exitCode": 0,
+      "timedOut": false
+    },
+    {
+      "name": "table",
+      "exitCode": 0,
+      "timedOut": false
+    },
+    {
+      "name": "terminal",
+      "exitCode": 0,
+      "timedOut": false
+    },
+    {
+      "name": "platform",
+      "exitCode": 0,
+      "timedOut": false
+    },
+    {
+      "name": "flows",
+      "exitCode": 0,
+      "timedOut": false
+    }
+  ],
+  "finishedAt": "2026-11-04T00:21:50.189Z"
+}

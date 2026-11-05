@@ -1,3 +1,4 @@
+import { resolveExecutable } from '../tools/shared/trusted-executable.cjs'
 import { execFileSync } from 'node:child_process'
 import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import { join, relative, dirname } from 'node:path'
@@ -29,7 +30,7 @@ export function parseFrontmatter(content) {
   if (!match) return {}
   const result = {}
   for (const line of match[1].split(/\r?\n/)) {
-    const field = line.match(/^([a-z_]+):\s*(.*)$/)
+    const field = line.match(/^([a-z_]+):(.*)$/)
     if (!field) continue
     const value = field[2].trim().replace(/^['"]|['"]$/g, '')
     result[field[1]] = value === 'null' ? null : value
@@ -60,7 +61,7 @@ export function findPlanFiles(root = process.cwd()) {
     }
   }
   walk(base)
-  return files.sort()
+  return files.sort(compareCodeUnits)
 }
 
 export function validatePlan(content, { branch, changeId, path }) {
@@ -99,8 +100,8 @@ export function validateCommit(commit, { changeId, planPath }) {
 export function parseTrailers(body) {
   const trailers = {}
   for (const line of body.split(/\r?\n/)) {
-    const match = line.match(/^([A-Za-z][A-Za-z-]+):\s+(.+)$/)
-    if (match) trailers[match[1]] = match[2].trim()
+    const match = line.match(/^([A-Za-z][A-Za-z-]+):(.*)$/)
+    if (match && /^\s/.test(match[2]) && match[2].trim()) trailers[match[1]] = match[2].trim()
   }
   return trailers
 }
@@ -137,7 +138,7 @@ export function validateImplementationRecord(content, changeId) {
 }
 
 export function gitCommits(baseSha, headSha, cwd = process.cwd()) {
-  const output = execFileSync('git', [
+  const output = execFileSync(resolveExecutable('git'), [
     'log', '--format=%H%x1f%s%x1f%b%x1e', `${baseSha}..${headSha}`,
   ], { cwd, encoding: 'utf8' })
   return output.split('\x1e').map(row => row.trim()).filter(Boolean).map((row) => {
@@ -178,4 +179,11 @@ export function validateLifecycle({ root = process.cwd(), branch, baseSha, headS
 
 function escapeRegExp(value) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+}
+
+// Preserve the native string sort order used by canonical output and digests.
+function compareCodeUnits(left, right) {
+  if (left < right) return -1
+  if (left > right) return 1
+  return 0
 }

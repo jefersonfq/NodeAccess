@@ -1,10 +1,11 @@
 #!/usr/bin/env node
+const { artifactPath } = require('../shared/private-artifacts.cjs')
 // Isolated browser regression: all API/WS interactions are synthetic.
 const assert = require('node:assert/strict')
 const fs = require('node:fs/promises')
 const { chromium } = require('playwright')
 const base = process.env.FRONTEND_BASE || 'http://127.0.0.1:5279'
-const output = process.env.HOST_ACCESS_REPORT_DIR || '/tmp/nodeaccess-host-access-dashboard'
+const output = process.env.HOST_ACCESS_REPORT_DIR || artifactPath('nodeaccess-host-access-dashboard')
 const jwt = role => `e30.${Buffer.from(JSON.stringify({ sub: '41', tenantId: 7, role, name: 'Fixture', stage: 'authenticated', exp: 4102444800 })).toString('base64url')}.fixture`
 const blankStatus = { userAgent: null, tenantAgent: null, privateAccessConnector: null }
 function host(id, mode, protocol = 'ssh') { return { id, name: `Host ${id}`, ip: `192.0.2.${id}`, port: 22, sshUser: 'fixture', accessProtocol: protocol, connectionMode: mode, authType: 'password', scope: 'global', tags: [], associatedLinks: [], privateAccessConnectorId: null, accessPermissions: { view: true, connect: true, edit: true, admin: true } } }

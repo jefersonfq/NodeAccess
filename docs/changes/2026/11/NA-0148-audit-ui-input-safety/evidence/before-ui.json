@@ -1,0 +1,28 @@
+{
+  "kind": "before product changes; actual Vue routes with intercepted API/WebSocket",
+  "output": "/tmp/NA0148-before-ui-5pqoud",
+  "startedAt": "2026-11-04T12:56:16.295Z",
+  "playbackTabTrapped": true,
+  "canvasTabTrapped": true,
+  "canvasEscapeTrapped": true,
+  "graphicalMessages": [
+    {
+      "type": "guacd",
+      "data": "3.key,5.65289,1.1;"
+    },
+    {
+      "type": "guacd",
+      "data": "3.key,5.65289,1.0;"
+    },
+    {
+      "type": "guacd",
+      "data": "3.key,5.65307,1.1;"
+    },
+    {
+      "type": "guacd",
+      "data": "3.key,5.65307,1.0;"
+    }
+  ],
+  "status": "observed",
+  "finishedAt": "2026-11-04T12:56:25.854Z"
+}

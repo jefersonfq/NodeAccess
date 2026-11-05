@@ -1,3 +1,4 @@
+import { artifactPath } from '../shared/private-artifacts.cjs'
 /** Opt-in: refuses any DSN other than the disposable local security lab. */
 import { PrismaClient } from '@prisma/client'
 import { randomUUID } from 'node:crypto'
@@ -35,6 +36,6 @@ try {
     cases.push({ case: restore ? '12 concurrent restores / 1 slot' : '12 concurrent activations / 1 slot', passed: true, licenseReductionRejected: true })
   }
   const result = { success: true, cases }
-  await writeFile('/tmp/nodeaccess-0043-quota-real.json', JSON.stringify(result, null, 2))
+  await writeFile(artifactPath('nodeaccess-0043-quota-real.json'), JSON.stringify(result, null, 2))
   console.log(JSON.stringify(result))
 } finally { await db.$disconnect() }

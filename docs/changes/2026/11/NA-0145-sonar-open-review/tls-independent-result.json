@@ -1,0 +1,10 @@
+{
+  "kind": "actual activate method with isolated filesystem and simulated adapter/persistence failures; not real Nginx",
+  "observed": {
+    "code": "ENOSPC",
+    "recoveryRequired": true,
+    "pendingPreserved": true,
+    "saveCalls": 2
+  },
+  "interpretation": "Persistence error supersedes ROLLBACK_FAILED; recoveryRequired and pending remain in memory."
+}

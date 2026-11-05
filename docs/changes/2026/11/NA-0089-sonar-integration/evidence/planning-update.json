@@ -1,0 +1,16 @@
+{
+  "initiative": "META-050",
+  "canonicalPath": "docs/planejamento/METAS e OBJETVIVOS Nodeaccess 2027.xlsx",
+  "beforeSha256": "79e44599be695e723ae1a4023641491ff3c96c93ad006a1b0d803f78e2670f14",
+  "updatedSha256": "f58d909ea856d27195c6d6aa0044388fdb9506bc0e438ef7de43e15d48e24ef1",
+  "scope": "Atualização pontual SonarQube; preservadas50iniciativas e sheet1. Planilha anterior já era trabalho não commitado de outra frente, mantida somente no workspace canônico para não misturar sua história na branch de código.",
+  "validation": [
+    "ZIP/XML valid",
+    "50uniqueinitiativecells",
+    "sheet1bytepreserved"
+  ],
+  "references": [
+    "docs/OPERATIONS-sonarqube.md",
+    "docs/changes/2026/11/NA-0089-sonar-integration/implementation.md"
+  ]
+}

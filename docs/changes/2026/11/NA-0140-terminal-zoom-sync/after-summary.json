@@ -1,0 +1,61 @@
+{
+  "status": "passed",
+  "fixture": "Patched terminal harness; npm run test:terminal-experience:web",
+  "startedAt": "2026-11-04T00:40:15.361Z",
+  "finishedAt": "2026-11-04T00:41:16.231Z",
+  "exitCode": 0,
+  "cleanup": "complete",
+  "initialFont": 14,
+  "zoomedFont": 15,
+  "zoomBounds": {
+    "min": 10,
+    "max": 24
+  },
+  "before": {
+    "rows": 40,
+    "cols": 160,
+    "rect": {
+      "x": 9,
+      "y": 251,
+      "width": 1364,
+      "height": 640,
+      "top": 251,
+      "right": 1373,
+      "bottom": 891,
+      "left": 9
+    },
+    "resizeCount": 58
+  },
+  "layout": {
+    "rows": 37,
+    "cols": 149,
+    "container": {
+      "width": 1364,
+      "height": 640
+    },
+    "screen": {
+      "width": 1341,
+      "height": 629
+    },
+    "viewport": {
+      "width": 1364,
+      "height": 629
+    },
+    "bottomGap": 11,
+    "lastResize": {
+      "type": "resize",
+      "cols": 149,
+      "rows": 37,
+      "at": 49713.90000003576
+    },
+    "errors": []
+  },
+  "htopRenderMs": 45,
+  "command": "npm run test:terminal-experience:web",
+  "runtime": {
+    "node": "24.22.1",
+    "npm": "12.2.1",
+    "chromium": 1248,
+    "cpus": 2
+  }
+}

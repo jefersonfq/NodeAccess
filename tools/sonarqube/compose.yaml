@@ -1,0 +1,50 @@
+# Template: copy to ~/services/sonarqube/compose.yaml. Runtime stays outside Git.
+name: nodeaccess-sonarqube
+services:
+  db:
+    image: postgres:17.11-bookworm
+    restart: unless-stopped
+    mem_limit: 1g
+    cpus: 1.0
+    environment:
+      POSTGRES_USER: sonar
+      POSTGRES_PASSWORD: ${SONAR_DB_PASSWORD:?required}
+      POSTGRES_DB: sonar
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: [CMD-SHELL, 'pg_isready -U sonar -d sonar']
+      interval: 10s
+      timeout: 5s
+      retries: 10
+  sonarqube:
+    image: sonarqube:26.10.0.133078-community
+    restart: unless-stopped
+    mem_limit: 4g
+    cpus: 2.0
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - '127.0.0.1:9000:9000'
+    environment:
+      SONAR_TELEMETRY_ENABLE: "false"
+      SONAR_JDBC_URL: jdbc:postgresql://db:5432/sonar
+      SONAR_JDBC_USERNAME: sonar
+      SONAR_JDBC_PASSWORD: ${SONAR_DB_PASSWORD:?required}
+    ulimits:
+      nofile:
+        soft: 131072
+        hard: 131072
+      nproc:
+        soft: 8192
+        hard: 8192
+    volumes:
+      - sonar_data:/opt/sonarqube/data
+      - sonar_extensions:/opt/sonarqube/extensions
+      - sonar_logs:/opt/sonarqube/logs
+volumes:
+  postgres_data:
+  sonar_data:
+  sonar_extensions:
+  sonar_logs:

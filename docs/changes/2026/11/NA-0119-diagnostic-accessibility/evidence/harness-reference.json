@@ -1,0 +1,8 @@
+{
+  "file": "tools/frontend/sonar-flow-coverage.cjs",
+  "front": "NA-0118",
+  "sha256AtReview": "2545757f85a300eb3f4e5ff5ef8cb1e620d86c40c6de30499cdf491b2bf8da2a",
+  "frontendWorktree": "/tmp/nodeaccess-NA-0119",
+  "frontendPort": 5196,
+  "limitations": "API fixtures; original44 audit is real Naive controls isolated, not44 complete workflows"
+}

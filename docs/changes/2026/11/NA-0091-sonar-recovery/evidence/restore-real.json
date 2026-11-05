@@ -1,0 +1,45 @@
+{
+  "passed": true,
+  "counts": {
+    "analyses": 5,
+    "issues": 295,
+    "hotspots": 0,
+    "permissionUsers": 2,
+    "permissionGroups": 2
+  },
+  "snapshotSha256": "6a256008f48587add30299ea3da8af1384d53baf2cba561f9d087c20c9d150ff",
+  "isolated": true,
+  "loopback": true,
+  "reindexed": true,
+  "indexReadinessRetries": 3,
+  "additional": {
+    "rotation": {
+      "published": true,
+      "expires": "2026-12-03",
+      "overlapHours": 0,
+      "retiring": 2,
+      "scopes": {
+        "analysis": {
+          "valid": true,
+          "administrationDenied": true,
+          "projectScopeVerified": true
+        },
+        "review": {
+          "valid": true,
+          "administrationDenied": true,
+          "projectScopeVerified": true
+        }
+      }
+    },
+    "retirement": {
+      "revoked": 2,
+      "remaining": 0,
+      "currentScopesVerified": true
+    },
+    "overlapVerified": true,
+    "oldRevoked": true
+  },
+  "originalUnchanged": true,
+  "manifestContainsNoCredentials": true,
+  "finishedAt": "2026-11-03T19:19:48.417Z"
+}

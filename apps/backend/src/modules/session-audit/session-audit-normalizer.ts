@@ -19,6 +19,8 @@ export function stripAnsi(value: string): string {
 }
 
 export function replayInlineBackspaces(value: string): string {
+  // Most stdout chunks contain no editing controls; keep the exact text without a per-character rebuild.
+  if (!/[\b\x7f]/.test(value)) return value
   let result = ''
   for (let i = 0; i < value.length; i += 1) {
     const char = value[i] ?? ''
@@ -67,7 +69,7 @@ const MULTI_PROMPT_LINE = /^((?:\[[^\]\r\n]+\]|[\w.@:/~-]+)[#$>%]\s?){2,}$/
 
 function collapseInlinePrompts(line: string): string {
   if (!MULTI_PROMPT_LINE.test(line.trim())) return line
-  const first = line.match(/(?:\[[^\]\r\n]+\]|[\w.@:/~-]+)[#$>%]\s?/)
+  const first = line.trimStart().match(/^(?:\[[^\]\r\n]+\]|[\w.@:/~-]+)[#$>%]\s?/)
   return first ? (first[0] ?? line) : line
 }
 
@@ -84,10 +86,16 @@ export function collapseConsecutivePrompts(value: string): string {
   return result.join('\n')
 }
 
+function trimLineSpaces(value: string): string {
+  let end = value.length
+  while (end > 0 && (value[end - 1] === ' ' || value[end - 1] === '\t')) end -= 1
+  return value.slice(0, end)
+}
+
 export function collapseNoise(value: string): string {
   return value
     .replace(/\n{3,}/g, '\n\n')
-    .replace(/[ \t]+\n/g, '\n')
+    .split('\n').map((line, index, lines) => index === lines.length - 1 ? line : trimLineSpaces(line)).join('\n')
 }
 
 export function buildEchoVariants(command: string): string[] {
@@ -134,7 +142,9 @@ export function isLikelyInteractiveCommand(command: string): boolean {
   return false
 }
 
-const PAGER_STATUS_LINE = /^(?:lines?\s+\d+-\d+\/\d+.*|\(END\).*|--[Mm]ore--|END of file)$/
+// One mandatory digit is sufficient: the tail also matches remaining digits.
+// Avoid overlapping repetitions when a Unicode line separator makes the tail fail.
+const PAGER_STATUS_LINE = /^(?:lines?\s+\d+-\d+\/\d.*|\(END\).*|--[Mm]ore--|END of file)$/
 const INTERACTIVE_ERROR_LINE = /\b(permiss[aã]o negada|permission denied|error|erro|failed|falhou|not found|não encontrado)\b/i
 
 function isLikelyFullscreenCommand(command: string): boolean {
@@ -215,10 +225,33 @@ export function extractPromptCwd(rawOutput: string): string | null {
   const oscTitleMatch = rawOutput.match(/\x1b\]0;[^:\x07]*:(.+?)(?:\x07|\x1b\\)/)
   if (oscTitleMatch?.[1]) return oscTitleMatch[1].trim()
 
-  const bracketPromptPathMatch = rawOutput.match(/(?:^|\r?\n)\[[^\]@\r\n]+@[^\]\s\r\n]+\s+([^\]\r\n]+)\][#>$%]/)
-  if (bracketPromptPathMatch?.[1]) {
-    const bracketPath = bracketPromptPathMatch[1].trim()
-    if (bracketPath.startsWith('/') || bracketPath.startsWith('~')) return bracketPath
+  // Delimiters are scanned once per candidate. Separator whitespace may span CR/LF,
+  // but username, host and path keep the legacy bracket-prompt character restrictions.
+  for (let start = 0; start < rawOutput.length;) {
+    const newline = rawOutput.indexOf('\n', start)
+    const nextStart = newline < 0 ? rawOutput.length : newline + 1
+    if (rawOutput[start] !== '[') { start = nextStart; continue }
+    let cursor = start + 1
+    while (cursor < rawOutput.length && !'@]\r\n'.includes(rawOutput[cursor]!)) cursor += 1
+    if (cursor === start + 1 || rawOutput[cursor] !== '@') { start = nextStart; continue }
+    const hostStart = ++cursor
+    while (cursor < rawOutput.length && rawOutput[cursor] !== ']' && !/\s/.test(rawOutput[cursor]!)) cursor += 1
+    if (cursor === hostStart) { start = nextStart; continue }
+    const separatorStart = cursor
+    while (cursor < rawOutput.length && /\s/.test(rawOutput[cursor]!)) cursor += 1
+    if (cursor === separatorStart) { start = nextStart; continue }
+    const pathStart = cursor
+    while (cursor < rawOutput.length && !']\r\n'.includes(rawOutput[cursor]!)) cursor += 1
+    const hasPath = cursor > pathStart
+    // The legacy regex can backtrack one horizontal space into an otherwise empty path.
+    const whitespaceOnlyPath = cursor === pathStart && pathStart - separatorStart >= 2
+      && !'\r\n'.includes(rawOutput[pathStart - 1]!)
+    if (rawOutput[cursor] === ']' && '#$>%'.includes(rawOutput[cursor + 1] ?? '\0') && (hasPath || whitespaceOnlyPath)) {
+      const bracketPath = rawOutput.slice(pathStart, cursor).trim()
+      if (bracketPath.startsWith('/') || bracketPath.startsWith('~')) return bracketPath
+      break
+    }
+    start = nextStart
   }
 
   const promptPathMatch = rawOutput.match(/(?:^|\r?\n)[^@\r\n]+@[^:\r\n]+:(.+?)(?:[#>$%])/)
@@ -298,7 +331,10 @@ function isPlausibleShellCommand(command: string): boolean {
   // Observed psql client commands remain valid even when they produce no output.
   if (/^\\(?:q|d[tfvnis]?\+?|timing|x|conninfo|l\+?|c|i|o|echo)(?:\s|$)/.test(normalized)) return true
   if (/^[A-Za-z_][A-Za-z0-9_]*=/.test(normalized)) return true
-  if (!/^[a-zA-Z0-9_./:@%+=-]+(\s+.*)?$/.test(normalized)) return false
+  const commandHead = normalized.match(/^[a-zA-Z0-9_./:@%+=-]+/)?.[0]
+  if (!commandHead) return false
+  const commandTail = normalized.slice(commandHead.length)
+  if (commandTail && (!/^\s/.test(commandTail) || /[\r\n\u2028\u2029]/.test(commandTail.trimStart()))) return false
   const firstToken = normalized.split(/\s+/)[0]?.toLowerCase() ?? ''
   if (firstToken.length >= 2) return true
   return ['.', '..', '/'].includes(firstToken)
@@ -333,13 +369,28 @@ function finalizeCommand(
   }
 }
 
+function hasPromptSuffix(line: string): boolean {
+  let end = line.length
+  if (end > 0 && /\s/.test(line[end - 1]!)) end -= 1
+  if (end === 0 || !'#$>%'.includes(line[end - 1]!)) return false
+  const bodyEnd = end - 1
+  if (line[bodyEnd - 1] === ']') {
+    let cursor = bodyEnd - 2
+    while (cursor >= 0 && line[cursor] !== ']') {
+      if (line[cursor] === '[' && cursor < bodyEnd - 2) return true
+      cursor -= 1
+    }
+    return false
+  }
+  return bodyEnd > 0 && /[\w.@:/~-]/.test(line[bodyEnd - 1]!)
+}
+
 function outputEndsWithPrompt(output: string): boolean {
-  const normalized = collapseConsecutivePrompts(
-    normalizeTerminalOutput(output).replace(/\r\n/g, '\n').replace(/\r/g, '\n'),
-  )
-  const lines = normalized.split('\n').map((line) => line.trim()).filter(Boolean)
-  const last = lines[lines.length - 1] ?? ''
-  return !POSTGRES_CONTINUATION_PROMPT.test(last) && (looksLikePrompt(last) || /(?:\[[^\]]+\]|[\w.@:/~-]+)[#$>%]\s?$/.test(last))
+  // Only the last non-empty logical line can terminate output with a prompt.
+  // Earlier consecutive prompts cannot change this decision; avoid rescanning every line for each fragmented event.
+  const normalized = normalizeTerminalOutput(output).replace(/\r\n/g, '\n').replace(/\r/g, '\n').trimEnd()
+  const last = collapseInlinePrompts(normalized.slice(normalized.lastIndexOf('\n') + 1).trim())
+  return !POSTGRES_CONTINUATION_PROMPT.test(last) && (looksLikePrompt(last) || hasPromptSuffix(last))
 }
 
 function findCommandEchoIndex(output: string, command: string): number {

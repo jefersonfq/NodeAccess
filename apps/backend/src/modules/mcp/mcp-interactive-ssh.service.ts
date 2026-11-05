@@ -46,6 +46,7 @@ interface InteractiveSshSession {
 
 export class McpInteractiveSshService {
   private readonly sessions = new Map<string, InteractiveSshSession>()
+  private readonly pendingOpens = new Map<string, { tenantId: number; tokenId: number | undefined }>()
 
   constructor(
     private readonly sshRepository: SshRepository,
@@ -68,115 +69,122 @@ export class McpInteractiveSshService {
     const reason = String(input.reason ?? '').trim()
     if (!reason) throw new AppError('Justificativa obrigatoria para abrir sessao SSH interativa via MCP', 400, 'MCP_INTERACTIVE_SSH_REASON_REQUIRED')
     this.assertSessionLimits(user, auditContext)
-    const ttlSeconds = this.clampInteger(input.ttlSeconds ?? this.defaultTtlSeconds(), MIN_TTL_SECONDS, this.maxTtlSeconds())
-    const cols = this.clampInteger(input.cols ?? 120, 40, 240)
-    const rows = this.clampInteger(input.rows ?? 32, 10, 80)
-
-    const trial = await assertTrialCapability(user.tenantId, 'mcp')
-    await assertTrialUserAccess(user.tenantId, Number(user.sub), user.sessionVersion)
-    const host = await this.sshRepository.findHostWithCredentials(hostId, user.tenantId)
-    if (!host) throw new NotFoundError('Host nao encontrado')
-    await assertTrialHostAccess(user.tenantId, host)
-    if (!deviceCapabilities(host.deviceProfile).serverAutomation) throw new ForbiddenError('Automação de servidor não é compatível com este perfil de rede. Use o terminal e comandos autorizados pelo AAA.')
-    const normalizedRole = user.role === 'admin' ? 'ADMIN' : 'USER'
-    if (!await this.sshRepository.hasEffectiveHostPermission(host.id, user.tenantId, Number(user.sub), 'connect', normalizedRole)) {
-      throw new ForbiddenError('Sem permissão para conectar a este host')
-    }
-    if (host.connectionMode !== 'DIRECT') {
-      throw new AppError('Sessao SSH interativa via MCP ainda suporta apenas hosts com rota direta', 400, 'MCP_INTERACTIVE_SSH_DIRECT_ONLY')
-    }
-
-    const resolved = await this.resolveHostCredentials(host)
-    const targetConfig = this.buildConnectConfig(resolved.target, true)
-    const bastionConfig = resolved.bastion ? this.buildConnectConfig(resolved.bastion, false) : null
-    const trialSessionId = trial ? await this.sshRepository.startSession(Number(user.sub), host.id, { connectionMethod: 'direct', routeSnapshot: { trialResource: 'mcp_interactive' } }, user.tenantId) : undefined
-    let connection
-    try { connection = bastionConfig
-      ? await this.connectViaBastion(targetConfig, bastionConfig)
-      : await this.connectDirect(targetConfig) } catch (error) {
-      if (trialSessionId) await this.sshRepository.endSession(trialSessionId).catch(() => {})
-      throw error
-    }
-
+    const reservationId = randomUUID()
+    this.pendingOpens.set(reservationId, { tenantId: user.tenantId, tokenId: auditContext?.tokenId })
     try {
-      if (trial) await assertTrialUserAccess(user.tenantId, Number(user.sub), user.sessionVersion)
-      const shell = await this.openShell(connection.conn, cols, rows)
-      const id = randomUUID()
-      const expiresAt = new Date(Date.now() + ttlSeconds * 1000)
-      const timer = setTimeout(() => {
-        void this.closeById(id, 'ttl_expired')
-      }, ttlSeconds * 1000)
-      timer.unref?.()
+      const ttlSeconds = this.clampInteger(input.ttlSeconds ?? this.defaultTtlSeconds(), MIN_TTL_SECONDS, this.maxTtlSeconds())
+      const cols = this.clampInteger(input.cols ?? 120, 40, 240)
+      const rows = this.clampInteger(input.rows ?? 32, 10, 80)
 
-      const session: InteractiveSshSession = {
-        id,
-        tenantId: user.tenantId,
-        userId: Number(user.sub),
-        ...(auditContext?.tokenId ? { tokenId: auditContext.tokenId } : {}),
-        hostId: host.id,
-        hostName: host.name,
-        conn: connection.conn,
-        bastionConn: connection.bastionConn,
-        shell,
-        output: '',
-        baseCursor: 0,
-        closed: false,
-        expiresAt,
-        timer,
+      const trial = await assertTrialCapability(user.tenantId, 'mcp')
+      await assertTrialUserAccess(user.tenantId, Number(user.sub), user.sessionVersion)
+      const host = await this.sshRepository.findHostWithCredentials(hostId, user.tenantId)
+      if (!host) throw new NotFoundError('Host nao encontrado')
+      await assertTrialHostAccess(user.tenantId, host)
+      if (!deviceCapabilities(host.deviceProfile).serverAutomation) throw new ForbiddenError('Automação de servidor não é compatível com este perfil de rede. Use o terminal e comandos autorizados pelo AAA.')
+      const normalizedRole = user.role === 'admin' ? 'ADMIN' : 'USER'
+      if (!await this.sshRepository.hasEffectiveHostPermission(host.id, user.tenantId, Number(user.sub), 'connect', normalizedRole)) {
+        throw new ForbiddenError('Sem permissão para conectar a este host')
+      }
+      if (host.connectionMode !== 'DIRECT') {
+        throw new AppError('Sessao SSH interativa via MCP ainda suporta apenas hosts com rota direta', 400, 'MCP_INTERACTIVE_SSH_DIRECT_ONLY')
       }
 
-      shell.on('data', (chunk: Buffer | string) => {
-        this.appendOutput(session, chunk.toString())
-      })
-      shell.on('close', () => {
-        session.closed = true
-      })
-      shell.on('error', (error) => {
-        this.appendOutput(session, `\n[MCP SSH shell error: ${error.message}]\n`)
-        session.closed = true
-      })
-      connection.conn.on('close', () => {
-        session.closed = true
-      })
-
-      if (trialSessionId) session.trialSessionId = trialSessionId
-      this.sessions.set(id, session)
-      session.stopTrial = monitorTrialAccess(user.tenantId, trial, () => { void this.closeById(id, 'trial_expired') }, { id: Number(user.sub), ...(user.sessionVersion !== undefined ? { sessionVersion: user.sessionVersion } : {}) }, host)
-      connection.conn.once('close', () => { void this.closeById(id, 'connection_closed') })
-      await this.recordSessionOpened({
-        session,
-        reason: this.truncate(reason, MAX_REASON_CHARS),
-      })
-      void this.webhookService.publishEvent({
-        tenantId: user.tenantId,
-        eventType: 'mcp_interactive_ssh_session.opened', eventVersion: 1,
-        resourceType: 'mcp_interactive_ssh_session', resourceId: id,
-        occurredAt: new Date(),
-        data: { hostId: host.id, hostName: host.name, userId: Number(user.sub), ttlSeconds },
-      }).catch(() => {})
-      await this.audit(user, 'MCP_INTERACTIVE_SSH_OPENED', host.id, {
-        capability: 'open_interactive_ssh_session',
-        sessionId: id,
-        hostId: host.id,
-        hostName: host.name,
-        ttlSeconds,
-        expiresAt: expiresAt.toISOString(),
-        reason: this.truncate(reason, MAX_REASON_CHARS),
-      }, auditContext)
-
-      return {
-        capability: 'open_interactive_ssh_session' as const,
-        sessionId: id,
-        hostId: host.id,
-        hostName: host.name,
-        expiresAt: expiresAt.toISOString(),
-        cursor: session.baseCursor + session.output.length,
+      const resolved = await this.resolveHostCredentials(host)
+      const targetConfig = this.buildConnectConfig(resolved.target, true)
+      const bastionConfig = resolved.bastion ? this.buildConnectConfig(resolved.bastion, false) : null
+      const trialSessionId = trial ? await this.sshRepository.startSession(Number(user.sub), host.id, { connectionMethod: 'direct', routeSnapshot: { trialResource: 'mcp_interactive' } }, user.tenantId) : undefined
+      let connection
+      try { connection = bastionConfig
+        ? await this.connectViaBastion(targetConfig, bastionConfig)
+        : await this.connectDirect(targetConfig) } catch (error) {
+        if (trialSessionId) await this.sshRepository.endSession(trialSessionId).catch(() => {})
+        throw error
       }
-    } catch (error) {
-      if (trialSessionId) await this.sshRepository.endSession(trialSessionId).catch(() => {})
-      try { connection.conn.end() } catch {}
-      try { connection.bastionConn?.end() } catch {}
-      throw error
+
+      try {
+        if (trial) await assertTrialUserAccess(user.tenantId, Number(user.sub), user.sessionVersion)
+        const shell = await this.openShell(connection.conn, cols, rows)
+        const id = randomUUID()
+        const expiresAt = new Date(Date.now() + ttlSeconds * 1000)
+        const timer = setTimeout(() => {
+          void this.closeById(id, 'ttl_expired')
+        }, ttlSeconds * 1000)
+        timer.unref?.()
+
+        const session: InteractiveSshSession = {
+          id,
+          tenantId: user.tenantId,
+          userId: Number(user.sub),
+          ...(auditContext?.tokenId ? { tokenId: auditContext.tokenId } : {}),
+          hostId: host.id,
+          hostName: host.name,
+          conn: connection.conn,
+          bastionConn: connection.bastionConn,
+          shell,
+          output: '',
+          baseCursor: 0,
+          closed: false,
+          expiresAt,
+          timer,
+        }
+
+        shell.on('data', (chunk: Buffer | string) => {
+          this.appendOutput(session, chunk.toString())
+        })
+        shell.on('close', () => {
+          session.closed = true
+        })
+        shell.on('error', (error) => {
+          this.appendOutput(session, `\n[MCP SSH shell error: ${error.message}]\n`)
+          session.closed = true
+        })
+        connection.conn.on('close', () => {
+          session.closed = true
+        })
+
+        if (trialSessionId) session.trialSessionId = trialSessionId
+        this.sessions.set(id, session)
+        this.pendingOpens.delete(reservationId)
+        session.stopTrial = monitorTrialAccess(user.tenantId, trial, () => { void this.closeById(id, 'trial_expired') }, { id: Number(user.sub), ...(user.sessionVersion !== undefined ? { sessionVersion: user.sessionVersion } : {}) }, host)
+        connection.conn.once('close', () => { void this.closeById(id, 'connection_closed') })
+        await this.recordSessionOpened({
+          session,
+          reason: this.truncate(reason, MAX_REASON_CHARS),
+        })
+        void this.webhookService.publishEvent({
+          tenantId: user.tenantId,
+          eventType: 'mcp_interactive_ssh_session.opened', eventVersion: 1,
+          resourceType: 'mcp_interactive_ssh_session', resourceId: id,
+          occurredAt: new Date(),
+          data: { hostId: host.id, hostName: host.name, userId: Number(user.sub), ttlSeconds },
+        }).catch(() => {})
+        await this.audit(user, 'MCP_INTERACTIVE_SSH_OPENED', host.id, {
+          capability: 'open_interactive_ssh_session',
+          sessionId: id,
+          hostId: host.id,
+          hostName: host.name,
+          ttlSeconds,
+          expiresAt: expiresAt.toISOString(),
+          reason: this.truncate(reason, MAX_REASON_CHARS),
+        }, auditContext)
+
+        return {
+          capability: 'open_interactive_ssh_session' as const,
+          sessionId: id,
+          hostId: host.id,
+          hostName: host.name,
+          expiresAt: expiresAt.toISOString(),
+          cursor: session.baseCursor + session.output.length,
+        }
+      } catch (error) {
+        if (trialSessionId) await this.sshRepository.endSession(trialSessionId).catch(() => {})
+        try { connection.conn.end() } catch {}
+        try { connection.bastionConn?.end() } catch {}
+        throw error
+      }
+    } finally {
+      this.pendingOpens.delete(reservationId)
     }
   }
 
@@ -216,9 +224,16 @@ export class McpInteractiveSshService {
     const absoluteStart = Math.max(Number(input.cursor ?? session.baseCursor), session.baseCursor)
     const relativeStart = Math.max(0, absoluteStart - session.baseCursor)
     const maxBytes = this.clampInteger(input.maxBytes ?? 16_000, 1, MAX_READ_BYTES)
-    const output = session.output.slice(relativeStart, relativeStart + maxBytes)
+    let outputChars = 0
+    let outputBytes = 0
+    for (const character of session.output.slice(relativeStart)) {
+      const characterBytes = Buffer.byteLength(character)
+      if (outputBytes + characterBytes > maxBytes) break
+      outputBytes += characterBytes
+      outputChars += character.length
+    }
+    const output = session.output.slice(relativeStart, relativeStart + outputChars)
     const nextCursor = session.baseCursor + relativeStart + output.length
-    const outputBytes = Buffer.byteLength(output)
 
     await this.recordSessionOutputRead(session.id, outputBytes)
     await this.audit(user, 'MCP_INTERACTIVE_SSH_OUTPUT_READ', session.hostId, {
@@ -308,12 +323,14 @@ export class McpInteractiveSshService {
     const tenantSessions = Array.from(this.sessions.values()).filter((session) => (
       session.tenantId === user.tenantId && !session.closed
     ))
-    if (tenantSessions.length >= env.MCP_INTERACTIVE_SSH_MAX_SESSIONS_PER_TENANT) {
+    const pendingSessions = Array.from(this.pendingOpens.values()).filter((session) => session.tenantId === user.tenantId)
+    if (tenantSessions.length + pendingSessions.length >= env.MCP_INTERACTIVE_SSH_MAX_SESSIONS_PER_TENANT) {
       throw new AppError('Limite de sessoes SSH interativas MCP do tenant atingido', 429, 'MCP_INTERACTIVE_SSH_TENANT_SESSION_LIMIT')
     }
 
     const tokenSessions = tenantSessions.filter((session) => tokenId !== undefined && session.tokenId === tokenId)
-    if (tokenSessions.length >= env.MCP_INTERACTIVE_SSH_MAX_SESSIONS_PER_TOKEN) {
+    const pendingTokenSessions = pendingSessions.filter((session) => tokenId !== undefined && session.tokenId === tokenId)
+    if (tokenSessions.length + pendingTokenSessions.length >= env.MCP_INTERACTIVE_SSH_MAX_SESSIONS_PER_TOKEN) {
       throw new AppError('Limite de sessoes SSH interativas MCP do token atingido', 429, 'MCP_INTERACTIVE_SSH_TOKEN_SESSION_LIMIT')
     }
   }

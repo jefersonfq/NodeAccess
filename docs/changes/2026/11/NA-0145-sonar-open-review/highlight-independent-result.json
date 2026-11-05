@@ -1,0 +1,8 @@
+{
+  "kind": "actual backend guard expression and transpiled frontend compileHighlightRules/matchTerminalLine; isolated process, not full browser session",
+  "guardRejected": false,
+  "pattern": "(a|aa)+$",
+  "inputLength": 61,
+  "childResult": "ETIMEDOUT",
+  "deadlineMs": 1500
+}

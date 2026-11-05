@@ -1,3 +1,4 @@
+import { resolveExecutable } from '../shared/trusted-executable.cjs'
 import { spawnSync } from 'node:child_process'
 import { terminalCompletionInsertion } from '../../apps/frontend/src/services/terminal-autocomplete.service'
 const cases = [
@@ -8,7 +9,7 @@ const cases = [
   { name: 'append only', line: 'pw', cursor: 2, expected: 'pwd', replace: false },
 ].map(c => ({ ...c, cursor: Math.min(c.cursor, c.line.length), insertion: terminalCompletionInsertion(c.line.slice(0, c.cursor), c.expected, c.replace) }))
 if (cases.some(c => /[\r\n]/.test(c.insertion))) throw new Error('Insertion contains submission bytes')
-const result = spawnSync('python3', ['tools/frontend/terminal-autocomplete-pty.py'], { input: JSON.stringify(cases), encoding: 'utf8', timeout: 15000 })
+const result = spawnSync(resolveExecutable('python3'), ['tools/frontend/terminal-autocomplete-pty.py'], { input: JSON.stringify(cases), encoding: 'utf8', timeout: 15000 })
 process.stdout.write(result.stdout ?? '')
 process.stderr.write(result.stderr ?? '')
 if (result.error) throw result.error

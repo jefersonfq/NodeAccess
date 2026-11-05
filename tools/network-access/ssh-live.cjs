@@ -1,3 +1,4 @@
+const { artifactPath } = require('../shared/private-artifacts.cjs')
 // Opt-in gateway test. Refuses any target outside the disposable loopback SSH lab.
 const assert=require('node:assert/strict'),jwt=require('jsonwebtoken'),{WebSocket}=require('ws'),fs=require('node:fs')
 if(process.env.RUN_NETWORK_SSH_LIVE!=='true')throw Error('Set RUN_NETWORK_SSH_LIVE=true with a disposable HOST_ID')
@@ -30,7 +31,7 @@ async function profile(value){const r=await fetch(`${api}/api/v1/hosts/${hostId}
     }
    })
   })
-  fs.writeFileSync('/tmp/nodeaccess-network-ssh-debug.json',JSON.stringify({controls:controls.map(m=>({type:m.type,code:m.code,status:m.status,ok:m.ok})),output:output.join('')},null,2))
+  fs.writeFileSync(artifactPath('nodeaccess-network-ssh-debug.json'),JSON.stringify({controls:controls.map(m=>({type:m.type,code:m.code,status:m.status,ok:m.ok})),output:output.join('')},null,2))
   assert.ok(controls.some(m=>m.type==='sftp_result'&&m.code==='SFTP_UNAVAILABLE'&&!m.ok))
   assert.ok(controls.some(m=>m.code==='DEVICE_PROFILE_AUTOMATION_UNSUPPORTED'))
   assert.ok(!controls.some(m=>m.type==='sftp_status'&&m.status==='warming'))
@@ -38,6 +39,6 @@ async function profile(value){const r=await fetch(`${api}/api/v1/hosts/${hostId}
   assert.ok(!output.join('').includes('do-not-run'))
   assert.equal(socket.readyState,WebSocket.OPEN)
   const report={ok:true,hostId,apiPersistsProfile:true,apiSftpDenied:true,websocketSftpDenied:true,noSftpWarmup:true,serverSnippetDenied:true,realSshInputWorks:true,sessionPreserved:true}
-  fs.writeFileSync('/tmp/nodeaccess-network-ssh.json',JSON.stringify(report,null,2));console.log(JSON.stringify(report))
+  fs.writeFileSync(artifactPath('nodeaccess-network-ssh.json'),JSON.stringify(report,null,2));console.log(JSON.stringify(report))
  }finally{socket?.close();if(original)await profile(original)}
 })().catch(e=>{socket?.terminate();console.error(e.message);process.exitCode=1})

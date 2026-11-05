@@ -1,0 +1,10 @@
+[
+  {
+    "file": "apps/backend/src/modules/native-ssh-gateway/native-ssh-gateway.host-key.ts",
+    "typeOnlyChangesEmitIdentical": true
+  },
+  {
+    "file": "apps/backend/src/modules/diagnostic-playbooks/diagnostic-run.controller.ts",
+    "typeOnlyChangesEmitIdentical": true
+  }
+]

@@ -1,3 +1,4 @@
+const { artifactPath } = require('../shared/private-artifacts.cjs')
 const assert=require('node:assert/strict'),fs=require('node:fs')
 module.exports=async({page,context})=>{
  const initial={domain:'CN=nodeaccess.example.test',issuer:'CN=Example CA',validFrom:'2026-01-01',validTo:'2027-01-01',fingerprint:'AA:11',daysRemaining:90}
@@ -67,8 +68,8 @@ module.exports=async({page,context})=>{
  await page.getByRole('button',{name:'HTTPS: 1 alerta(s). Abrir certificados.',exact:true}).click()
  await page.getByText('O certificado vence em 14 dias.',{exact:true}).waitFor()
  auditOutage=true;await page.getByRole('button',{name:'Atualizar estado',exact:true}).click();await page.getByText('Auditoria central indisponível.',{exact:false}).waitFor();auditOutage=false
- fs.mkdirSync('/tmp/nodeaccess-tls-review',{recursive:true});await page.screenshot({path:`/tmp/nodeaccess-tls-review/desktop-${process.env.UI_THEME||'dark'}.png`,fullPage:true})
- await page.setViewportSize({width:390,height:844});await page.screenshot({path:`/tmp/nodeaccess-tls-review/mobile-${process.env.UI_THEME||'dark'}.png`,fullPage:true});assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1))
+ fs.mkdirSync(artifactPath('nodeaccess-tls-review'),{recursive:true});await page.screenshot({path:artifactPath(`nodeaccess-tls-review/desktop-${process.env.UI_THEME||'dark'}.png`),fullPage:true})
+ await page.setViewportSize({width:390,height:844});await page.screenshot({path:artifactPath(`nodeaccess-tls-review/mobile-${process.env.UI_THEME||'dark'}.png`),fullPage:true});assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1))
  assert.ok(await page.locator('[data-tls-alert]').evaluate(button=>{const own=button.getBoundingClientRect(),container=button.closest('.sidebar-footer').getBoundingClientRect();return own.left>=container.left-1&&own.right<=container.right+1}), 'HTTPS indicator must fit inside collapsed sidebar')
  outage=true;await page.getByRole('button',{name:'Atualizar estado',exact:true}).click();await page.getByText('Serviço de certificados indisponível.',{exact:false}).first().waitFor();assert.equal(await page.getByRole('button',{name:'Verificar HTTPS',exact:true}).isDisabled(),true)
  outage=false;state.externalOnly=true;state.mode='external';await page.getByRole('button',{name:'Atualizar estado',exact:true}).click();await page.getByRole('radio',{name:/Proxy externo/}).check();assert.equal(await page.getByRole('radio',{name:/Automático/}).isDisabled(),true)

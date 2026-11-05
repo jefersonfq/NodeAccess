@@ -1,0 +1,571 @@
+{
+  "reviewedAt": "2026-11-04T15:01:22.634055+00:00",
+  "checkout": "/tmp/nodeaccess-NA-0093",
+  "gitHead": "ee436402db8bcce7fab4378d6ba28c1673b282b5",
+  "sourceState": "Integrated uncommitted working tree, identified by per-file hashes; HEAD alone does not identify these sources",
+  "summary": {
+    "total": 19,
+    "technical_fp_supported": 19,
+    "needs_reassessment": 0,
+    "blockers": 0
+  },
+  "updates": [
+    {
+      "id": "SQ-0039",
+      "issueId": "7a85f7dc-f9ae-43cb-a52f-3f102323bd20",
+      "rule": "typescript:S6324",
+      "file": "apps/backend/src/modules/session-audit/session-audit-normalizer.ts",
+      "decision": "technical_fp_supported",
+      "proposedUpdates": {
+        "sourceSha256": "ac2f1573f3713b60d32a91f7f47e18907d800592beaca77148f3a6b9f4a1f114",
+        "sourceLine": 14,
+        "originalAnchorLinePreserved": true
+      },
+      "previousSourceSha256": "5b9566e5b370607811fe532addc069e546d36bb292c8489cfe0f80874ef2e470",
+      "previousReviewedRef": "6efc571d750c1d117aaf7377091cea5979de77a9",
+      "previousReviewedLine": 14,
+      "originalAuditRef": "ee436402db8bcce7fab4378d6ba28c1673b282b5",
+      "originalAuditLine": 14,
+      "anchorSha256": "75ec44244ed73c236a5d9ce69ba6d26b76f040b9dd4736128324f696f4bc73de",
+      "reason": "Rechecked against installed rule definition and the prior occurrence-specific evidence. OSC exige delimitadores ESC e terminador BEL ou ST para retirar títulos ANSI. A ocorrência '\\\\x07' na coluna 23 faz parte deliberada do protocolo/sanitização; removê-la muda o comportamento. NA0151 changes only collapseInlinePrompts to trimStart plus anchored match; comparison against actual prior-reviewed NA0146 snapshot confirms the flagged control expressions and their call sites unchanged. The earlier NA0146 pager-status change is already part of the previous reviewed hash.",
+      "evidence": [
+        "apps/backend/src/modules/session-audit/session-audit-normalizer.ts:14",
+        "git show 6efc571d750c1d117aaf7377091cea5979de77a9:apps/backend/src/modules/session-audit/session-audit-normalizer.ts:14",
+        "git show ee436402db8bcce7fab4378d6ba28c1673b282b5:apps/backend/src/modules/session-audit/session-audit-normalizer.ts:14",
+        "/tmp/NA0093-backend-rules.json — typescript:S6324 root_cause intentional versus accidental C0 controls",
+        "/tmp/NA0093-fp19-control-probe.json — 16 exact-output checks on actual functions"
+      ],
+      "validation": "Independent read-only comparison of original audit, exact prior-reviewed hash snapshot and current integrated working tree; diff and consumer inspected. Actual functions probed in memory with Node24.22.1;16 checks passed.",
+      "limitations": "Classification covers deliberate protocol controls only; no general parser/regex safety assertion. Probe is finite and does not cover every flagged occurrence individually; unchanged anchors plus consumer inspection support the remaining occurrences. No new scanner/server transition.",
+      "serverTransitionPerformed": false
+    },
+    {
+      "id": "SQ-0040",
+      "issueId": "927516dd-ba45-4ab0-acb0-4a7aa0f7710f",
+      "rule": "typescript:S6324",
+      "file": "apps/backend/src/modules/session-audit/session-audit-normalizer.ts",
+      "decision": "technical_fp_supported",
+      "proposedUpdates": {
+        "sourceSha256": "ac2f1573f3713b60d32a91f7f47e18907d800592beaca77148f3a6b9f4a1f114",
+        "sourceLine": 14,
+        "originalAnchorLinePreserved": true
+      },
+      "previousSourceSha256": "5b9566e5b370607811fe532addc069e546d36bb292c8489cfe0f80874ef2e470",
+      "previousReviewedRef": "6efc571d750c1d117aaf7377091cea5979de77a9",
+      "previousReviewedLine": 14,
+      "originalAuditRef": "ee436402db8bcce7fab4378d6ba28c1673b282b5",
+      "originalAuditLine": 14,
+      "anchorSha256": "75ec44244ed73c236a5d9ce69ba6d26b76f040b9dd4736128324f696f4bc73de",
+      "reason": "Rechecked against installed rule definition and the prior occurrence-specific evidence. OSC exige delimitadores ESC e terminador BEL ou ST para retirar títulos ANSI. A ocorrência '\\\\x1b' na coluna 27 faz parte deliberada do protocolo/sanitização; removê-la muda o comportamento. NA0151 changes only collapseInlinePrompts to trimStart plus anchored match; comparison against actual prior-reviewed NA0146 snapshot confirms the flagged control expressions and their call sites unchanged. The earlier NA0146 pager-status change is already part of the previous reviewed hash.",
+      "evidence": [
+        "apps/backend/src/modules/session-audit/session-audit-normalizer.ts:14",
+        "git show 6efc571d750c1d117aaf7377091cea5979de77a9:apps/backend/src/modules/session-audit/session-audit-normalizer.ts:14",
+        "git show ee436402db8bcce7fab4378d6ba28c1673b282b5:apps/backend/src/modules/session-audit/session-audit-normalizer.ts:14",
+        "/tmp/NA0093-backend-rules.json — typescript:S6324 root_cause intentional versus accidental C0 controls",
+        "/tmp/NA0093-fp19-control-probe.json — 16 exact-output checks on actual functions"
+      ],
+      "validation": "Independent read-only comparison of original audit, exact prior-reviewed hash snapshot and current integrated working tree; diff and consumer inspected. Actual functions probed in memory with Node24.22.1;16 checks passed.",
+      "limitations": "Classification covers deliberate protocol controls only; no general parser/regex safety assertion. Probe is finite and does not cover every flagged occurrence individually; unchanged anchors plus consumer inspection support the remaining occurrences. No new scanner/server transition.",
+      "serverTransitionPerformed": false
+    },
+    {
+      "id": "SQ-0041",
+      "issueId": "a12d62f1-0eb4-4cb9-8747-0ee10edcafbe",
+      "rule": "typescript:S6324",
+      "file": "apps/backend/src/modules/session-audit/session-audit-normalizer.ts",
+      "decision": "technical_fp_supported",
+      "proposedUpdates": {
+        "sourceSha256": "ac2f1573f3713b60d32a91f7f47e18907d800592beaca77148f3a6b9f4a1f114",
+        "sourceLine": 14,
+        "originalAnchorLinePreserved": true
+      },
+      "previousSourceSha256": "5b9566e5b370607811fe532addc069e546d36bb292c8489cfe0f80874ef2e470",
+      "previousReviewedRef": "6efc571d750c1d117aaf7377091cea5979de77a9",
+      "previousReviewedLine": 14,
+      "originalAuditRef": "ee436402db8bcce7fab4378d6ba28c1673b282b5",
+      "originalAuditLine": 14,
+      "anchorSha256": "75ec44244ed73c236a5d9ce69ba6d26b76f040b9dd4736128324f696f4bc73de",
+      "reason": "Rechecked against installed rule definition and the prior occurrence-specific evidence. OSC exige delimitadores ESC e terminador BEL ou ST para retirar títulos ANSI. A ocorrência '\\\\x07' na coluna 36 faz parte deliberada do protocolo/sanitização; removê-la muda o comportamento. NA0151 changes only collapseInlinePrompts to trimStart plus anchored match; comparison against actual prior-reviewed NA0146 snapshot confirms the flagged control expressions and their call sites unchanged. The earlier NA0146 pager-status change is already part of the previous reviewed hash.",
+      "evidence": [
+        "apps/backend/src/modules/session-audit/session-audit-normalizer.ts:14",
+        "git show 6efc571d750c1d117aaf7377091cea5979de77a9:apps/backend/src/modules/session-audit/session-audit-normalizer.ts:14",
+        "git show ee436402db8bcce7fab4378d6ba28c1673b282b5:apps/backend/src/modules/session-audit/session-audit-normalizer.ts:14",
+        "/tmp/NA0093-backend-rules.json — typescript:S6324 root_cause intentional versus accidental C0 controls",
+        "/tmp/NA0093-fp19-control-probe.json — 16 exact-output checks on actual functions"
+      ],
+      "validation": "Independent read-only comparison of original audit, exact prior-reviewed hash snapshot and current integrated working tree; diff and consumer inspected. Actual functions probed in memory with Node24.22.1;16 checks passed.",
+      "limitations": "Classification covers deliberate protocol controls only; no general parser/regex safety assertion. Probe is finite and does not cover every flagged occurrence individually; unchanged anchors plus consumer inspection support the remaining occurrences. No new scanner/server transition.",
+      "serverTransitionPerformed": false
+    },
+    {
+      "id": "SQ-0042",
+      "issueId": "e7f23b6a-59f3-4165-b5b4-b81f13cefc91",
+      "rule": "typescript:S6324",
+      "file": "apps/backend/src/modules/session-audit/session-audit-normalizer.ts",
+      "decision": "technical_fp_supported",
+      "proposedUpdates": {
+        "sourceSha256": "ac2f1573f3713b60d32a91f7f47e18907d800592beaca77148f3a6b9f4a1f114",
+        "sourceLine": 14,
+        "originalAnchorLinePreserved": true
+      },
+      "previousSourceSha256": "5b9566e5b370607811fe532addc069e546d36bb292c8489cfe0f80874ef2e470",
+      "previousReviewedRef": "6efc571d750c1d117aaf7377091cea5979de77a9",
+      "previousReviewedLine": 14,
+      "originalAuditRef": "ee436402db8bcce7fab4378d6ba28c1673b282b5",
+      "originalAuditLine": 14,
+      "anchorSha256": "75ec44244ed73c236a5d9ce69ba6d26b76f040b9dd4736128324f696f4bc73de",
+      "reason": "Rechecked against installed rule definition and the prior occurrence-specific evidence. OSC exige delimitadores ESC e terminador BEL ou ST para retirar títulos ANSI. A ocorrência '\\\\x1b' na coluna 41 faz parte deliberada do protocolo/sanitização; removê-la muda o comportamento. NA0151 changes only collapseInlinePrompts to trimStart plus anchored match; comparison against actual prior-reviewed NA0146 snapshot confirms the flagged control expressions and their call sites unchanged. The earlier NA0146 pager-status change is already part of the previous reviewed hash.",
+      "evidence": [
+        "apps/backend/src/modules/session-audit/session-audit-normalizer.ts:14",
+        "git show 6efc571d750c1d117aaf7377091cea5979de77a9:apps/backend/src/modules/session-audit/session-audit-normalizer.ts:14",
+        "git show ee436402db8bcce7fab4378d6ba28c1673b282b5:apps/backend/src/modules/session-audit/session-audit-normalizer.ts:14",
+        "/tmp/NA0093-backend-rules.json — typescript:S6324 root_cause intentional versus accidental C0 controls",
+        "/tmp/NA0093-fp19-control-probe.json — 16 exact-output checks on actual functions"
+      ],
+      "validation": "Independent read-only comparison of original audit, exact prior-reviewed hash snapshot and current integrated working tree; diff and consumer inspected. Actual functions probed in memory with Node24.22.1;16 checks passed.",
+      "limitations": "Classification covers deliberate protocol controls only; no general parser/regex safety assertion. Probe is finite and does not cover every flagged occurrence individually; unchanged anchors plus consumer inspection support the remaining occurrences. No new scanner/server transition.",
+      "serverTransitionPerformed": false
+    },
+    {
+      "id": "SQ-0043",
+      "issueId": "fe3621db-2fe1-465a-9cc0-50358532e3ff",
+      "rule": "typescript:S6324",
+      "file": "apps/backend/src/modules/session-audit/session-audit-normalizer.ts",
+      "decision": "technical_fp_supported",
+      "proposedUpdates": {
+        "sourceSha256": "ac2f1573f3713b60d32a91f7f47e18907d800592beaca77148f3a6b9f4a1f114",
+        "sourceLine": 16,
+        "originalAnchorLinePreserved": true
+      },
+      "previousSourceSha256": "5b9566e5b370607811fe532addc069e546d36bb292c8489cfe0f80874ef2e470",
+      "previousReviewedRef": "6efc571d750c1d117aaf7377091cea5979de77a9",
+      "previousReviewedLine": 16,
+      "originalAuditRef": "ee436402db8bcce7fab4378d6ba28c1673b282b5",
+      "originalAuditLine": 16,
+      "anchorSha256": "e57a485624ece746863c2022e0f21baf1e89dfb2b7493063b0a10896716426db",
+      "reason": "Rechecked against installed rule definition and the prior occurrence-specific evidence. ESC identifica seleção de charset ANSI removida do texto normalizado. A ocorrência '\\\\x1b' na coluna 15 faz parte deliberada do protocolo/sanitização; removê-la muda o comportamento. NA0151 changes only collapseInlinePrompts to trimStart plus anchored match; comparison against actual prior-reviewed NA0146 snapshot confirms the flagged control expressions and their call sites unchanged. The earlier NA0146 pager-status change is already part of the previous reviewed hash.",
+      "evidence": [
+        "apps/backend/src/modules/session-audit/session-audit-normalizer.ts:16",
+        "git show 6efc571d750c1d117aaf7377091cea5979de77a9:apps/backend/src/modules/session-audit/session-audit-normalizer.ts:16",
+        "git show ee436402db8bcce7fab4378d6ba28c1673b282b5:apps/backend/src/modules/session-audit/session-audit-normalizer.ts:16",
+        "/tmp/NA0093-backend-rules.json — typescript:S6324 root_cause intentional versus accidental C0 controls",
+        "/tmp/NA0093-fp19-control-probe.json — 16 exact-output checks on actual functions"
+      ],
+      "validation": "Independent read-only comparison of original audit, exact prior-reviewed hash snapshot and current integrated working tree; diff and consumer inspected. Actual functions probed in memory with Node24.22.1;16 checks passed.",
+      "limitations": "Classification covers deliberate protocol controls only; no general parser/regex safety assertion. Probe is finite and does not cover every flagged occurrence individually; unchanged anchors plus consumer inspection support the remaining occurrences. No new scanner/server transition.",
+      "serverTransitionPerformed": false
+    },
+    {
+      "id": "SQ-0044",
+      "issueId": "2b24edc7-0f08-40c7-bea0-ff87d150e6d6",
+      "rule": "typescript:S6324",
+      "file": "apps/backend/src/modules/session-audit/session-audit-normalizer.ts",
+      "decision": "technical_fp_supported",
+      "proposedUpdates": {
+        "sourceSha256": "ac2f1573f3713b60d32a91f7f47e18907d800592beaca77148f3a6b9f4a1f114",
+        "sourceLine": 17,
+        "originalAnchorLinePreserved": true
+      },
+      "previousSourceSha256": "5b9566e5b370607811fe532addc069e546d36bb292c8489cfe0f80874ef2e470",
+      "previousReviewedRef": "6efc571d750c1d117aaf7377091cea5979de77a9",
+      "previousReviewedLine": 17,
+      "originalAuditRef": "ee436402db8bcce7fab4378d6ba28c1673b282b5",
+      "originalAuditLine": 17,
+      "anchorSha256": "f785140496cbc9e2bb414c813ac89bb0dfef5e42918cb92ca01e21d9b775fae0",
+      "reason": "Rechecked against installed rule definition and the prior occurrence-specific evidence. ESC identifica controle ANSI adicional removido do texto normalizado. A ocorrência '\\\\x1b' na coluna 15 faz parte deliberada do protocolo/sanitização; removê-la muda o comportamento. NA0151 changes only collapseInlinePrompts to trimStart plus anchored match; comparison against actual prior-reviewed NA0146 snapshot confirms the flagged control expressions and their call sites unchanged. The earlier NA0146 pager-status change is already part of the previous reviewed hash.",
+      "evidence": [
+        "apps/backend/src/modules/session-audit/session-audit-normalizer.ts:17",
+        "git show 6efc571d750c1d117aaf7377091cea5979de77a9:apps/backend/src/modules/session-audit/session-audit-normalizer.ts:17",
+        "git show ee436402db8bcce7fab4378d6ba28c1673b282b5:apps/backend/src/modules/session-audit/session-audit-normalizer.ts:17",
+        "/tmp/NA0093-backend-rules.json — typescript:S6324 root_cause intentional versus accidental C0 controls",
+        "/tmp/NA0093-fp19-control-probe.json — 16 exact-output checks on actual functions"
+      ],
+      "validation": "Independent read-only comparison of original audit, exact prior-reviewed hash snapshot and current integrated working tree; diff and consumer inspected. Actual functions probed in memory with Node24.22.1;16 checks passed.",
+      "limitations": "Classification covers deliberate protocol controls only; no general parser/regex safety assertion. Probe is finite and does not cover every flagged occurrence individually; unchanged anchors plus consumer inspection support the remaining occurrences. No new scanner/server transition.",
+      "serverTransitionPerformed": false
+    },
+    {
+      "id": "SQ-0045",
+      "issueId": "96334ff4-494b-4eb1-a94f-4289001d3445",
+      "rule": "typescript:S6324",
+      "file": "apps/backend/src/modules/session-audit/session-audit-normalizer.ts",
+      "decision": "technical_fp_supported",
+      "proposedUpdates": {
+        "sourceSha256": "ac2f1573f3713b60d32a91f7f47e18907d800592beaca77148f3a6b9f4a1f114",
+        "sourceLine": 18,
+        "originalAnchorLinePreserved": true
+      },
+      "previousSourceSha256": "5b9566e5b370607811fe532addc069e546d36bb292c8489cfe0f80874ef2e470",
+      "previousReviewedRef": "6efc571d750c1d117aaf7377091cea5979de77a9",
+      "previousReviewedLine": 18,
+      "originalAuditRef": "ee436402db8bcce7fab4378d6ba28c1673b282b5",
+      "originalAuditLine": 18,
+      "anchorSha256": "7b4e427d0c4f3a0543093adbdbac132eeb152f88d6185720d83a43cd387cbc54",
+      "reason": "Rechecked against installed rule definition and the prior occurrence-specific evidence. ESC identifica sequência curta ANSI removida do texto normalizado. A ocorrência '\\\\x1b' na coluna 15 faz parte deliberada do protocolo/sanitização; removê-la muda o comportamento. NA0151 changes only collapseInlinePrompts to trimStart plus anchored match; comparison against actual prior-reviewed NA0146 snapshot confirms the flagged control expressions and their call sites unchanged. The earlier NA0146 pager-status change is already part of the previous reviewed hash.",
+      "evidence": [
+        "apps/backend/src/modules/session-audit/session-audit-normalizer.ts:18",
+        "git show 6efc571d750c1d117aaf7377091cea5979de77a9:apps/backend/src/modules/session-audit/session-audit-normalizer.ts:18",
+        "git show ee436402db8bcce7fab4378d6ba28c1673b282b5:apps/backend/src/modules/session-audit/session-audit-normalizer.ts:18",
+        "/tmp/NA0093-backend-rules.json — typescript:S6324 root_cause intentional versus accidental C0 controls",
+        "/tmp/NA0093-fp19-control-probe.json — 16 exact-output checks on actual functions"
+      ],
+      "validation": "Independent read-only comparison of original audit, exact prior-reviewed hash snapshot and current integrated working tree; diff and consumer inspected. Actual functions probed in memory with Node24.22.1;16 checks passed.",
+      "limitations": "Classification covers deliberate protocol controls only; no general parser/regex safety assertion. Probe is finite and does not cover every flagged occurrence individually; unchanged anchors plus consumer inspection support the remaining occurrences. No new scanner/server transition.",
+      "serverTransitionPerformed": false
+    },
+    {
+      "id": "SQ-0046",
+      "issueId": "1e5e63e5-6cac-4288-8559-4fe8a4bd4d64",
+      "rule": "typescript:S6324",
+      "file": "apps/backend/src/modules/session-audit/session-audit-normalizer.ts",
+      "decision": "technical_fp_supported",
+      "proposedUpdates": {
+        "sourceSha256": "ac2f1573f3713b60d32a91f7f47e18907d800592beaca77148f3a6b9f4a1f114",
+        "sourceLine": 37,
+        "originalAnchorLinePreserved": true
+      },
+      "previousSourceSha256": "5b9566e5b370607811fe532addc069e546d36bb292c8489cfe0f80874ef2e470",
+      "previousReviewedRef": "6efc571d750c1d117aaf7377091cea5979de77a9",
+      "previousReviewedLine": 37,
+      "originalAuditRef": "ee436402db8bcce7fab4378d6ba28c1673b282b5",
+      "originalAuditLine": 37,
+      "anchorSha256": "fd16c1368de3c4be9b0193c1b1777d6e732df3131e82a20439a8b05a15634e78",
+      "reason": "Rechecked against installed rule definition and the prior occurrence-specific evidence. NUL/BEL são excluídos explicitamente da entrada normalizada. A ocorrência '\\\\u0000' na coluna 37 faz parte deliberada do protocolo/sanitização; removê-la muda o comportamento. NA0151 changes only collapseInlinePrompts to trimStart plus anchored match; comparison against actual prior-reviewed NA0146 snapshot confirms the flagged control expressions and their call sites unchanged. The earlier NA0146 pager-status change is already part of the previous reviewed hash.",
+      "evidence": [
+        "apps/backend/src/modules/session-audit/session-audit-normalizer.ts:37",
+        "git show 6efc571d750c1d117aaf7377091cea5979de77a9:apps/backend/src/modules/session-audit/session-audit-normalizer.ts:37",
+        "git show ee436402db8bcce7fab4378d6ba28c1673b282b5:apps/backend/src/modules/session-audit/session-audit-normalizer.ts:37",
+        "/tmp/NA0093-backend-rules.json — typescript:S6324 root_cause intentional versus accidental C0 controls",
+        "/tmp/NA0093-fp19-control-probe.json — 16 exact-output checks on actual functions"
+      ],
+      "validation": "Independent read-only comparison of original audit, exact prior-reviewed hash snapshot and current integrated working tree; diff and consumer inspected. Actual functions probed in memory with Node24.22.1;16 checks passed.",
+      "limitations": "Classification covers deliberate protocol controls only; no general parser/regex safety assertion. Probe is finite and does not cover every flagged occurrence individually; unchanged anchors plus consumer inspection support the remaining occurrences. No new scanner/server transition.",
+      "serverTransitionPerformed": false
+    },
+    {
+      "id": "SQ-0047",
+      "issueId": "7fa5b04f-9b1f-4045-8848-d3d4129d2a36",
+      "rule": "typescript:S6324",
+      "file": "apps/backend/src/modules/session-audit/session-audit-normalizer.ts",
+      "decision": "technical_fp_supported",
+      "proposedUpdates": {
+        "sourceSha256": "ac2f1573f3713b60d32a91f7f47e18907d800592beaca77148f3a6b9f4a1f114",
+        "sourceLine": 37,
+        "originalAnchorLinePreserved": true
+      },
+      "previousSourceSha256": "5b9566e5b370607811fe532addc069e546d36bb292c8489cfe0f80874ef2e470",
+      "previousReviewedRef": "6efc571d750c1d117aaf7377091cea5979de77a9",
+      "previousReviewedLine": 37,
+      "originalAuditRef": "ee436402db8bcce7fab4378d6ba28c1673b282b5",
+      "originalAuditLine": 37,
+      "anchorSha256": "fd16c1368de3c4be9b0193c1b1777d6e732df3131e82a20439a8b05a15634e78",
+      "reason": "Rechecked against installed rule definition and the prior occurrence-specific evidence. NUL/BEL são excluídos explicitamente da entrada normalizada. A ocorrência '\\\\u0007' na coluna 43 faz parte deliberada do protocolo/sanitização; removê-la muda o comportamento. NA0151 changes only collapseInlinePrompts to trimStart plus anchored match; comparison against actual prior-reviewed NA0146 snapshot confirms the flagged control expressions and their call sites unchanged. The earlier NA0146 pager-status change is already part of the previous reviewed hash.",
+      "evidence": [
+        "apps/backend/src/modules/session-audit/session-audit-normalizer.ts:37",
+        "git show 6efc571d750c1d117aaf7377091cea5979de77a9:apps/backend/src/modules/session-audit/session-audit-normalizer.ts:37",
+        "git show ee436402db8bcce7fab4378d6ba28c1673b282b5:apps/backend/src/modules/session-audit/session-audit-normalizer.ts:37",
+        "/tmp/NA0093-backend-rules.json — typescript:S6324 root_cause intentional versus accidental C0 controls",
+        "/tmp/NA0093-fp19-control-probe.json — 16 exact-output checks on actual functions"
+      ],
+      "validation": "Independent read-only comparison of original audit, exact prior-reviewed hash snapshot and current integrated working tree; diff and consumer inspected. Actual functions probed in memory with Node24.22.1;16 checks passed.",
+      "limitations": "Classification covers deliberate protocol controls only; no general parser/regex safety assertion. Probe is finite and does not cover every flagged occurrence individually; unchanged anchors plus consumer inspection support the remaining occurrences. No new scanner/server transition.",
+      "serverTransitionPerformed": false
+    },
+    {
+      "id": "SQ-0048",
+      "issueId": "c4144b19-7e57-4d6e-89fc-8d1df30ef8ec",
+      "rule": "typescript:S6324",
+      "file": "apps/backend/src/modules/session-audit/session-audit-normalizer.ts",
+      "decision": "technical_fp_supported",
+      "proposedUpdates": {
+        "sourceSha256": "ac2f1573f3713b60d32a91f7f47e18907d800592beaca77148f3a6b9f4a1f114",
+        "sourceLine": 41,
+        "originalAnchorLinePreserved": true
+      },
+      "previousSourceSha256": "5b9566e5b370607811fe532addc069e546d36bb292c8489cfe0f80874ef2e470",
+      "previousReviewedRef": "6efc571d750c1d117aaf7377091cea5979de77a9",
+      "previousReviewedLine": 41,
+      "originalAuditRef": "ee436402db8bcce7fab4378d6ba28c1673b282b5",
+      "originalAuditLine": 41,
+      "anchorSha256": "afe64797773b95c9765f437971232635200a719222cc9a809dd8196f46ec223d",
+      "reason": "Rechecked against installed rule definition and the prior occurrence-specific evidence. NUL/BEL são excluídos após reconstrução de backspaces da saída. A ocorrência '\\\\u0000' na coluna 61 faz parte deliberada do protocolo/sanitização; removê-la muda o comportamento. NA0151 changes only collapseInlinePrompts to trimStart plus anchored match; comparison against actual prior-reviewed NA0146 snapshot confirms the flagged control expressions and their call sites unchanged. The earlier NA0146 pager-status change is already part of the previous reviewed hash.",
+      "evidence": [
+        "apps/backend/src/modules/session-audit/session-audit-normalizer.ts:41",
+        "git show 6efc571d750c1d117aaf7377091cea5979de77a9:apps/backend/src/modules/session-audit/session-audit-normalizer.ts:41",
+        "git show ee436402db8bcce7fab4378d6ba28c1673b282b5:apps/backend/src/modules/session-audit/session-audit-normalizer.ts:41",
+        "/tmp/NA0093-backend-rules.json — typescript:S6324 root_cause intentional versus accidental C0 controls",
+        "/tmp/NA0093-fp19-control-probe.json — 16 exact-output checks on actual functions"
+      ],
+      "validation": "Independent read-only comparison of original audit, exact prior-reviewed hash snapshot and current integrated working tree; diff and consumer inspected. Actual functions probed in memory with Node24.22.1;16 checks passed.",
+      "limitations": "Classification covers deliberate protocol controls only; no general parser/regex safety assertion. Probe is finite and does not cover every flagged occurrence individually; unchanged anchors plus consumer inspection support the remaining occurrences. No new scanner/server transition.",
+      "serverTransitionPerformed": false
+    },
+    {
+      "id": "SQ-0049",
+      "issueId": "e2282065-360b-44ad-bf41-615d93948604",
+      "rule": "typescript:S6324",
+      "file": "apps/backend/src/modules/session-audit/session-audit-normalizer.ts",
+      "decision": "technical_fp_supported",
+      "proposedUpdates": {
+        "sourceSha256": "ac2f1573f3713b60d32a91f7f47e18907d800592beaca77148f3a6b9f4a1f114",
+        "sourceLine": 41,
+        "originalAnchorLinePreserved": true
+      },
+      "previousSourceSha256": "5b9566e5b370607811fe532addc069e546d36bb292c8489cfe0f80874ef2e470",
+      "previousReviewedRef": "6efc571d750c1d117aaf7377091cea5979de77a9",
+      "previousReviewedLine": 41,
+      "originalAuditRef": "ee436402db8bcce7fab4378d6ba28c1673b282b5",
+      "originalAuditLine": 41,
+      "anchorSha256": "afe64797773b95c9765f437971232635200a719222cc9a809dd8196f46ec223d",
+      "reason": "Rechecked against installed rule definition and the prior occurrence-specific evidence. NUL/BEL são excluídos após reconstrução de backspaces da saída. A ocorrência '\\\\u0007' na coluna 67 faz parte deliberada do protocolo/sanitização; removê-la muda o comportamento. NA0151 changes only collapseInlinePrompts to trimStart plus anchored match; comparison against actual prior-reviewed NA0146 snapshot confirms the flagged control expressions and their call sites unchanged. The earlier NA0146 pager-status change is already part of the previous reviewed hash.",
+      "evidence": [
+        "apps/backend/src/modules/session-audit/session-audit-normalizer.ts:41",
+        "git show 6efc571d750c1d117aaf7377091cea5979de77a9:apps/backend/src/modules/session-audit/session-audit-normalizer.ts:41",
+        "git show ee436402db8bcce7fab4378d6ba28c1673b282b5:apps/backend/src/modules/session-audit/session-audit-normalizer.ts:41",
+        "/tmp/NA0093-backend-rules.json — typescript:S6324 root_cause intentional versus accidental C0 controls",
+        "/tmp/NA0093-fp19-control-probe.json — 16 exact-output checks on actual functions"
+      ],
+      "validation": "Independent read-only comparison of original audit, exact prior-reviewed hash snapshot and current integrated working tree; diff and consumer inspected. Actual functions probed in memory with Node24.22.1;16 checks passed.",
+      "limitations": "Classification covers deliberate protocol controls only; no general parser/regex safety assertion. Probe is finite and does not cover every flagged occurrence individually; unchanged anchors plus consumer inspection support the remaining occurrences. No new scanner/server transition.",
+      "serverTransitionPerformed": false
+    },
+    {
+      "id": "SQ-0053",
+      "issueId": "2082229e-822b-4bf7-800b-db37b6f22414",
+      "rule": "typescript:S6324",
+      "file": "apps/backend/src/modules/session-audit/session-audit-normalizer.ts",
+      "decision": "technical_fp_supported",
+      "proposedUpdates": {
+        "sourceSha256": "ac2f1573f3713b60d32a91f7f47e18907d800592beaca77148f3a6b9f4a1f114",
+        "sourceLine": 160,
+        "originalAnchorLinePreserved": true
+      },
+      "previousSourceSha256": "5b9566e5b370607811fe532addc069e546d36bb292c8489cfe0f80874ef2e470",
+      "previousReviewedRef": "6efc571d750c1d117aaf7377091cea5979de77a9",
+      "previousReviewedLine": 160,
+      "originalAuditRef": "ee436402db8bcce7fab4378d6ba28c1673b282b5",
+      "originalAuditLine": 158,
+      "anchorSha256": "68903dff0785a6ab1fe19175fb126e078b35946c54e1ebbf5d8863efd2e0f223",
+      "reason": "Rechecked against installed rule definition and the prior occurrence-specific evidence. ESC residual é removido da representação resumida de saída interativa. A ocorrência '\\\\u001b' na coluna 15 faz parte deliberada do protocolo/sanitização; removê-la muda o comportamento. NA0151 changes only collapseInlinePrompts to trimStart plus anchored match; comparison against actual prior-reviewed NA0146 snapshot confirms the flagged control expressions and their call sites unchanged. The earlier NA0146 pager-status change is already part of the previous reviewed hash.",
+      "evidence": [
+        "apps/backend/src/modules/session-audit/session-audit-normalizer.ts:160",
+        "git show 6efc571d750c1d117aaf7377091cea5979de77a9:apps/backend/src/modules/session-audit/session-audit-normalizer.ts:160",
+        "git show ee436402db8bcce7fab4378d6ba28c1673b282b5:apps/backend/src/modules/session-audit/session-audit-normalizer.ts:158",
+        "/tmp/NA0093-backend-rules.json — typescript:S6324 root_cause intentional versus accidental C0 controls",
+        "/tmp/NA0093-fp19-control-probe.json — 16 exact-output checks on actual functions"
+      ],
+      "validation": "Independent read-only comparison of original audit, exact prior-reviewed hash snapshot and current integrated working tree; diff and consumer inspected. Actual functions probed in memory with Node24.22.1;16 checks passed.",
+      "limitations": "Classification covers deliberate protocol controls only; no general parser/regex safety assertion. Probe is finite and does not cover every flagged occurrence individually; unchanged anchors plus consumer inspection support the remaining occurrences. No new scanner/server transition.",
+      "serverTransitionPerformed": false
+    },
+    {
+      "id": "SQ-0054",
+      "issueId": "2dffd5d8-4e91-4273-86a8-4cc1541053b4",
+      "rule": "typescript:S6324",
+      "file": "apps/backend/src/modules/session-audit/session-audit-normalizer.ts",
+      "decision": "technical_fp_supported",
+      "proposedUpdates": {
+        "sourceSha256": "ac2f1573f3713b60d32a91f7f47e18907d800592beaca77148f3a6b9f4a1f114",
+        "sourceLine": 225,
+        "originalAnchorLinePreserved": true
+      },
+      "previousSourceSha256": "5b9566e5b370607811fe532addc069e546d36bb292c8489cfe0f80874ef2e470",
+      "previousReviewedRef": "6efc571d750c1d117aaf7377091cea5979de77a9",
+      "previousReviewedLine": 225,
+      "originalAuditRef": "ee436402db8bcce7fab4378d6ba28c1673b282b5",
+      "originalAuditLine": 223,
+      "anchorSha256": "c4b5baad546b4cbf307a2b948d67e27adb56658bbbd6226992d00fb3392659d7",
+      "reason": "Rechecked against installed rule definition and the prior occurrence-specific evidence. ESC/BEL delimitam OSC de título para extrair cwd observado. A ocorrência '\\\\x07' na coluna 53 faz parte deliberada do protocolo/sanitização; removê-la muda o comportamento. NA0151 changes only collapseInlinePrompts to trimStart plus anchored match; comparison against actual prior-reviewed NA0146 snapshot confirms the flagged control expressions and their call sites unchanged. The earlier NA0146 pager-status change is already part of the previous reviewed hash.",
+      "evidence": [
+        "apps/backend/src/modules/session-audit/session-audit-normalizer.ts:225",
+        "git show 6efc571d750c1d117aaf7377091cea5979de77a9:apps/backend/src/modules/session-audit/session-audit-normalizer.ts:225",
+        "git show ee436402db8bcce7fab4378d6ba28c1673b282b5:apps/backend/src/modules/session-audit/session-audit-normalizer.ts:223",
+        "/tmp/NA0093-backend-rules.json — typescript:S6324 root_cause intentional versus accidental C0 controls",
+        "/tmp/NA0093-fp19-control-probe.json — 16 exact-output checks on actual functions"
+      ],
+      "validation": "Independent read-only comparison of original audit, exact prior-reviewed hash snapshot and current integrated working tree; diff and consumer inspected. Actual functions probed in memory with Node24.22.1;16 checks passed.",
+      "limitations": "Classification covers deliberate protocol controls only; no general parser/regex safety assertion. Probe is finite and does not cover every flagged occurrence individually; unchanged anchors plus consumer inspection support the remaining occurrences. No new scanner/server transition.",
+      "serverTransitionPerformed": false
+    },
+    {
+      "id": "SQ-0055",
+      "issueId": "67c269bc-a669-452d-b279-b491b3dd5147",
+      "rule": "typescript:S6324",
+      "file": "apps/backend/src/modules/session-audit/session-audit-normalizer.ts",
+      "decision": "technical_fp_supported",
+      "proposedUpdates": {
+        "sourceSha256": "ac2f1573f3713b60d32a91f7f47e18907d800592beaca77148f3a6b9f4a1f114",
+        "sourceLine": 225,
+        "originalAnchorLinePreserved": true
+      },
+      "previousSourceSha256": "5b9566e5b370607811fe532addc069e546d36bb292c8489cfe0f80874ef2e470",
+      "previousReviewedRef": "6efc571d750c1d117aaf7377091cea5979de77a9",
+      "previousReviewedLine": 225,
+      "originalAuditRef": "ee436402db8bcce7fab4378d6ba28c1673b282b5",
+      "originalAuditLine": 223,
+      "anchorSha256": "c4b5baad546b4cbf307a2b948d67e27adb56658bbbd6226992d00fb3392659d7",
+      "reason": "Rechecked against installed rule definition and the prior occurrence-specific evidence. ESC/BEL delimitam OSC de título para extrair cwd observado. A ocorrência '\\\\x07' na coluna 68 faz parte deliberada do protocolo/sanitização; removê-la muda o comportamento. NA0151 changes only collapseInlinePrompts to trimStart plus anchored match; comparison against actual prior-reviewed NA0146 snapshot confirms the flagged control expressions and their call sites unchanged. The earlier NA0146 pager-status change is already part of the previous reviewed hash.",
+      "evidence": [
+        "apps/backend/src/modules/session-audit/session-audit-normalizer.ts:225",
+        "git show 6efc571d750c1d117aaf7377091cea5979de77a9:apps/backend/src/modules/session-audit/session-audit-normalizer.ts:225",
+        "git show ee436402db8bcce7fab4378d6ba28c1673b282b5:apps/backend/src/modules/session-audit/session-audit-normalizer.ts:223",
+        "/tmp/NA0093-backend-rules.json — typescript:S6324 root_cause intentional versus accidental C0 controls",
+        "/tmp/NA0093-fp19-control-probe.json — 16 exact-output checks on actual functions"
+      ],
+      "validation": "Independent read-only comparison of original audit, exact prior-reviewed hash snapshot and current integrated working tree; diff and consumer inspected. Actual functions probed in memory with Node24.22.1;16 checks passed.",
+      "limitations": "Classification covers deliberate protocol controls only; no general parser/regex safety assertion. Probe is finite and does not cover every flagged occurrence individually; unchanged anchors plus consumer inspection support the remaining occurrences. No new scanner/server transition.",
+      "serverTransitionPerformed": false
+    },
+    {
+      "id": "SQ-0056",
+      "issueId": "b2426cd7-bc4a-4826-aa50-573e69de3412",
+      "rule": "typescript:S6324",
+      "file": "apps/backend/src/modules/session-audit/session-audit-normalizer.ts",
+      "decision": "technical_fp_supported",
+      "proposedUpdates": {
+        "sourceSha256": "ac2f1573f3713b60d32a91f7f47e18907d800592beaca77148f3a6b9f4a1f114",
+        "sourceLine": 225,
+        "originalAnchorLinePreserved": true
+      },
+      "previousSourceSha256": "5b9566e5b370607811fe532addc069e546d36bb292c8489cfe0f80874ef2e470",
+      "previousReviewedRef": "6efc571d750c1d117aaf7377091cea5979de77a9",
+      "previousReviewedLine": 225,
+      "originalAuditRef": "ee436402db8bcce7fab4378d6ba28c1673b282b5",
+      "originalAuditLine": 223,
+      "anchorSha256": "c4b5baad546b4cbf307a2b948d67e27adb56658bbbd6226992d00fb3392659d7",
+      "reason": "Rechecked against installed rule definition and the prior occurrence-specific evidence. ESC/BEL delimitam OSC de título para extrair cwd observado. A ocorrência '\\\\x1b' na coluna 73 faz parte deliberada do protocolo/sanitização; removê-la muda o comportamento. NA0151 changes only collapseInlinePrompts to trimStart plus anchored match; comparison against actual prior-reviewed NA0146 snapshot confirms the flagged control expressions and their call sites unchanged. The earlier NA0146 pager-status change is already part of the previous reviewed hash.",
+      "evidence": [
+        "apps/backend/src/modules/session-audit/session-audit-normalizer.ts:225",
+        "git show 6efc571d750c1d117aaf7377091cea5979de77a9:apps/backend/src/modules/session-audit/session-audit-normalizer.ts:225",
+        "git show ee436402db8bcce7fab4378d6ba28c1673b282b5:apps/backend/src/modules/session-audit/session-audit-normalizer.ts:223",
+        "/tmp/NA0093-backend-rules.json — typescript:S6324 root_cause intentional versus accidental C0 controls",
+        "/tmp/NA0093-fp19-control-probe.json — 16 exact-output checks on actual functions"
+      ],
+      "validation": "Independent read-only comparison of original audit, exact prior-reviewed hash snapshot and current integrated working tree; diff and consumer inspected. Actual functions probed in memory with Node24.22.1;16 checks passed.",
+      "limitations": "Classification covers deliberate protocol controls only; no general parser/regex safety assertion. Probe is finite and does not cover every flagged occurrence individually; unchanged anchors plus consumer inspection support the remaining occurrences. No new scanner/server transition.",
+      "serverTransitionPerformed": false
+    },
+    {
+      "id": "SQ-0060",
+      "issueId": "5330fd0a-3eda-4807-9381-666d10f49446",
+      "rule": "typescript:S6324",
+      "file": "apps/backend/src/modules/session-audit/session-audit-normalizer.ts",
+      "decision": "technical_fp_supported",
+      "proposedUpdates": {
+        "sourceSha256": "ac2f1573f3713b60d32a91f7f47e18907d800592beaca77148f3a6b9f4a1f114",
+        "sourceLine": 477,
+        "originalAnchorLinePreserved": true
+      },
+      "previousSourceSha256": "5b9566e5b370607811fe532addc069e546d36bb292c8489cfe0f80874ef2e470",
+      "previousReviewedRef": "6efc571d750c1d117aaf7377091cea5979de77a9",
+      "previousReviewedLine": 477,
+      "originalAuditRef": "ee436402db8bcce7fab4378d6ba28c1673b282b5",
+      "originalAuditLine": 475,
+      "anchorSha256": "3f48e32d32271082fda0b775b5526beb0c6bd596db2715f2dbb7b1b60e15a197",
+      "reason": "Rechecked against installed rule definition and the prior occurrence-specific evidence. NUL/BEL são retirados do tail limitado a 4096 caracteres antes de reconhecer prompt. A ocorrência '\\\\u0000' na coluna 59 faz parte deliberada do protocolo/sanitização; removê-la muda o comportamento. NA0151 changes only collapseInlinePrompts to trimStart plus anchored match; comparison against actual prior-reviewed NA0146 snapshot confirms the flagged control expressions and their call sites unchanged. The earlier NA0146 pager-status change is already part of the previous reviewed hash.",
+      "evidence": [
+        "apps/backend/src/modules/session-audit/session-audit-normalizer.ts:477",
+        "git show 6efc571d750c1d117aaf7377091cea5979de77a9:apps/backend/src/modules/session-audit/session-audit-normalizer.ts:477",
+        "git show ee436402db8bcce7fab4378d6ba28c1673b282b5:apps/backend/src/modules/session-audit/session-audit-normalizer.ts:475",
+        "/tmp/NA0093-backend-rules.json — typescript:S6324 root_cause intentional versus accidental C0 controls",
+        "/tmp/NA0093-fp19-control-probe.json — 16 exact-output checks on actual functions"
+      ],
+      "validation": "Independent read-only comparison of original audit, exact prior-reviewed hash snapshot and current integrated working tree; diff and consumer inspected. Actual functions probed in memory with Node24.22.1;16 checks passed.",
+      "limitations": "Classification covers deliberate protocol controls only; no general parser/regex safety assertion. Probe is finite and does not cover every flagged occurrence individually; unchanged anchors plus consumer inspection support the remaining occurrences. No new scanner/server transition.",
+      "serverTransitionPerformed": false
+    },
+    {
+      "id": "SQ-0061",
+      "issueId": "bcaf109e-9efa-4bda-b884-305da244f5a9",
+      "rule": "typescript:S6324",
+      "file": "apps/backend/src/modules/session-audit/session-audit-normalizer.ts",
+      "decision": "technical_fp_supported",
+      "proposedUpdates": {
+        "sourceSha256": "ac2f1573f3713b60d32a91f7f47e18907d800592beaca77148f3a6b9f4a1f114",
+        "sourceLine": 477,
+        "originalAnchorLinePreserved": true
+      },
+      "previousSourceSha256": "5b9566e5b370607811fe532addc069e546d36bb292c8489cfe0f80874ef2e470",
+      "previousReviewedRef": "6efc571d750c1d117aaf7377091cea5979de77a9",
+      "previousReviewedLine": 477,
+      "originalAuditRef": "ee436402db8bcce7fab4378d6ba28c1673b282b5",
+      "originalAuditLine": 475,
+      "anchorSha256": "3f48e32d32271082fda0b775b5526beb0c6bd596db2715f2dbb7b1b60e15a197",
+      "reason": "Rechecked against installed rule definition and the prior occurrence-specific evidence. NUL/BEL são retirados do tail limitado a 4096 caracteres antes de reconhecer prompt. A ocorrência '\\\\u0007' na coluna 65 faz parte deliberada do protocolo/sanitização; removê-la muda o comportamento. NA0151 changes only collapseInlinePrompts to trimStart plus anchored match; comparison against actual prior-reviewed NA0146 snapshot confirms the flagged control expressions and their call sites unchanged. The earlier NA0146 pager-status change is already part of the previous reviewed hash.",
+      "evidence": [
+        "apps/backend/src/modules/session-audit/session-audit-normalizer.ts:477",
+        "git show 6efc571d750c1d117aaf7377091cea5979de77a9:apps/backend/src/modules/session-audit/session-audit-normalizer.ts:477",
+        "git show ee436402db8bcce7fab4378d6ba28c1673b282b5:apps/backend/src/modules/session-audit/session-audit-normalizer.ts:475",
+        "/tmp/NA0093-backend-rules.json — typescript:S6324 root_cause intentional versus accidental C0 controls",
+        "/tmp/NA0093-fp19-control-probe.json — 16 exact-output checks on actual functions"
+      ],
+      "validation": "Independent read-only comparison of original audit, exact prior-reviewed hash snapshot and current integrated working tree; diff and consumer inspected. Actual functions probed in memory with Node24.22.1;16 checks passed.",
+      "limitations": "Classification covers deliberate protocol controls only; no general parser/regex safety assertion. Probe is finite and does not cover every flagged occurrence individually; unchanged anchors plus consumer inspection support the remaining occurrences. No new scanner/server transition.",
+      "serverTransitionPerformed": false
+    },
+    {
+      "id": "SQ-0396",
+      "issueId": "61b58233-50b1-4da6-9492-85d5ba8b43f7",
+      "rule": "javascript:S1313",
+      "file": "tools/frontend/recent-host-access-playwright.cjs",
+      "decision": "technical_fp_supported",
+      "proposedUpdates": {
+        "sourceSha256": "f2fe968ea1ceba3d8a7f000da8b039e53ee7cfed3437b4a6860762bee5531d82",
+        "sourceLine": 14,
+        "originalAnchorLinePreserved": true
+      },
+      "previousSourceSha256": "1007f34ddc458efd663b6c0cdce4ffa592b736a86188953b665647886ad2d116",
+      "previousReviewedRef": "ee436402db8bcce7fab4378d6ba28c1673b282b5",
+      "previousReviewedLine": 13,
+      "originalAuditRef": "ee436402db8bcce7fab4378d6ba28c1673b282b5",
+      "originalAuditLine": 13,
+      "anchorSha256": "947a12c0836ca9c2bafd570b6c2cbb79d9765b9887646106f55b470f528ccc74",
+      "reason": "Literal representa host recente de cenário de nome extenso mock. Não é endereço de infraestrutura configurado pelo produto: o consumidor recebe dado sintético através da fronteira de simulação verificada. NA0153 adds containsYearAndTime import and replaces only tooltip assertion. Hosts fixture declarations, mock route.fulfill responses and consumers remain unchanged except line shift.",
+      "evidence": [
+        "tools/frontend/recent-host-access-playwright.cjs:14",
+        "git show ee436402db8bcce7fab4378d6ba28c1673b282b5:tools/frontend/recent-host-access-playwright.cjs:13",
+        "git show ee436402db8bcce7fab4378d6ba28c1673b282b5:tools/frontend/recent-host-access-playwright.cjs:13",
+        "tools/frontend/recent-host-access-playwright.cjs:39",
+        "tools/frontend/recent-host-access-playwright.cjs:46",
+        "tools/frontend/recent-host-access-playwright.cjs:53",
+        "tools/frontend/recent-host-access-playwright.cjs:65",
+        "/tmp/NA0093-tooling-fp-rule-definitions.json — javascript:S1313 infrastructure configuration scope"
+      ],
+      "validation": "Independent read-only comparison of original audit, exact prior-reviewed hash snapshot and current integrated working tree; diff and consumer inspected. Both fixture rows and route.fulfill consumer chains compared; no browser rerun.",
+      "limitations": "These IPs are fixture response data, not the browser frontend endpoint or production SSH destinations. Private ranges alone are not an exception. No full browser harness rerun or assertion of whole-harness network isolation; no server transition.",
+      "serverTransitionPerformed": false
+    },
+    {
+      "id": "SQ-0397",
+      "issueId": "e03ddebb-7fff-4a4f-9d7d-83285910c051",
+      "rule": "javascript:S1313",
+      "file": "tools/frontend/recent-host-access-playwright.cjs",
+      "decision": "technical_fp_supported",
+      "proposedUpdates": {
+        "sourceSha256": "f2fe968ea1ceba3d8a7f000da8b039e53ee7cfed3437b4a6860762bee5531d82",
+        "sourceLine": 15,
+        "originalAnchorLinePreserved": true
+      },
+      "previousSourceSha256": "1007f34ddc458efd663b6c0cdce4ffa592b736a86188953b665647886ad2d116",
+      "previousReviewedRef": "ee436402db8bcce7fab4378d6ba28c1673b282b5",
+      "previousReviewedLine": 14,
+      "originalAuditRef": "ee436402db8bcce7fab4378d6ba28c1673b282b5",
+      "originalAuditLine": 14,
+      "anchorSha256": "e127a853a6c65dd5b941558343c065bf4120440813d59b3aa8cad6be1c999d28",
+      "reason": "Literal representa host recente sem permissão connect mock. Não é endereço de infraestrutura configurado pelo produto: o consumidor recebe dado sintético através da fronteira de simulação verificada. NA0153 adds containsYearAndTime import and replaces only tooltip assertion. Hosts fixture declarations, mock route.fulfill responses and consumers remain unchanged except line shift.",
+      "evidence": [
+        "tools/frontend/recent-host-access-playwright.cjs:15",
+        "git show ee436402db8bcce7fab4378d6ba28c1673b282b5:tools/frontend/recent-host-access-playwright.cjs:14",
+        "git show ee436402db8bcce7fab4378d6ba28c1673b282b5:tools/frontend/recent-host-access-playwright.cjs:14",
+        "tools/frontend/recent-host-access-playwright.cjs:39",
+        "tools/frontend/recent-host-access-playwright.cjs:46",
+        "tools/frontend/recent-host-access-playwright.cjs:53",
+        "tools/frontend/recent-host-access-playwright.cjs:65",
+        "/tmp/NA0093-tooling-fp-rule-definitions.json — javascript:S1313 infrastructure configuration scope"
+      ],
+      "validation": "Independent read-only comparison of original audit, exact prior-reviewed hash snapshot and current integrated working tree; diff and consumer inspected. Both fixture rows and route.fulfill consumer chains compared; no browser rerun.",
+      "limitations": "These IPs are fixture response data, not the browser frontend endpoint or production SSH destinations. Private ranges alone are not an exception. No full browser harness rerun or assertion of whole-harness network isolation; no server transition.",
+      "serverTransitionPerformed": false
+    }
+  ]
+}

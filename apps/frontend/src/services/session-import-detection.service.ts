@@ -36,7 +36,7 @@ export function detectSessionImportSource(fileName: string, content: string): Se
   if (name.endsWith('.csv') || (/\bname[,;]/.test(normalizedHeader) && /[,;](?:ip|hostname)[,;]/.test(`${normalizedHeader},`))) {
     return { source: 'csv', confidence: 'high', reason: 'csv-header' }
   }
-  if (/^(?:Host|Match|Include)\s+/im.test(sample) || /(?:^|\n)\s*(?:HostName|IdentityFile|ProxyJump)\s+/i.test(sample)) {
+  if (/^(?:Host|Match|Include)\s+/im.test(sample) || sample.split('\n').some(line => /^(?:HostName|IdentityFile|ProxyJump)\s+/i.test(line.trimStart()))) {
     return { source: 'ssh', confidence: 'high', reason: 'openssh-directive' }
   }
   return { source: 'ssh', confidence: 'medium', reason: 'text-fallback' }

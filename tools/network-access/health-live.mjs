@@ -1,3 +1,4 @@
+import { artifactPath } from '../shared/private-artifacts.cjs'
 // Real Redis round trip in an isolated namespace, no existing tenant mutation.
 import assert from 'node:assert/strict'
 import { randomUUID } from 'node:crypto'
@@ -19,5 +20,5 @@ try{
  await store.publish('a',heartbeat());assert.equal((await store.read(7)).status,'ready')
  await runtime.close();await store.publish('a',heartbeat());assert.equal((await store.read(7)).status,'degraded')
  const result={ok:true,checks:['no heartbeat is unknown','ready after heartbeat','stale replica degrades fleet','replica recovery','database failure and recovery','closed listener never ready']}
- writeFileSync('/tmp/nodeaccess-tacacs-health-live.json',JSON.stringify(result,null,2));console.log(JSON.stringify(result))
+ writeFileSync(artifactPath('nodeaccess-tacacs-health-live.json'),JSON.stringify(result,null,2));console.log(JSON.stringify(result))
 }finally{if(runtime.server.listening)await runtime.close();await store.remove('a');await store.remove('b');store.close()}

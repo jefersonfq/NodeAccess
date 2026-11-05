@@ -1,0 +1,329 @@
+{
+  "schemaVersion": 1,
+  "issues": [
+    {
+      "issueId": "f58ec78b-9d4a-4689-aef4-4e9c898b71a6",
+      "rule": "javascript:S905",
+      "component": "nodeaccess:tools/frontend/lucien-feedback-ux-playwright.cjs",
+      "line": 3,
+      "hash": "9856fa6c4efe4ef4a2bde5eb7ae92481",
+      "severity": "MAJOR",
+      "type": "BUG"
+    },
+    {
+      "issueId": "adf1c0bc-9fe5-47cf-a97f-9fa70cc9adaf",
+      "rule": "javascript:S905",
+      "component": "nodeaccess:tools/frontend/recent-host-access-playwright.cjs",
+      "line": 3,
+      "hash": "9856fa6c4efe4ef4a2bde5eb7ae92481",
+      "severity": "MAJOR",
+      "type": "BUG"
+    },
+    {
+      "issueId": "43a6dcde-006b-4c2d-ada3-e946f1a48c09",
+      "rule": "javascript:S1523",
+      "component": "nodeaccess:tools/frontend/sonar-frontend-review.cjs",
+      "line": 21,
+      "hash": "70d35bab1707a6633e36c5c09a12566f",
+      "severity": "CRITICAL",
+      "type": "VULNERABILITY"
+    },
+    {
+      "issueId": "c074a7a1-304a-4a7d-a05c-e7ec95b7392a",
+      "rule": "javascript:S4036",
+      "component": "nodeaccess:tools/frontend/sonar-frontend-review.cjs",
+      "line": 42,
+      "hash": "f0888eff35b52005cda23f550723fbef",
+      "severity": "MINOR",
+      "type": "VULNERABILITY"
+    },
+    {
+      "issueId": "9b8d5d63-255f-466f-9560-0f18ffd9b7c5",
+      "rule": "javascript:S4036",
+      "component": "nodeaccess:tools/frontend/sonar-frontend-review.cjs",
+      "line": 65,
+      "hash": "f0888eff35b52005cda23f550723fbef",
+      "severity": "MINOR",
+      "type": "VULNERABILITY"
+    },
+    {
+      "issueId": "da6d6f1c-c9f3-4df7-8fed-8f25c395c022",
+      "rule": "javascript:S2871",
+      "component": "nodeaccess:tools/sonarqube/ledger.mjs",
+      "line": 61,
+      "hash": "897606994e729f1fa41a4ac3c0f223c6",
+      "severity": "CRITICAL",
+      "type": "BUG"
+    },
+    {
+      "issueId": "5bf1ab7b-83d9-4640-8584-0b27bb878ead",
+      "rule": "javascript:S2871",
+      "component": "nodeaccess:tools/coverage/inventory.mjs",
+      "line": 12,
+      "hash": "0455a6f48ec2ea18601f48c88fa39da0",
+      "severity": "CRITICAL",
+      "type": "BUG"
+    },
+    {
+      "issueId": "85039aab-a2a1-41d5-bf0a-a1deca353457",
+      "rule": "javascript:S4036",
+      "component": "nodeaccess:tools/coverage/inventory.mjs",
+      "line": 12,
+      "hash": "0455a6f48ec2ea18601f48c88fa39da0",
+      "severity": "MINOR",
+      "type": "VULNERABILITY"
+    },
+    {
+      "issueId": "3397e69e-3158-4e61-99a6-08ddc48bdd01",
+      "rule": "javascript:S3403",
+      "component": "nodeaccess:tools/coverage/lcov.mjs",
+      "line": 29,
+      "hash": "5c94808c727f697c76e18dee79ec0d29",
+      "severity": "MAJOR",
+      "type": "BUG"
+    },
+    {
+      "issueId": "6228f74e-1de9-471c-a397-da052d2b39b7",
+      "rule": "javascript:S4036",
+      "component": "nodeaccess:tools/coverage/lcov.mjs",
+      "line": 67,
+      "hash": "5f4ce656bf608ecf7050ee94d26768c4",
+      "severity": "MINOR",
+      "type": "VULNERABILITY"
+    },
+    {
+      "issueId": "007fda17-762e-4618-8711-9afb09cf3cbd",
+      "rule": "javascript:S2871",
+      "component": "nodeaccess:tools/coverage/lcov.mjs",
+      "line": 73,
+      "hash": "c4740dfee02653fb1d42865372f54d07",
+      "severity": "CRITICAL",
+      "type": "BUG"
+    },
+    {
+      "issueId": "ead3ecb3-0d03-4869-8216-ab72d796fd92",
+      "rule": "javascript:S2871",
+      "component": "nodeaccess:tools/coverage/node-map.mjs",
+      "line": 13,
+      "hash": "966d4cc2a4ef520170aafe56a475de22",
+      "severity": "CRITICAL",
+      "type": "BUG"
+    },
+    {
+      "issueId": "18e1be64-c90a-4edc-9634-ae1e37e1b2e5",
+      "rule": "javascript:S4036",
+      "component": "nodeaccess:tools/coverage/run.mjs",
+      "line": 29,
+      "hash": "93e5519f910d2f9924e510ed68ec9e70",
+      "severity": "MINOR",
+      "type": "VULNERABILITY"
+    },
+    {
+      "issueId": "a976b0bb-adcf-432c-ab18-ad265fd94ce3",
+      "rule": "javascript:S4036",
+      "component": "nodeaccess:tools/coverage/run.mjs",
+      "line": 40,
+      "hash": "dd88a083ad38c2a1a561612f7f4fbdfb",
+      "severity": "MINOR",
+      "type": "VULNERABILITY"
+    },
+    {
+      "issueId": "a1acdc7b-85e1-4797-abcf-c773f83259d7",
+      "rule": "javascript:S2871",
+      "component": "nodeaccess:tools/coverage/summary.mjs",
+      "line": 48,
+      "hash": "726513ea6018fdbbce1c5acd612f42f1",
+      "severity": "CRITICAL",
+      "type": "BUG"
+    },
+    {
+      "issueId": "f3319d29-c81b-4599-9d81-b8c7e8cd860f",
+      "rule": "javascript:S7737",
+      "component": "nodeaccess:tools/sonarqube/maintenance-common.mjs",
+      "line": 51,
+      "hash": "21147ed7e4201ee3619c69d591e6489c",
+      "severity": "MINOR",
+      "type": "CODE_SMELL"
+    },
+    {
+      "issueId": "4cb49b09-f9b0-4c34-a61a-3f6584c2cc14",
+      "rule": "javascript:S4036",
+      "component": "nodeaccess:tools/sonarqube/validate.mjs",
+      "line": 49,
+      "hash": "783db67800289ddfafc00e189e438164",
+      "severity": "MINOR",
+      "type": "VULNERABILITY"
+    },
+    {
+      "issueId": "e56f6cf5-7540-422b-88a0-6b198cdf4e3e",
+      "rule": "javascript:S5443",
+      "component": "nodeaccess:tools/frontend/sonar-flow-coverage.cjs",
+      "line": 9,
+      "hash": "69499e3c7bc3c1d9254b8081a43dff45",
+      "severity": "CRITICAL",
+      "type": "VULNERABILITY"
+    },
+    {
+      "issueId": "df87f86b-f70b-41c4-bcc2-12fd403ac59b",
+      "rule": "javascript:S2699",
+      "component": "nodeaccess:scripts/dependency-patches/dependency-compatibility.test.cjs",
+      "line": 22,
+      "hash": "c2d8489b084fb70ca461870a8b274d0c",
+      "severity": "BLOCKER",
+      "type": "CODE_SMELL"
+    },
+    {
+      "issueId": "a06d35f0-098d-4904-8f6c-9997a3a98667",
+      "rule": "javascript:S2699",
+      "component": "nodeaccess:scripts/dependency-patches/dependency-compatibility.test.cjs",
+      "line": 63,
+      "hash": "13b61d623675f60687269907bff74be6",
+      "severity": "BLOCKER",
+      "type": "CODE_SMELL"
+    },
+    {
+      "issueId": "5c7ea042-6889-44a3-89f6-048014debaf8",
+      "rule": "javascript:S7727",
+      "component": "nodeaccess:tools/frontend/sonar-frontend-review.cjs",
+      "line": 141,
+      "hash": "57bdb4b51c9ee3dedfe3312b6761d877",
+      "severity": "MAJOR",
+      "type": "BUG"
+    },
+    {
+      "issueId": "703e5ff5-2b52-47b0-ac37-93c63e7f2f95",
+      "rule": "javascript:S7727",
+      "component": "nodeaccess:tools/frontend/sonar-frontend-review.cjs",
+      "line": 141,
+      "hash": "57bdb4b51c9ee3dedfe3312b6761d877",
+      "severity": "MAJOR",
+      "type": "BUG"
+    },
+    {
+      "issueId": "760d5d10-de20-4639-ad4a-34a16695cf29",
+      "rule": "javascript:S7727",
+      "component": "nodeaccess:tools/sonarqube/ledger.mjs",
+      "line": 31,
+      "hash": "379d4bcf32123246ad1a87dd46c4e3dc",
+      "severity": "MAJOR",
+      "type": "BUG"
+    },
+    {
+      "issueId": "9c38f80e-1b06-41df-8e31-6766e34fc402",
+      "rule": "javascript:S7727",
+      "component": "nodeaccess:tools/sonarqube/ledger.mjs",
+      "line": 108,
+      "hash": "af6f0f49316bd1de97598b03bf17285d",
+      "severity": "MAJOR",
+      "type": "BUG"
+    },
+    {
+      "issueId": "77db9af1-009d-4922-abcf-ac54be868728",
+      "rule": "javascript:S7727",
+      "component": "nodeaccess:tools/sonarqube/ledger.mjs",
+      "line": 109,
+      "hash": "58ae610dd0b65bf971b73f76579b7702",
+      "severity": "MAJOR",
+      "type": "BUG"
+    },
+    {
+      "issueId": "f695f260-eb67-4017-b773-cf39ce03b045",
+      "rule": "javascript:S8786",
+      "component": "nodeaccess:tools/coverage/harness-diagnostics.cjs",
+      "line": 19,
+      "hash": "0d98abeb5b7fc3e3e432844d7f0f0c21",
+      "severity": "MAJOR",
+      "type": "CODE_SMELL"
+    },
+    {
+      "issueId": "218e14d9-5eba-4907-af26-509994afe393",
+      "rule": "typescript:S6324",
+      "component": "nodeaccess:apps/frontend/src/services/terminal-audit-controls.service.ts",
+      "line": 31,
+      "hash": "c22bb37239ac8ddb8d624b8b79f778ca",
+      "severity": "MAJOR",
+      "type": "BUG"
+    },
+    {
+      "issueId": "57ea3afd-860c-411b-9cfe-87f7967397c0",
+      "rule": "typescript:S6324",
+      "component": "nodeaccess:apps/frontend/src/services/terminal-audit-controls.service.ts",
+      "line": 31,
+      "hash": "c22bb37239ac8ddb8d624b8b79f778ca",
+      "severity": "MAJOR",
+      "type": "BUG"
+    },
+    {
+      "issueId": "a9113693-139d-4665-bfc0-93c8c351cd99",
+      "rule": "typescript:S6324",
+      "component": "nodeaccess:apps/frontend/src/services/terminal-audit-controls.service.ts",
+      "line": 31,
+      "hash": "c22bb37239ac8ddb8d624b8b79f778ca",
+      "severity": "MAJOR",
+      "type": "BUG"
+    },
+    {
+      "issueId": "d30db800-5820-47e1-916c-ed74ec9df457",
+      "rule": "typescript:S6324",
+      "component": "nodeaccess:apps/frontend/src/services/terminal-audit-controls.service.ts",
+      "line": 31,
+      "hash": "c22bb37239ac8ddb8d624b8b79f778ca",
+      "severity": "MAJOR",
+      "type": "BUG"
+    },
+    {
+      "issueId": "fdfae5d6-21d1-4434-8d5f-94228779c6f8",
+      "rule": "typescript:S6324",
+      "component": "nodeaccess:apps/frontend/src/services/terminal-audit-controls.service.ts",
+      "line": 31,
+      "hash": "c22bb37239ac8ddb8d624b8b79f778ca",
+      "severity": "MAJOR",
+      "type": "BUG"
+    },
+    {
+      "issueId": "b6bc4250-7710-485f-bc2d-50664e1d42e2",
+      "rule": "javascript:S3403",
+      "component": "nodeaccess:tools/deploy/restore-mysql-env.cjs",
+      "line": 48,
+      "hash": "57e6e72f93939a99933807d8b51a7ad3",
+      "severity": "MAJOR",
+      "type": "BUG"
+    },
+    {
+      "issueId": "34c6e542-39f8-4476-b7da-50a538e41f0f",
+      "rule": "javascript:S1313",
+      "component": "nodeaccess:tools/frontend/audit-input-safety-playwright.cjs",
+      "line": 146,
+      "hash": "e05d824f39b7c67fe9fdc327ae2c249d",
+      "severity": "MINOR",
+      "type": "CODE_SMELL"
+    },
+    {
+      "issueId": "5ddc4e91-e7af-4762-976e-17ece1124723",
+      "rule": "typescript:S2068",
+      "component": "nodeaccess:tools/frontend/trial-live-playwright.mts",
+      "line": 140,
+      "hash": "029a41a65ddcb09b39ff677e5d598762",
+      "severity": "MAJOR",
+      "type": "VULNERABILITY"
+    },
+    {
+      "issueId": "ffe9aafb-c316-43ca-8184-608aed467c4a",
+      "rule": "javascript:S2612",
+      "component": "nodeaccess:tools/tls/challenge-files.mjs",
+      "line": 27,
+      "hash": "41967976382ccc2bb31bbe8bed8d5045",
+      "severity": "MAJOR",
+      "type": "VULNERABILITY"
+    },
+    {
+      "issueId": "9db2139f-246d-4122-890c-37141d038405",
+      "rule": "javascript:S2612",
+      "component": "nodeaccess:tools/tls/challenge-files.mjs",
+      "line": 32,
+      "hash": "0d560d84fcb906dc6e6ec0bbbcb521da",
+      "severity": "MAJOR",
+      "type": "VULNERABILITY"
+    }
+  ]
+}

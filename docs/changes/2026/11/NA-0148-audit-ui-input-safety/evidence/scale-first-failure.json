@@ -1,0 +1,8 @@
+{
+  "openMs": 6155,
+  "renderEndMs": 188,
+  "commandListRenderMs": 2181,
+  "pageTurnMs": 8466,
+  "longTaskMaxMs": 1967,
+  "liveDomNodes": 992
+}

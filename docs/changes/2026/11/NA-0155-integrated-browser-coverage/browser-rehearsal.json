@@ -1,0 +1,70 @@
+{
+  "status": "passed",
+  "phase": "complete",
+  "captureRunId": "1ee19bfa-08dc-4f0a-82ca-89ed41baf10a",
+  "startedAt": "2026-11-04T15:33:34.141Z",
+  "kind": "real Chromium; Node and mapped browser coverage are collected separately",
+  "harnesses": [
+    {
+      "name": "frontend",
+      "coverageMode": "node-only",
+      "exitCode": 0,
+      "timedOut": false
+    },
+    {
+      "name": "table",
+      "coverageMode": "node-only",
+      "exitCode": 0,
+      "timedOut": false
+    },
+    {
+      "name": "terminal",
+      "coverageMode": "node-and-browser",
+      "exitCode": 0,
+      "timedOut": false
+    },
+    {
+      "name": "platform",
+      "coverageMode": "node-and-browser",
+      "exitCode": 0,
+      "timedOut": false
+    },
+    {
+      "name": "flows",
+      "coverageMode": "node-and-browser",
+      "exitCode": 0,
+      "timedOut": false
+    },
+    {
+      "name": "ha",
+      "coverageMode": "node-and-browser",
+      "exitCode": 0,
+      "timedOut": false
+    },
+    {
+      "name": "audit-input",
+      "coverageMode": "node-and-browser",
+      "exitCode": 0,
+      "timedOut": false
+    },
+    {
+      "name": "highlight-budget",
+      "coverageMode": "node-only",
+      "exitCode": 0,
+      "timedOut": false
+    }
+  ],
+  "origin": "http://127.0.0.1:42801",
+  "finishedAt": "2026-11-04T15:37:59.627Z",
+  "runtime": "Node 24.22.1; local Chromium 1234",
+  "durationSeconds": 265.486,
+  "captures": 12,
+  "capturedScripts": 960,
+  "collectorPortClosed": true,
+  "limitations": [
+    "Local Chromium 1234; hosted Chromium 1248 not executed in this rehearsal",
+    "Vite logged ResizeObserver loop completed with undelivered notifications during HA; HA seven scenarios have empty findings",
+    "No aggregate coverage gain claimed before official conversion and merge",
+    "Browser APIs and SSH/WebSocket boundaries are synthetic fixtures; no VPS accessed"
+  ]
+}

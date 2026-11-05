@@ -1,4 +1,5 @@
 import { Prisma, type PrismaClient } from '@prisma/client'
+import { randomBytes } from 'node:crypto'
 import type { AiScriptArtifactDetail } from '@nodeaccess/shared'
 
 type Row = Omit<AiScriptArtifactDetail, 'status' | 'risk'> & { status: string; risk: string }
@@ -10,6 +11,10 @@ export class AiScriptArtifactRepository {
     tenantId: number; hostId: number; createdById: number; title: string; objective: string
     content: string; checksum: string; risk: 'safe' | 'approval_required'; interactionCorrelationId?: string | null
   }): Promise<AiScriptArtifactDetail> {
+    // Persist the unpredictable destination before approval; never substitute the approved command later.
+    // Decimal encoding preserves the legacy destination validator for rollback.
+    const nonce = BigInt(`0x${randomBytes(16).toString('hex')}`).toString(10)
+    const destination = `/tmp/nodeaccess-ai-script-${nonce}.sh`
     const id = await this.db.$transaction(async (tx) => {
       await tx.$executeRaw(Prisma.sql`
         INSERT INTO ai_script_artifacts (
@@ -17,14 +22,11 @@ export class AiScriptArtifactRepository {
           content, checksum, status, risk, interaction_correlation_id, created_at, updated_at
         ) VALUES (
           ${input.tenantId}, ${input.hostId}, ${input.createdById}, ${input.title}, ${input.objective},
-          ${'/tmp/pending'}, ${input.content}, ${input.checksum}, ${'draft'}, ${input.risk}, ${input.interactionCorrelationId ?? null}, NOW(), NOW()
+          ${destination}, ${input.content}, ${input.checksum}, ${'draft'}, ${input.risk}, ${input.interactionCorrelationId ?? null}, NOW(), NOW()
         )
       `)
       const rows = await tx.$queryRaw<Array<{ id: bigint }>>(Prisma.sql`SELECT LAST_INSERT_ID() AS id`)
       const artifactId = Number(rows[0]?.id)
-      await tx.$executeRaw(Prisma.sql`
-        UPDATE ai_script_artifacts SET destination = ${`/tmp/nodeaccess-ai-script-${artifactId}.sh`} WHERE id = ${artifactId}
-      `)
       return artifactId
     })
     const artifact = await this.findById(id, input.tenantId)

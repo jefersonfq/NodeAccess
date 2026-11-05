@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { hasEmailShape } from '@/services/text-boundaries'
 import { computed, ref, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { NForm, NFormItem, NInput, NButton, NAlert, NDivider, NSpin } from 'naive-ui'
@@ -154,7 +155,7 @@ async function handleGoogleCredential(response: { credential: string }): Promise
 async function continueFromEmail(): Promise<void> {
   error.value = null
   const trimmed = email.value.trim()
-  if (!trimmed || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) {
+  if (!trimmed || !hasEmailShape(trimmed)) {
     error.value = t('auth.login.invalidData')
     return
   }

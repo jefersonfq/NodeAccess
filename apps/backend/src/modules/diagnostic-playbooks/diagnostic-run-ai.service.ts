@@ -1,3 +1,4 @@
+import { jsonFenceBody } from '../../shared/linear-text.js'
 import { trialAiFetch } from '../trials/trial-outbound.js'
 import { trialFeatureAvailable } from '../trials/trial-policy.js'
 import { z } from 'zod'
@@ -485,8 +486,8 @@ function extractJsonObject(text: string): string {
   const trimmed = text.trim()
   if (trimmed.startsWith('{') || trimmed.startsWith('[')) return trimmed
 
-  const fencedMatch = trimmed.match(/```(?:json)?\s*([\s\S]*?)```/i)
-  if (fencedMatch?.[1]) return fencedMatch[1].trim()
+  const fencedBody = jsonFenceBody(trimmed)
+  if (fencedBody) return fencedBody
 
   const start = trimmed.indexOf('{')
   const end = trimmed.lastIndexOf('}')

@@ -1,0 +1,60 @@
+{
+  "findings": [
+    {
+      "path": "tools/network-access/live.mjs",
+      "rule": "generic-api-key",
+      "line": 18,
+      "fileSha256": "96f44ca530bfb84b407556dadc125e708e3cd47723b5e0f2ae3f88c776280ed4",
+      "reason": "Material público e descartável de teste/CI; não usar em produção; revalidado na NA-0069 após integração."
+    },
+    {
+      "path": ".github/workflows/manual-pilot.yml",
+      "rule": "generic-api-key",
+      "line": 23,
+      "fileSha256": "70164efc72a2a991583a6d8fecf2840b446f48ec2956a3c931289f499efc5889",
+      "reason": "Constante sintética de 64 dígitos hexadecimais usada somente pelo job de captura manual em ambiente CI; não é obtida de secret nem credencial de ambiente implantado."
+    },
+    {
+      "path": ".github/workflows/quality-gate.yml",
+      "rule": "generic-api-key",
+      "line": 13,
+      "fileSha256": "9304673b60ba2358aefd585a0ef406ab01647590c53b82c478393153f0c02a3e",
+      "reason": "Constante sintética de criptografia para testes/build do quality gate; valor de exemplo público, sem vínculo com chaves PEM ou dados de produção."
+    },
+    {
+      "path": ".github/workflows/sonarqube.yml",
+      "rule": "generic-api-key",
+      "line": 30,
+      "fileSha256": "ba4e359ee3c642ab4d54ee196b76d278d2c3833f542f95bbd77fe3b8c70c61de",
+      "reason": "Constante sintética PEM de teste no job Sonar efêmero; sem acesso a dados de produção; tokens reais do scanner são gerados separadamente em runtime."
+    },
+    {
+      "path": "apps/backend/src/modules/network-access/network-access.service.test.ts",
+      "rule": "generic-api-key",
+      "line": 163,
+      "fileSha256": "74e3a3a248a1ef7372e0d6a1bb9d728dcdbc715363c59152f11c420fcf1ffa88",
+      "reason": "Argumentos literais sintéticos cmd=password/cmd-arg=synthetic exercitam a redação de comandos; a asserção exige texto omitido no evento, não autentica equipamento."
+    },
+    {
+      "path": "apps/frontend/src/services/pem-key-encryption.ts",
+      "rule": "private-key",
+      "line": 3,
+      "fileSha256": "83436c8c95db0d528230c554979bfbc1f52f40af13aee9019a3e743d38a8d96e",
+      "reason": "Expressão regular reconhece somente marcador BEGIN ENCRYPTED PRIVATE KEY; não contém corpo base64, material criptográfico ou chave privada."
+    },
+    {
+      "path": "docs/README_SONARQUBE_NODEACCESS_AGENT.md",
+      "rule": "curl-auth-user",
+      "line": 180,
+      "fileSha256": "31acef9742060c5da14b911e179d16b9647996614c1feeeb5906a37b7a344d8d",
+      "reason": "Exemplo curl referencia variável de sessão SONAR_TOKEN; não há token literal. Procedimento solicita leitura silenciosa e unset após uso."
+    },
+    {
+      "path": "tools/network-access/live.mjs",
+      "rule": "generic-api-key",
+      "line": 19,
+      "fileSha256": "906666bc8d5c7c9b1e98b3b4224d8a59410526f399401d6183534ebe3a97270f",
+      "reason": "Segredo TACACS explicitamente descartável em harness opt-in RUN_NETWORK_ACCESS_LIVE; tenant e dispositivos temporários, listener loopback e limpeza finally. Não é credencial de rede real."
+    }
+  ]
+}

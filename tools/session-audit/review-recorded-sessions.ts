@@ -1,3 +1,4 @@
+import { artifactPath } from '../shared/private-artifacts.cjs'
 /** Read-only inventory/reconstruction review. Never connects to audited hosts. */
 import { PrismaClient } from '@prisma/client'
 import { readFile, writeFile } from 'node:fs/promises'
@@ -7,7 +8,7 @@ import { createHash } from 'node:crypto'
 import { buildCommandTimeline, parsePreviewLine } from '../../apps/backend/src/modules/session-audit/session-audit-normalizer.js'
 import type { SessionAuditPreviewEvent } from '@nodeaccess/shared'
 const db = new PrismaClient()
-const reportPath = process.env.AUDIT_REVIEW_REPORT ?? '/tmp/nodeaccess-recorded-audit-review.json'
+const reportPath = process.env.AUDIT_REVIEW_REPORT ?? artifactPath('nodeaccess-recorded-audit-review.json')
 async function main() {
   if (!['localhost', '127.0.0.1'].includes(new URL(process.env.DATABASE_URL ?? '').hostname)) throw Error('This harness requires a local review database')
   const rows = await db.sessionAudit.findMany({ where: { commandCount: { gt: 5 } }, select: { sessionId: true, tenantId: true, commandCount: true, chunks: { orderBy: { seq: 'asc' }, select: { storageKey: true, seq: true } } }, orderBy: { sessionId: 'asc' } })

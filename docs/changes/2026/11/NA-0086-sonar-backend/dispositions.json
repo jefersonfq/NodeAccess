@@ -1,0 +1,1372 @@
+[
+  {
+    "issueId": "0c5cfe0e-6f7a-4244-a413-22e37508cbc6",
+    "rule": "typescript:S1313",
+    "file": "apps/backend/src/modules/trials/trial-policy.ts",
+    "baselineLine": 99,
+    "status": "context_reviewed",
+    "rationale": "Falso positivo aplicado e confirmado no Sonar, com revisor temporário autorizado e desativado. Rechecked against installed rule definition and the prior occurrence-specific evidence. A constante '172.16.0.0/12' (coluna 55) identifica espaço privado para política de roteamento trial. A exceção ainda exige perfil completo, rota agent-only, allowCustomHosts e exclusão de endereços protegidos/rede do lab.",
+    "evidence": [
+      "apps/backend/src/modules/trials/trial-policy.ts",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/final-review.json"
+    ],
+    "risk": "baixo"
+  },
+  {
+    "issueId": "70c71381-d984-41d0-bd21-3c12d7287a04",
+    "rule": "typescript:S1313",
+    "file": "apps/backend/src/modules/trials/trial-policy.ts",
+    "baselineLine": 99,
+    "status": "context_reviewed",
+    "rationale": "Falso positivo aplicado e confirmado no Sonar, com revisor temporário autorizado e desativado. Rechecked against installed rule definition and the prior occurrence-specific evidence. A constante '192.168.0.0/16' (coluna 72) identifica espaço privado para política de roteamento trial. A exceção ainda exige perfil completo, rota agent-only, allowCustomHosts e exclusão de endereços protegidos/rede do lab.",
+    "evidence": [
+      "apps/backend/src/modules/trials/trial-policy.ts",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/final-review.json"
+    ],
+    "risk": "baixo"
+  },
+  {
+    "issueId": "eb6736bf-e1bd-4a8e-93b4-da2ab4502dfa",
+    "rule": "typescript:S1313",
+    "file": "apps/backend/src/modules/trials/trial-policy.ts",
+    "baselineLine": 99,
+    "status": "context_reviewed",
+    "rationale": "Falso positivo aplicado e confirmado no Sonar, com revisor temporário autorizado e desativado. Rechecked against installed rule definition and the prior occurrence-specific evidence. A constante '10.0.0.0/8' (coluna 41) identifica espaço privado para política de roteamento trial. A exceção ainda exige perfil completo, rota agent-only, allowCustomHosts e exclusão de endereços protegidos/rede do lab.",
+    "evidence": [
+      "apps/backend/src/modules/trials/trial-policy.ts",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/final-review.json"
+    ],
+    "risk": "baixo"
+  },
+  {
+    "issueId": "14421ceb-0773-4872-b86e-453766845625",
+    "rule": "typescript:S1313",
+    "file": "apps/backend/src/modules/trials/trial-address-policy.ts",
+    "baselineLine": 6,
+    "status": "context_reviewed",
+    "rationale": "Falso positivo aplicado e confirmado no Sonar, com revisor temporário autorizado e desativado. Rechecked against installed rule definition and the prior occurrence-specific evidence. A constante '10.0.0.0' (coluna 19) define faixa restrita na política de IPv4 de trial; é dado normativo de bloqueio, não destino fixo. A comparação numérica por prefixo rejeita essa faixa.",
+    "evidence": [
+      "apps/backend/src/modules/trials/trial-address-policy.ts",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/final-review.json"
+    ],
+    "risk": "baixo"
+  },
+  {
+    "issueId": "1d1925e1-6f0f-4805-affb-a4e83beabad9",
+    "rule": "typescript:S1313",
+    "file": "apps/backend/src/modules/trials/trial-address-policy.ts",
+    "baselineLine": 6,
+    "status": "context_reviewed",
+    "rationale": "Falso positivo aplicado e confirmado no Sonar, com revisor temporário autorizado e desativado. Rechecked against installed rule definition and the prior occurrence-specific evidence. A constante '169.254.0.0' (coluna 71) define faixa restrita na política de IPv4 de trial; é dado normativo de bloqueio, não destino fixo. A comparação numérica por prefixo rejeita essa faixa.",
+    "evidence": [
+      "apps/backend/src/modules/trials/trial-address-policy.ts",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/final-review.json"
+    ],
+    "risk": "baixo"
+  },
+  {
+    "issueId": "45d9981d-0b91-416f-bdca-13a6240d1a40",
+    "rule": "typescript:S1313",
+    "file": "apps/backend/src/modules/trials/trial-address-policy.ts",
+    "baselineLine": 6,
+    "status": "context_reviewed",
+    "rationale": "Falso positivo aplicado e confirmado no Sonar, com revisor temporário autorizado e desativado. Rechecked against installed rule definition and the prior occurrence-specific evidence. A constante '172.16.0.0' (coluna 91) define faixa restrita na política de IPv4 de trial; é dado normativo de bloqueio, não destino fixo. A comparação numérica por prefixo rejeita essa faixa.",
+    "evidence": [
+      "apps/backend/src/modules/trials/trial-address-policy.ts",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/final-review.json"
+    ],
+    "risk": "baixo"
+  },
+  {
+    "issueId": "4c43875f-ee98-4882-99f8-d295d081dfa0",
+    "rule": "typescript:S1313",
+    "file": "apps/backend/src/modules/trials/trial-address-policy.ts",
+    "baselineLine": 6,
+    "status": "context_reviewed",
+    "rationale": "Falso positivo aplicado e confirmado no Sonar, com revisor temporário autorizado e desativado. Rechecked against installed rule definition and the prior occurrence-specific evidence. A constante '100.64.0.0' (coluna 35) define faixa restrita na política de IPv4 de trial; é dado normativo de bloqueio, não destino fixo. A comparação numérica por prefixo rejeita essa faixa.",
+    "evidence": [
+      "apps/backend/src/modules/trials/trial-address-policy.ts",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/final-review.json"
+    ],
+    "risk": "baixo"
+  },
+  {
+    "issueId": "06f14c75-d6a4-4b43-911b-ad454436ff56",
+    "rule": "typescript:S1313",
+    "file": "apps/backend/src/modules/trials/trial-address-policy.ts",
+    "baselineLine": 7,
+    "status": "context_reviewed",
+    "rationale": "Falso positivo aplicado e confirmado no Sonar, com revisor temporário autorizado e desativado. Rechecked against installed rule definition and the prior occurrence-specific evidence. A constante '224.0.0.0' (coluna 140) define faixa restrita na política de IPv4 de trial; é dado normativo de bloqueio, não destino fixo. A comparação numérica por prefixo rejeita essa faixa.",
+    "evidence": [
+      "apps/backend/src/modules/trials/trial-address-policy.ts",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/final-review.json"
+    ],
+    "risk": "baixo"
+  },
+  {
+    "issueId": "20741df4-375b-40e9-a539-97b8dc562a88",
+    "rule": "typescript:S1313",
+    "file": "apps/backend/src/modules/trials/trial-address-policy.ts",
+    "baselineLine": 7,
+    "status": "context_reviewed",
+    "rationale": "Falso positivo aplicado e confirmado no Sonar, com revisor temporário autorizado e desativado. Rechecked against installed rule definition and the prior occurrence-specific evidence. A constante '192.0.0.0' (coluna 4) define faixa restrita na política de IPv4 de trial; é dado normativo de bloqueio, não destino fixo. A comparação numérica por prefixo rejeita essa faixa.",
+    "evidence": [
+      "apps/backend/src/modules/trials/trial-address-policy.ts",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/final-review.json"
+    ],
+    "risk": "baixo"
+  },
+  {
+    "issueId": "bced2a1b-fce1-4e38-a3b6-23fa0272eb7b",
+    "rule": "typescript:S1313",
+    "file": "apps/backend/src/modules/trials/trial-address-policy.ts",
+    "baselineLine": 7,
+    "status": "context_reviewed",
+    "rationale": "Falso positivo aplicado e confirmado no Sonar, com revisor temporário autorizado e desativado. Rechecked against installed rule definition and the prior occurrence-specific evidence. A constante '192.88.99.0' (coluna 40) define faixa restrita na política de IPv4 de trial; é dado normativo de bloqueio, não destino fixo. A comparação numérica por prefixo rejeita essa faixa.",
+    "evidence": [
+      "apps/backend/src/modules/trials/trial-address-policy.ts",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/final-review.json"
+    ],
+    "risk": "baixo"
+  },
+  {
+    "issueId": "ec102774-f282-4408-8ccf-2dfc37fc7a76",
+    "rule": "typescript:S1313",
+    "file": "apps/backend/src/modules/trials/trial-address-policy.ts",
+    "baselineLine": 7,
+    "status": "context_reviewed",
+    "rationale": "Falso positivo aplicado e confirmado no Sonar, com revisor temporário autorizado e desativado. Rechecked against installed rule definition and the prior occurrence-specific evidence. A constante '192.168.0.0' (coluna 60) define faixa restrita na política de IPv4 de trial; é dado normativo de bloqueio, não destino fixo. A comparação numérica por prefixo rejeita essa faixa.",
+    "evidence": [
+      "apps/backend/src/modules/trials/trial-address-policy.ts",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/final-review.json"
+    ],
+    "risk": "baixo"
+  },
+  {
+    "issueId": "ffa5a33d-c24f-47aa-ae44-7ef1bc1a58e9",
+    "rule": "typescript:S1313",
+    "file": "apps/backend/src/modules/trials/trial-address-policy.ts",
+    "baselineLine": 7,
+    "status": "context_reviewed",
+    "rationale": "Falso positivo aplicado e confirmado no Sonar, com revisor temporário autorizado e desativado. Rechecked against installed rule definition and the prior occurrence-specific evidence. A constante '198.18.0.0' (coluna 80) define faixa restrita na política de IPv4 de trial; é dado normativo de bloqueio, não destino fixo. A comparação numérica por prefixo rejeita essa faixa.",
+    "evidence": [
+      "apps/backend/src/modules/trials/trial-address-policy.ts",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/final-review.json"
+    ],
+    "risk": "baixo"
+  },
+  {
+    "issueId": "25702922-b8ea-47a6-a8bd-e814faa9d7cc",
+    "rule": "typescript:S8786",
+    "file": "apps/backend/src/modules/trials/trial-machines.ts",
+    "baselineLine": 103,
+    "status": "fixed",
+    "rationale": "Estado FIXED confirmado pelo scanner final. NA-0151: correção implementada e ocorrência ausente na análise 28a77996d. Fingerprint de labSchema43base64+paddingopcional: comparação remove no máximo um padding.",
+    "evidence": [
+      "apps/backend/src/modules/trials/trial-machines.ts",
+      "apps/backend/src/modules/trials/trial-contract.ts",
+      "apps/backend/src/modules/trials/provider-contract.test.ts",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json"
+    ],
+    "risk": "baixo"
+  },
+  {
+    "issueId": "b1bded3c-7381-47c6-a49c-e11cf1fc1c57",
+    "rule": "typescript:S8786",
+    "file": "apps/backend/src/modules/trials/trial-machines.ts",
+    "baselineLine": 119,
+    "status": "fixed",
+    "rationale": "Estado FIXED confirmado pelo scanner final. NA-0151: correção implementada e ocorrência ausente na análise 28a77996d. Fingerprint de labSchema43base64+paddingopcional: persistência conserva exatamente um padding.",
+    "evidence": [
+      "apps/backend/src/modules/trials/trial-machines.ts",
+      "apps/backend/src/modules/trials/trial-contract.ts",
+      "apps/backend/src/modules/trials/provider-contract.test.ts",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json"
+    ],
+    "risk": "baixo"
+  },
+  {
+    "issueId": "3377b223-d97d-4932-a99a-5bf0d10eb9c9",
+    "rule": "typescript:S8786",
+    "file": "apps/backend/src/modules/trials/trial.service.ts",
+    "baselineLine": 346,
+    "status": "fixed",
+    "rationale": "Estado FIXED confirmado pelo scanner final. NA-0151: correção implementada e ocorrência ausente na análise 28a77996d. Único provisioner produtivo valida labSchema antes do serviço; persistência conserva um padding.",
+    "evidence": [
+      "apps/backend/src/modules/trials/trial.service.ts",
+      "apps/backend/src/modules/trials/trial-contract.ts",
+      "apps/backend/src/modules/trials/provider-contract.test.ts",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json"
+    ],
+    "risk": "baixo"
+  },
+  {
+    "issueId": "12d93f64-f9d7-4eb4-8440-c085092416bd",
+    "rule": "typescript:S7059",
+    "file": "apps/backend/src/modules/agents/agent.service.ts",
+    "baselineLine": 207,
+    "status": "context_reviewed",
+    "rationale": "Falso positivo aplicado e confirmado no Sonar, com revisor temporário autorizado e desativado. Rechecked against installed rule definition and the prior occurrence-specific evidence. O parâmetro inicializa uma função, não inicia a operação assíncrona no construtor. disconnectById/Promise.resolve só executam quando invalidateAgent é chamado, e os três consumidores aguardam a Promise.",
+    "evidence": [
+      "apps/backend/src/modules/agents/agent.service.ts",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/final-review.json"
+    ],
+    "risk": "baixo"
+  },
+  {
+    "issueId": "1d322c3b-1a8a-4689-b46c-aa7e4570f1de",
+    "rule": "typescript:S6324",
+    "file": "apps/backend/src/modules/session-audit/session-audit-history.ts",
+    "baselineLine": 4,
+    "status": "context_reviewed",
+    "rationale": "Falso positivo aplicado e confirmado no Sonar, com revisor temporário autorizado e desativado. Rechecked against installed rule definition and the prior occurrence-specific evidence. ESC identifica toggles de bracketed paste e BEL é descartado antes de reconstruir histórico observado. A ocorrência '\\\\x07' na coluna 62 faz parte deliberada do protocolo/sanitização; removê-la muda o comportamento.",
+    "evidence": [
+      "apps/backend/src/modules/session-audit/session-audit-history.ts",
+      "apps/backend/src/modules/session-audit/session-audit-normalizer.test.ts",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/final-review.json"
+    ],
+    "risk": "baixo"
+  },
+  {
+    "issueId": "7113a98b-5138-47ee-9a6f-8e943882cebf",
+    "rule": "typescript:S6324",
+    "file": "apps/backend/src/modules/session-audit/session-audit-input.ts",
+    "baselineLine": 79,
+    "status": "context_reviewed",
+    "rationale": "Falso positivo aplicado e confirmado no Sonar, com revisor temporário autorizado e desativado. Rechecked against installed rule definition and the prior occurrence-specific evidence. BEL repetido identifica rejeição de tecla pelo readline e restaura estado de incerteza anterior. A ocorrência '\\\\x07' na coluna 11 faz parte deliberada do protocolo/sanitização; removê-la muda o comportamento.",
+    "evidence": [
+      "apps/backend/src/modules/session-audit/session-audit-input.ts",
+      "apps/backend/src/modules/session-audit/session-audit-normalizer.test.ts",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/final-review.json"
+    ],
+    "risk": "baixo"
+  },
+  {
+    "issueId": "9e7ea99f-3934-44f2-ade9-efaa84fda725",
+    "rule": "typescript:S6324",
+    "file": "apps/backend/src/modules/session-audit/session-audit-input.ts",
+    "baselineLine": 83,
+    "status": "context_reviewed",
+    "rationale": "Falso positivo aplicado e confirmado no Sonar, com revisor temporário autorizado e desativado. Rechecked against installed rule definition and the prior occurrence-specific evidence. BEL/ESC e intervalo de controles distinguem eco explícito de inserção de caractere; evita inferir comando sem evidência. A ocorrência '\\\\x07' na coluna 42 faz parte deliberada do protocolo/sanitização; removê-la muda o comportamento.",
+    "evidence": [
+      "apps/backend/src/modules/session-audit/session-audit-input.ts",
+      "apps/backend/src/modules/session-audit/session-audit-normalizer.test.ts",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/final-review.json"
+    ],
+    "risk": "baixo"
+  },
+  {
+    "issueId": "329e3968-3674-4e1c-9373-551eaaf8d1a6",
+    "rule": "typescript:S6324",
+    "file": "apps/backend/src/modules/session-audit/session-audit-input.ts",
+    "baselineLine": 104,
+    "status": "context_reviewed",
+    "rationale": "Falso positivo aplicado e confirmado no Sonar, com revisor temporário autorizado e desativado. Rechecked against installed rule definition and the prior occurrence-specific evidence. ESC inicia as sequências CSI/SS3 reconhecidas pelo reconstrutor de entrada. A ocorrência '\\\\x1b' na coluna 36 faz parte deliberada do protocolo/sanitização; removê-la muda o comportamento.",
+    "evidence": [
+      "apps/backend/src/modules/session-audit/session-audit-input.ts",
+      "apps/backend/src/modules/session-audit/session-audit-normalizer.test.ts",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/final-review.json"
+    ],
+    "risk": "baixo"
+  },
+  {
+    "issueId": "bb264bc3-d2ec-4d09-b1d2-6022075d37e8",
+    "rule": "typescript:S8786",
+    "file": "apps/backend/src/modules/session-audit/session-audit-normalizer.ts",
+    "baselineLine": 342,
+    "status": "fixed",
+    "rationale": "Estado FIXED confirmado pelo scanner final. Detecção de sufixo agora examina uma única última linha e percorre o sufixo de trás para frente, sem buscar início repetidamente; fast path de backspace reduz custo de stdout fragmentado.",
+    "evidence": [
+      "apps/backend/src/modules/session-audit/session-audit-normalizer.ts",
+      "apps/backend/src/modules/session-audit/session-audit-normalizer.test.ts"
+    ],
+    "risk": "baixo"
+  },
+  {
+    "issueId": "5330fd0a-3eda-4807-9381-666d10f49446",
+    "rule": "typescript:S6324",
+    "file": "apps/backend/src/modules/session-audit/session-audit-normalizer.ts",
+    "baselineLine": 426,
+    "status": "context_reviewed",
+    "rationale": "Falso positivo aplicado e confirmado no Sonar, com revisor temporário autorizado e desativado. Rechecked against installed rule definition and the prior occurrence-specific evidence. NUL/BEL são retirados do tail limitado a 4096 caracteres antes de reconhecer prompt. A ocorrência '\\\\u0000' na coluna 59 faz parte deliberada do protocolo/sanitização; removê-la muda o comportamento.",
+    "evidence": [
+      "apps/backend/src/modules/session-audit/session-audit-normalizer.ts",
+      "apps/backend/src/modules/session-audit/session-audit-normalizer.test.ts",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/final-review.json"
+    ],
+    "risk": "baixo"
+  },
+  {
+    "issueId": "bcaf109e-9efa-4bda-b884-305da244f5a9",
+    "rule": "typescript:S6324",
+    "file": "apps/backend/src/modules/session-audit/session-audit-normalizer.ts",
+    "baselineLine": 426,
+    "status": "context_reviewed",
+    "rationale": "Falso positivo aplicado e confirmado no Sonar, com revisor temporário autorizado e desativado. Rechecked against installed rule definition and the prior occurrence-specific evidence. NUL/BEL são retirados do tail limitado a 4096 caracteres antes de reconhecer prompt. A ocorrência '\\\\u0007' na coluna 65 faz parte deliberada do protocolo/sanitização; removê-la muda o comportamento.",
+    "evidence": [
+      "apps/backend/src/modules/session-audit/session-audit-normalizer.ts",
+      "apps/backend/src/modules/session-audit/session-audit-normalizer.test.ts",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/final-review.json"
+    ],
+    "risk": "baixo"
+  },
+  {
+    "issueId": "ff837000-2a2b-4a89-ae2e-162ce428b264",
+    "rule": "typescript:S8786",
+    "file": "apps/backend/src/modules/sftp/sftp.controller.ts",
+    "baselineLine": 816,
+    "status": "fixed",
+    "rationale": "Estado FIXED confirmado pelo scanner final. Máscara localiza apenas o prefixo da chave e descarta a cauda por slice; remove retry de .* e também protege valores com separador Unicode de linha.",
+    "evidence": [
+      "apps/backend/src/modules/sftp/sftp.controller.ts",
+      "apps/backend/src/modules/sftp/sftp.review.test.ts"
+    ],
+    "risk": "baixo"
+  },
+  {
+    "issueId": "3f86540b-6f80-4ea5-a65c-bdd9d3d710fd",
+    "rule": "typescript:S8786",
+    "file": "apps/backend/src/modules/terminal-highlights/terminal-highlight.service.ts",
+    "baselineLine": 24,
+    "status": "fixed",
+    "rationale": "Estado FIXED confirmado pelo scanner final. NA-0147: correção implementada e ocorrência ausente na análise 28a77996d. Correção e evidências na frente indicada.",
+    "evidence": [
+      "apps/backend/src/modules/terminal-highlights/terminal-highlight.service.ts",
+      "packages/shared/src/schemas/terminal-highlight.schema.ts",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json"
+    ],
+    "risk": "baixo"
+  },
+  {
+    "issueId": "31a66372-8f8f-4821-b1d4-e97e8fb5f55f",
+    "rule": "typescript:S1313",
+    "file": "apps/backend/src/shared/ssrf-guard.ts",
+    "baselineLine": 11,
+    "status": "context_reviewed",
+    "rationale": "Falso positivo aplicado e confirmado no Sonar, com revisor temporário autorizado e desativado. Rechecked against installed rule definition and the prior occurrence-specific evidence. A constante '10.0.0.0' (coluna 20) integra BlockList de SSRF ou a classificação de IPv6 público/mapeado. É limite de endereçamento, não um endpoint de aplicação. Removê-la ou torná-la configuração livre enfraqueceria a política.",
+    "evidence": [
+      "apps/backend/src/shared/ssrf-guard.ts",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/final-review.json"
+    ],
+    "risk": "baixo"
+  },
+  {
+    "issueId": "6eac06ec-58b7-4960-bbd3-e0da9722449a",
+    "rule": "typescript:S1313",
+    "file": "apps/backend/src/shared/ssrf-guard.ts",
+    "baselineLine": 11,
+    "status": "context_reviewed",
+    "rationale": "Falso positivo aplicado e confirmado no Sonar, com revisor temporário autorizado e desativado. Rechecked against installed rule definition and the prior occurrence-specific evidence. A constante '100.64.0.0' (coluna 37) integra BlockList de SSRF ou a classificação de IPv6 público/mapeado. É limite de endereçamento, não um endpoint de aplicação. Removê-la ou torná-la configuração livre enfraqueceria a política.",
+    "evidence": [
+      "apps/backend/src/shared/ssrf-guard.ts",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/final-review.json"
+    ],
+    "risk": "baixo"
+  },
+  {
+    "issueId": "5483fed1-911a-4b50-8abd-b3c18775b584",
+    "rule": "typescript:S1313",
+    "file": "apps/backend/src/shared/ssrf-guard.ts",
+    "baselineLine": 12,
+    "status": "context_reviewed",
+    "rationale": "Falso positivo aplicado e confirmado no Sonar, com revisor temporário autorizado e desativado. Rechecked against installed rule definition and the prior occurrence-specific evidence. A constante '192.0.0.0' (coluna 45) integra BlockList de SSRF ou a classificação de IPv6 público/mapeado. É limite de endereçamento, não um endpoint de aplicação. Removê-la ou torná-la configuração livre enfraqueceria a política.",
+    "evidence": [
+      "apps/backend/src/shared/ssrf-guard.ts",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/final-review.json"
+    ],
+    "risk": "baixo"
+  },
+  {
+    "issueId": "6dc68b07-0d2b-4410-a18d-2eab9726dab6",
+    "rule": "typescript:S1313",
+    "file": "apps/backend/src/shared/ssrf-guard.ts",
+    "baselineLine": 12,
+    "status": "context_reviewed",
+    "rationale": "Falso positivo aplicado e confirmado no Sonar, com revisor temporário autorizado e desativado. Rechecked against installed rule definition and the prior occurrence-specific evidence. A constante '169.254.0.0' (coluna 4) integra BlockList de SSRF ou a classificação de IPv6 público/mapeado. É limite de endereçamento, não um endpoint de aplicação. Removê-la ou torná-la configuração livre enfraqueceria a política.",
+    "evidence": [
+      "apps/backend/src/shared/ssrf-guard.ts",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/final-review.json"
+    ],
+    "risk": "baixo"
+  },
+  {
+    "issueId": "b7fbbc64-d861-4644-9edc-86622ea1b04f",
+    "rule": "typescript:S1313",
+    "file": "apps/backend/src/shared/ssrf-guard.ts",
+    "baselineLine": 12,
+    "status": "context_reviewed",
+    "rationale": "Falso positivo aplicado e confirmado no Sonar, com revisor temporário autorizado e desativado. Rechecked against installed rule definition and the prior occurrence-specific evidence. A constante '172.16.0.0' (coluna 25) integra BlockList de SSRF ou a classificação de IPv6 público/mapeado. É limite de endereçamento, não um endpoint de aplicação. Removê-la ou torná-la configuração livre enfraqueceria a política.",
+    "evidence": [
+      "apps/backend/src/shared/ssrf-guard.ts",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/final-review.json"
+    ],
+    "risk": "baixo"
+  },
+  {
+    "issueId": "33d02c02-d09c-450a-bb63-f63b61b29922",
+    "rule": "typescript:S1313",
+    "file": "apps/backend/src/shared/ssrf-guard.ts",
+    "baselineLine": 13,
+    "status": "context_reviewed",
+    "rationale": "Falso positivo aplicado e confirmado no Sonar, com revisor temporário autorizado e desativado. Rechecked against installed rule definition and the prior occurrence-specific evidence. A constante '192.168.0.0' (coluna 4) integra BlockList de SSRF ou a classificação de IPv6 público/mapeado. É limite de endereçamento, não um endpoint de aplicação. Removê-la ou torná-la configuração livre enfraqueceria a política.",
+    "evidence": [
+      "apps/backend/src/shared/ssrf-guard.ts",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/final-review.json"
+    ],
+    "risk": "baixo"
+  },
+  {
+    "issueId": "b387e874-3b8d-4db9-85c9-c39f098b9167",
+    "rule": "typescript:S1313",
+    "file": "apps/backend/src/shared/ssrf-guard.ts",
+    "baselineLine": 13,
+    "status": "context_reviewed",
+    "rationale": "Falso positivo aplicado e confirmado no Sonar, com revisor temporário autorizado e desativado. Rechecked against installed rule definition and the prior occurrence-specific evidence. A constante '198.18.0.0' (coluna 25) integra BlockList de SSRF ou a classificação de IPv6 público/mapeado. É limite de endereçamento, não um endpoint de aplicação. Removê-la ou torná-la configuração livre enfraqueceria a política.",
+    "evidence": [
+      "apps/backend/src/shared/ssrf-guard.ts",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/final-review.json"
+    ],
+    "risk": "baixo"
+  },
+  {
+    "issueId": "d544c375-1c1f-4b49-977e-2c5c88d17bd8",
+    "rule": "typescript:S1313",
+    "file": "apps/backend/src/shared/ssrf-guard.ts",
+    "baselineLine": 14,
+    "status": "context_reviewed",
+    "rationale": "Falso positivo aplicado e confirmado no Sonar, com revisor temporário autorizado e desativado. Rechecked against installed rule definition and the prior occurrence-specific evidence. A constante '224.0.0.0' (coluna 4) integra BlockList de SSRF ou a classificação de IPv6 público/mapeado. É limite de endereçamento, não um endpoint de aplicação. Removê-la ou torná-la configuração livre enfraqueceria a política.",
+    "evidence": [
+      "apps/backend/src/shared/ssrf-guard.ts",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/final-review.json"
+    ],
+    "risk": "baixo"
+  },
+  {
+    "issueId": "5fa1ef6e-cef6-43cd-9f2c-920d8fadbe5e",
+    "rule": "typescript:S1313",
+    "file": "apps/backend/src/shared/ssrf-guard.ts",
+    "baselineLine": 18,
+    "status": "context_reviewed",
+    "rationale": "Falso positivo aplicado e confirmado no Sonar, com revisor temporário autorizado e desativado. Rechecked against installed rule definition and the prior occurrence-specific evidence. A constante '2000::' (coluna 20) integra BlockList de SSRF ou a classificação de IPv6 público/mapeado. É limite de endereçamento, não um endpoint de aplicação. Removê-la ou torná-la configuração livre enfraqueceria a política.",
+    "evidence": [
+      "apps/backend/src/shared/ssrf-guard.ts",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/final-review.json"
+    ],
+    "risk": "baixo"
+  },
+  {
+    "issueId": "30451ab3-b8ae-4901-8c3b-bf8c62680c10",
+    "rule": "typescript:S1313",
+    "file": "apps/backend/src/shared/ssrf-guard.ts",
+    "baselineLine": 20,
+    "status": "context_reviewed",
+    "rationale": "Falso positivo aplicado e confirmado no Sonar, com revisor temporário autorizado e desativado. Rechecked against installed rule definition and the prior occurrence-specific evidence. A constante '::ffff:0:0' (coluna 20) integra BlockList de SSRF ou a classificação de IPv6 público/mapeado. É limite de endereçamento, não um endpoint de aplicação. Removê-la ou torná-la configuração livre enfraqueceria a política.",
+    "evidence": [
+      "apps/backend/src/shared/ssrf-guard.ts",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/final-review.json"
+    ],
+    "risk": "baixo"
+  },
+  {
+    "issueId": "46abbbed-2951-4129-a4fa-bf491804b000",
+    "rule": "typescript:S1313",
+    "file": "apps/backend/src/shared/ssrf-guard.ts",
+    "baselineLine": 21,
+    "status": "context_reviewed",
+    "rationale": "Falso positivo aplicado e confirmado no Sonar, com revisor temporário autorizado e desativado. Rechecked against installed rule definition and the prior occurrence-specific evidence. A constante '2001::' (coluna 30) integra BlockList de SSRF ou a classificação de IPv6 público/mapeado. É limite de endereçamento, não um endpoint de aplicação. Removê-la ou torná-la configuração livre enfraqueceria a política.",
+    "evidence": [
+      "apps/backend/src/shared/ssrf-guard.ts",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/final-review.json"
+    ],
+    "risk": "baixo"
+  },
+  {
+    "issueId": "87d9ad28-6eac-45a6-85ce-0aee1861ad0f",
+    "rule": "typescript:S1313",
+    "file": "apps/backend/src/shared/ssrf-guard.ts",
+    "baselineLine": 21,
+    "status": "context_reviewed",
+    "rationale": "Falso positivo aplicado e confirmado no Sonar, com revisor temporário autorizado e desativado. Rechecked against installed rule definition and the prior occurrence-specific evidence. A constante '2002::' (coluna 66) integra BlockList de SSRF ou a classificação de IPv6 público/mapeado. É limite de endereçamento, não um endpoint de aplicação. Removê-la ou torná-la configuração livre enfraqueceria a política.",
+    "evidence": [
+      "apps/backend/src/shared/ssrf-guard.ts",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/final-review.json"
+    ],
+    "risk": "baixo"
+  },
+  {
+    "issueId": "9aca2f59-4760-4aab-b1c4-638896efe306",
+    "rule": "typescript:S1313",
+    "file": "apps/backend/src/shared/ssrf-guard.ts",
+    "baselineLine": 21,
+    "status": "context_reviewed",
+    "rationale": "Falso positivo aplicado e confirmado no Sonar, com revisor temporário autorizado e desativado. Rechecked against installed rule definition and the prior occurrence-specific evidence. A constante '3fff::' (coluna 82) integra BlockList de SSRF ou a classificação de IPv6 público/mapeado. É limite de endereçamento, não um endpoint de aplicação. Removê-la ou torná-la configuração livre enfraqueceria a política.",
+    "evidence": [
+      "apps/backend/src/shared/ssrf-guard.ts",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/final-review.json"
+    ],
+    "risk": "baixo"
+  },
+  {
+    "issueId": "2894d177-b76a-40d9-9152-9752b53d15ca",
+    "rule": "typescript:S2245",
+    "file": "apps/backend/src/modules/integrations/jira-interaction.repository.ts",
+    "baselineLine": 80,
+    "status": "context_reviewed",
+    "rationale": "Falso positivo aplicado e confirmado no Sonar, com revisor temporário autorizado e desativado. Rechecked against installed rule definition and the prior occurrence-specific evidence. Math.random somente distribui jitter do prazo de retry; não autentica nem cria claimToken. O token vem de crypto.randomUUID no worker e as transições conferem token e lease. Previsibilidade do atraso não permite reivindicar evento.",
+    "evidence": [
+      "apps/backend/src/modules/integrations/jira-interaction.repository.ts",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/final-review.json"
+    ],
+    "risk": "baixo"
+  },
+  {
+    "issueId": "6f08bb36-06ce-43b6-ac45-3544ce696b80",
+    "rule": "javascript:S7737",
+    "file": "apps/agent/src/local-listeners.js",
+    "baselineLine": 8,
+    "status": "fixed",
+    "rationale": "Estado FIXED confirmado pelo scanner final. NA-0150: correção implementada e ocorrência ausente na análise 28a77996d. Defaults por propriedade apenas undefined; valores explícitos e política de negação preservados.",
+    "evidence": [
+      "apps/agent/src/local-listeners.js",
+      "apps/agent/src/local-listeners.test.js",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json"
+    ],
+    "risk": "baixo"
+  },
+  {
+    "issueId": "c1484cd2-7b4a-40a7-bb38-8ece5b7f93c1",
+    "rule": "typescript:S8786",
+    "file": "apps/backend/src/modules/native-ssh-gateway/native-ssh-gateway.host-key.ts",
+    "baselineLine": 39,
+    "status": "fixed",
+    "rationale": "Estado FIXED confirmado pelo scanner final. NA-0151: correção implementada e ocorrência ausente na análise 28a77996d. SHA25632bytes tem somente um padding base64; trim sem repetição.",
+    "evidence": [
+      "apps/backend/src/modules/native-ssh-gateway/native-ssh-gateway.host-key.ts",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json"
+    ],
+    "risk": "baixo"
+  },
+  {
+    "issueId": "52b546bb-6169-4d21-8a4c-95b3a290df12",
+    "rule": "typescript:S4790",
+    "file": "apps/backend/src/modules/network-access/tacacs-protocol.ts",
+    "baselineLine": 17,
+    "status": "context_reviewed",
+    "rationale": "Decisão operacional pendente; não houve aceite automático. MD5 é exigido pelo pad XOR do TACACS+ legado, mas isso é obfuscação com fraquezas conhecidas, não criptografia moderna. Troca local por SHA quebraria interoperabilidade. Uso exige aceite humano condicionado a rede de gestão protegida, dispositivos autorizados e gestão dos segredos; origem/IP e limites de socket não substituem proteção do canal.",
+    "evidence": [
+      "apps/backend/src/modules/network-access/tacacs-protocol.ts",
+      "apps/backend/src/modules/network-access/tacacs.test.ts",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json"
+    ],
+    "risk": "médio: ofuscação legada do protocolo, exige rede protegida"
+  },
+  {
+    "issueId": "6bc86845-9e6f-473f-a781-6445af489247",
+    "rule": "typescript:S7737",
+    "file": "apps/backend/src/modules/network-access/tacacs-server.ts",
+    "baselineLine": 7,
+    "status": "fixed",
+    "rationale": "Estado FIXED confirmado pelo scanner final. NA-0150: correção implementada e ocorrência ausente na análise 28a77996d. Defaults por propriedade apenas undefined; valores explícitos e política de negação preservados.",
+    "evidence": [
+      "apps/backend/src/modules/network-access/tacacs-server.ts",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json"
+    ],
+    "risk": "baixo"
+  },
+  {
+    "issueId": "40822519-fa60-4e2e-abc6-503d70faa38c",
+    "rule": "typescript:S6959",
+    "file": "apps/backend/src/modules/hosts/host.repository.ts",
+    "baselineLine": 266,
+    "status": "fixed",
+    "rationale": "Estado FIXED confirmado pelo scanner final. NA-0150: correção implementada e ocorrência ausente na análise 28a77996d. Inicial explícito é o primeiro conjunto existente e somente slice(1) é reduzido; guarda vazia, ordem e multiplicidade preservadas.",
+    "evidence": [
+      "apps/backend/src/modules/hosts/host.repository.ts",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json"
+    ],
+    "risk": "baixo"
+  },
+  {
+    "issueId": "374102b8-505f-42e0-bb1f-e531cc2e03aa",
+    "rule": "typescript:S5443",
+    "file": "apps/backend/src/modules/ai-ssh-actions/ai-script-artifact.repository.ts",
+    "baselineLine": 20,
+    "status": "fixed",
+    "rationale": "Estado FIXED confirmado pelo scanner final. Destino com nonce criptográfico de 128 bits codificado em decimal é persistido na criação, antes da aprovação; upload usa criação exclusiva wx e modo 0700. Colisão não sobrescreve/chmod arquivos existentes. Artefato executado/falhado não pode ser reaprovado; nova tentativa exige novo artefato e aprovação. O formato decimal preserva o validador legado; consumidores usam destination persistido, não reconstroem pelo ID.",
+    "evidence": [
+      "apps/backend/src/modules/ai-ssh-actions/ai-script-artifact.repository.ts",
+      "apps/backend/src/modules/ai-ssh-actions/ai-script-upload.test.ts",
+      "apps/backend/src/modules/ai-ssh-actions/ai-script-artifact.repository.test.ts",
+      "apps/backend/src/modules/ai-ssh-actions/ai-script-artifact.service.test.ts",
+      "apps/backend/src/modules/ai-ssh-actions/ai-script-upload.real.test.ts"
+    ],
+    "risk": "baixo"
+  },
+  {
+    "issueId": "9507ac72-b5b8-4115-86a9-a859b95dfa4d",
+    "rule": "typescript:S6324",
+    "file": "apps/backend/src/modules/local-ai/local-ai-terminal-context.ts",
+    "baselineLine": 4,
+    "status": "context_reviewed",
+    "rationale": "Falso positivo aplicado e confirmado no Sonar, com revisor temporário autorizado e desativado. Rechecked against installed rule definition and the prior occurrence-specific evidence. ESC identifica códigos ANSI removidos do contexto enviado à IA; não é caractere acidental. A ocorrência '\\\\x1B' na coluna 15 faz parte deliberada do protocolo/sanitização; removê-la muda o comportamento.",
+    "evidence": [
+      "apps/backend/src/modules/local-ai/local-ai-terminal-context.ts",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/final-review.json"
+    ],
+    "risk": "baixo"
+  },
+  {
+    "issueId": "36e41420-519a-41e3-9923-ae271cdf1db2",
+    "rule": "typescript:S8786",
+    "file": "apps/backend/src/modules/local-ai/local-ai.service.ts",
+    "baselineLine": 991,
+    "status": "fixed",
+    "rationale": "Estado FIXED confirmado pelo scanner final. Scanners lineares substituem remoção de barras finais ou extração de cerca JSON; delimitadores ausentes e whitespace extenso não provocam backtracking.",
+    "evidence": [
+      "apps/backend/src/modules/local-ai/local-ai.service.ts",
+      "apps/backend/src/shared/linear-text.test.ts"
+    ],
+    "risk": "baixo"
+  },
+  {
+    "issueId": "73219f2a-15eb-4303-a17d-8a052034db82",
+    "rule": "typescript:S8786",
+    "file": "apps/backend/src/modules/auth/scim.service.ts",
+    "baselineLine": 61,
+    "status": "fixed",
+    "rationale": "Estado FIXED confirmado pelo scanner final. Parser linear identifica prefixo Bearer, consome separador whitespace uma vez e valida o token sem regex ambíguo. Preserva a gramática legada, o hash consultado e rejeição de quebras de linha; limite prévio de 1024 caracteres e limite de token 256 permanecem como defesa adicional. A primeira solução apenas limitada ainda apareceu na reanálise; scanner linear foi implementado em seguida, pendente de nova observação pelo agente raiz.",
+    "evidence": [
+      "apps/backend/src/modules/auth/scim.service.ts",
+      "apps/backend/src/modules/auth/scim.service.test.ts"
+    ],
+    "risk": "baixo"
+  },
+  {
+    "issueId": "5b554799-eaae-4e87-b123-bdad5c8e5486",
+    "rule": "typescript:S8786",
+    "file": "apps/backend/src/modules/auth/scim.service.ts",
+    "baselineLine": 244,
+    "status": "fixed",
+    "rationale": "Estado FIXED confirmado pelo scanner final. E-mail usa posição única de @, verificação de whitespace e ponto interno do domínio; elimina busca repetida de ponto, mantendo a gramática anterior.",
+    "evidence": [
+      "apps/backend/src/modules/auth/scim.service.ts",
+      "apps/backend/src/modules/auth/scim.service.test.ts"
+    ],
+    "risk": "baixo"
+  },
+  {
+    "issueId": "c2ee4394-aa20-4ba7-b15b-74616258fe5d",
+    "rule": "typescript:S5443",
+    "file": "apps/backend/src/config/env.ts",
+    "baselineLine": 172,
+    "status": "fixed",
+    "rationale": "Estado FIXED confirmado pelo scanner 630040 após NA-0163: default persistente privado; overrides preservados e migração documentada em docs/OPERATIONS-private-storage.md. Avaliação histórica anterior à correção: Decisão operacional pendente; não houve aceite automático. O default de avatares permanece em /tmp. O consumidor escreve via helper privado com owner/mode/symlink checks, mas retenção e compartilhamento seguro entre réplicas não decorrem desse default; precisam configuração e aceite operacional.",
+    "evidence": [
+      "apps/backend/src/config/env.ts",
+      "apps/backend/src/shared/private-storage.ts",
+      "apps/backend/src/shared/private-storage.test.ts",
+      "apps/backend/src/modules/session-audit/session-audit.storage.test.ts",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json"
+    ],
+    "risk": "médio: API e gateway devem usar o mesmo UID; raiz compartilhada/symlink precisa correção operacional"
+  },
+  {
+    "issueId": "788b0121-b72c-4a93-9c48-a4d6bd618e15",
+    "rule": "typescript:S6324",
+    "file": "apps/backend/src/modules/auth/ldap-identity.provider.ts",
+    "baselineLine": 137,
+    "status": "context_reviewed",
+    "rationale": "Falso positivo aplicado e confirmado no Sonar, com revisor temporário autorizado e desativado. Rechecked against installed rule definition and the prior occurrence-specific evidence. NUL deve ser escapado como sequência LDAP \\00 junto aos metacaracteres de filtro, impedindo interpretação de entrada como sintaxe. A ocorrência '\\\\u0000' na coluna 26 faz parte deliberada do protocolo/sanitização; removê-la muda o comportamento.",
+    "evidence": [
+      "apps/backend/src/modules/auth/ldap-identity.provider.ts",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/final-review.json"
+    ],
+    "risk": "baixo"
+  },
+  {
+    "issueId": "3ee9e363-2ddc-4073-9296-55afbefa849c",
+    "rule": "typescript:S9383",
+    "file": "apps/backend/src/modules/ha/ha.service.ts",
+    "baselineLine": 1432,
+    "status": "context_reviewed",
+    "rationale": "Falso positivo aplicado e confirmado no Sonar, com revisor temporário autorizado e desativado. Rechecked against installed rule definition and the prior occurrence-specific evidence. splice insere um PrismaPromise na lista transacional; a lista é explicitamente aguardada por db.$transaction(statements). Não há Promise esquecida. Promise.all aqui alteraria a atomicidade e a ordem do fluxo de promoção.",
+    "evidence": [
+      "apps/backend/src/modules/ha/ha.service.ts",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/final-review.json"
+    ],
+    "risk": "baixo"
+  },
+  {
+    "issueId": "862c0ff8-74b8-42a6-8a55-561777ef9ca3",
+    "rule": "typescript:S8786",
+    "file": "apps/backend/src/modules/session-audit/session-audit-normalizer.ts",
+    "baselineLine": 218,
+    "status": "fixed",
+    "rationale": "Estado FIXED confirmado pelo scanner final. Prompt com caminho entre colchetes é separado por delimitadores em passagem única; whitespace antes de fechamento ausente não é repartido por backtracking.",
+    "evidence": [
+      "apps/backend/src/modules/session-audit/session-audit-normalizer.ts",
+      "apps/backend/src/modules/session-audit/session-audit-normalizer.test.ts"
+    ],
+    "risk": "baixo"
+  },
+  {
+    "issueId": "ae2713d5-a83d-47bd-8efc-fdba5bfc4141",
+    "rule": "typescript:S7773",
+    "file": "apps/backend/src/modules/sftp/sftp.controller.ts",
+    "baselineLine": 499,
+    "status": "fixed",
+    "rationale": "Estado FIXED confirmado pelo scanner final. Usa Number.NaN/Number.isNaN. Chamadas isNaN recebem valor já convertido por Number, preservando comportamento para entradas inválidas sem alterar coerção.",
+    "evidence": [
+      "apps/backend/src/modules/sftp/sftp.controller.ts"
+    ],
+    "risk": "baixo"
+  },
+  {
+    "issueId": "21f7dd57-cac9-4c40-91ee-62550cc60d17",
+    "rule": "typescript:S7773",
+    "file": "apps/backend/src/modules/sftp/sftp.controller.ts",
+    "baselineLine": 628,
+    "status": "fixed",
+    "rationale": "Estado FIXED confirmado pelo scanner final. Usa Number.NaN/Number.isNaN. Chamadas isNaN recebem valor já convertido por Number, preservando comportamento para entradas inválidas sem alterar coerção.",
+    "evidence": [
+      "apps/backend/src/modules/sftp/sftp.controller.ts"
+    ],
+    "risk": "baixo"
+  },
+  {
+    "issueId": "15c67584-81e6-447e-acb2-ab53a161828e",
+    "rule": "typescript:S7773",
+    "file": "apps/backend/src/modules/sftp/sftp.service.ts",
+    "baselineLine": 454,
+    "status": "fixed",
+    "rationale": "Estado FIXED confirmado pelo scanner final. Usa Number.NaN/Number.isNaN. Chamadas isNaN recebem valor já convertido por Number, preservando comportamento para entradas inválidas sem alterar coerção.",
+    "evidence": [
+      "apps/backend/src/modules/sftp/sftp.service.ts"
+    ],
+    "risk": "baixo"
+  },
+  {
+    "issueId": "8b6b0df7-6bd0-49bc-baec-01e9e84313b2",
+    "rule": "typescript:S3923",
+    "file": "apps/backend/src/modules/native-ssh-gateway/native-ssh-gateway.routes.ts",
+    "baselineLine": 248,
+    "status": "fixed",
+    "rationale": "Estado FIXED confirmado pelo scanner final. Ambos os ramos convertiam count por Number; expressão direta preserva BigInt e number e elimina condição redundante.",
+    "evidence": [
+      "apps/backend/src/modules/native-ssh-gateway/native-ssh-gateway.routes.ts"
+    ],
+    "risk": "baixo"
+  },
+  {
+    "issueId": "ec011108-1e25-45d4-9a43-eb2b5aca2676",
+    "rule": "typescript:S2068",
+    "file": "apps/backend/src/modules/auth/auth.routes.ts",
+    "baselineLine": 19,
+    "status": "context_reviewed",
+    "rationale": "Falso positivo aplicado e confirmado no Sonar, com revisor temporário autorizado e desativado. Rechecked against installed rule definition and the prior occurrence-specific evidence. O literal está exclusivamente em loginBodySchema.examples para documentação OpenAPI. Não é default do schema nem credencial usada pelo autenticador; retirar ou rotacionar como segredo de produção confundiria exemplo com autenticação.",
+    "evidence": [
+      "apps/backend/src/modules/auth/auth.routes.ts",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/final-review.json"
+    ],
+    "risk": "baixo"
+  },
+  {
+    "issueId": "2f9bc285-572a-444d-b770-50d2f6ba4d8f",
+    "rule": "typescript:S1313",
+    "file": "apps/backend/src/modules/hosts/host.routes.ts",
+    "baselineLine": 15,
+    "status": "context_reviewed",
+    "rationale": "Falso positivo aplicado e confirmado no Sonar, com revisor temporário autorizado e desativado. Rechecked against installed rule definition and the prior occurrence-specific evidence. O endereço '10.0.10.15' (coluna 9) está em schema.examples de OpenAPI, não em configuração de conexão ou fallback de produção.",
+    "evidence": [
+      "apps/backend/src/modules/hosts/host.routes.ts",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/final-review.json"
+    ],
+    "risk": "baixo"
+  },
+  {
+    "issueId": "e5c6eb8d-afdf-41b5-96d6-695d954777e2",
+    "rule": "typescript:S1313",
+    "file": "apps/backend/src/modules/hosts/host.routes.ts",
+    "baselineLine": 33,
+    "status": "context_reviewed",
+    "rationale": "Falso positivo aplicado e confirmado no Sonar, com revisor temporário autorizado e desativado. Rechecked against installed rule definition and the prior occurrence-specific evidence. O endereço '10.0.10.15' (coluna 9) está em schema.examples de OpenAPI, não em configuração de conexão ou fallback de produção.",
+    "evidence": [
+      "apps/backend/src/modules/hosts/host.routes.ts",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/final-review.json"
+    ],
+    "risk": "baixo"
+  },
+  {
+    "issueId": "a7b29bad-5cea-494d-a4b5-f613c8c94561",
+    "rule": "typescript:S1313",
+    "file": "apps/backend/src/modules/hosts/host.routes.ts",
+    "baselineLine": 41,
+    "status": "context_reviewed",
+    "rationale": "Falso positivo aplicado e confirmado no Sonar, com revisor temporário autorizado e desativado. Rechecked against installed rule definition and the prior occurrence-specific evidence. O endereço '10.0.20.25' (coluna 9) está em schema.examples de OpenAPI, não em configuração de conexão ou fallback de produção.",
+    "evidence": [
+      "apps/backend/src/modules/hosts/host.routes.ts",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/final-review.json"
+    ],
+    "risk": "baixo"
+  },
+  {
+    "issueId": "d4809b65-03d2-4b2d-b954-aab3a203cf8b",
+    "rule": "typescript:S2068",
+    "file": "apps/backend/src/modules/hosts/host.routes.ts",
+    "baselineLine": 46,
+    "status": "context_reviewed",
+    "rationale": "Falso positivo aplicado e confirmado no Sonar, com revisor temporário autorizado e desativado. Rechecked against installed rule definition and the prior occurrence-specific evidence. Literal de senha somente em testConnectionBodySchema.examples para OpenAPI; não preenche payload ausente e não é segredo do transporte SSH.",
+    "evidence": [
+      "apps/backend/src/modules/hosts/host.routes.ts",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/final-review.json"
+    ],
+    "risk": "baixo"
+  },
+  {
+    "issueId": "fe3621db-2fe1-465a-9cc0-50358532e3ff",
+    "rule": "typescript:S6324",
+    "file": "apps/backend/src/modules/session-audit/session-audit-normalizer.ts",
+    "baselineLine": 16,
+    "status": "context_reviewed",
+    "rationale": "Falso positivo aplicado e confirmado no Sonar, com revisor temporário autorizado e desativado. Rechecked against installed rule definition and the prior occurrence-specific evidence. ESC identifica seleção de charset ANSI removida do texto normalizado. A ocorrência '\\\\x1b' na coluna 15 faz parte deliberada do protocolo/sanitização; removê-la muda o comportamento.",
+    "evidence": [
+      "apps/backend/src/modules/session-audit/session-audit-normalizer.ts",
+      "apps/backend/src/modules/session-audit/session-audit-normalizer.test.ts",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/final-review.json"
+    ],
+    "risk": "baixo"
+  },
+  {
+    "issueId": "1e5e63e5-6cac-4288-8559-4fe8a4bd4d64",
+    "rule": "typescript:S6324",
+    "file": "apps/backend/src/modules/session-audit/session-audit-normalizer.ts",
+    "baselineLine": 35,
+    "status": "context_reviewed",
+    "rationale": "Falso positivo aplicado e confirmado no Sonar, com revisor temporário autorizado e desativado. Rechecked against installed rule definition and the prior occurrence-specific evidence. NUL/BEL são excluídos explicitamente da entrada normalizada. A ocorrência '\\\\u0000' na coluna 37 faz parte deliberada do protocolo/sanitização; removê-la muda o comportamento.",
+    "evidence": [
+      "apps/backend/src/modules/session-audit/session-audit-normalizer.ts",
+      "apps/backend/src/modules/session-audit/session-audit-normalizer.test.ts",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/final-review.json"
+    ],
+    "risk": "baixo"
+  },
+  {
+    "issueId": "7fa5b04f-9b1f-4045-8848-d3d4129d2a36",
+    "rule": "typescript:S6324",
+    "file": "apps/backend/src/modules/session-audit/session-audit-normalizer.ts",
+    "baselineLine": 35,
+    "status": "context_reviewed",
+    "rationale": "Falso positivo aplicado e confirmado no Sonar, com revisor temporário autorizado e desativado. Rechecked against installed rule definition and the prior occurrence-specific evidence. NUL/BEL são excluídos explicitamente da entrada normalizada. A ocorrência '\\\\u0007' na coluna 43 faz parte deliberada do protocolo/sanitização; removê-la muda o comportamento.",
+    "evidence": [
+      "apps/backend/src/modules/session-audit/session-audit-normalizer.ts",
+      "apps/backend/src/modules/session-audit/session-audit-normalizer.test.ts",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/final-review.json"
+    ],
+    "risk": "baixo"
+  },
+  {
+    "issueId": "c4144b19-7e57-4d6e-89fc-8d1df30ef8ec",
+    "rule": "typescript:S6324",
+    "file": "apps/backend/src/modules/session-audit/session-audit-normalizer.ts",
+    "baselineLine": 39,
+    "status": "context_reviewed",
+    "rationale": "Falso positivo aplicado e confirmado no Sonar, com revisor temporário autorizado e desativado. Rechecked against installed rule definition and the prior occurrence-specific evidence. NUL/BEL são excluídos após reconstrução de backspaces da saída. A ocorrência '\\\\u0000' na coluna 61 faz parte deliberada do protocolo/sanitização; removê-la muda o comportamento.",
+    "evidence": [
+      "apps/backend/src/modules/session-audit/session-audit-normalizer.ts",
+      "apps/backend/src/modules/session-audit/session-audit-normalizer.test.ts",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/final-review.json"
+    ],
+    "risk": "baixo"
+  },
+  {
+    "issueId": "e2282065-360b-44ad-bf41-615d93948604",
+    "rule": "typescript:S6324",
+    "file": "apps/backend/src/modules/session-audit/session-audit-normalizer.ts",
+    "baselineLine": 39,
+    "status": "context_reviewed",
+    "rationale": "Falso positivo aplicado e confirmado no Sonar, com revisor temporário autorizado e desativado. Rechecked against installed rule definition and the prior occurrence-specific evidence. NUL/BEL são excluídos após reconstrução de backspaces da saída. A ocorrência '\\\\u0007' na coluna 67 faz parte deliberada do protocolo/sanitização; removê-la muda o comportamento.",
+    "evidence": [
+      "apps/backend/src/modules/session-audit/session-audit-normalizer.ts",
+      "apps/backend/src/modules/session-audit/session-audit-normalizer.test.ts",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/final-review.json"
+    ],
+    "risk": "baixo"
+  },
+  {
+    "issueId": "b422e598-2d23-4433-ac35-5a0f17fe2186",
+    "rule": "typescript:S8786",
+    "file": "apps/backend/src/modules/agents/agent.routes.ts",
+    "baselineLine": 57,
+    "status": "fixed",
+    "rationale": "Estado FIXED confirmado pelo scanner final. Scanners lineares substituem remoção de barras finais ou extração de cerca JSON; delimitadores ausentes e whitespace extenso não provocam backtracking.",
+    "evidence": [
+      "apps/backend/src/modules/agents/agent.routes.ts",
+      "apps/backend/src/shared/linear-text.test.ts"
+    ],
+    "risk": "baixo"
+  },
+  {
+    "issueId": "34b2ed32-f711-42a5-bfa1-348537c5d5f4",
+    "rule": "typescript:S8786",
+    "file": "apps/backend/src/modules/diagnostic-playbooks/diagnostic-run-ai.service.ts",
+    "baselineLine": 488,
+    "status": "fixed",
+    "rationale": "Estado FIXED confirmado pelo scanner final. Scanners lineares substituem remoção de barras finais ou extração de cerca JSON; delimitadores ausentes e whitespace extenso não provocam backtracking.",
+    "evidence": [
+      "apps/backend/src/modules/diagnostic-playbooks/diagnostic-run-ai.service.ts",
+      "apps/backend/src/shared/linear-text.test.ts"
+    ],
+    "risk": "baixo"
+  },
+  {
+    "issueId": "aeae7543-2978-4208-81e2-eb4099b55129",
+    "rule": "typescript:S8786",
+    "file": "apps/backend/src/modules/diagnostic-playbooks/diagnostic-run.controller.ts",
+    "baselineLine": 82,
+    "status": "fixed",
+    "rationale": "Estado FIXED confirmado pelo scanner final. NA-0151: correção implementada e ocorrência ausente na análise 28a77996d. Trim de hífen único após normalização que colapsa cada grupo em um hífen.",
+    "evidence": [
+      "apps/backend/src/modules/diagnostic-playbooks/diagnostic-run.controller.ts",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json"
+    ],
+    "risk": "baixo"
+  },
+  {
+    "issueId": "d584bf39-1f68-4dfd-84bb-41c8aa246d4f",
+    "rule": "typescript:S8786",
+    "file": "apps/backend/src/modules/hosts/host.service-NOTE-JEFF.ts",
+    "baselineLine": 83,
+    "status": "fixed",
+    "rationale": "Estado FIXED confirmado pelo scanner final. Scanner compartilhado percorre delimitadores de tokens uma vez, inclusive aberturas aninhadas sem fechamento; preserva variáveis reconhecidas e desconhecidas.",
+    "evidence": [
+      "apps/backend/src/modules/hosts/host.service-NOTE-JEFF.ts",
+      "apps/backend/src/shared/linear-text.test.ts"
+    ],
+    "risk": "baixo"
+  },
+  {
+    "issueId": "ded177a6-14ad-4dbf-8910-012fbe7cd37e",
+    "rule": "typescript:S8786",
+    "file": "apps/backend/src/modules/hosts/host.service.ts",
+    "baselineLine": 209,
+    "status": "fixed",
+    "rationale": "Estado FIXED confirmado pelo scanner final. Scanner compartilhado percorre delimitadores de tokens uma vez, inclusive aberturas aninhadas sem fechamento; preserva variáveis reconhecidas e desconhecidas.",
+    "evidence": [
+      "apps/backend/src/modules/hosts/host.service.ts",
+      "apps/backend/src/shared/linear-text.test.ts"
+    ],
+    "risk": "baixo"
+  },
+  {
+    "issueId": "a9b964c6-1e96-4292-bc99-33ef3bed8129",
+    "rule": "typescript:S8786",
+    "file": "apps/backend/src/modules/integrations/local-ai.service.ts",
+    "baselineLine": 58,
+    "status": "fixed",
+    "rationale": "Estado FIXED confirmado pelo scanner final. Scanners lineares substituem remoção de barras finais ou extração de cerca JSON; delimitadores ausentes e whitespace extenso não provocam backtracking.",
+    "evidence": [
+      "apps/backend/src/modules/integrations/local-ai.service.ts",
+      "apps/backend/src/shared/linear-text.test.ts"
+    ],
+    "risk": "baixo"
+  },
+  {
+    "issueId": "212b036f-ceb2-407e-ac45-d71e0ac5d904",
+    "rule": "typescript:S8786",
+    "file": "apps/backend/src/modules/integrations/local-ai.service.ts",
+    "baselineLine": 610,
+    "status": "fixed",
+    "rationale": "Estado FIXED confirmado pelo scanner final. Scanners lineares substituem remoção de barras finais ou extração de cerca JSON; delimitadores ausentes e whitespace extenso não provocam backtracking.",
+    "evidence": [
+      "apps/backend/src/modules/integrations/local-ai.service.ts",
+      "apps/backend/src/shared/linear-text.test.ts"
+    ],
+    "risk": "baixo"
+  },
+  {
+    "issueId": "5c450adf-ed23-48d4-90d4-94c19be488f7",
+    "rule": "typescript:S6324",
+    "file": "apps/backend/src/modules/session-audit/session-audit-ai.worker.ts",
+    "baselineLine": 295,
+    "status": "context_reviewed",
+    "rationale": "Falso positivo aplicado e confirmado no Sonar, com revisor temporário autorizado e desativado. Rechecked against installed rule definition and the prior occurrence-specific evidence. BEL é substituído por espaço na normalização de comando para resumo. A ocorrência '\\\\u0007' na coluna 15 faz parte deliberada do protocolo/sanitização; removê-la muda o comportamento.",
+    "evidence": [
+      "apps/backend/src/modules/session-audit/session-audit-ai.worker.ts",
+      "apps/backend/src/modules/session-audit/session-audit-normalizer.test.ts",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/final-review.json"
+    ],
+    "risk": "baixo"
+  },
+  {
+    "issueId": "6fb3b772-5c8b-485c-b390-8e617394a273",
+    "rule": "typescript:S6324",
+    "file": "apps/backend/src/modules/session-audit/session-audit-ai.worker.ts",
+    "baselineLine": 297,
+    "status": "context_reviewed",
+    "rationale": "Falso positivo aplicado e confirmado no Sonar, com revisor temporário autorizado e desativado. Rechecked against installed rule definition and the prior occurrence-specific evidence. Backspace é removido do texto de comando preparado para resumo; não é literal acidental. A ocorrência '\\\\u0008' na coluna 15 faz parte deliberada do protocolo/sanitização; removê-la muda o comportamento.",
+    "evidence": [
+      "apps/backend/src/modules/session-audit/session-audit-ai.worker.ts",
+      "apps/backend/src/modules/session-audit/session-audit-normalizer.test.ts",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/final-review.json"
+    ],
+    "risk": "baixo"
+  },
+  {
+    "issueId": "c047f3d5-0661-42cf-9a5e-2b79d955cdc9",
+    "rule": "typescript:S6324",
+    "file": "apps/backend/src/modules/session-audit/session-audit-ai.worker.ts",
+    "baselineLine": 305,
+    "status": "context_reviewed",
+    "rationale": "Falso positivo aplicado e confirmado no Sonar, com revisor temporário autorizado e desativado. Rechecked against installed rule definition and the prior occurrence-specific evidence. BEL é removido da saída preparada para resumo. A ocorrência '\\\\u0007' na coluna 15 faz parte deliberada do protocolo/sanitização; removê-la muda o comportamento.",
+    "evidence": [
+      "apps/backend/src/modules/session-audit/session-audit-ai.worker.ts",
+      "apps/backend/src/modules/session-audit/session-audit-normalizer.test.ts",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/final-review.json"
+    ],
+    "risk": "baixo"
+  },
+  {
+    "issueId": "7a85f7dc-f9ae-43cb-a52f-3f102323bd20",
+    "rule": "typescript:S6324",
+    "file": "apps/backend/src/modules/session-audit/session-audit-normalizer.ts",
+    "baselineLine": 14,
+    "status": "context_reviewed",
+    "rationale": "Falso positivo aplicado e confirmado no Sonar, com revisor temporário autorizado e desativado. Rechecked against installed rule definition and the prior occurrence-specific evidence. OSC exige delimitadores ESC e terminador BEL ou ST para retirar títulos ANSI. A ocorrência '\\\\x07' na coluna 23 faz parte deliberada do protocolo/sanitização; removê-la muda o comportamento.",
+    "evidence": [
+      "apps/backend/src/modules/session-audit/session-audit-normalizer.ts",
+      "apps/backend/src/modules/session-audit/session-audit-normalizer.test.ts",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/final-review.json"
+    ],
+    "risk": "baixo"
+  },
+  {
+    "issueId": "927516dd-ba45-4ab0-acb0-4a7aa0f7710f",
+    "rule": "typescript:S6324",
+    "file": "apps/backend/src/modules/session-audit/session-audit-normalizer.ts",
+    "baselineLine": 14,
+    "status": "context_reviewed",
+    "rationale": "Falso positivo aplicado e confirmado no Sonar, com revisor temporário autorizado e desativado. Rechecked against installed rule definition and the prior occurrence-specific evidence. OSC exige delimitadores ESC e terminador BEL ou ST para retirar títulos ANSI. A ocorrência '\\\\x1b' na coluna 27 faz parte deliberada do protocolo/sanitização; removê-la muda o comportamento.",
+    "evidence": [
+      "apps/backend/src/modules/session-audit/session-audit-normalizer.ts",
+      "apps/backend/src/modules/session-audit/session-audit-normalizer.test.ts",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/final-review.json"
+    ],
+    "risk": "baixo"
+  },
+  {
+    "issueId": "a12d62f1-0eb4-4cb9-8747-0ee10edcafbe",
+    "rule": "typescript:S6324",
+    "file": "apps/backend/src/modules/session-audit/session-audit-normalizer.ts",
+    "baselineLine": 14,
+    "status": "context_reviewed",
+    "rationale": "Falso positivo aplicado e confirmado no Sonar, com revisor temporário autorizado e desativado. Rechecked against installed rule definition and the prior occurrence-specific evidence. OSC exige delimitadores ESC e terminador BEL ou ST para retirar títulos ANSI. A ocorrência '\\\\x07' na coluna 36 faz parte deliberada do protocolo/sanitização; removê-la muda o comportamento.",
+    "evidence": [
+      "apps/backend/src/modules/session-audit/session-audit-normalizer.ts",
+      "apps/backend/src/modules/session-audit/session-audit-normalizer.test.ts",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/final-review.json"
+    ],
+    "risk": "baixo"
+  },
+  {
+    "issueId": "e7f23b6a-59f3-4165-b5b4-b81f13cefc91",
+    "rule": "typescript:S6324",
+    "file": "apps/backend/src/modules/session-audit/session-audit-normalizer.ts",
+    "baselineLine": 14,
+    "status": "context_reviewed",
+    "rationale": "Falso positivo aplicado e confirmado no Sonar, com revisor temporário autorizado e desativado. Rechecked against installed rule definition and the prior occurrence-specific evidence. OSC exige delimitadores ESC e terminador BEL ou ST para retirar títulos ANSI. A ocorrência '\\\\x1b' na coluna 41 faz parte deliberada do protocolo/sanitização; removê-la muda o comportamento.",
+    "evidence": [
+      "apps/backend/src/modules/session-audit/session-audit-normalizer.ts",
+      "apps/backend/src/modules/session-audit/session-audit-normalizer.test.ts",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/final-review.json"
+    ],
+    "risk": "baixo"
+  },
+  {
+    "issueId": "2b24edc7-0f08-40c7-bea0-ff87d150e6d6",
+    "rule": "typescript:S6324",
+    "file": "apps/backend/src/modules/session-audit/session-audit-normalizer.ts",
+    "baselineLine": 17,
+    "status": "context_reviewed",
+    "rationale": "Falso positivo aplicado e confirmado no Sonar, com revisor temporário autorizado e desativado. Rechecked against installed rule definition and the prior occurrence-specific evidence. ESC identifica controle ANSI adicional removido do texto normalizado. A ocorrência '\\\\x1b' na coluna 15 faz parte deliberada do protocolo/sanitização; removê-la muda o comportamento.",
+    "evidence": [
+      "apps/backend/src/modules/session-audit/session-audit-normalizer.ts",
+      "apps/backend/src/modules/session-audit/session-audit-normalizer.test.ts",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/final-review.json"
+    ],
+    "risk": "baixo"
+  },
+  {
+    "issueId": "96334ff4-494b-4eb1-a94f-4289001d3445",
+    "rule": "typescript:S6324",
+    "file": "apps/backend/src/modules/session-audit/session-audit-normalizer.ts",
+    "baselineLine": 18,
+    "status": "context_reviewed",
+    "rationale": "Falso positivo aplicado e confirmado no Sonar, com revisor temporário autorizado e desativado. Rechecked against installed rule definition and the prior occurrence-specific evidence. ESC identifica sequência curta ANSI removida do texto normalizado. A ocorrência '\\\\x1b' na coluna 15 faz parte deliberada do protocolo/sanitização; removê-la muda o comportamento.",
+    "evidence": [
+      "apps/backend/src/modules/session-audit/session-audit-normalizer.ts",
+      "apps/backend/src/modules/session-audit/session-audit-normalizer.test.ts",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/final-review.json"
+    ],
+    "risk": "baixo"
+  },
+  {
+    "issueId": "d15a994c-d963-4e30-96cd-26acdf21d66f",
+    "rule": "typescript:S8786",
+    "file": "apps/backend/src/modules/session-audit/session-audit-normalizer.ts",
+    "baselineLine": 70,
+    "status": "fixed",
+    "rationale": "Estado FIXED confirmado pelo scanner final. NA-0151: correção implementada e ocorrência ausente na análise 28a77996d. Guard de múltiplos prompts preservado; trimStart e âncora eliminam tentativas em cada offset.",
+    "evidence": [
+      "apps/backend/src/modules/session-audit/session-audit-normalizer.ts",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json"
+    ],
+    "risk": "baixo"
+  },
+  {
+    "issueId": "cfae42f8-2b0e-4346-a266-7d9639d2aa0e",
+    "rule": "typescript:S8786",
+    "file": "apps/backend/src/modules/session-audit/session-audit-normalizer.ts",
+    "baselineLine": 90,
+    "status": "fixed",
+    "rationale": "Estado FIXED confirmado pelo scanner final. Whitespace antes de LF é removido por scanner reverso em cada linha, preservando a última linha sem LF.",
+    "evidence": [
+      "apps/backend/src/modules/session-audit/session-audit-normalizer.ts",
+      "apps/backend/src/modules/session-audit/session-audit-normalizer.test.ts"
+    ],
+    "risk": "baixo"
+  },
+  {
+    "issueId": "516c475a-b608-40f0-a09a-b1f6b6d4db22",
+    "rule": "typescript:S8786",
+    "file": "apps/backend/src/modules/session-audit/session-audit-normalizer.ts",
+    "baselineLine": 137,
+    "status": "fixed",
+    "rationale": "Estado FIXED confirmado pelo scanner final. NA-0146: correção implementada e ocorrência ausente na análise 28a77996d. Remove redundant digit repetition before a tail that already matches digits; preserves accepted language and removes overlapping backtracking.",
+    "evidence": [
+      "apps/backend/src/modules/session-audit/session-audit-normalizer.ts",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json"
+    ],
+    "risk": "baixo"
+  },
+  {
+    "issueId": "2082229e-822b-4bf7-800b-db37b6f22414",
+    "rule": "typescript:S6324",
+    "file": "apps/backend/src/modules/session-audit/session-audit-normalizer.ts",
+    "baselineLine": 150,
+    "status": "context_reviewed",
+    "rationale": "Falso positivo aplicado e confirmado no Sonar, com revisor temporário autorizado e desativado. Rechecked against installed rule definition and the prior occurrence-specific evidence. ESC residual é removido da representação resumida de saída interativa. A ocorrência '\\\\u001b' na coluna 15 faz parte deliberada do protocolo/sanitização; removê-la muda o comportamento.",
+    "evidence": [
+      "apps/backend/src/modules/session-audit/session-audit-normalizer.ts",
+      "apps/backend/src/modules/session-audit/session-audit-normalizer.test.ts",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/final-review.json"
+    ],
+    "risk": "baixo"
+  },
+  {
+    "issueId": "2dffd5d8-4e91-4273-86a8-4cc1541053b4",
+    "rule": "typescript:S6324",
+    "file": "apps/backend/src/modules/session-audit/session-audit-normalizer.ts",
+    "baselineLine": 215,
+    "status": "context_reviewed",
+    "rationale": "Falso positivo aplicado e confirmado no Sonar, com revisor temporário autorizado e desativado. Rechecked against installed rule definition and the prior occurrence-specific evidence. ESC/BEL delimitam OSC de título para extrair cwd observado. A ocorrência '\\\\x07' na coluna 53 faz parte deliberada do protocolo/sanitização; removê-la muda o comportamento.",
+    "evidence": [
+      "apps/backend/src/modules/session-audit/session-audit-normalizer.ts",
+      "apps/backend/src/modules/session-audit/session-audit-normalizer.test.ts",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/final-review.json"
+    ],
+    "risk": "baixo"
+  },
+  {
+    "issueId": "67c269bc-a669-452d-b279-b491b3dd5147",
+    "rule": "typescript:S6324",
+    "file": "apps/backend/src/modules/session-audit/session-audit-normalizer.ts",
+    "baselineLine": 215,
+    "status": "context_reviewed",
+    "rationale": "Falso positivo aplicado e confirmado no Sonar, com revisor temporário autorizado e desativado. Rechecked against installed rule definition and the prior occurrence-specific evidence. ESC/BEL delimitam OSC de título para extrair cwd observado. A ocorrência '\\\\x07' na coluna 68 faz parte deliberada do protocolo/sanitização; removê-la muda o comportamento.",
+    "evidence": [
+      "apps/backend/src/modules/session-audit/session-audit-normalizer.ts",
+      "apps/backend/src/modules/session-audit/session-audit-normalizer.test.ts",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/final-review.json"
+    ],
+    "risk": "baixo"
+  },
+  {
+    "issueId": "b2426cd7-bc4a-4826-aa50-573e69de3412",
+    "rule": "typescript:S6324",
+    "file": "apps/backend/src/modules/session-audit/session-audit-normalizer.ts",
+    "baselineLine": 215,
+    "status": "context_reviewed",
+    "rationale": "Falso positivo aplicado e confirmado no Sonar, com revisor temporário autorizado e desativado. Rechecked against installed rule definition and the prior occurrence-specific evidence. ESC/BEL delimitam OSC de título para extrair cwd observado. A ocorrência '\\\\x1b' na coluna 73 faz parte deliberada do protocolo/sanitização; removê-la muda o comportamento.",
+    "evidence": [
+      "apps/backend/src/modules/session-audit/session-audit-normalizer.ts",
+      "apps/backend/src/modules/session-audit/session-audit-normalizer.test.ts",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/final-review.json"
+    ],
+    "risk": "baixo"
+  },
+  {
+    "issueId": "121e2c65-2b07-48e0-a7be-e10b6d855baa",
+    "rule": "typescript:S8786",
+    "file": "apps/backend/src/modules/session-audit/session-audit-normalizer.ts",
+    "baselineLine": 301,
+    "status": "fixed",
+    "rationale": "Estado FIXED confirmado pelo scanner final. Cabeçalho do comando e cauda são validados separadamente; whitespace inicial da cauda é consumido uma vez, preservando rejeição de quebras de linha no corpo.",
+    "evidence": [
+      "apps/backend/src/modules/session-audit/session-audit-normalizer.ts",
+      "apps/backend/src/modules/session-audit/session-audit-normalizer.test.ts"
+    ],
+    "risk": "baixo"
+  },
+  {
+    "issueId": "0c4c9794-c6bd-477d-b35d-2ae56af5bf21",
+    "rule": "typescript:S1848",
+    "file": "apps/backend/src/modules/settings/settings.service.ts",
+    "baselineLine": 253,
+    "status": "context_reviewed",
+    "rationale": "Falso positivo aplicado e confirmado no Sonar, com revisor temporário autorizado e desativado. Rechecked against installed rule definition and the prior occurrence-specific evidence. A construção de RegExp é usada pelo efeito de validação sintática: padrão inválido lança antes da persistência. Não é alocação sem finalidade. Isso não prova segurança computacional de regex customizada de senha; validação sintática isolada não detecta ReDoS.",
+    "evidence": [
+      "apps/backend/src/modules/settings/settings.service.ts",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/final-review.json"
+    ],
+    "risk": "baixo"
+  },
+  {
+    "issueId": "5b4c1d7e-64ae-41b6-8087-84586f08e433",
+    "rule": "typescript:S8786",
+    "file": "packages/shared/src/types/host-associated-link.ts",
+    "baselineLine": 53,
+    "status": "fixed",
+    "rationale": "Estado FIXED confirmado pelo scanner final. Scanner compartilhado percorre delimitadores de tokens uma vez, inclusive aberturas aninhadas sem fechamento; preserva variáveis reconhecidas e desconhecidas.",
+    "evidence": [
+      "packages/shared/src/types/host-associated-link.ts",
+      "apps/backend/src/shared/linear-text.test.ts"
+    ],
+    "risk": "baixo"
+  },
+  {
+    "issueId": "fd531dd3-db54-4b67-95e7-00758d2d00a0",
+    "rule": "typescript:S5443",
+    "file": "apps/backend/src/config/env.ts",
+    "baselineLine": 171,
+    "status": "fixed",
+    "rationale": "Estado FIXED confirmado pelo scanner 630040 após NA-0163: default persistente privado; overrides preservados e migração documentada em docs/OPERATIONS-private-storage.md. Avaliação histórica anterior à correção: Decisão operacional pendente; não houve aceite automático. O default de auditoria permanece em /tmp. A gravação usa diretório dedicado, proprietário do serviço, 0700, validação de symlinks e arquivo exclusivo 0600; não reproduzi escrita insegura. Persistência após limpeza/reboot, mesmo UID entre componentes e proteção do diretório em produção requerem decisão operacional explícita.",
+    "evidence": [
+      "apps/backend/src/config/env.ts",
+      "apps/backend/src/shared/private-storage.ts",
+      "apps/backend/src/shared/private-storage.test.ts",
+      "apps/backend/src/modules/session-audit/session-audit.storage.test.ts",
+      "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json"
+    ],
+    "risk": "médio: API e gateway devem usar o mesmo UID; raiz compartilhada/symlink precisa correção operacional"
+  },
+  {
+    "issueId": "6be3fd5a-d239-47da-b59b-a4e528308d19",
+    "rule": "typescript:S8786",
+    "file": "apps/backend/src/modules/integrations/jira.service.ts",
+    "baselineLine": 67,
+    "status": "fixed",
+    "rationale": "Estado FIXED confirmado pelo scanner final. Scanners lineares substituem remoção de barras finais ou extração de cerca JSON; delimitadores ausentes e whitespace extenso não provocam backtracking.",
+    "evidence": [
+      "apps/backend/src/modules/integrations/jira.service.ts",
+      "apps/backend/src/shared/linear-text.test.ts"
+    ],
+    "risk": "baixo"
+  },
+  {
+    "issueId": "a16c58d7-9770-4544-99cf-dfb134805e36",
+    "rule": "typescript:S8786",
+    "file": "apps/backend/src/modules/integrations/openai.service.ts",
+    "baselineLine": 60,
+    "status": "fixed",
+    "rationale": "Estado FIXED confirmado pelo scanner final. Scanners lineares substituem remoção de barras finais ou extração de cerca JSON; delimitadores ausentes e whitespace extenso não provocam backtracking.",
+    "evidence": [
+      "apps/backend/src/modules/integrations/openai.service.ts",
+      "apps/backend/src/shared/linear-text.test.ts"
+    ],
+    "risk": "baixo"
+  },
+  {
+    "issueId": "4096f68d-357d-45b4-b7cf-618ec44bce71",
+    "rule": "typescript:S7773",
+    "file": "apps/backend/src/modules/shared-sessions/shared-session.ws-routes.ts",
+    "baselineLine": 15,
+    "status": "fixed",
+    "rationale": "Estado FIXED confirmado pelo scanner final. Usa Number.NaN/Number.isNaN. Chamadas isNaN recebem valor já convertido por Number, preservando comportamento para entradas inválidas sem alterar coerção.",
+    "evidence": [
+      "apps/backend/src/modules/shared-sessions/shared-session.ws-routes.ts"
+    ],
+    "risk": "baixo"
+  },
+  {
+    "issueId": "9790fed3-5719-4ec5-8edf-74bf6d96ad59",
+    "rule": "typescript:S7773",
+    "file": "apps/backend/src/modules/ssh/ssh.routes.ts",
+    "baselineLine": 37,
+    "status": "fixed",
+    "rationale": "Estado FIXED confirmado pelo scanner final. Usa Number.NaN/Number.isNaN. Chamadas isNaN recebem valor já convertido por Number, preservando comportamento para entradas inválidas sem alterar coerção.",
+    "evidence": [
+      "apps/backend/src/modules/ssh/ssh.routes.ts"
+    ],
+    "risk": "baixo"
+  }
+]

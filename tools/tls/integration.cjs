@@ -1,10 +1,12 @@
+const { resolveExecutable } = require('../shared/trusted-executable.cjs')
+const { artifactPath } = require('../shared/private-artifacts.cjs')
 /* Isolated opt-in: real Nginx, certificate worker, TLS, WebSocket and disposable SSH/PTTY. */
 const fs=require('node:fs'),os=require('node:os'),path=require('node:path'),http=require('node:http'),tls=require('node:tls'),crypto=require('node:crypto'),assert=require('node:assert/strict')
 const {execFileSync,spawn}=require('node:child_process'),{WebSocketServer,WebSocket}=require('ws'),{Server:SSHServer,Client:SSHClient}=require('ssh2')
 const root=fs.mkdtempSync(path.join(os.tmpdir(),'nodeaccess-tls-integration-')),suffix=crypto.randomBytes(4).toString('hex'),front=`na-tls-front-${suffix}`,agent=`na-tls-agent-${suffix}`,pebble=`na-tls-pebble-${suffix}`
 const image=process.env.TLS_TEST_IMAGE||'nodeaccess-tls-agent:test',domain='tls.example.test',gatewayPath=`/ws/${crypto.randomUUID()}`,password=crypto.randomBytes(32).toString('hex')
-const docker=(...args)=>execFileSync('docker',args,{encoding:'utf8',stdio:['ignore','pipe','pipe']}).trim()
-const openssl=(...args)=>execFileSync('openssl',args[0]==='req'?[...args,'-config',path.join(root,'req.cnf')]:args,{cwd:root,stdio:'ignore'})
+const docker=(...args)=>execFileSync(resolveExecutable('docker'),args,{encoding:'utf8',stdio:['ignore','pipe','pipe']}).trim()
+const openssl=(...args)=>execFileSync(resolveExecutable('openssl'),args[0]==='req'?[...args,'-config',path.join(root,'req.cnf')]:args,{cwd:root,stdio:'ignore'})
 const wait=ms=>new Promise(r=>setTimeout(r,ms))
 async function until(fn,timeout=60000){let lastError;const deadline=Date.now()+timeout;while(Date.now()<deadline){try{const value=await fn();if(value)return value}catch(e){lastError=e};await wait(200)}throw Error('Timed out waiting for fixture: '+(lastError?.message||'condition false'))}
 const runnerUid=process.getuid(),runnerGid=process.getgid()
@@ -33,7 +35,7 @@ async function main(){
  sshServer=new SSHServer({hostKeys:[fs.readFileSync(path.join(root,'ssh.key'))]},client=>{
   sshConnections++;clients.push(client)
   client.on('error',()=>{}).on('authentication',ctx=>ctx.method==='password'&&ctx.password===password?ctx.accept():ctx.reject()).on('ready',()=>client.on('session',accept=>{
-   const session=accept();session.on('pty',(accept)=>accept());session.on('shell',accept=>{const stream=accept(),shell=spawn('script',['-qfc','/bin/bash --noprofile --norc','/dev/null'],{env:{...process.env,PS1:'test$ '}});shells.push(shell);shell.stdout.pipe(stream);shell.stderr.pipe(stream);stream.pipe(shell.stdin);stream.on('close',()=>shell.kill());shell.on('exit',()=>stream.end())})
+   const session=accept();session.on('pty',(accept)=>accept());session.on('shell',accept=>{const stream=accept(),shell=spawn(resolveExecutable('script'),['-qfc','/bin/bash --noprofile --norc','/dev/null'],{env:{...process.env,PS1:'test$ '}});shells.push(shell);shell.stdout.pipe(stream);shell.stderr.pipe(stream);stream.pipe(shell.stdin);stream.on('close',()=>shell.kill());shell.on('exit',()=>stream.end())})
   }))
  });await new Promise(r=>sshServer.listen(0,'127.0.0.1',r))
  gateway=new WebSocketServer({port:0,host:'0.0.0.0',verifyClient:info=>info.req.url===gatewayPath});await new Promise(r=>gateway.once('listening',r))
@@ -44,7 +46,7 @@ async function main(){
  docker('run','-d','--name',front,'--add-host','host.docker.internal:host-gateway','--add-host',`${domain}:127.0.0.1`,'-p','127.0.0.1::443','-p','127.0.0.1::80','-v',`${root}/certs:/etc/nginx/certs:ro`,'-v',`${root}/nginx.conf:/etc/nginx/nginx.conf:ro`,'-v',`${root}/challenge:/var/www/acme:ro`,'--entrypoint','nginx',image,'-g','daemon off;')
  const port=Number(docker('port',front,'443/tcp').split(':').pop()),httpPort=Number(docker('port',front,'80/tcp').split(':').pop())
  const inspect=()=>new Promise((resolve,reject)=>{const s=tls.connect({host:'127.0.0.1',port,servername:domain,ca:fs.existsSync(path.join(root,'trust.pem'))?fs.readFileSync(path.join(root,'trust.pem')):ca},()=>{resolve(s.getPeerCertificate().fingerprint256);s.end()});s.on('error',e=>{const c=s.getPeerCertificate();e.message+=' peer='+JSON.stringify({subject:c?.subject,issuer:c?.issuer});reject(e)})})
- try{execFileSync('openssl',['verify','-CAfile',path.join(root,'ca.pem'),path.join(root,'old.pem')],{stdio:'pipe'})}catch(e){throw Error('Fixture CA validation: '+e.stderr)}
+ try{execFileSync(resolveExecutable('openssl'),['verify','-CAfile',path.join(root,'ca.pem'),path.join(root,'old.pem')],{stdio:'pipe'})}catch(e){throw Error('Fixture CA validation: '+e.stderr)}
  const oldFingerprint=await until(inspect)
  fs.writeFileSync(path.join(root,'pebble.json'),JSON.stringify({pebble:{listenAddress:':14000',managementListenAddress:':15000',certificate:'/fixture/old.pem',privateKey:'/fixture/old.key',httpPort:80,tlsPort:443,ocspResponderURL:'',externalAccountBindingRequired:false}}))
  docker('run','-d','--name',pebble,'--network',`container:${front}`,'-e','PEBBLE_VA_NOSLEEP=1','-e','PEBBLE_WFE_NONCEREJECT=0','-e','PEBBLE_AUTHZREUSE=0','-v',`${root}:/fixture:ro`,'ghcr.io/letsencrypt/pebble:latest','-config','/fixture/pebble.json')
@@ -57,9 +59,9 @@ async function main(){
  const savedState=readFixtureState()
  assert.throws(()=>docker('exec',agent,'sh','/opt/nodeaccess-tls/entrypoint.sh'),e=>String(e.stderr).includes('Another TLS worker'))
  assert.equal(readFixtureState(),savedState)
- // Seed the challenge as the worker owner, as in production. A non-root host runner
+ // Seed the challenge and its dedicated webroot as the worker owner, as in production. A non-root host runner
  // would otherwise own these directories and make the restricted worker's chmod fail.
- docker('exec',agent,'node','-e',`const fs=require('node:fs');const directory='/var/www/acme/.well-known/acme-challenge';fs.mkdirSync(directory,{recursive:true,mode:0o755});fs.writeFileSync(directory+'/probe','challenge-ok',{mode:0o644});`)
+ docker('exec',agent,'node','-e',`const fs=require('node:fs');fs.chownSync('/var/www/acme',0,0);const directory='/var/www/acme/.well-known/acme-challenge';fs.mkdirSync(directory,{recursive:true,mode:0o755});fs.writeFileSync(directory+'/probe','challenge-ok',{mode:0o644});`)
  assert.equal(await (await fetch(`http://127.0.0.1:${httpPort}/.well-known/acme-challenge/probe`)).text(),'challenge-ok')
  websocket=new WebSocket(`wss://127.0.0.1:${port}${gatewayPath}`,{servername:domain,ca});await new Promise((resolve,reject)=>{websocket.once('open',resolve);websocket.once('error',reject)})
  let output='';websocket.on('message',d=>output+=d);await until(()=>output.length>0)
@@ -102,6 +104,6 @@ async function main(){
  const events=(await request('GET','/events')).data.events;assert.ok(events.some(event=>event.type==='operation.completed'))
  assert.ok(!JSON.stringify(events).includes('PRIVATE KEY'));await shellProbe()
  const report={passed:true,runnerSocketOwnership:true,readOnlyVolumeRecovery:true,readOnlyCertificatesRecovery:true,durableAuditOutbox:true,installationPreparation:true,repeatedStartup:true,singleWorkerLock:true,realNginx:true,realCertbotAcme:true,realHttp01:true,blockedChallengeRecovery:true,dryRun:true,realTlsSwap:true,workerPrivileges:true,acmeWebroot:true,realSshPty:true,websocketPreserved:true,sshConnections,wsConnections,failedConfigPreservesLiveSession:true,workerRestartRecovery:true}
- fs.writeFileSync('/tmp/nodeaccess-tls-integration.json',JSON.stringify(report,null,2));console.log(JSON.stringify(report,null,2))
+ fs.writeFileSync(artifactPath('nodeaccess-tls-integration.json'),JSON.stringify(report,null,2));console.log(JSON.stringify(report,null,2))
 }
-main().catch(e=>{console.error(e.message);const log=path.join(root,"acme/logs/letsencrypt.log");if(fs.existsSync(log))console.error(fs.readFileSync(log,"utf8").split("\n").filter(line=>/SSLError|CERTIFICATE_VERIFY_FAILED|requests.exceptions|urllib3.exceptions/.test(line)).slice(-8).join("\n"));try{console.error(docker('inspect',agent,'--format','{{json .State}}'));console.error(docker('exec',agent,'sh','-c','ps; ls -ld /run/nodeaccess-tls /var/lib/nodeaccess-tls; ls -l /run/nodeaccess-tls /var/lib/nodeaccess-tls'))}catch{};try{console.error(docker('logs','--tail','15',front))}catch{};try{execFileSync('docker',['logs','--tail','15',agent],{stdio:'inherit'})}catch{};try{console.error(docker('logs','--tail','15',pebble))}catch{};process.exitCode=1}).finally(async()=>{websocket?.terminate();for(const c of clients)c.end();for(const shell of shells)shell.kill();gateway?.close();sshServer?.close();for(const name of [agent,pebble,front])try{docker('rm','-f',name)}catch{};/* Worker state stays private during tests; return only the disposable tree for host cleanup. */try{docker('run','--rm','-v',`${root}:/fixture`,'--entrypoint','chown',image,'-R',`${runnerUid}:${runnerGid}`,'/fixture')}catch{};fs.rmSync(root,{recursive:true,force:true})})
+main().catch(e=>{console.error(e.message);const log=path.join(root,"acme/logs/letsencrypt.log");if(fs.existsSync(log))console.error(fs.readFileSync(log,"utf8").split("\n").filter(line=>/SSLError|CERTIFICATE_VERIFY_FAILED|requests.exceptions|urllib3.exceptions/.test(line)).slice(-8).join("\n"));try{console.error(docker('inspect',agent,'--format','{{json .State}}'));console.error(docker('exec',agent,'sh','-c','ps; ls -ld /run/nodeaccess-tls /var/lib/nodeaccess-tls; ls -l /run/nodeaccess-tls /var/lib/nodeaccess-tls'))}catch{};try{console.error(docker('logs','--tail','15',front))}catch{};try{execFileSync(resolveExecutable('docker'),['logs','--tail','15',agent],{stdio:'inherit'})}catch{};try{console.error(docker('logs','--tail','15',pebble))}catch{};process.exitCode=1}).finally(async()=>{websocket?.terminate();for(const c of clients)c.end();for(const shell of shells)shell.kill();gateway?.close();sshServer?.close();for(const name of [agent,pebble,front])try{docker('rm','-f',name)}catch{};/* Worker state stays private during tests; return only the disposable tree for host cleanup. */try{docker('run','--rm','-v',`${root}:/fixture`,'--entrypoint','chown',image,'-R',`${runnerUid}:${runnerGid}`,'/fixture')}catch{};fs.rmSync(root,{recursive:true,force:true})})

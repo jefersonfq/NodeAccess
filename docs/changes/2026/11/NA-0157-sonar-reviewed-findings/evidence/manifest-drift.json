@@ -1,0 +1,3911 @@
+{
+  "absentPriorFP": [
+    "SQ-0459"
+  ],
+  "anchors": [
+    {
+      "id": "SQ-0005",
+      "issueId": "12d93f64-f9d7-4eb4-8440-c085092416bd",
+      "method": "same_position",
+      "oldRange": {
+        "startLine": 207,
+        "endLine": 207,
+        "startOffset": 2,
+        "endOffset": 26
+      },
+      "currentRange": {
+        "startLine": 207,
+        "endLine": 207,
+        "startOffset": 2,
+        "endOffset": 26
+      }
+    },
+    {
+      "id": "SQ-0007",
+      "issueId": "ec011108-1e25-45d4-9a43-eb2b5aca2676",
+      "method": "same_position",
+      "oldRange": {
+        "startLine": 19,
+        "endLine": 19,
+        "startOffset": 14,
+        "endOffset": 52
+      },
+      "currentRange": {
+        "startLine": 19,
+        "endLine": 19,
+        "startOffset": 14,
+        "endOffset": 52
+      }
+    },
+    {
+      "id": "SQ-0008",
+      "issueId": "788b0121-b72c-4a93-9c48-a4d6bd618e15",
+      "method": "same_position",
+      "oldRange": {
+        "startLine": 137,
+        "endLine": 137,
+        "startOffset": 25,
+        "endOffset": 31
+      },
+      "currentRange": {
+        "startLine": 137,
+        "endLine": 137,
+        "startOffset": 25,
+        "endOffset": 31
+      }
+    },
+    {
+      "id": "SQ-0013",
+      "issueId": "3ee9e363-2ddc-4073-9296-55afbefa849c",
+      "method": "same_position",
+      "oldRange": {
+        "startLine": 1432,
+        "endLine": 1440,
+        "startOffset": 8,
+        "endOffset": 10
+      },
+      "currentRange": {
+        "startLine": 1432,
+        "endLine": 1440,
+        "startOffset": 8,
+        "endOffset": 10
+      }
+    },
+    {
+      "id": "SQ-0015",
+      "issueId": "2f9bc285-572a-444d-b770-50d2f6ba4d8f",
+      "method": "same_position",
+      "oldRange": {
+        "startLine": 15,
+        "endLine": 15,
+        "startOffset": 8,
+        "endOffset": 20
+      },
+      "currentRange": {
+        "startLine": 15,
+        "endLine": 15,
+        "startOffset": 8,
+        "endOffset": 20
+      }
+    },
+    {
+      "id": "SQ-0016",
+      "issueId": "e5c6eb8d-afdf-41b5-96d6-695d954777e2",
+      "method": "same_position",
+      "oldRange": {
+        "startLine": 33,
+        "endLine": 33,
+        "startOffset": 8,
+        "endOffset": 20
+      },
+      "currentRange": {
+        "startLine": 33,
+        "endLine": 33,
+        "startOffset": 8,
+        "endOffset": 20
+      }
+    },
+    {
+      "id": "SQ-0017",
+      "issueId": "a7b29bad-5cea-494d-a4b5-f613c8c94561",
+      "method": "same_position",
+      "oldRange": {
+        "startLine": 41,
+        "endLine": 41,
+        "startOffset": 8,
+        "endOffset": 20
+      },
+      "currentRange": {
+        "startLine": 41,
+        "endLine": 41,
+        "startOffset": 8,
+        "endOffset": 20
+      }
+    },
+    {
+      "id": "SQ-0018",
+      "issueId": "d4809b65-03d2-4b2d-b954-aab3a203cf8b",
+      "method": "same_position",
+      "oldRange": {
+        "startLine": 46,
+        "endLine": 46,
+        "startOffset": 14,
+        "endOffset": 44
+      },
+      "currentRange": {
+        "startLine": 46,
+        "endLine": 46,
+        "startOffset": 14,
+        "endOffset": 44
+      }
+    },
+    {
+      "id": "SQ-0021",
+      "issueId": "2894d177-b76a-40d9-9152-9752b53d15ca",
+      "method": "same_position",
+      "oldRange": {
+        "startLine": 80,
+        "endLine": 80,
+        "startOffset": 88,
+        "endOffset": 101
+      },
+      "currentRange": {
+        "startLine": 80,
+        "endLine": 80,
+        "startOffset": 88,
+        "endOffset": 101
+      }
+    },
+    {
+      "id": "SQ-0026",
+      "issueId": "9507ac72-b5b8-4115-86a9-a859b95dfa4d",
+      "method": "same_position",
+      "oldRange": {
+        "startLine": 4,
+        "endLine": 4,
+        "startOffset": 14,
+        "endOffset": 18
+      },
+      "currentRange": {
+        "startLine": 4,
+        "endLine": 4,
+        "startOffset": 14,
+        "endOffset": 18
+      }
+    },
+    {
+      "id": "SQ-0032",
+      "issueId": "5c450adf-ed23-48d4-90d4-94c19be488f7",
+      "method": "same_position",
+      "oldRange": {
+        "startLine": 295,
+        "endLine": 295,
+        "startOffset": 14,
+        "endOffset": 20
+      },
+      "currentRange": {
+        "startLine": 295,
+        "endLine": 295,
+        "startOffset": 14,
+        "endOffset": 20
+      }
+    },
+    {
+      "id": "SQ-0033",
+      "issueId": "6fb3b772-5c8b-485c-b390-8e617394a273",
+      "method": "same_position",
+      "oldRange": {
+        "startLine": 297,
+        "endLine": 297,
+        "startOffset": 14,
+        "endOffset": 20
+      },
+      "currentRange": {
+        "startLine": 297,
+        "endLine": 297,
+        "startOffset": 14,
+        "endOffset": 20
+      }
+    },
+    {
+      "id": "SQ-0034",
+      "issueId": "c047f3d5-0661-42cf-9a5e-2b79d955cdc9",
+      "method": "same_position",
+      "oldRange": {
+        "startLine": 305,
+        "endLine": 305,
+        "startOffset": 14,
+        "endOffset": 20
+      },
+      "currentRange": {
+        "startLine": 305,
+        "endLine": 305,
+        "startOffset": 14,
+        "endOffset": 20
+      }
+    },
+    {
+      "id": "SQ-0035",
+      "issueId": "1d322c3b-1a8a-4689-b46c-aa7e4570f1de",
+      "method": "same_position",
+      "oldRange": {
+        "startLine": 4,
+        "endLine": 4,
+        "startOffset": 61,
+        "endOffset": 65
+      },
+      "currentRange": {
+        "startLine": 4,
+        "endLine": 4,
+        "startOffset": 61,
+        "endOffset": 65
+      }
+    },
+    {
+      "id": "SQ-0036",
+      "issueId": "7113a98b-5138-47ee-9a6f-8e943882cebf",
+      "method": "same_position",
+      "oldRange": {
+        "startLine": 79,
+        "endLine": 79,
+        "startOffset": 10,
+        "endOffset": 14
+      },
+      "currentRange": {
+        "startLine": 79,
+        "endLine": 79,
+        "startOffset": 10,
+        "endOffset": 14
+      }
+    },
+    {
+      "id": "SQ-0037",
+      "issueId": "9e7ea99f-3934-44f2-ade9-efaa84fda725",
+      "method": "same_position",
+      "oldRange": {
+        "startLine": 83,
+        "endLine": 83,
+        "startOffset": 41,
+        "endOffset": 45
+      },
+      "currentRange": {
+        "startLine": 83,
+        "endLine": 83,
+        "startOffset": 41,
+        "endOffset": 45
+      }
+    },
+    {
+      "id": "SQ-0038",
+      "issueId": "329e3968-3674-4e1c-9373-551eaaf8d1a6",
+      "method": "same_position",
+      "oldRange": {
+        "startLine": 104,
+        "endLine": 104,
+        "startOffset": 35,
+        "endOffset": 39
+      },
+      "currentRange": {
+        "startLine": 104,
+        "endLine": 104,
+        "startOffset": 35,
+        "endOffset": 39
+      }
+    },
+    {
+      "id": "SQ-0039",
+      "issueId": "7a85f7dc-f9ae-43cb-a52f-3f102323bd20",
+      "method": "same_position",
+      "oldRange": {
+        "startLine": 14,
+        "endLine": 14,
+        "startOffset": 22,
+        "endOffset": 26
+      },
+      "currentRange": {
+        "startLine": 14,
+        "endLine": 14,
+        "startOffset": 22,
+        "endOffset": 26
+      }
+    },
+    {
+      "id": "SQ-0040",
+      "issueId": "927516dd-ba45-4ab0-acb0-4a7aa0f7710f",
+      "method": "same_position",
+      "oldRange": {
+        "startLine": 14,
+        "endLine": 14,
+        "startOffset": 26,
+        "endOffset": 30
+      },
+      "currentRange": {
+        "startLine": 14,
+        "endLine": 14,
+        "startOffset": 26,
+        "endOffset": 30
+      }
+    },
+    {
+      "id": "SQ-0041",
+      "issueId": "a12d62f1-0eb4-4cb9-8747-0ee10edcafbe",
+      "method": "same_position",
+      "oldRange": {
+        "startLine": 14,
+        "endLine": 14,
+        "startOffset": 35,
+        "endOffset": 39
+      },
+      "currentRange": {
+        "startLine": 14,
+        "endLine": 14,
+        "startOffset": 35,
+        "endOffset": 39
+      }
+    },
+    {
+      "id": "SQ-0042",
+      "issueId": "e7f23b6a-59f3-4165-b5b4-b81f13cefc91",
+      "method": "same_position",
+      "oldRange": {
+        "startLine": 14,
+        "endLine": 14,
+        "startOffset": 40,
+        "endOffset": 44
+      },
+      "currentRange": {
+        "startLine": 14,
+        "endLine": 14,
+        "startOffset": 40,
+        "endOffset": 44
+      }
+    },
+    {
+      "id": "SQ-0043",
+      "issueId": "fe3621db-2fe1-465a-9cc0-50358532e3ff",
+      "method": "same_position",
+      "oldRange": {
+        "startLine": 16,
+        "endLine": 16,
+        "startOffset": 14,
+        "endOffset": 18
+      },
+      "currentRange": {
+        "startLine": 16,
+        "endLine": 16,
+        "startOffset": 14,
+        "endOffset": 18
+      }
+    },
+    {
+      "id": "SQ-0044",
+      "issueId": "2b24edc7-0f08-40c7-bea0-ff87d150e6d6",
+      "method": "same_position",
+      "oldRange": {
+        "startLine": 17,
+        "endLine": 17,
+        "startOffset": 14,
+        "endOffset": 18
+      },
+      "currentRange": {
+        "startLine": 17,
+        "endLine": 17,
+        "startOffset": 14,
+        "endOffset": 18
+      }
+    },
+    {
+      "id": "SQ-0045",
+      "issueId": "96334ff4-494b-4eb1-a94f-4289001d3445",
+      "method": "same_position",
+      "oldRange": {
+        "startLine": 18,
+        "endLine": 18,
+        "startOffset": 14,
+        "endOffset": 18
+      },
+      "currentRange": {
+        "startLine": 18,
+        "endLine": 18,
+        "startOffset": 14,
+        "endOffset": 18
+      }
+    },
+    {
+      "id": "SQ-0046",
+      "issueId": "1e5e63e5-6cac-4288-8559-4fe8a4bd4d64",
+      "method": "same_position",
+      "oldRange": {
+        "startLine": 37,
+        "endLine": 37,
+        "startOffset": 36,
+        "endOffset": 42
+      },
+      "currentRange": {
+        "startLine": 37,
+        "endLine": 37,
+        "startOffset": 36,
+        "endOffset": 42
+      }
+    },
+    {
+      "id": "SQ-0047",
+      "issueId": "7fa5b04f-9b1f-4045-8848-d3d4129d2a36",
+      "method": "same_position",
+      "oldRange": {
+        "startLine": 37,
+        "endLine": 37,
+        "startOffset": 42,
+        "endOffset": 48
+      },
+      "currentRange": {
+        "startLine": 37,
+        "endLine": 37,
+        "startOffset": 42,
+        "endOffset": 48
+      }
+    },
+    {
+      "id": "SQ-0048",
+      "issueId": "c4144b19-7e57-4d6e-89fc-8d1df30ef8ec",
+      "method": "same_position",
+      "oldRange": {
+        "startLine": 41,
+        "endLine": 41,
+        "startOffset": 60,
+        "endOffset": 66
+      },
+      "currentRange": {
+        "startLine": 41,
+        "endLine": 41,
+        "startOffset": 60,
+        "endOffset": 66
+      }
+    },
+    {
+      "id": "SQ-0049",
+      "issueId": "e2282065-360b-44ad-bf41-615d93948604",
+      "method": "same_position",
+      "oldRange": {
+        "startLine": 41,
+        "endLine": 41,
+        "startOffset": 66,
+        "endOffset": 72
+      },
+      "currentRange": {
+        "startLine": 41,
+        "endLine": 41,
+        "startOffset": 66,
+        "endOffset": 72
+      }
+    },
+    {
+      "id": "SQ-0053",
+      "issueId": "2082229e-822b-4bf7-800b-db37b6f22414",
+      "method": "same_position",
+      "oldRange": {
+        "startLine": 160,
+        "endLine": 160,
+        "startOffset": 14,
+        "endOffset": 20
+      },
+      "currentRange": {
+        "startLine": 160,
+        "endLine": 160,
+        "startOffset": 14,
+        "endOffset": 20
+      }
+    },
+    {
+      "id": "SQ-0054",
+      "issueId": "2dffd5d8-4e91-4273-86a8-4cc1541053b4",
+      "method": "same_position",
+      "oldRange": {
+        "startLine": 225,
+        "endLine": 225,
+        "startOffset": 52,
+        "endOffset": 56
+      },
+      "currentRange": {
+        "startLine": 225,
+        "endLine": 225,
+        "startOffset": 52,
+        "endOffset": 56
+      }
+    },
+    {
+      "id": "SQ-0055",
+      "issueId": "67c269bc-a669-452d-b279-b491b3dd5147",
+      "method": "same_position",
+      "oldRange": {
+        "startLine": 225,
+        "endLine": 225,
+        "startOffset": 67,
+        "endOffset": 71
+      },
+      "currentRange": {
+        "startLine": 225,
+        "endLine": 225,
+        "startOffset": 67,
+        "endOffset": 71
+      }
+    },
+    {
+      "id": "SQ-0056",
+      "issueId": "b2426cd7-bc4a-4826-aa50-573e69de3412",
+      "method": "same_position",
+      "oldRange": {
+        "startLine": 225,
+        "endLine": 225,
+        "startOffset": 72,
+        "endOffset": 76
+      },
+      "currentRange": {
+        "startLine": 225,
+        "endLine": 225,
+        "startOffset": 72,
+        "endOffset": 76
+      }
+    },
+    {
+      "id": "SQ-0060",
+      "issueId": "5330fd0a-3eda-4807-9381-666d10f49446",
+      "method": "same_position",
+      "oldRange": {
+        "startLine": 477,
+        "endLine": 477,
+        "startOffset": 58,
+        "endOffset": 64
+      },
+      "currentRange": {
+        "startLine": 477,
+        "endLine": 477,
+        "startOffset": 58,
+        "endOffset": 64
+      }
+    },
+    {
+      "id": "SQ-0061",
+      "issueId": "bcaf109e-9efa-4bda-b884-305da244f5a9",
+      "method": "same_position",
+      "oldRange": {
+        "startLine": 477,
+        "endLine": 477,
+        "startOffset": 64,
+        "endOffset": 70
+      },
+      "currentRange": {
+        "startLine": 477,
+        "endLine": 477,
+        "startOffset": 64,
+        "endOffset": 70
+      }
+    },
+    {
+      "id": "SQ-0062",
+      "issueId": "0c4c9794-c6bd-477d-b35d-2ae56af5bf21",
+      "method": "same_position",
+      "oldRange": {
+        "startLine": 253,
+        "endLine": 253,
+        "startOffset": 4,
+        "endOffset": 14
+      },
+      "currentRange": {
+        "startLine": 253,
+        "endLine": 253,
+        "startOffset": 4,
+        "endOffset": 14
+      }
+    },
+    {
+      "id": "SQ-0070",
+      "issueId": "14421ceb-0773-4872-b86e-453766845625",
+      "method": "same_position",
+      "oldRange": {
+        "startLine": 6,
+        "endLine": 6,
+        "startOffset": 18,
+        "endOffset": 28
+      },
+      "currentRange": {
+        "startLine": 6,
+        "endLine": 6,
+        "startOffset": 18,
+        "endOffset": 28
+      }
+    },
+    {
+      "id": "SQ-0071",
+      "issueId": "1d1925e1-6f0f-4805-affb-a4e83beabad9",
+      "method": "same_position",
+      "oldRange": {
+        "startLine": 6,
+        "endLine": 6,
+        "startOffset": 70,
+        "endOffset": 83
+      },
+      "currentRange": {
+        "startLine": 6,
+        "endLine": 6,
+        "startOffset": 70,
+        "endOffset": 83
+      }
+    },
+    {
+      "id": "SQ-0072",
+      "issueId": "45d9981d-0b91-416f-bdca-13a6240d1a40",
+      "method": "same_position",
+      "oldRange": {
+        "startLine": 6,
+        "endLine": 6,
+        "startOffset": 90,
+        "endOffset": 102
+      },
+      "currentRange": {
+        "startLine": 6,
+        "endLine": 6,
+        "startOffset": 90,
+        "endOffset": 102
+      }
+    },
+    {
+      "id": "SQ-0073",
+      "issueId": "4c43875f-ee98-4882-99f8-d295d081dfa0",
+      "method": "same_position",
+      "oldRange": {
+        "startLine": 6,
+        "endLine": 6,
+        "startOffset": 34,
+        "endOffset": 46
+      },
+      "currentRange": {
+        "startLine": 6,
+        "endLine": 6,
+        "startOffset": 34,
+        "endOffset": 46
+      }
+    },
+    {
+      "id": "SQ-0074",
+      "issueId": "06f14c75-d6a4-4b43-911b-ad454436ff56",
+      "method": "same_position",
+      "oldRange": {
+        "startLine": 7,
+        "endLine": 7,
+        "startOffset": 139,
+        "endOffset": 150
+      },
+      "currentRange": {
+        "startLine": 7,
+        "endLine": 7,
+        "startOffset": 139,
+        "endOffset": 150
+      }
+    },
+    {
+      "id": "SQ-0075",
+      "issueId": "20741df4-375b-40e9-a539-97b8dc562a88",
+      "method": "same_position",
+      "oldRange": {
+        "startLine": 7,
+        "endLine": 7,
+        "startOffset": 3,
+        "endOffset": 14
+      },
+      "currentRange": {
+        "startLine": 7,
+        "endLine": 7,
+        "startOffset": 3,
+        "endOffset": 14
+      }
+    },
+    {
+      "id": "SQ-0076",
+      "issueId": "bced2a1b-fce1-4e38-a3b6-23fa0272eb7b",
+      "method": "same_position",
+      "oldRange": {
+        "startLine": 7,
+        "endLine": 7,
+        "startOffset": 39,
+        "endOffset": 52
+      },
+      "currentRange": {
+        "startLine": 7,
+        "endLine": 7,
+        "startOffset": 39,
+        "endOffset": 52
+      }
+    },
+    {
+      "id": "SQ-0077",
+      "issueId": "ec102774-f282-4408-8ccf-2dfc37fc7a76",
+      "method": "same_position",
+      "oldRange": {
+        "startLine": 7,
+        "endLine": 7,
+        "startOffset": 59,
+        "endOffset": 72
+      },
+      "currentRange": {
+        "startLine": 7,
+        "endLine": 7,
+        "startOffset": 59,
+        "endOffset": 72
+      }
+    },
+    {
+      "id": "SQ-0078",
+      "issueId": "ffa5a33d-c24f-47aa-ae44-7ef1bc1a58e9",
+      "method": "same_position",
+      "oldRange": {
+        "startLine": 7,
+        "endLine": 7,
+        "startOffset": 79,
+        "endOffset": 91
+      },
+      "currentRange": {
+        "startLine": 7,
+        "endLine": 7,
+        "startOffset": 79,
+        "endOffset": 91
+      }
+    },
+    {
+      "id": "SQ-0081",
+      "issueId": "0c5cfe0e-6f7a-4244-a413-22e37508cbc6",
+      "method": "same_position",
+      "oldRange": {
+        "startLine": 99,
+        "endLine": 99,
+        "startOffset": 54,
+        "endOffset": 69
+      },
+      "currentRange": {
+        "startLine": 99,
+        "endLine": 99,
+        "startOffset": 54,
+        "endOffset": 69
+      }
+    },
+    {
+      "id": "SQ-0082",
+      "issueId": "70c71381-d984-41d0-bd21-3c12d7287a04",
+      "method": "same_position",
+      "oldRange": {
+        "startLine": 99,
+        "endLine": 99,
+        "startOffset": 71,
+        "endOffset": 87
+      },
+      "currentRange": {
+        "startLine": 99,
+        "endLine": 99,
+        "startOffset": 71,
+        "endOffset": 87
+      }
+    },
+    {
+      "id": "SQ-0083",
+      "issueId": "eb6736bf-e1bd-4a8e-93b4-da2ab4502dfa",
+      "method": "same_position",
+      "oldRange": {
+        "startLine": 99,
+        "endLine": 99,
+        "startOffset": 40,
+        "endOffset": 52
+      },
+      "currentRange": {
+        "startLine": 99,
+        "endLine": 99,
+        "startOffset": 40,
+        "endOffset": 52
+      }
+    },
+    {
+      "id": "SQ-0085",
+      "issueId": "31a66372-8f8f-4821-b1d4-e97e8fb5f55f",
+      "method": "same_position",
+      "oldRange": {
+        "startLine": 11,
+        "endLine": 11,
+        "startOffset": 19,
+        "endOffset": 29
+      },
+      "currentRange": {
+        "startLine": 11,
+        "endLine": 11,
+        "startOffset": 19,
+        "endOffset": 29
+      }
+    },
+    {
+      "id": "SQ-0086",
+      "issueId": "6eac06ec-58b7-4960-bbd3-e0da9722449a",
+      "method": "same_position",
+      "oldRange": {
+        "startLine": 11,
+        "endLine": 11,
+        "startOffset": 36,
+        "endOffset": 48
+      },
+      "currentRange": {
+        "startLine": 11,
+        "endLine": 11,
+        "startOffset": 36,
+        "endOffset": 48
+      }
+    },
+    {
+      "id": "SQ-0087",
+      "issueId": "5483fed1-911a-4b50-8abd-b3c18775b584",
+      "method": "same_position",
+      "oldRange": {
+        "startLine": 12,
+        "endLine": 12,
+        "startOffset": 44,
+        "endOffset": 55
+      },
+      "currentRange": {
+        "startLine": 12,
+        "endLine": 12,
+        "startOffset": 44,
+        "endOffset": 55
+      }
+    },
+    {
+      "id": "SQ-0088",
+      "issueId": "6dc68b07-0d2b-4410-a18d-2eab9726dab6",
+      "method": "same_position",
+      "oldRange": {
+        "startLine": 12,
+        "endLine": 12,
+        "startOffset": 3,
+        "endOffset": 16
+      },
+      "currentRange": {
+        "startLine": 12,
+        "endLine": 12,
+        "startOffset": 3,
+        "endOffset": 16
+      }
+    },
+    {
+      "id": "SQ-0089",
+      "issueId": "b7fbbc64-d861-4644-9edc-86622ea1b04f",
+      "method": "same_position",
+      "oldRange": {
+        "startLine": 12,
+        "endLine": 12,
+        "startOffset": 24,
+        "endOffset": 36
+      },
+      "currentRange": {
+        "startLine": 12,
+        "endLine": 12,
+        "startOffset": 24,
+        "endOffset": 36
+      }
+    },
+    {
+      "id": "SQ-0090",
+      "issueId": "33d02c02-d09c-450a-bb63-f63b61b29922",
+      "method": "same_position",
+      "oldRange": {
+        "startLine": 13,
+        "endLine": 13,
+        "startOffset": 3,
+        "endOffset": 16
+      },
+      "currentRange": {
+        "startLine": 13,
+        "endLine": 13,
+        "startOffset": 3,
+        "endOffset": 16
+      }
+    },
+    {
+      "id": "SQ-0091",
+      "issueId": "b387e874-3b8d-4db9-85c9-c39f098b9167",
+      "method": "same_position",
+      "oldRange": {
+        "startLine": 13,
+        "endLine": 13,
+        "startOffset": 24,
+        "endOffset": 36
+      },
+      "currentRange": {
+        "startLine": 13,
+        "endLine": 13,
+        "startOffset": 24,
+        "endOffset": 36
+      }
+    },
+    {
+      "id": "SQ-0092",
+      "issueId": "d544c375-1c1f-4b49-977e-2c5c88d17bd8",
+      "method": "same_position",
+      "oldRange": {
+        "startLine": 14,
+        "endLine": 14,
+        "startOffset": 3,
+        "endOffset": 14
+      },
+      "currentRange": {
+        "startLine": 14,
+        "endLine": 14,
+        "startOffset": 3,
+        "endOffset": 14
+      }
+    },
+    {
+      "id": "SQ-0093",
+      "issueId": "5fa1ef6e-cef6-43cd-9f2c-920d8fadbe5e",
+      "method": "same_position",
+      "oldRange": {
+        "startLine": 18,
+        "endLine": 18,
+        "startOffset": 19,
+        "endOffset": 27
+      },
+      "currentRange": {
+        "startLine": 18,
+        "endLine": 18,
+        "startOffset": 19,
+        "endOffset": 27
+      }
+    },
+    {
+      "id": "SQ-0094",
+      "issueId": "30451ab3-b8ae-4901-8c3b-bf8c62680c10",
+      "method": "same_position",
+      "oldRange": {
+        "startLine": 20,
+        "endLine": 20,
+        "startOffset": 19,
+        "endOffset": 31
+      },
+      "currentRange": {
+        "startLine": 20,
+        "endLine": 20,
+        "startOffset": 19,
+        "endOffset": 31
+      }
+    },
+    {
+      "id": "SQ-0095",
+      "issueId": "46abbbed-2951-4129-a4fa-bf491804b000",
+      "method": "same_position",
+      "oldRange": {
+        "startLine": 21,
+        "endLine": 21,
+        "startOffset": 29,
+        "endOffset": 37
+      },
+      "currentRange": {
+        "startLine": 21,
+        "endLine": 21,
+        "startOffset": 29,
+        "endOffset": 37
+      }
+    },
+    {
+      "id": "SQ-0096",
+      "issueId": "87d9ad28-6eac-45a6-85ce-0aee1861ad0f",
+      "method": "same_position",
+      "oldRange": {
+        "startLine": 21,
+        "endLine": 21,
+        "startOffset": 65,
+        "endOffset": 73
+      },
+      "currentRange": {
+        "startLine": 21,
+        "endLine": 21,
+        "startOffset": 65,
+        "endOffset": 73
+      }
+    },
+    {
+      "id": "SQ-0097",
+      "issueId": "9aca2f59-4760-4aab-b1c4-638896efe306",
+      "method": "same_position",
+      "oldRange": {
+        "startLine": 21,
+        "endLine": 21,
+        "startOffset": 81,
+        "endOffset": 89
+      },
+      "currentRange": {
+        "startLine": 21,
+        "endLine": 21,
+        "startOffset": 81,
+        "endOffset": 89
+      }
+    },
+    {
+      "id": "SQ-0100",
+      "issueId": "17a7c454-1215-476c-9512-a55c4660791d",
+      "method": "same_position",
+      "oldRange": {
+        "startLine": 685,
+        "endLine": 691,
+        "startOffset": 6,
+        "endOffset": 7
+      },
+      "currentRange": {
+        "startLine": 685,
+        "endLine": 691,
+        "startOffset": 6,
+        "endOffset": 7
+      }
+    },
+    {
+      "id": "SQ-0103",
+      "issueId": "802e7b24-b894-43ab-a3c0-660dbc6a115e",
+      "method": "same_position",
+      "oldRange": {
+        "startLine": 665,
+        "endLine": 665,
+        "startOffset": 49,
+        "endOffset": 63
+      },
+      "currentRange": {
+        "startLine": 665,
+        "endLine": 665,
+        "startOffset": 49,
+        "endOffset": 63
+      }
+    },
+    {
+      "id": "SQ-0104",
+      "issueId": "37509f88-2ee7-4d6d-bc37-494774e1b76c",
+      "method": "same_position",
+      "oldRange": {
+        "startLine": 1924,
+        "endLine": 1931,
+        "startOffset": 6,
+        "endOffset": 7
+      },
+      "currentRange": {
+        "startLine": 1924,
+        "endLine": 1931,
+        "startOffset": 6,
+        "endOffset": 7
+      }
+    },
+    {
+      "id": "SQ-0106",
+      "issueId": "6a458e75-14da-4f35-819d-e4cf7511f500",
+      "method": "same_position",
+      "oldRange": {
+        "startLine": 2078,
+        "endLine": 2084,
+        "startOffset": 10,
+        "endOffset": 11
+      },
+      "currentRange": {
+        "startLine": 2078,
+        "endLine": 2084,
+        "startOffset": 10,
+        "endOffset": 11
+      }
+    },
+    {
+      "id": "SQ-0107",
+      "issueId": "a4a4ac67-1571-4e32-8c90-843e7c8ed168",
+      "method": "same_position",
+      "oldRange": {
+        "startLine": 2111,
+        "endLine": 2117,
+        "startOffset": 10,
+        "endOffset": 11
+      },
+      "currentRange": {
+        "startLine": 2111,
+        "endLine": 2117,
+        "startOffset": 10,
+        "endOffset": 11
+      }
+    },
+    {
+      "id": "SQ-0108",
+      "issueId": "a571a75e-1826-4f29-adf7-da031092ec50",
+      "method": "same_position",
+      "oldRange": {
+        "startLine": 2260,
+        "endLine": 2266,
+        "startOffset": 10,
+        "endOffset": 11
+      },
+      "currentRange": {
+        "startLine": 2260,
+        "endLine": 2266,
+        "startOffset": 10,
+        "endOffset": 11
+      }
+    },
+    {
+      "id": "SQ-0109",
+      "issueId": "e989d673-060b-46ef-b746-65433ca5e20b",
+      "method": "same_position",
+      "oldRange": {
+        "startLine": 2401,
+        "endLine": 2405,
+        "startOffset": 6,
+        "endOffset": 7
+      },
+      "currentRange": {
+        "startLine": 2401,
+        "endLine": 2405,
+        "startOffset": 6,
+        "endOffset": 7
+      }
+    },
+    {
+      "id": "SQ-0111",
+      "issueId": "837cb40c-e519-4569-a645-2fe22f255c74",
+      "method": "same_position",
+      "oldRange": {
+        "startLine": 310,
+        "endLine": 310,
+        "startOffset": 12,
+        "endOffset": 40
+      },
+      "currentRange": {
+        "startLine": 310,
+        "endLine": 310,
+        "startOffset": 12,
+        "endOffset": 40
+      }
+    },
+    {
+      "id": "SQ-0112",
+      "issueId": "b11287e3-9121-4ef2-b1de-3f4e068123ed",
+      "method": "same_position",
+      "oldRange": {
+        "startLine": 315,
+        "endLine": 315,
+        "startOffset": 12,
+        "endOffset": 40
+      },
+      "currentRange": {
+        "startLine": 315,
+        "endLine": 315,
+        "startOffset": 12,
+        "endOffset": 40
+      }
+    },
+    {
+      "id": "SQ-0113",
+      "issueId": "87095c85-f631-4cbe-bc4c-a65ba78e4709",
+      "method": "same_position",
+      "oldRange": {
+        "startLine": 320,
+        "endLine": 320,
+        "startOffset": 12,
+        "endOffset": 40
+      },
+      "currentRange": {
+        "startLine": 320,
+        "endLine": 320,
+        "startOffset": 12,
+        "endOffset": 40
+      }
+    },
+    {
+      "id": "SQ-0114",
+      "issueId": "d5ec8fbb-fe40-4f34-926d-aeb1d94bf79f",
+      "method": "same_position",
+      "oldRange": {
+        "startLine": 325,
+        "endLine": 325,
+        "startOffset": 12,
+        "endOffset": 40
+      },
+      "currentRange": {
+        "startLine": 325,
+        "endLine": 325,
+        "startOffset": 12,
+        "endOffset": 40
+      }
+    },
+    {
+      "id": "SQ-0119",
+      "issueId": "ae05e55c-7fdf-480b-8b31-7abf36b98ee2",
+      "method": "same_position",
+      "oldRange": {
+        "startLine": 176,
+        "endLine": 176,
+        "startOffset": 14,
+        "endOffset": 51
+      },
+      "currentRange": {
+        "startLine": 176,
+        "endLine": 176,
+        "startOffset": 14,
+        "endOffset": 51
+      }
+    },
+    {
+      "id": "SQ-0122",
+      "issueId": "6b3dbbd2-f165-49b8-8c08-6f2233a0f5b1",
+      "method": "same_position",
+      "oldRange": {
+        "startLine": 161,
+        "endLine": 161,
+        "startOffset": 10,
+        "endOffset": 17
+      },
+      "currentRange": {
+        "startLine": 161,
+        "endLine": 161,
+        "startOffset": 10,
+        "endOffset": 17
+      }
+    },
+    {
+      "id": "SQ-0123",
+      "issueId": "ce693eb8-2ada-454c-a936-a1f0b0680fbd",
+      "method": "same_position",
+      "oldRange": {
+        "startLine": 173,
+        "endLine": 173,
+        "startOffset": 8,
+        "endOffset": 49
+      },
+      "currentRange": {
+        "startLine": 173,
+        "endLine": 173,
+        "startOffset": 8,
+        "endOffset": 49
+      }
+    },
+    {
+      "id": "SQ-0124",
+      "issueId": "eaa3c373-f07d-4d30-b489-0aee1d8b58b8",
+      "method": "same_position",
+      "oldRange": {
+        "startLine": 74,
+        "endLine": 74,
+        "startOffset": 6,
+        "endOffset": 49
+      },
+      "currentRange": {
+        "startLine": 74,
+        "endLine": 74,
+        "startOffset": 6,
+        "endOffset": 49
+      }
+    },
+    {
+      "id": "SQ-0125",
+      "issueId": "739a8fec-c667-4a25-a144-605e43a1ee18",
+      "method": "same_position",
+      "oldRange": {
+        "startLine": 44,
+        "endLine": 51,
+        "startOffset": 4,
+        "endOffset": 5
+      },
+      "currentRange": {
+        "startLine": 44,
+        "endLine": 51,
+        "startOffset": 4,
+        "endOffset": 5
+      }
+    },
+    {
+      "id": "SQ-0130",
+      "issueId": "dc176616-0f62-47ea-b291-d61aff75e56f",
+      "method": "same_position",
+      "oldRange": {
+        "startLine": 42,
+        "endLine": 42,
+        "startOffset": 4,
+        "endOffset": 13
+      },
+      "currentRange": {
+        "startLine": 42,
+        "endLine": 42,
+        "startOffset": 4,
+        "endOffset": 13
+      }
+    },
+    {
+      "id": "SQ-0132",
+      "issueId": "7dec507b-3e5e-426e-b161-00389785b295",
+      "method": "same_position",
+      "oldRange": {
+        "startLine": 1522,
+        "endLine": 1522,
+        "startOffset": 63,
+        "endOffset": 91
+      },
+      "currentRange": {
+        "startLine": 1522,
+        "endLine": 1522,
+        "startOffset": 63,
+        "endOffset": 91
+      }
+    },
+    {
+      "id": "SQ-0133",
+      "issueId": "459c43e5-ddb0-42a7-84ec-f5b4ea41a6fc",
+      "method": "same_position",
+      "oldRange": {
+        "startLine": 1247,
+        "endLine": 1247,
+        "startOffset": 63,
+        "endOffset": 91
+      },
+      "currentRange": {
+        "startLine": 1247,
+        "endLine": 1247,
+        "startOffset": 63,
+        "endOffset": 91
+      }
+    },
+    {
+      "id": "SQ-0134",
+      "issueId": "304c953c-ca09-4f1b-8e01-41ae8777740d",
+      "method": "same_position",
+      "oldRange": {
+        "startLine": 1522,
+        "endLine": 1522,
+        "startOffset": 64,
+        "endOffset": 92
+      },
+      "currentRange": {
+        "startLine": 1522,
+        "endLine": 1522,
+        "startOffset": 64,
+        "endOffset": 92
+      }
+    },
+    {
+      "id": "SQ-0135",
+      "issueId": "32464ed2-e9a3-4645-87b0-1f2a38f05a88",
+      "method": "same_position",
+      "oldRange": {
+        "startLine": 1247,
+        "endLine": 1247,
+        "startOffset": 64,
+        "endOffset": 92
+      },
+      "currentRange": {
+        "startLine": 1247,
+        "endLine": 1247,
+        "startOffset": 64,
+        "endOffset": 92
+      }
+    },
+    {
+      "id": "SQ-0146",
+      "issueId": "58537d45-fe46-4910-aa3f-845520ec34b1",
+      "method": "same_position",
+      "oldRange": {
+        "startLine": 94,
+        "endLine": 94,
+        "startOffset": 27,
+        "endOffset": 40
+      },
+      "currentRange": {
+        "startLine": 94,
+        "endLine": 94,
+        "startOffset": 27,
+        "endOffset": 40
+      }
+    },
+    {
+      "id": "SQ-0149",
+      "issueId": "b9900a35-4b3d-4816-98dd-1724aa8f69a8",
+      "method": "same_position",
+      "oldRange": {
+        "startLine": 49,
+        "endLine": 49,
+        "startOffset": 43,
+        "endOffset": 49
+      },
+      "currentRange": {
+        "startLine": 49,
+        "endLine": 49,
+        "startOffset": 43,
+        "endOffset": 49
+      }
+    },
+    {
+      "id": "SQ-0150",
+      "issueId": "5be8a4e5-1585-44bf-b336-f0abfefb13e8",
+      "method": "same_position",
+      "oldRange": {
+        "startLine": 5,
+        "endLine": 5,
+        "startOffset": 66,
+        "endOffset": 72
+      },
+      "currentRange": {
+        "startLine": 5,
+        "endLine": 5,
+        "startOffset": 66,
+        "endOffset": 72
+      }
+    },
+    {
+      "id": "SQ-0151",
+      "issueId": "8e96c3c6-a328-4ec7-92c1-ca14252d691f",
+      "method": "same_position",
+      "oldRange": {
+        "startLine": 5,
+        "endLine": 5,
+        "startOffset": 73,
+        "endOffset": 79
+      },
+      "currentRange": {
+        "startLine": 5,
+        "endLine": 5,
+        "startOffset": 73,
+        "endOffset": 79
+      }
+    },
+    {
+      "id": "SQ-0152",
+      "issueId": "2de0581d-4ec3-41cc-b313-93006fc3eb5c",
+      "method": "same_position",
+      "oldRange": {
+        "startLine": 5,
+        "endLine": 5,
+        "startOffset": 66,
+        "endOffset": 72
+      },
+      "currentRange": {
+        "startLine": 5,
+        "endLine": 5,
+        "startOffset": 66,
+        "endOffset": 72
+      }
+    },
+    {
+      "id": "SQ-0153",
+      "issueId": "54effdb2-129d-46d1-82ab-520a90c9d5a2",
+      "method": "same_position",
+      "oldRange": {
+        "startLine": 5,
+        "endLine": 5,
+        "startOffset": 72,
+        "endOffset": 78
+      },
+      "currentRange": {
+        "startLine": 5,
+        "endLine": 5,
+        "startOffset": 72,
+        "endOffset": 78
+      }
+    },
+    {
+      "id": "SQ-0154",
+      "issueId": "560176a2-6772-4170-828d-74ef224ac53f",
+      "method": "same_position",
+      "oldRange": {
+        "startLine": 5,
+        "endLine": 5,
+        "startOffset": 85,
+        "endOffset": 91
+      },
+      "currentRange": {
+        "startLine": 5,
+        "endLine": 5,
+        "startOffset": 85,
+        "endOffset": 91
+      }
+    },
+    {
+      "id": "SQ-0155",
+      "issueId": "72bbfbfd-9e08-4565-bbe5-df1c8d06005e",
+      "method": "same_position",
+      "oldRange": {
+        "startLine": 5,
+        "endLine": 5,
+        "startOffset": 91,
+        "endOffset": 97
+      },
+      "currentRange": {
+        "startLine": 5,
+        "endLine": 5,
+        "startOffset": 91,
+        "endOffset": 97
+      }
+    },
+    {
+      "id": "SQ-0156",
+      "issueId": "c1829053-a40e-4399-9d9b-3e6c51fb8737",
+      "method": "same_position",
+      "oldRange": {
+        "startLine": 5,
+        "endLine": 5,
+        "startOffset": 103,
+        "endOffset": 109
+      },
+      "currentRange": {
+        "startLine": 5,
+        "endLine": 5,
+        "startOffset": 103,
+        "endOffset": 109
+      }
+    },
+    {
+      "id": "SQ-0157",
+      "issueId": "daaa581a-7de7-459b-961c-93abf6f8d327",
+      "method": "same_position",
+      "oldRange": {
+        "startLine": 5,
+        "endLine": 5,
+        "startOffset": 110,
+        "endOffset": 116
+      },
+      "currentRange": {
+        "startLine": 5,
+        "endLine": 5,
+        "startOffset": 110,
+        "endOffset": 116
+      }
+    },
+    {
+      "id": "SQ-0165",
+      "issueId": "034a0e51-7fef-44f1-9251-a1b19ad6eb23",
+      "method": "same_position",
+      "oldRange": {
+        "startLine": 3581,
+        "endLine": 3586,
+        "startOffset": 18,
+        "endOffset": 19
+      },
+      "currentRange": {
+        "startLine": 3581,
+        "endLine": 3586,
+        "startOffset": 18,
+        "endOffset": 19
+      }
+    },
+    {
+      "id": "SQ-0170",
+      "issueId": "32469d52-2866-4ebf-b024-8225fe5fb9be",
+      "method": "same_position",
+      "oldRange": {
+        "startLine": 37,
+        "endLine": 37,
+        "startOffset": 25,
+        "endOffset": 37
+      },
+      "currentRange": {
+        "startLine": 37,
+        "endLine": 37,
+        "startOffset": 25,
+        "endOffset": 37
+      }
+    },
+    {
+      "id": "SQ-0171",
+      "issueId": "13f51efd-0eb5-4e93-a1eb-fcd3495f55a2",
+      "method": "same_position",
+      "oldRange": {
+        "startLine": 61,
+        "endLine": 61,
+        "startOffset": 84,
+        "endOffset": 96
+      },
+      "currentRange": {
+        "startLine": 61,
+        "endLine": 61,
+        "startOffset": 84,
+        "endOffset": 96
+      }
+    },
+    {
+      "id": "SQ-0172",
+      "issueId": "583835f7-b72e-47de-88b3-4990813c965c",
+      "method": "same_position",
+      "oldRange": {
+        "startLine": 65,
+        "endLine": 65,
+        "startOffset": 123,
+        "endOffset": 135
+      },
+      "currentRange": {
+        "startLine": 65,
+        "endLine": 65,
+        "startOffset": 123,
+        "endOffset": 135
+      }
+    },
+    {
+      "id": "SQ-0173",
+      "issueId": "3572e6ae-d574-4859-8a15-09a08adcb8ec",
+      "method": "same_position",
+      "oldRange": {
+        "startLine": 70,
+        "endLine": 70,
+        "startOffset": 105,
+        "endOffset": 117
+      },
+      "currentRange": {
+        "startLine": 70,
+        "endLine": 70,
+        "startOffset": 105,
+        "endOffset": 117
+      }
+    },
+    {
+      "id": "SQ-0174",
+      "issueId": "b41f16f6-a42c-4176-9303-6d286f19211b",
+      "method": "same_position",
+      "oldRange": {
+        "startLine": 75,
+        "endLine": 75,
+        "startOffset": 144,
+        "endOffset": 156
+      },
+      "currentRange": {
+        "startLine": 75,
+        "endLine": 75,
+        "startOffset": 144,
+        "endOffset": 156
+      }
+    },
+    {
+      "id": "SQ-0175",
+      "issueId": "af7180f2-a438-4bd1-b586-4e6e8df1af16",
+      "method": "same_position",
+      "oldRange": {
+        "startLine": 365,
+        "endLine": 365,
+        "startOffset": 10,
+        "endOffset": 37
+      },
+      "currentRange": {
+        "startLine": 365,
+        "endLine": 365,
+        "startOffset": 10,
+        "endOffset": 37
+      }
+    },
+    {
+      "id": "SQ-0176",
+      "issueId": "965f1baa-23a6-4e19-a71f-0c9fecbc6e1a",
+      "method": "same_position",
+      "oldRange": {
+        "startLine": 369,
+        "endLine": 369,
+        "startOffset": 10,
+        "endOffset": 37
+      },
+      "currentRange": {
+        "startLine": 369,
+        "endLine": 369,
+        "startOffset": 10,
+        "endOffset": 37
+      }
+    },
+    {
+      "id": "SQ-0187",
+      "issueId": "3487a5af-f76e-4323-a02d-64f6562dd25b",
+      "method": "same_position",
+      "oldRange": {
+        "startLine": 803,
+        "endLine": 803,
+        "startOffset": 22,
+        "endOffset": 26
+      },
+      "currentRange": {
+        "startLine": 803,
+        "endLine": 803,
+        "startOffset": 22,
+        "endOffset": 26
+      }
+    },
+    {
+      "id": "SQ-0188",
+      "issueId": "3685a6e6-d0ea-48dd-88e6-12f161062375",
+      "method": "same_position",
+      "oldRange": {
+        "startLine": 803,
+        "endLine": 803,
+        "startOffset": 26,
+        "endOffset": 30
+      },
+      "currentRange": {
+        "startLine": 803,
+        "endLine": 803,
+        "startOffset": 26,
+        "endOffset": 30
+      }
+    },
+    {
+      "id": "SQ-0189",
+      "issueId": "a1c79e7d-46b6-475d-8cd3-16381e212563",
+      "method": "same_position",
+      "oldRange": {
+        "startLine": 803,
+        "endLine": 803,
+        "startOffset": 35,
+        "endOffset": 39
+      },
+      "currentRange": {
+        "startLine": 803,
+        "endLine": 803,
+        "startOffset": 35,
+        "endOffset": 39
+      }
+    },
+    {
+      "id": "SQ-0190",
+      "issueId": "a9f0e611-4fe5-4a35-bee7-78aacadf516a",
+      "method": "same_position",
+      "oldRange": {
+        "startLine": 803,
+        "endLine": 803,
+        "startOffset": 40,
+        "endOffset": 44
+      },
+      "currentRange": {
+        "startLine": 803,
+        "endLine": 803,
+        "startOffset": 40,
+        "endOffset": 44
+      }
+    },
+    {
+      "id": "SQ-0194",
+      "issueId": "fe92b416-ad6c-4791-b2b1-3b6a1861e310",
+      "method": "same_position",
+      "oldRange": {
+        "startLine": 806,
+        "endLine": 806,
+        "startOffset": 14,
+        "endOffset": 18
+      },
+      "currentRange": {
+        "startLine": 806,
+        "endLine": 806,
+        "startOffset": 14,
+        "endOffset": 18
+      }
+    },
+    {
+      "id": "SQ-0195",
+      "issueId": "a367d93e-9d8c-421c-8b46-4dec0464e86b",
+      "method": "same_position",
+      "oldRange": {
+        "startLine": 807,
+        "endLine": 807,
+        "startOffset": 14,
+        "endOffset": 18
+      },
+      "currentRange": {
+        "startLine": 807,
+        "endLine": 807,
+        "startOffset": 14,
+        "endOffset": 18
+      }
+    },
+    {
+      "id": "SQ-0196",
+      "issueId": "9011cf17-5c88-4a04-bc04-eff61b7ef495",
+      "method": "same_position",
+      "oldRange": {
+        "startLine": 808,
+        "endLine": 808,
+        "startOffset": 14,
+        "endOffset": 18
+      },
+      "currentRange": {
+        "startLine": 808,
+        "endLine": 808,
+        "startOffset": 14,
+        "endOffset": 18
+      }
+    },
+    {
+      "id": "SQ-0232",
+      "issueId": "2cbebbc8-bb22-4019-84df-0c6abcf41900",
+      "method": "same_position",
+      "oldRange": {
+        "startLine": 1078,
+        "endLine": 1078,
+        "startOffset": 8,
+        "endOffset": 117
+      },
+      "currentRange": {
+        "startLine": 1078,
+        "endLine": 1078,
+        "startOffset": 8,
+        "endOffset": 117
+      }
+    },
+    {
+      "id": "SQ-0233",
+      "issueId": "41d12852-dd37-4c69-939b-065e369a35d8",
+      "method": "same_position",
+      "oldRange": {
+        "startLine": 1079,
+        "endLine": 1079,
+        "startOffset": 8,
+        "endOffset": 129
+      },
+      "currentRange": {
+        "startLine": 1079,
+        "endLine": 1079,
+        "startOffset": 8,
+        "endOffset": 129
+      }
+    },
+    {
+      "id": "SQ-0241",
+      "issueId": "833480a6-62e9-43a8-98dd-1750989ac29e",
+      "method": "same_position",
+      "oldRange": {
+        "startLine": 2264,
+        "endLine": 2264,
+        "startOffset": 8,
+        "endOffset": 101
+      },
+      "currentRange": {
+        "startLine": 2264,
+        "endLine": 2264,
+        "startOffset": 8,
+        "endOffset": 101
+      }
+    },
+    {
+      "id": "SQ-0242",
+      "issueId": "cbe3d036-1644-4461-b7fa-af1e068b29ca",
+      "method": "same_position",
+      "oldRange": {
+        "startLine": 2265,
+        "endLine": 2265,
+        "startOffset": 8,
+        "endOffset": 113
+      },
+      "currentRange": {
+        "startLine": 2265,
+        "endLine": 2265,
+        "startOffset": 8,
+        "endOffset": 113
+      }
+    },
+    {
+      "id": "SQ-0243",
+      "issueId": "f625cc4f-4415-4aa0-bfba-7a4615c3a498",
+      "method": "same_position",
+      "oldRange": {
+        "startLine": 2007,
+        "endLine": 2007,
+        "startOffset": 8,
+        "endOffset": 101
+      },
+      "currentRange": {
+        "startLine": 2007,
+        "endLine": 2007,
+        "startOffset": 8,
+        "endOffset": 101
+      }
+    },
+    {
+      "id": "SQ-0244",
+      "issueId": "d12d496d-68ac-4023-8b3f-d8a798a0a3ff",
+      "method": "same_position",
+      "oldRange": {
+        "startLine": 2008,
+        "endLine": 2008,
+        "startOffset": 8,
+        "endOffset": 113
+      },
+      "currentRange": {
+        "startLine": 2008,
+        "endLine": 2008,
+        "startOffset": 8,
+        "endOffset": 113
+      }
+    },
+    {
+      "id": "SQ-0246",
+      "issueId": "bb62b45e-9ab2-4860-94ec-479a18cc4a2a",
+      "method": "same_position",
+      "oldRange": {
+        "startLine": 7465,
+        "endLine": 7471,
+        "startOffset": 18,
+        "endOffset": 19
+      },
+      "currentRange": {
+        "startLine": 7465,
+        "endLine": 7471,
+        "startOffset": 18,
+        "endOffset": 19
+      }
+    },
+    {
+      "id": "SQ-0247",
+      "issueId": "ba8d47c8-3b80-44bf-8f69-35607b633fbb",
+      "method": "same_position",
+      "oldRange": {
+        "startLine": 199,
+        "endLine": 205,
+        "startOffset": 12,
+        "endOffset": 14
+      },
+      "currentRange": {
+        "startLine": 199,
+        "endLine": 205,
+        "startOffset": 12,
+        "endOffset": 14
+      }
+    },
+    {
+      "id": "SQ-0248",
+      "issueId": "5130a863-488e-42ac-8257-afcc4fe5952e",
+      "method": "same_position",
+      "oldRange": {
+        "startLine": 286,
+        "endLine": 292,
+        "startOffset": 10,
+        "endOffset": 11
+      },
+      "currentRange": {
+        "startLine": 286,
+        "endLine": 292,
+        "startOffset": 10,
+        "endOffset": 11
+      }
+    },
+    {
+      "id": "SQ-0249",
+      "issueId": "2fc01788-1448-4cbd-80e4-8aa88ddcd828",
+      "method": "same_position",
+      "oldRange": {
+        "startLine": 483,
+        "endLine": 483,
+        "startOffset": 8,
+        "endOffset": 108
+      },
+      "currentRange": {
+        "startLine": 483,
+        "endLine": 483,
+        "startOffset": 8,
+        "endOffset": 108
+      }
+    },
+    {
+      "id": "SQ-0250",
+      "issueId": "a9f5d014-437d-4323-ae23-0a4944ac8ef0",
+      "method": "same_position",
+      "oldRange": {
+        "startLine": 484,
+        "endLine": 484,
+        "startOffset": 8,
+        "endOffset": 120
+      },
+      "currentRange": {
+        "startLine": 484,
+        "endLine": 484,
+        "startOffset": 8,
+        "endOffset": 120
+      }
+    },
+    {
+      "id": "SQ-0251",
+      "issueId": "d588759e-235d-4423-9039-a401b0b93bfd",
+      "method": "same_position",
+      "oldRange": {
+        "startLine": 540,
+        "endLine": 540,
+        "startOffset": 8,
+        "endOffset": 108
+      },
+      "currentRange": {
+        "startLine": 540,
+        "endLine": 540,
+        "startOffset": 8,
+        "endOffset": 108
+      }
+    },
+    {
+      "id": "SQ-0252",
+      "issueId": "b813dac2-d404-4ced-904b-95be0a919162",
+      "method": "same_position",
+      "oldRange": {
+        "startLine": 541,
+        "endLine": 541,
+        "startOffset": 8,
+        "endOffset": 120
+      },
+      "currentRange": {
+        "startLine": 541,
+        "endLine": 541,
+        "startOffset": 8,
+        "endOffset": 120
+      }
+    },
+    {
+      "id": "SQ-0258",
+      "issueId": "82e86ed8-7ffd-45a7-a0dc-27893a7e4ef0",
+      "method": "same_position",
+      "oldRange": {
+        "startLine": 1893,
+        "endLine": 1893,
+        "startOffset": 26,
+        "endOffset": 39
+      },
+      "currentRange": {
+        "startLine": 1893,
+        "endLine": 1893,
+        "startOffset": 26,
+        "endOffset": 39
+      }
+    },
+    {
+      "id": "SQ-0259",
+      "issueId": "636a6118-ffaf-49c1-a6ce-3a2e9637c4f8",
+      "method": "same_position",
+      "oldRange": {
+        "startLine": 4391,
+        "endLine": 4405,
+        "startOffset": 8,
+        "endOffset": 9
+      },
+      "currentRange": {
+        "startLine": 4391,
+        "endLine": 4405,
+        "startOffset": 8,
+        "endOffset": 9
+      }
+    },
+    {
+      "id": "SQ-0260",
+      "issueId": "9a5ede13-349c-4765-8d7c-24156b6103f7",
+      "method": "same_position",
+      "oldRange": {
+        "startLine": 4408,
+        "endLine": 4422,
+        "startOffset": 8,
+        "endOffset": 9
+      },
+      "currentRange": {
+        "startLine": 4408,
+        "endLine": 4422,
+        "startOffset": 8,
+        "endOffset": 9
+      }
+    },
+    {
+      "id": "SQ-0262",
+      "issueId": "b989b69e-d796-4659-aa6d-5679943326e9",
+      "method": "same_position",
+      "oldRange": {
+        "startLine": 6010,
+        "endLine": 6016,
+        "startOffset": 16,
+        "endOffset": 17
+      },
+      "currentRange": {
+        "startLine": 6010,
+        "endLine": 6016,
+        "startOffset": 16,
+        "endOffset": 17
+      }
+    },
+    {
+      "id": "SQ-0281",
+      "issueId": "33f39287-656d-4183-b324-9c6585ec4e64",
+      "method": "same_position",
+      "oldRange": {
+        "startLine": 56,
+        "endLine": 56,
+        "startOffset": 18,
+        "endOffset": 21
+      },
+      "currentRange": {
+        "startLine": 56,
+        "endLine": 56,
+        "startOffset": 18,
+        "endOffset": 21
+      }
+    },
+    {
+      "id": "SQ-0284",
+      "issueId": "1803f60d-4bea-4ede-a1bc-06bcb2d1e73d",
+      "method": "same_position",
+      "oldRange": {
+        "startLine": 44,
+        "endLine": 44,
+        "startOffset": 129,
+        "endOffset": 158
+      },
+      "currentRange": {
+        "startLine": 44,
+        "endLine": 44,
+        "startOffset": 129,
+        "endOffset": 158
+      }
+    },
+    {
+      "id": "SQ-0291",
+      "issueId": "0786f01d-e9b3-4bcc-8165-fbd61ecee004",
+      "method": "same_position",
+      "oldRange": {
+        "startLine": 19,
+        "endLine": 19,
+        "startOffset": 32,
+        "endOffset": 42
+      },
+      "currentRange": {
+        "startLine": 19,
+        "endLine": 19,
+        "startOffset": 32,
+        "endOffset": 42
+      }
+    },
+    {
+      "id": "SQ-0294",
+      "issueId": "08a38452-6346-47dc-ad4c-c37b39ef72dd",
+      "method": "same_position",
+      "oldRange": {
+        "startLine": 27,
+        "endLine": 27,
+        "startOffset": 35,
+        "endOffset": 45
+      },
+      "currentRange": {
+        "startLine": 27,
+        "endLine": 27,
+        "startOffset": 35,
+        "endOffset": 45
+      }
+    },
+    {
+      "id": "SQ-0295",
+      "issueId": "47ffe909-38d1-4c9b-acfb-07a6151f88e0",
+      "method": "same_position",
+      "oldRange": {
+        "startLine": 105,
+        "endLine": 105,
+        "startOffset": 25,
+        "endOffset": 30
+      },
+      "currentRange": {
+        "startLine": 105,
+        "endLine": 105,
+        "startOffset": 25,
+        "endOffset": 30
+      }
+    },
+    {
+      "id": "SQ-0297",
+      "issueId": "7fbf0fc1-dacd-4726-96ae-2b3c1832c7c4",
+      "method": "same_position",
+      "oldRange": {
+        "startLine": 7,
+        "endLine": 7,
+        "startOffset": 69,
+        "endOffset": 75
+      },
+      "currentRange": {
+        "startLine": 7,
+        "endLine": 7,
+        "startOffset": 69,
+        "endOffset": 75
+      }
+    },
+    {
+      "id": "SQ-0301",
+      "issueId": "5fd8556e-09be-4952-a3a0-f17e1d555459",
+      "method": "same_position",
+      "oldRange": {
+        "startLine": 20,
+        "endLine": 20,
+        "startOffset": 32,
+        "endOffset": 42
+      },
+      "currentRange": {
+        "startLine": 20,
+        "endLine": 20,
+        "startOffset": 32,
+        "endOffset": 42
+      }
+    },
+    {
+      "id": "SQ-0303",
+      "issueId": "eb6fea74-53ec-4125-8fb6-712aeb35eeb4",
+      "method": "same_position",
+      "oldRange": {
+        "startLine": 13,
+        "endLine": 13,
+        "startOffset": 41,
+        "endOffset": 48
+      },
+      "currentRange": {
+        "startLine": 13,
+        "endLine": 13,
+        "startOffset": 41,
+        "endOffset": 48
+      }
+    },
+    {
+      "id": "SQ-0307",
+      "issueId": "5d9ecf0d-1bd4-423a-9aeb-5b71e2b39cb4",
+      "method": "same_position",
+      "oldRange": {
+        "startLine": 50,
+        "endLine": 50,
+        "startOffset": 32,
+        "endOffset": 42
+      },
+      "currentRange": {
+        "startLine": 50,
+        "endLine": 50,
+        "startOffset": 32,
+        "endOffset": 42
+      }
+    },
+    {
+      "id": "SQ-0310",
+      "issueId": "73c395e4-0617-4616-a206-e488cfc6cb94",
+      "method": "same_position",
+      "oldRange": {
+        "startLine": 18,
+        "endLine": 18,
+        "startOffset": 59,
+        "endOffset": 65
+      },
+      "currentRange": {
+        "startLine": 18,
+        "endLine": 18,
+        "startOffset": 59,
+        "endOffset": 65
+      }
+    },
+    {
+      "id": "SQ-0315",
+      "issueId": "131b663c-07de-4a04-8987-7a9c68723160",
+      "method": "same_position",
+      "oldRange": {
+        "startLine": 16,
+        "endLine": 16,
+        "startOffset": 258,
+        "endOffset": 269
+      },
+      "currentRange": {
+        "startLine": 16,
+        "endLine": 16,
+        "startOffset": 258,
+        "endOffset": 269
+      }
+    },
+    {
+      "id": "SQ-0316",
+      "issueId": "e3e9eafc-6bab-4b45-a31d-9e241cce08af",
+      "method": "same_position",
+      "oldRange": {
+        "startLine": 16,
+        "endLine": 16,
+        "startOffset": 411,
+        "endOffset": 422
+      },
+      "currentRange": {
+        "startLine": 16,
+        "endLine": 16,
+        "startOffset": 411,
+        "endOffset": 422
+      }
+    },
+    {
+      "id": "SQ-0317",
+      "issueId": "2ecd3d20-ea72-42a3-9583-d0e276773f80",
+      "method": "same_position",
+      "oldRange": {
+        "startLine": 20,
+        "endLine": 20,
+        "startOffset": 259,
+        "endOffset": 273
+      },
+      "currentRange": {
+        "startLine": 20,
+        "endLine": 20,
+        "startOffset": 259,
+        "endOffset": 273
+      }
+    },
+    {
+      "id": "SQ-0318",
+      "issueId": "7d69e3a7-624b-41b6-affe-b4bd0bca181e",
+      "method": "same_position",
+      "oldRange": {
+        "startLine": 62,
+        "endLine": 62,
+        "startOffset": 91,
+        "endOffset": 103
+      },
+      "currentRange": {
+        "startLine": 62,
+        "endLine": 62,
+        "startOffset": 91,
+        "endOffset": 103
+      }
+    },
+    {
+      "id": "SQ-0328",
+      "issueId": "b5abd9cf-d0f8-4da4-8f8a-d0f3d6b33b0a",
+      "method": "same_position",
+      "oldRange": {
+        "startLine": 14,
+        "endLine": 14,
+        "startOffset": 75,
+        "endOffset": 85
+      },
+      "currentRange": {
+        "startLine": 14,
+        "endLine": 14,
+        "startOffset": 75,
+        "endOffset": 85
+      }
+    },
+    {
+      "id": "SQ-0329",
+      "issueId": "fb113cdc-66f4-40c5-b33d-39afdfc86bad",
+      "method": "same_position",
+      "oldRange": {
+        "startLine": 34,
+        "endLine": 34,
+        "startOffset": 92,
+        "endOffset": 102
+      },
+      "currentRange": {
+        "startLine": 34,
+        "endLine": 34,
+        "startOffset": 92,
+        "endOffset": 102
+      }
+    },
+    {
+      "id": "SQ-0339",
+      "issueId": "f4923f5c-aa4d-43c1-8ae6-68d5249d1873",
+      "method": "unique_exact_full_line_span",
+      "oldRange": {
+        "startLine": 54,
+        "endLine": 54,
+        "startOffset": 14,
+        "endOffset": 29
+      },
+      "currentRange": {
+        "startLine": 55,
+        "endLine": 55,
+        "startOffset": 14,
+        "endOffset": 29
+      }
+    },
+    {
+      "id": "SQ-0340",
+      "issueId": "91a4e737-4e9d-4366-aa82-d768c2dc6c4b",
+      "method": "unique_exact_line_span_with_3_lines_context",
+      "oldRange": {
+        "startLine": 58,
+        "endLine": 58,
+        "startOffset": 15,
+        "endOffset": 30
+      },
+      "currentRange": {
+        "startLine": 59,
+        "endLine": 59,
+        "startOffset": 15,
+        "endOffset": 30
+      }
+    },
+    {
+      "id": "SQ-0341",
+      "issueId": "4ef58e07-6dfc-4244-ba84-baed4cee4b64",
+      "method": "unique_exact_full_line_span",
+      "oldRange": {
+        "startLine": 93,
+        "endLine": 93,
+        "startOffset": 14,
+        "endOffset": 29
+      },
+      "currentRange": {
+        "startLine": 94,
+        "endLine": 94,
+        "startOffset": 14,
+        "endOffset": 29
+      }
+    },
+    {
+      "id": "SQ-0342",
+      "issueId": "606380be-50cd-482b-8b48-a398f4317ccd",
+      "method": "unique_exact_line_span_with_3_lines_context",
+      "oldRange": {
+        "startLine": 97,
+        "endLine": 97,
+        "startOffset": 15,
+        "endOffset": 30
+      },
+      "currentRange": {
+        "startLine": 98,
+        "endLine": 98,
+        "startOffset": 15,
+        "endOffset": 30
+      }
+    },
+    {
+      "id": "SQ-0344",
+      "issueId": "3b53cdef-0356-4c70-8bc4-61d32753c04f",
+      "method": "same_position",
+      "oldRange": {
+        "startLine": 14,
+        "endLine": 14,
+        "startOffset": 59,
+        "endOffset": 70
+      },
+      "currentRange": {
+        "startLine": 14,
+        "endLine": 14,
+        "startOffset": 59,
+        "endOffset": 70
+      }
+    },
+    {
+      "id": "SQ-0347",
+      "issueId": "3e4d5302-3e32-47f5-b618-022860f4617d",
+      "method": "same_position",
+      "oldRange": {
+        "startLine": 67,
+        "endLine": 67,
+        "startOffset": 55,
+        "endOffset": 58
+      },
+      "currentRange": {
+        "startLine": 67,
+        "endLine": 67,
+        "startOffset": 55,
+        "endOffset": 58
+      }
+    },
+    {
+      "id": "SQ-0356",
+      "issueId": "9025d17b-b87d-4e31-a583-87aa048c6186",
+      "method": "same_position",
+      "oldRange": {
+        "startLine": 6,
+        "endLine": 6,
+        "startOffset": 71,
+        "endOffset": 82
+      },
+      "currentRange": {
+        "startLine": 6,
+        "endLine": 6,
+        "startOffset": 71,
+        "endOffset": 82
+      }
+    },
+    {
+      "id": "SQ-0357",
+      "issueId": "60d30f9d-b75a-4693-9359-0b7ff041ad60",
+      "method": "same_position",
+      "oldRange": {
+        "startLine": 4,
+        "endLine": 4,
+        "startOffset": 76,
+        "endOffset": 86
+      },
+      "currentRange": {
+        "startLine": 4,
+        "endLine": 4,
+        "startOffset": 76,
+        "endOffset": 86
+      }
+    },
+    {
+      "id": "SQ-0358",
+      "issueId": "036cba68-c9a9-440e-a1cb-a269870dfe11",
+      "method": "same_position",
+      "oldRange": {
+        "startLine": 16,
+        "endLine": 16,
+        "startOffset": 67,
+        "endOffset": 78
+      },
+      "currentRange": {
+        "startLine": 16,
+        "endLine": 16,
+        "startOffset": 67,
+        "endOffset": 78
+      }
+    },
+    {
+      "id": "SQ-0359",
+      "issueId": "8dd768a6-c4e4-4c94-bec2-96d6a88a60a4",
+      "method": "same_position",
+      "oldRange": {
+        "startLine": 168,
+        "endLine": 168,
+        "startOffset": 19,
+        "endOffset": 31
+      },
+      "currentRange": {
+        "startLine": 168,
+        "endLine": 168,
+        "startOffset": 19,
+        "endOffset": 31
+      }
+    },
+    {
+      "id": "SQ-0360",
+      "issueId": "af78b9f8-314d-499b-ad11-708e2b371d43",
+      "method": "same_position",
+      "oldRange": {
+        "startLine": 204,
+        "endLine": 204,
+        "startOffset": 19,
+        "endOffset": 33
+      },
+      "currentRange": {
+        "startLine": 204,
+        "endLine": 204,
+        "startOffset": 19,
+        "endOffset": 33
+      }
+    },
+    {
+      "id": "SQ-0361",
+      "issueId": "7c22b1be-1abf-4c0f-a454-9f0c1e1434c1",
+      "method": "same_position",
+      "oldRange": {
+        "startLine": 245,
+        "endLine": 245,
+        "startOffset": 19,
+        "endOffset": 32
+      },
+      "currentRange": {
+        "startLine": 245,
+        "endLine": 245,
+        "startOffset": 19,
+        "endOffset": 32
+      }
+    },
+    {
+      "id": "SQ-0363",
+      "issueId": "940ba870-d37b-4db7-868c-9592e7244794",
+      "method": "same_position",
+      "oldRange": {
+        "startLine": 13,
+        "endLine": 13,
+        "startOffset": 67,
+        "endOffset": 78
+      },
+      "currentRange": {
+        "startLine": 13,
+        "endLine": 13,
+        "startOffset": 67,
+        "endOffset": 78
+      }
+    },
+    {
+      "id": "SQ-0364",
+      "issueId": "f4fdded7-0d76-47fc-af00-957569f7cdc8",
+      "method": "same_position",
+      "oldRange": {
+        "startLine": 34,
+        "endLine": 34,
+        "startOffset": 60,
+        "endOffset": 63
+      },
+      "currentRange": {
+        "startLine": 34,
+        "endLine": 34,
+        "startOffset": 60,
+        "endOffset": 63
+      }
+    },
+    {
+      "id": "SQ-0370",
+      "issueId": "4acf4719-f4e6-4ffa-9206-2a61e54a1614",
+      "method": "same_position",
+      "oldRange": {
+        "startLine": 26,
+        "endLine": 26,
+        "startOffset": 68,
+        "endOffset": 79
+      },
+      "currentRange": {
+        "startLine": 26,
+        "endLine": 26,
+        "startOffset": 68,
+        "endOffset": 79
+      }
+    },
+    {
+      "id": "SQ-0372",
+      "issueId": "b700f81d-8c59-491f-b31f-f4b8f505acc5",
+      "method": "same_position",
+      "oldRange": {
+        "startLine": 15,
+        "endLine": 15,
+        "startOffset": 67,
+        "endOffset": 78
+      },
+      "currentRange": {
+        "startLine": 15,
+        "endLine": 15,
+        "startOffset": 67,
+        "endOffset": 78
+      }
+    },
+    {
+      "id": "SQ-0375",
+      "issueId": "ae699274-627f-4b55-a6b3-ea098376df23",
+      "method": "same_position",
+      "oldRange": {
+        "startLine": 23,
+        "endLine": 23,
+        "startOffset": 106,
+        "endOffset": 116
+      },
+      "currentRange": {
+        "startLine": 23,
+        "endLine": 23,
+        "startOffset": 106,
+        "endOffset": 116
+      }
+    },
+    {
+      "id": "SQ-0376",
+      "issueId": "f6f05851-95ac-4c25-ad27-a364edc0ccfb",
+      "method": "same_position",
+      "oldRange": {
+        "startLine": 83,
+        "endLine": 83,
+        "startOffset": 128,
+        "endOffset": 138
+      },
+      "currentRange": {
+        "startLine": 83,
+        "endLine": 83,
+        "startOffset": 128,
+        "endOffset": 138
+      }
+    },
+    {
+      "id": "SQ-0378",
+      "issueId": "724edb5d-4d06-4b91-ae3b-e5c36e7a741f",
+      "method": "same_position",
+      "oldRange": {
+        "startLine": 87,
+        "endLine": 87,
+        "startOffset": 67,
+        "endOffset": 78
+      },
+      "currentRange": {
+        "startLine": 87,
+        "endLine": 87,
+        "startOffset": 67,
+        "endOffset": 78
+      }
+    },
+    {
+      "id": "SQ-0379",
+      "issueId": "9c872ea7-4c22-4411-b9dd-e7410f5331db",
+      "method": "same_position",
+      "oldRange": {
+        "startLine": 94,
+        "endLine": 94,
+        "startOffset": 88,
+        "endOffset": 99
+      },
+      "currentRange": {
+        "startLine": 94,
+        "endLine": 94,
+        "startOffset": 88,
+        "endOffset": 99
+      }
+    },
+    {
+      "id": "SQ-0385",
+      "issueId": "b3788cef-4925-49dd-8c2b-7f64092bad01",
+      "method": "same_position",
+      "oldRange": {
+        "startLine": 53,
+        "endLine": 53,
+        "startOffset": 59,
+        "endOffset": 73
+      },
+      "currentRange": {
+        "startLine": 53,
+        "endLine": 53,
+        "startOffset": 59,
+        "endOffset": 73
+      }
+    },
+    {
+      "id": "SQ-0386",
+      "issueId": "605ae85f-d5dd-49ca-b4d3-0300e83e49a6",
+      "method": "same_position",
+      "oldRange": {
+        "startLine": 70,
+        "endLine": 70,
+        "startOffset": 107,
+        "endOffset": 121
+      },
+      "currentRange": {
+        "startLine": 70,
+        "endLine": 70,
+        "startOffset": 107,
+        "endOffset": 121
+      }
+    },
+    {
+      "id": "SQ-0388",
+      "issueId": "1cd97ee3-703b-4ddd-b89c-fbc707b36b91",
+      "method": "same_position",
+      "oldRange": {
+        "startLine": 627,
+        "endLine": 627,
+        "startOffset": 17,
+        "endOffset": 20
+      },
+      "currentRange": {
+        "startLine": 627,
+        "endLine": 627,
+        "startOffset": 17,
+        "endOffset": 20
+      }
+    },
+    {
+      "id": "SQ-0390",
+      "issueId": "30a33c4b-1e10-4f3e-8e7e-e88572bf3c8e",
+      "method": "same_position",
+      "oldRange": {
+        "startLine": 26,
+        "endLine": 26,
+        "startOffset": 22,
+        "endOffset": 25
+      },
+      "currentRange": {
+        "startLine": 26,
+        "endLine": 26,
+        "startOffset": 22,
+        "endOffset": 25
+      }
+    },
+    {
+      "id": "SQ-0396",
+      "issueId": "61b58233-50b1-4da6-9492-85d5ba8b43f7",
+      "method": "same_position",
+      "oldRange": {
+        "startLine": 14,
+        "endLine": 14,
+        "startOffset": 64,
+        "endOffset": 78
+      },
+      "currentRange": {
+        "startLine": 14,
+        "endLine": 14,
+        "startOffset": 64,
+        "endOffset": 78
+      }
+    },
+    {
+      "id": "SQ-0397",
+      "issueId": "e03ddebb-7fff-4a4f-9d7d-83285910c051",
+      "method": "same_position",
+      "oldRange": {
+        "startLine": 15,
+        "endLine": 15,
+        "startOffset": 49,
+        "endOffset": 63
+      },
+      "currentRange": {
+        "startLine": 15,
+        "endLine": 15,
+        "startOffset": 49,
+        "endOffset": 63
+      }
+    },
+    {
+      "id": "SQ-0403",
+      "issueId": "1c51e782-d898-419f-ab0a-b32911bfcba5",
+      "method": "same_position",
+      "oldRange": {
+        "startLine": 29,
+        "endLine": 29,
+        "startOffset": 42,
+        "endOffset": 52
+      },
+      "currentRange": {
+        "startLine": 29,
+        "endLine": 29,
+        "startOffset": 42,
+        "endOffset": 52
+      }
+    },
+    {
+      "id": "SQ-0408",
+      "issueId": "1936579c-7b50-4e05-941c-1db18b833672",
+      "method": "same_position",
+      "oldRange": {
+        "startLine": 23,
+        "endLine": 23,
+        "startOffset": 65,
+        "endOffset": 75
+      },
+      "currentRange": {
+        "startLine": 23,
+        "endLine": 23,
+        "startOffset": 65,
+        "endOffset": 75
+      }
+    },
+    {
+      "id": "SQ-0409",
+      "issueId": "902e8ae3-53f9-4b45-ad2e-d0c78fbbb39d",
+      "method": "same_position",
+      "oldRange": {
+        "startLine": 497,
+        "endLine": 497,
+        "startOffset": 17,
+        "endOffset": 20
+      },
+      "currentRange": {
+        "startLine": 497,
+        "endLine": 497,
+        "startOffset": 17,
+        "endOffset": 20
+      }
+    },
+    {
+      "id": "SQ-0415",
+      "issueId": "1c319cf3-8338-4c66-a4e4-018d2c934fce",
+      "method": "same_position",
+      "oldRange": {
+        "startLine": 164,
+        "endLine": 164,
+        "startOffset": 19,
+        "endOffset": 33
+      },
+      "currentRange": {
+        "startLine": 164,
+        "endLine": 164,
+        "startOffset": 19,
+        "endOffset": 33
+      }
+    },
+    {
+      "id": "SQ-0431",
+      "issueId": "977d1229-8ca0-4967-89e0-5157d29fc3f3",
+      "method": "same_position",
+      "oldRange": {
+        "startLine": 29,
+        "endLine": 29,
+        "startOffset": 6,
+        "endOffset": 18
+      },
+      "currentRange": {
+        "startLine": 29,
+        "endLine": 29,
+        "startOffset": 6,
+        "endOffset": 18
+      }
+    },
+    {
+      "id": "SQ-0437",
+      "issueId": "a6553238-5d64-41d0-b835-35675cc544a4",
+      "method": "same_position",
+      "oldRange": {
+        "startLine": 22,
+        "endLine": 22,
+        "startOffset": 182,
+        "endOffset": 193
+      },
+      "currentRange": {
+        "startLine": 22,
+        "endLine": 22,
+        "startOffset": 182,
+        "endOffset": 193
+      }
+    },
+    {
+      "id": "SQ-0438",
+      "issueId": "cfef0f80-070a-45e7-bdcb-30633a929ebd",
+      "method": "same_position",
+      "oldRange": {
+        "startLine": 39,
+        "endLine": 39,
+        "startOffset": 63,
+        "endOffset": 74
+      },
+      "currentRange": {
+        "startLine": 39,
+        "endLine": 39,
+        "startOffset": 63,
+        "endOffset": 74
+      }
+    },
+    {
+      "id": "SQ-0439",
+      "issueId": "a77610db-7f7c-4fad-8d59-812cffb3f060",
+      "method": "same_position",
+      "oldRange": {
+        "startLine": 40,
+        "endLine": 40,
+        "startOffset": 67,
+        "endOffset": 78
+      },
+      "currentRange": {
+        "startLine": 40,
+        "endLine": 40,
+        "startOffset": 67,
+        "endOffset": 78
+      }
+    },
+    {
+      "id": "SQ-0461",
+      "issueId": "fa474b5c-e559-419d-8c3e-fb37993fffa2",
+      "method": "same_position",
+      "oldRange": {
+        "startLine": 151,
+        "endLine": 151,
+        "startOffset": 53,
+        "endOffset": 62
+      },
+      "currentRange": {
+        "startLine": 151,
+        "endLine": 151,
+        "startOffset": 53,
+        "endOffset": 62
+      }
+    },
+    {
+      "id": "SQ-0462",
+      "issueId": "46a440e3-36c5-4cad-bb2f-e9482aac37cb",
+      "method": "same_position",
+      "oldRange": {
+        "startLine": 156,
+        "endLine": 156,
+        "startOffset": 93,
+        "endOffset": 102
+      },
+      "currentRange": {
+        "startLine": 156,
+        "endLine": 156,
+        "startOffset": 93,
+        "endOffset": 102
+      }
+    },
+    {
+      "id": "SQ-0464",
+      "issueId": "0e287b93-f050-4368-b23d-f05e331cc0c6",
+      "method": "same_position",
+      "oldRange": {
+        "startLine": 40,
+        "endLine": 40,
+        "startOffset": 403,
+        "endOffset": 417
+      },
+      "currentRange": {
+        "startLine": 40,
+        "endLine": 40,
+        "startOffset": 403,
+        "endOffset": 417
+      }
+    },
+    {
+      "id": "SQ-0469",
+      "issueId": "e46e4bb7-fc00-49e8-8a0d-738469d724de",
+      "method": "same_position",
+      "oldRange": {
+        "startLine": 72,
+        "endLine": 72,
+        "startOffset": 57,
+        "endOffset": 66
+      },
+      "currentRange": {
+        "startLine": 72,
+        "endLine": 72,
+        "startOffset": 57,
+        "endOffset": 66
+      }
+    },
+    {
+      "id": "SQ-0470",
+      "issueId": "1e4b0d76-950c-4086-bfdb-8a200014562d",
+      "method": "same_position",
+      "oldRange": {
+        "startLine": 35,
+        "endLine": 35,
+        "startOffset": 51,
+        "endOffset": 63
+      },
+      "currentRange": {
+        "startLine": 35,
+        "endLine": 35,
+        "startOffset": 51,
+        "endOffset": 63
+      }
+    },
+    {
+      "id": "SQ-0471",
+      "issueId": "4bf929d8-3321-42d8-a12a-70a0f91710bb",
+      "method": "same_position",
+      "oldRange": {
+        "startLine": 36,
+        "endLine": 36,
+        "startOffset": 55,
+        "endOffset": 67
+      },
+      "currentRange": {
+        "startLine": 36,
+        "endLine": 36,
+        "startOffset": 55,
+        "endOffset": 67
+      }
+    },
+    {
+      "id": "SQ-0472",
+      "issueId": "6ea64dae-0567-4c3d-b999-9499551f0f50",
+      "method": "same_position",
+      "oldRange": {
+        "startLine": 40,
+        "endLine": 40,
+        "startOffset": 49,
+        "endOffset": 61
+      },
+      "currentRange": {
+        "startLine": 40,
+        "endLine": 40,
+        "startOffset": 49,
+        "endOffset": 61
+      }
+    },
+    {
+      "id": "SQ-0473",
+      "issueId": "71d115ca-e6c3-4c36-af61-a703bb1cd0cc",
+      "method": "same_position",
+      "oldRange": {
+        "startLine": 41,
+        "endLine": 41,
+        "startOffset": 53,
+        "endOffset": 65
+      },
+      "currentRange": {
+        "startLine": 41,
+        "endLine": 41,
+        "startOffset": 53,
+        "endOffset": 65
+      }
+    },
+    {
+      "id": "SQ-0476",
+      "issueId": "9e5f4b65-6bc0-46ee-b9da-1cde134bb908",
+      "method": "same_position",
+      "oldRange": {
+        "startLine": 131,
+        "endLine": 131,
+        "startOffset": 8,
+        "endOffset": 21
+      },
+      "currentRange": {
+        "startLine": 131,
+        "endLine": 131,
+        "startOffset": 8,
+        "endOffset": 21
+      }
+    },
+    {
+      "id": "SQ-0480",
+      "issueId": "dbaf22ef-6d8c-4e87-bd3b-cfb5853eb5c9",
+      "method": "same_position",
+      "oldRange": {
+        "startLine": 93,
+        "endLine": 93,
+        "startOffset": 28,
+        "endOffset": 41
+      },
+      "currentRange": {
+        "startLine": 93,
+        "endLine": 93,
+        "startOffset": 28,
+        "endOffset": 41
+      }
+    },
+    {
+      "id": "SQ-0481",
+      "issueId": "e49e93e3-fb18-45ea-af19-607dd5ab5169",
+      "method": "same_position",
+      "oldRange": {
+        "startLine": 48,
+        "endLine": 48,
+        "startOffset": 17,
+        "endOffset": 20
+      },
+      "currentRange": {
+        "startLine": 48,
+        "endLine": 48,
+        "startOffset": 17,
+        "endOffset": 20
+      }
+    },
+    {
+      "id": "SQ-0490",
+      "issueId": "21cf2bef-aa24-4bec-b219-2c153164b155",
+      "method": "same_position",
+      "oldRange": {
+        "startLine": 65,
+        "endLine": 65,
+        "startOffset": 76,
+        "endOffset": 86
+      },
+      "currentRange": {
+        "startLine": 65,
+        "endLine": 65,
+        "startOffset": 76,
+        "endOffset": 86
+      }
+    },
+    {
+      "id": "SQ-0500",
+      "issueId": "db8f5a61-6c0f-4a7d-bc54-c47240949a51",
+      "method": "same_position",
+      "oldRange": {
+        "startLine": 265,
+        "endLine": 265,
+        "startOffset": 138,
+        "endOffset": 165
+      },
+      "currentRange": {
+        "startLine": 265,
+        "endLine": 265,
+        "startOffset": 138,
+        "endOffset": 165
+      }
+    },
+    {
+      "id": "SQ-0501",
+      "issueId": "73b727d6-2b13-43c1-8b46-914999543374",
+      "method": "same_position",
+      "oldRange": {
+        "startLine": 292,
+        "endLine": 292,
+        "startOffset": 110,
+        "endOffset": 124
+      },
+      "currentRange": {
+        "startLine": 292,
+        "endLine": 292,
+        "startOffset": 110,
+        "endOffset": 124
+      }
+    },
+    {
+      "id": "SQ-0502",
+      "issueId": "e5560c7f-1c97-4de2-8146-5cc423119655",
+      "method": "same_position",
+      "oldRange": {
+        "startLine": 302,
+        "endLine": 302,
+        "startOffset": 148,
+        "endOffset": 160
+      },
+      "currentRange": {
+        "startLine": 302,
+        "endLine": 302,
+        "startOffset": 148,
+        "endOffset": 160
+      }
+    },
+    {
+      "id": "SQ-0510",
+      "issueId": "0baf7aa1-5b49-405b-a35b-afa03dab2831",
+      "method": "same_position",
+      "oldRange": {
+        "startLine": 32,
+        "endLine": 32,
+        "startOffset": 82,
+        "endOffset": 86
+      },
+      "currentRange": {
+        "startLine": 32,
+        "endLine": 32,
+        "startOffset": 82,
+        "endOffset": 86
+      }
+    },
+    {
+      "id": "SQ-0511",
+      "issueId": "4bf58bc9-3791-417f-b1ab-1f0bf0ffd966",
+      "method": "same_position",
+      "oldRange": {
+        "startLine": 32,
+        "endLine": 32,
+        "startOffset": 86,
+        "endOffset": 90
+      },
+      "currentRange": {
+        "startLine": 32,
+        "endLine": 32,
+        "startOffset": 86,
+        "endOffset": 90
+      }
+    },
+    {
+      "id": "SQ-0512",
+      "issueId": "6fb54138-86d4-4007-be04-ba3ec9e64679",
+      "method": "same_position",
+      "oldRange": {
+        "startLine": 32,
+        "endLine": 32,
+        "startOffset": 90,
+        "endOffset": 94
+      },
+      "currentRange": {
+        "startLine": 32,
+        "endLine": 32,
+        "startOffset": 90,
+        "endOffset": 94
+      }
+    },
+    {
+      "id": "SQ-0513",
+      "issueId": "86bdfc47-f5ae-4e76-aa51-04b145fc48b4",
+      "method": "same_position",
+      "oldRange": {
+        "startLine": 32,
+        "endLine": 32,
+        "startOffset": 94,
+        "endOffset": 98
+      },
+      "currentRange": {
+        "startLine": 32,
+        "endLine": 32,
+        "startOffset": 94,
+        "endOffset": 98
+      }
+    },
+    {
+      "id": "SQ-0514",
+      "issueId": "abe65275-52bd-4966-8ac5-241a2819a160",
+      "method": "same_position",
+      "oldRange": {
+        "startLine": 32,
+        "endLine": 32,
+        "startOffset": 98,
+        "endOffset": 102
+      },
+      "currentRange": {
+        "startLine": 32,
+        "endLine": 32,
+        "startOffset": 98,
+        "endOffset": 102
+      }
+    },
+    {
+      "id": "SQ-0531",
+      "issueId": "c0150fe9-5e9f-4ea6-8a93-495dd79da0c2",
+      "method": "same_position",
+      "oldRange": {
+        "startLine": 28,
+        "endLine": 28,
+        "startOffset": 4,
+        "endOffset": 35
+      },
+      "currentRange": {
+        "startLine": 28,
+        "endLine": 28,
+        "startOffset": 4,
+        "endOffset": 35
+      }
+    },
+    {
+      "id": "SQ-0127",
+      "issueId": "a330cd3b-b4f9-4cd4-9b1a-1614d8f626ed",
+      "method": "same_position",
+      "oldRange": {
+        "startLine": 1777,
+        "endLine": 1790,
+        "startOffset": 10,
+        "endOffset": 11
+      },
+      "currentRange": {
+        "startLine": 1777,
+        "endLine": 1790,
+        "startOffset": 10,
+        "endOffset": 11
+      }
+    },
+    {
+      "id": "SQ-0208",
+      "issueId": "4549f072-ce30-4397-b815-19201f93ff3f",
+      "method": "same_position",
+      "oldRange": {
+        "startLine": 2396,
+        "endLine": 2406,
+        "startOffset": 20,
+        "endOffset": 21
+      },
+      "currentRange": {
+        "startLine": 2396,
+        "endLine": 2406,
+        "startOffset": 20,
+        "endOffset": 21
+      }
+    },
+    {
+      "id": "SQ-0240",
+      "issueId": "0087ae89-303e-45f7-9348-faf429a64cfc",
+      "method": "same_position",
+      "oldRange": {
+        "startLine": 2005,
+        "endLine": 2022,
+        "startOffset": 12,
+        "endOffset": 14
+      },
+      "currentRange": {
+        "startLine": 2005,
+        "endLine": 2022,
+        "startOffset": 12,
+        "endOffset": 14
+      }
+    },
+    {
+      "id": "NA0157-ANSI-1",
+      "issueId": "218e14d9-5eba-4907-af26-509994afe393",
+      "method": "same_position",
+      "oldRange": {
+        "startLine": 31,
+        "endLine": 31,
+        "startOffset": 59,
+        "endOffset": 65
+      },
+      "currentRange": {
+        "startLine": 31,
+        "endLine": 31,
+        "startOffset": 59,
+        "endOffset": 65
+      }
+    },
+    {
+      "id": "NA0157-ANSI-2",
+      "issueId": "57ea3afd-860c-411b-9cfe-87f7967397c0",
+      "method": "same_position",
+      "oldRange": {
+        "startLine": 31,
+        "endLine": 31,
+        "startOffset": 65,
+        "endOffset": 71
+      },
+      "currentRange": {
+        "startLine": 31,
+        "endLine": 31,
+        "startOffset": 65,
+        "endOffset": 71
+      }
+    },
+    {
+      "id": "NA0157-ANSI-3",
+      "issueId": "a9113693-139d-4665-bfc0-93c8c351cd99",
+      "method": "same_position",
+      "oldRange": {
+        "startLine": 31,
+        "endLine": 31,
+        "startOffset": 24,
+        "endOffset": 30
+      },
+      "currentRange": {
+        "startLine": 31,
+        "endLine": 31,
+        "startOffset": 24,
+        "endOffset": 30
+      }
+    },
+    {
+      "id": "NA0157-ANSI-4",
+      "issueId": "d30db800-5820-47e1-916c-ed74ec9df457",
+      "method": "same_position",
+      "oldRange": {
+        "startLine": 31,
+        "endLine": 31,
+        "startOffset": 83,
+        "endOffset": 89
+      },
+      "currentRange": {
+        "startLine": 31,
+        "endLine": 31,
+        "startOffset": 83,
+        "endOffset": 89
+      }
+    },
+    {
+      "id": "NA0157-ANSI-5",
+      "issueId": "fdfae5d6-21d1-4434-8d5f-94228779c6f8",
+      "method": "same_position",
+      "oldRange": {
+        "startLine": 31,
+        "endLine": 31,
+        "startOffset": 76,
+        "endOffset": 82
+      },
+      "currentRange": {
+        "startLine": 31,
+        "endLine": 31,
+        "startOffset": 76,
+        "endOffset": 82
+      }
+    },
+    {
+      "id": "NA0157-DOCUMENTATION-IP",
+      "issueId": "34c6e542-39f8-4476-b7da-50a538e41f0f",
+      "method": "unique_exact_full_line_span",
+      "oldRange": {
+        "startLine": 146,
+        "endLine": 146,
+        "startOffset": 18,
+        "endOffset": 40
+      },
+      "currentRange": {
+        "startLine": 149,
+        "endLine": 149,
+        "startOffset": 18,
+        "endOffset": 40
+      }
+    },
+    {
+      "id": "NA0157-CONTRACT-1",
+      "issueId": "b6bc4250-7710-485f-bc2d-50664e1d42e2",
+      "method": "same_position",
+      "oldRange": {
+        "startLine": 48,
+        "endLine": 48,
+        "startOffset": 17,
+        "endOffset": 20
+      },
+      "currentRange": {
+        "startLine": 48,
+        "endLine": 48,
+        "startOffset": 17,
+        "endOffset": 20
+      }
+    },
+    {
+      "id": "NA0157-CONTRACT-2",
+      "issueId": "ffe9aafb-c316-43ca-8184-608aed467c4a",
+      "method": "same_position",
+      "oldRange": {
+        "startLine": 27,
+        "endLine": 27,
+        "startOffset": 41,
+        "endOffset": 46
+      },
+      "currentRange": {
+        "startLine": 27,
+        "endLine": 27,
+        "startOffset": 41,
+        "endOffset": 46
+      }
+    },
+    {
+      "id": "NA0157-CONTRACT-3",
+      "issueId": "9db2139f-246d-4122-890c-37141d038405",
+      "method": "same_position",
+      "oldRange": {
+        "startLine": 32,
+        "endLine": 32,
+        "startOffset": 27,
+        "endOffset": 32
+      },
+      "currentRange": {
+        "startLine": 32,
+        "endLine": 32,
+        "startOffset": 27,
+        "endOffset": 32
+      }
+    }
+  ],
+  "evidenceRejected": [
+    {
+      "id": "SQ-0100",
+      "reason": "non-relative-file-or-nonexistent"
+    },
+    {
+      "id": "SQ-0103",
+      "reason": "non-relative-file-or-nonexistent"
+    },
+    {
+      "id": "SQ-0104",
+      "reason": "non-relative-file-or-nonexistent"
+    },
+    {
+      "id": "SQ-0106",
+      "reason": "non-relative-file-or-nonexistent"
+    },
+    {
+      "id": "SQ-0107",
+      "reason": "non-relative-file-or-nonexistent"
+    },
+    {
+      "id": "SQ-0108",
+      "reason": "non-relative-file-or-nonexistent"
+    },
+    {
+      "id": "SQ-0109",
+      "reason": "non-relative-file-or-nonexistent"
+    },
+    {
+      "id": "SQ-0109",
+      "reason": "non-relative-file-or-nonexistent"
+    },
+    {
+      "id": "SQ-0111",
+      "reason": "non-relative-file-or-nonexistent"
+    },
+    {
+      "id": "SQ-0111",
+      "reason": "non-relative-file-or-nonexistent"
+    },
+    {
+      "id": "SQ-0112",
+      "reason": "non-relative-file-or-nonexistent"
+    },
+    {
+      "id": "SQ-0112",
+      "reason": "non-relative-file-or-nonexistent"
+    },
+    {
+      "id": "SQ-0113",
+      "reason": "non-relative-file-or-nonexistent"
+    },
+    {
+      "id": "SQ-0113",
+      "reason": "non-relative-file-or-nonexistent"
+    },
+    {
+      "id": "SQ-0114",
+      "reason": "non-relative-file-or-nonexistent"
+    },
+    {
+      "id": "SQ-0114",
+      "reason": "non-relative-file-or-nonexistent"
+    },
+    {
+      "id": "SQ-0119",
+      "reason": "non-relative-file-or-nonexistent"
+    },
+    {
+      "id": "SQ-0119",
+      "reason": "non-relative-file-or-nonexistent"
+    },
+    {
+      "id": "SQ-0122",
+      "reason": "non-relative-file-or-nonexistent"
+    },
+    {
+      "id": "SQ-0122",
+      "reason": "non-relative-file-or-nonexistent"
+    },
+    {
+      "id": "SQ-0123",
+      "reason": "non-relative-file-or-nonexistent"
+    },
+    {
+      "id": "SQ-0123",
+      "reason": "non-relative-file-or-nonexistent"
+    },
+    {
+      "id": "SQ-0124",
+      "reason": "non-relative-file-or-nonexistent"
+    },
+    {
+      "id": "SQ-0124",
+      "reason": "non-relative-file-or-nonexistent"
+    },
+    {
+      "id": "SQ-0125",
+      "reason": "non-relative-file-or-nonexistent"
+    },
+    {
+      "id": "SQ-0130",
+      "reason": "non-relative-file-or-nonexistent"
+    },
+    {
+      "id": "SQ-0130",
+      "reason": "non-relative-file-or-nonexistent"
+    },
+    {
+      "id": "SQ-0132",
+      "reason": "non-relative-file-or-nonexistent"
+    },
+    {
+      "id": "SQ-0133",
+      "reason": "non-relative-file-or-nonexistent"
+    },
+    {
+      "id": "SQ-0134",
+      "reason": "non-relative-file-or-nonexistent"
+    },
+    {
+      "id": "SQ-0135",
+      "reason": "non-relative-file-or-nonexistent"
+    },
+    {
+      "id": "SQ-0146",
+      "reason": "non-relative-file-or-nonexistent"
+    },
+    {
+      "id": "SQ-0149",
+      "reason": "non-relative-file-or-nonexistent"
+    },
+    {
+      "id": "SQ-0150",
+      "reason": "non-relative-file-or-nonexistent"
+    },
+    {
+      "id": "SQ-0151",
+      "reason": "non-relative-file-or-nonexistent"
+    },
+    {
+      "id": "SQ-0152",
+      "reason": "non-relative-file-or-nonexistent"
+    },
+    {
+      "id": "SQ-0153",
+      "reason": "non-relative-file-or-nonexistent"
+    },
+    {
+      "id": "SQ-0154",
+      "reason": "non-relative-file-or-nonexistent"
+    },
+    {
+      "id": "SQ-0155",
+      "reason": "non-relative-file-or-nonexistent"
+    },
+    {
+      "id": "SQ-0156",
+      "reason": "non-relative-file-or-nonexistent"
+    },
+    {
+      "id": "SQ-0157",
+      "reason": "non-relative-file-or-nonexistent"
+    },
+    {
+      "id": "SQ-0165",
+      "reason": "non-relative-file-or-nonexistent"
+    },
+    {
+      "id": "SQ-0170",
+      "reason": "non-relative-file-or-nonexistent"
+    },
+    {
+      "id": "SQ-0171",
+      "reason": "non-relative-file-or-nonexistent"
+    },
+    {
+      "id": "SQ-0172",
+      "reason": "non-relative-file-or-nonexistent"
+    },
+    {
+      "id": "SQ-0173",
+      "reason": "non-relative-file-or-nonexistent"
+    },
+    {
+      "id": "SQ-0174",
+      "reason": "non-relative-file-or-nonexistent"
+    },
+    {
+      "id": "SQ-0175",
+      "reason": "non-relative-file-or-nonexistent"
+    },
+    {
+      "id": "SQ-0175",
+      "reason": "non-relative-file-or-nonexistent"
+    },
+    {
+      "id": "SQ-0176",
+      "reason": "non-relative-file-or-nonexistent"
+    },
+    {
+      "id": "SQ-0176",
+      "reason": "non-relative-file-or-nonexistent"
+    },
+    {
+      "id": "SQ-0187",
+      "reason": "non-relative-file-or-nonexistent"
+    },
+    {
+      "id": "SQ-0188",
+      "reason": "non-relative-file-or-nonexistent"
+    },
+    {
+      "id": "SQ-0189",
+      "reason": "non-relative-file-or-nonexistent"
+    },
+    {
+      "id": "SQ-0190",
+      "reason": "non-relative-file-or-nonexistent"
+    },
+    {
+      "id": "SQ-0194",
+      "reason": "non-relative-file-or-nonexistent"
+    },
+    {
+      "id": "SQ-0195",
+      "reason": "non-relative-file-or-nonexistent"
+    },
+    {
+      "id": "SQ-0196",
+      "reason": "non-relative-file-or-nonexistent"
+    },
+    {
+      "id": "SQ-0232",
+      "reason": "non-relative-file-or-nonexistent"
+    },
+    {
+      "id": "SQ-0233",
+      "reason": "non-relative-file-or-nonexistent"
+    },
+    {
+      "id": "SQ-0241",
+      "reason": "non-relative-file-or-nonexistent"
+    },
+    {
+      "id": "SQ-0242",
+      "reason": "non-relative-file-or-nonexistent"
+    },
+    {
+      "id": "SQ-0243",
+      "reason": "non-relative-file-or-nonexistent"
+    },
+    {
+      "id": "SQ-0244",
+      "reason": "non-relative-file-or-nonexistent"
+    },
+    {
+      "id": "SQ-0246",
+      "reason": "non-relative-file-or-nonexistent"
+    },
+    {
+      "id": "SQ-0247",
+      "reason": "non-relative-file-or-nonexistent"
+    },
+    {
+      "id": "SQ-0248",
+      "reason": "non-relative-file-or-nonexistent"
+    },
+    {
+      "id": "SQ-0249",
+      "reason": "non-relative-file-or-nonexistent"
+    },
+    {
+      "id": "SQ-0250",
+      "reason": "non-relative-file-or-nonexistent"
+    },
+    {
+      "id": "SQ-0251",
+      "reason": "non-relative-file-or-nonexistent"
+    },
+    {
+      "id": "SQ-0252",
+      "reason": "non-relative-file-or-nonexistent"
+    },
+    {
+      "id": "SQ-0258",
+      "reason": "non-relative-file-or-nonexistent"
+    },
+    {
+      "id": "SQ-0259",
+      "reason": "non-relative-file-or-nonexistent"
+    },
+    {
+      "id": "SQ-0260",
+      "reason": "non-relative-file-or-nonexistent"
+    },
+    {
+      "id": "SQ-0262",
+      "reason": "non-relative-file-or-nonexistent"
+    },
+    {
+      "id": "SQ-0297",
+      "reason": "non-relative-file-or-nonexistent"
+    },
+    {
+      "id": "SQ-0359",
+      "reason": "non-relative-file-or-nonexistent"
+    },
+    {
+      "id": "SQ-0360",
+      "reason": "non-relative-file-or-nonexistent"
+    },
+    {
+      "id": "SQ-0361",
+      "reason": "non-relative-file-or-nonexistent"
+    },
+    {
+      "id": "SQ-0415",
+      "reason": "non-relative-file-or-nonexistent"
+    },
+    {
+      "id": "SQ-0510",
+      "reason": "non-relative-file-or-nonexistent"
+    },
+    {
+      "id": "SQ-0511",
+      "reason": "non-relative-file-or-nonexistent"
+    },
+    {
+      "id": "SQ-0512",
+      "reason": "non-relative-file-or-nonexistent"
+    },
+    {
+      "id": "SQ-0513",
+      "reason": "non-relative-file-or-nonexistent"
+    },
+    {
+      "id": "SQ-0514",
+      "reason": "non-relative-file-or-nonexistent"
+    }
+  ],
+  "count": 206,
+  "uniqueRules": [
+    "Web:InputWithoutLabelCheck",
+    "Web:S6843",
+    "Web:S6845",
+    "Web:S6853",
+    "javascript:S1313",
+    "javascript:S2189",
+    "javascript:S2245",
+    "javascript:S2612",
+    "javascript:S3403",
+    "javascript:S7059",
+    "python:S5443",
+    "secrets:S6697",
+    "typescript:S1313",
+    "typescript:S1848",
+    "typescript:S2068",
+    "typescript:S2245",
+    "typescript:S5443",
+    "typescript:S6324",
+    "typescript:S7059",
+    "typescript:S7767",
+    "typescript:S9383"
+  ],
+  "anchorCounts": {
+    "same_position": 201,
+    "unique_exact_full_line_span": 3,
+    "unique_exact_line_span_with_3_lines_context": 2
+  },
+  "sourceHashesVerified": 206,
+  "evidencePathsVerified": true,
+  "uniqueIdentities": 206,
+  "ruleFingerprints": "21 rules fetched GET from installed API and hashed with reconcile.ruleFingerprint including descriptionSections",
+  "serverVersion": "26.10.0.133078",
+  "excludedOperationalRisk": [
+    "SQ-0002",
+    "SQ-0003",
+    "SQ-0030"
+  ],
+  "serverTransitions": 0,
+  "sourceEdits": 0,
+  "limitation": "Candidate uses current WIP source hashes; analysis28 export anchors adjusted by exact bytes only. Five changed line ranges require fresh analysis before replay; dry-run against old analysis is expected to reject changed occurrences.",
+  "priorReviewHashContinuity": {
+    "oldFP": 194,
+    "fullSourceHashIdenticalToIndividualReconciliation": 188,
+    "sourceChangedButOccurrenceAndContextIntact": [
+      "SQ-0339",
+      "SQ-0340",
+      "SQ-0341",
+      "SQ-0342",
+      "SQ-0461",
+      "SQ-0462"
+    ],
+    "changesInspected": "HA only CDP import+hook, fixtures untouched; trial only unrelated negative403 password expression, own-host CRUD literal and lookup unchanged."
+  },
+  "newFindingSourceVerification": {
+    "documentationIP": "Exact substring ::ffff:192.0.2.1/128; rationale corrected to RFC5737 mapped IPv4 before approval, not2001:db8",
+    "ansi": "Each of five offsets inspected individually: initialESC, excludedBEL, excludedESC, terminalBEL, terminalESC-ST; function counts tokens, not removal",
+    "uiReviewHashesMatch": true
+  }
+}

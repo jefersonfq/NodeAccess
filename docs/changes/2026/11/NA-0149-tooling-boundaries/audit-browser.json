@@ -1,0 +1,27 @@
+{
+  "ok": true,
+  "results": [
+    {
+      "viewport": {
+        "width": 1440,
+        "height": 960
+      },
+      "commands": 2,
+      "tokenVisible": true,
+      "playbackHidden": true,
+      "reconstructionReady": true,
+      "uiErrors": 0
+    },
+    {
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "commands": 2,
+      "tokenVisible": true,
+      "playbackHidden": true,
+      "reconstructionReady": true,
+      "uiErrors": 0
+    }
+  ]
+}

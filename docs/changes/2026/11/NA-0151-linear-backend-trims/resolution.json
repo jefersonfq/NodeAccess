@@ -1,0 +1,38 @@
+[
+  {
+    "id": "SQ-0012",
+    "status": "implemented_pending_integrated_analysis",
+    "rule": "typescript:S8786",
+    "reason": "Trim de hífen único após normalização que colapsa cada grupo em um hífen."
+  },
+  {
+    "id": "SQ-0028",
+    "status": "implemented_pending_integrated_analysis",
+    "rule": "typescript:S8786",
+    "reason": "SHA25632bytes tem somente um padding base64; trim sem repetição."
+  },
+  {
+    "id": "SQ-0050",
+    "status": "implemented_pending_integrated_analysis",
+    "rule": "typescript:S8786",
+    "reason": "Guard de múltiplos prompts preservado; trimStart e âncora eliminam tentativas em cada offset."
+  },
+  {
+    "id": "SQ-0079",
+    "status": "implemented_pending_integrated_analysis",
+    "rule": "typescript:S8786",
+    "reason": "Fingerprint de labSchema43base64+paddingopcional: comparação remove no máximo um padding."
+  },
+  {
+    "id": "SQ-0080",
+    "status": "implemented_pending_integrated_analysis",
+    "rule": "typescript:S8786",
+    "reason": "Fingerprint de labSchema43base64+paddingopcional: persistência conserva exatamente um padding."
+  },
+  {
+    "id": "SQ-0084",
+    "status": "implemented_pending_integrated_analysis",
+    "rule": "typescript:S8786",
+    "reason": "Único provisioner produtivo valida labSchema antes do serviço; persistência conserva um padding."
+  }
+]

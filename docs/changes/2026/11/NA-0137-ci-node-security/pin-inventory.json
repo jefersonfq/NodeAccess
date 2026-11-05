@@ -1,0 +1,56 @@
+{
+  "workflows": [
+    {
+      "file": ".github/workflows/session-playback-certification.yml",
+      "versionOccurrences": 1
+    },
+    {
+      "file": ".github/workflows/change-governance.yml",
+      "versionOccurrences": 1
+    },
+    {
+      "file": ".github/workflows/oidc-certification.yml",
+      "versionOccurrences": 3
+    },
+    {
+      "file": ".github/workflows/security.yml",
+      "versionOccurrences": 2
+    },
+    {
+      "file": ".github/workflows/manual-pilot.yml",
+      "versionOccurrences": 1
+    },
+    {
+      "file": ".github/workflows/sonarqube.yml",
+      "versionOccurrences": 1
+    },
+    {
+      "file": ".github/workflows/kubernetes-certification.yml",
+      "versionOccurrences": 1
+    },
+    {
+      "file": ".github/workflows/frontend-csp.yml",
+      "versionOccurrences": 2
+    },
+    {
+      "file": ".github/workflows/agent-native-smoke.yml",
+      "versionOccurrences": 3
+    },
+    {
+      "file": ".github/workflows/quality-gate.yml",
+      "versionOccurrences": 4
+    },
+    {
+      "file": ".github/workflows/stack-compatibility.yml",
+      "versionOccurrences": 1
+    },
+    {
+      "file": ".github/workflows/acl-resilience.yml",
+      "versionOccurrences": 1
+    }
+  ],
+  "totalWorkflowVersionOccurrences": 21,
+  "trialImageTags": 3,
+  "nvmrc": "24.22.1",
+  "npmPreserved": "12.2.1"
+}

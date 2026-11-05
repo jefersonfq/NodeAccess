@@ -1,21 +1,7 @@
 {
-  "reviewedAt": "2026-10-28",
+  "reviewedAt": "2026-11-03",
   "policy": "Exceções exatas por regra, linha e hash integral. Mudança no arquivo exige nova revisão. Nenhum segredo armazenado aqui.",
   "findings": [
-    {
-      "path": ".github/workflows/manual-pilot.yml",
-      "rule": "generic-api-key",
-      "line": 23,
-      "fileSha256": "27cfb48a690c45afb39aa9e3f68a124dc9ab923dfedc9457b8d6607bbfa465f1",
-      "reason": "Constante sintética pública de teste/CI (sequência hexadecimal repetida), revalidada na NA-0054; nunca usar em produção; revalidado na NA-0069 após integração."
-    },
-    {
-      "path": ".github/workflows/quality-gate.yml",
-      "rule": "generic-api-key",
-      "line": 13,
-      "fileSha256": "11b175b4da603c4edca3518e09b5f1564bf7520d67718705ff904d9ef8cbea96",
-      "reason": "Constante pública sintética de CI inalterada; NA-0055 adiciona testes ao workflow. Nunca usar em produção.; revalidado na NA-0069 após integração."
-    },
     {
       "path": ".env.example.prod",
       "rule": "generic-api-key",
@@ -34,7 +20,7 @@
       "path": ".env.example",
       "rule": "generic-api-key",
       "line": 124,
-      "fileSha256": "e887dd2435dcf1e6d3e2811af342b7407ed1f1c9a3723760efc6b2adc9501628",
+      "fileSha256": "5695807adb5fef077f6accbc8075db5a9c5ef59ee282a5aff6d3b07338860ff0",
       "reason": "Placeholder de documentação/configuração; substituir antes de usar; revalidado na NA-0069 após integração."
     },
     {
@@ -181,7 +167,7 @@
       "path": "apps/backend/src/modules/network-access/tacacs-resilience.test.ts",
       "rule": "generic-api-key",
       "line": 6,
-      "fileSha256": "784e221c538002cb9bbf102a215c28475087f83981072a6a1c68b5cc3885dc47",
+      "fileSha256": "38a4067922a1573dbf506eaf67d4c4284bbb1810c0a96006e89ae51a109b274b",
       "reason": "Material público e descartável de teste/CI; não usar em produção; revalidado na NA-0069 após integração."
     },
     {
@@ -213,24 +199,17 @@
       "reason": "Material público e descartável de teste/CI; não usar em produção; revalidado na NA-0069 após integração."
     },
     {
-      "path": "apps/frontend/src/services/pem-key-encryption.ts",
-      "rule": "private-key",
-      "line": 3,
-      "fileSha256": "a83412e9c7fc35fa2f652a196916466013db10f395bb9c2f2d8b8578b3e5bef0",
-      "reason": "Marcador PEM em regex ou exemplo de interface, não uma credencial; revalidado na NA-0069 após integração."
-    },
-    {
       "path": "apps/frontend/src/locales/en.json",
       "rule": "private-key",
       "line": 1050,
-      "fileSha256": "8362de8c0b7694a52dea37a1b44c27211d1898114d80fa2557248b3b9159d437",
+      "fileSha256": "35ad1e23a15bcc0556d2a7c73b7f4f39cb6caa3bcfa1bc1a916c4ac2fd4f8bd7",
       "reason": "Placeholder textual PEM com reticências, idêntico à base; revalidado na NA-0079 após mudança de traduções de conexão. Não contém chave privada."
     },
     {
       "path": "apps/frontend/src/locales/pt-BR.json",
       "rule": "private-key",
       "line": 1053,
-      "fileSha256": "f0dabf2975f8ebd83d5643e3456f4195a0aff629fdec5203ae0bd603ff4d8caf",
+      "fileSha256": "f678eadced312ab69f5762762595d2a715d1a81f9299ffa659db48c0748d5a24",
       "reason": "Placeholder textual PEM com reticências, idêntico à base; revalidado na NA-0079 após mudança de traduções de conexão. Não contém chave privada."
     },
     {
@@ -250,8 +229,8 @@
     {
       "path": "tools/deploy/doctor-nodeaccess-harness.cjs",
       "rule": "generic-api-key",
-      "line": 29,
-      "fileSha256": "531080e37d32e0a9506f629038942c53e8e2358db5ab8316d348ccc95427e2fc",
+      "line": 30,
+      "fileSha256": "bd99d6f21328dc4f5d279f231edf1050f8c68307f0437e2596cc8b89445f1766",
       "reason": "Material público e descartável de teste/CI; não usar em produção; revalidado na NA-0069 após integração."
     },
     {
@@ -259,20 +238,6 @@
       "rule": "generic-api-key",
       "line": 53,
       "fileSha256": "ee1f7f9f9cf78abcdc1e5a87e50995638a2b7a32f8b58f9d63d808e78b3d0b6c",
-      "reason": "Material público e descartável de teste/CI; não usar em produção; revalidado na NA-0069 após integração."
-    },
-    {
-      "path": "tools/deploy/restore-mysql-isolated-harness.sh",
-      "rule": "generic-api-key",
-      "line": 62,
-      "fileSha256": "f85f86c85ba2aa4edd78a6d3cacb0b796bf4a8500bdc9c9743548a1503a6f62b",
-      "reason": "Material público e descartável de teste/CI; não usar em produção; revalidado na NA-0069 após integração."
-    },
-    {
-      "path": "tools/deploy/helm-ollama-kind-certification.sh",
-      "rule": "generic-api-key",
-      "line": 25,
-      "fileSha256": "fbd1decf15c4d82eb759399301e541de8f7246f9945c43f7e33647788e4b0a8e",
       "reason": "Material público e descartável de teste/CI; não usar em produção; revalidado na NA-0069 após integração."
     },
     {
@@ -309,6 +274,55 @@
       "line": 18,
       "fileSha256": "96f44ca530bfb84b407556dadc125e708e3cd47723b5e0f2ae3f88c776280ed4",
       "reason": "Material público e descartável de teste/CI; não usar em produção; revalidado na NA-0069 após integração."
+    },
+    {
+      "path": ".github/workflows/manual-pilot.yml",
+      "rule": "generic-api-key",
+      "line": 23,
+      "fileSha256": "2ff86a9faac1a7f481c553dd264a6863def9e07127104ecf9d4d5cb19ace4a05",
+      "reason": "Constante sintética de 64 dígitos hexadecimais usada somente pelo job de captura manual em ambiente CI; não é obtida de secret nem credencial de ambiente implantado. Revalidado na integração NA-0093: somente bootstrap npm12.2.1 acrescentado; constante e linha preservadas. Revalidado após NA-0137: somente pin Node24.21.0 para24.22.1; constante e linha preservadas."
+    },
+    {
+      "path": ".github/workflows/quality-gate.yml",
+      "rule": "generic-api-key",
+      "line": 13,
+      "fileSha256": "056d3ddb2b74d1b3531eaaf3c7edc03add77cb6b0b05fd303252f2042e59627b",
+      "reason": "Constante sintética de criptografia para testes/build do quality gate; valor de exemplo público, sem vínculo com chaves PEM ou dados de produção. Revalidado na integração NA-0093: somente bootstrap npm12.2.1 acrescentado; constante e linha preservadas. Revalidado após NA-0137: somente pin Node24.21.0 para24.22.1; constante e linha preservadas."
+    },
+    {
+      "path": ".github/workflows/sonarqube.yml",
+      "rule": "generic-api-key",
+      "line": 30,
+      "fileSha256": "2c467b213511331a00d64539393a58374193e253382ac5a8d65595f91c1d428a",
+      "reason": "Constante sintética PEM de teste no job Sonar efêmero; sem acesso a dados de produção; tokens reais do scanner são gerados separadamente em runtime. Revalidado na integração NA-0093: somente bootstrap npm12.2.1 acrescentado; constante e linha preservadas. Revalidado após NA-0137: somente pin Node24.21.0 para24.22.1; constante e linha preservadas."
+    },
+    {
+      "path": "apps/backend/src/modules/network-access/network-access.service.test.ts",
+      "rule": "generic-api-key",
+      "line": 163,
+      "fileSha256": "74e3a3a248a1ef7372e0d6a1bb9d728dcdbc715363c59152f11c420fcf1ffa88",
+      "reason": "Argumentos literais sintéticos cmd=password/cmd-arg=synthetic exercitam a redação de comandos; a asserção exige texto omitido no evento, não autentica equipamento."
+    },
+    {
+      "path": "apps/frontend/src/services/pem-key-encryption.ts",
+      "rule": "private-key",
+      "line": 3,
+      "fileSha256": "83436c8c95db0d528230c554979bfbc1f52f40af13aee9019a3e743d38a8d96e",
+      "reason": "Expressão regular reconhece somente marcador BEGIN ENCRYPTED PRIVATE KEY; não contém corpo base64, material criptográfico ou chave privada."
+    },
+    {
+      "path": "docs/README_SONARQUBE_NODEACCESS_AGENT.md",
+      "rule": "curl-auth-user",
+      "line": 180,
+      "fileSha256": "31acef9742060c5da14b911e179d16b9647996614c1feeeb5906a37b7a344d8d",
+      "reason": "Exemplo curl referencia variável de sessão SONAR_TOKEN; não há token literal. Procedimento solicita leitura silenciosa e unset após uso."
+    },
+    {
+      "path": "tools/network-access/live.mjs",
+      "rule": "generic-api-key",
+      "line": 19,
+      "fileSha256": "906666bc8d5c7c9b1e98b3b4224d8a59410526f399401d6183534ebe3a97270f",
+      "reason": "Segredo TACACS explicitamente descartável em harness opt-in RUN_NETWORK_ACCESS_LIVE; tenant e dispositivos temporários, listener loopback e limpeza finally. Não é credencial de rede real."
     }
   ]
 }

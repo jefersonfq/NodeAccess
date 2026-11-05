@@ -1,8 +1,9 @@
+const { artifactPath } = require('../shared/private-artifacts.cjs')
 const { createRequire } = require('node:module')
 const fs = require('node:fs'), path = require('node:path'), http = require('node:http'), zlib = require('node:zlib')
 const root = path.resolve(__dirname, '../..')
 const { chromium } = createRequire(root + '/package.json')('playwright')
-const reportPath = process.env.FRONTEND_ENTRY_REPORT || '/tmp/nodeaccess-frontend-entry.json'
+const reportPath = process.env.FRONTEND_ENTRY_REPORT || artifactPath('nodeaccess-frontend-entry.json')
 const baseline = process.argv[2] ? path.resolve(process.argv[2]) : null
 async function main() {
  const browser = await chromium.launch({headless:true,executablePath:process.env.PLAYWRIGHT_EXECUTABLE_PATH || '/usr/bin/chromium-browser'})

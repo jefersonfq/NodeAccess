@@ -134,7 +134,7 @@ async function main() {
   let resolveCount = 0
   let socketCount = 0
   const failureRequests = []
-  await context.routeWebSocket('**/ws/ssh**', ws => { socketCount++; ws.close() })
+  await context.routeWebSocket('**/ws/ssh**', async ws => { socketCount++; await ws.close() })
   await context.route('**/api/v1/**', route => {
     const path = new URL(route.request().url()).pathname
     failureRequests.push(path)

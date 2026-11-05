@@ -24,7 +24,7 @@ test('release packaging from another cwd preserves signed fixtures, WSL paths an
   t.after(() => rmSync(temporary, { recursive: true, force: true }))
   const root = join(temporary, 'workspace com espaços')
   mkdirSync(root)
-  for (const dir of ['scripts', 'docker', 'systemd', 'tools/deploy', 'tools/ha-witness', 'apps/backend/scripts', 'apps/backend/prisma', 'apps/agent/src', 'apps/agent/installer', 'packages/shared/src/data']) {
+  for (const dir of ['scripts', 'docker', 'systemd', 'tools/deploy', 'tools/shared', 'tools/ha-witness', 'apps/backend/scripts', 'apps/backend/prisma', 'apps/agent/src', 'apps/agent/installer', 'packages/shared/src/data']) {
     cpSync(join(project, dir), join(root, dir), { recursive: true, filter: source => !source.includes('/reports/') })
   }
   for (const file of ['package.json', 'package-lock.json', '.env.example.prod', 'apps/agent/package.json', ...readdirSync(project).filter(name => /^docker-compose.*\.yml$/.test(name))]) {

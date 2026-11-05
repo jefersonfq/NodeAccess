@@ -5877,8 +5877,7 @@ function reportTerminalUiError(error: unknown): void {
             <NInput
               v-model:value="editHostForm.sshUser"
               :disabled="editHostLoading"
-              :input-props="{ 'aria-label': $t('terminal.editHost.sshUser') }"
-              autocomplete="username"
+              :input-props="{ 'aria-label': $t('terminal.editHost.sshUser'), autocomplete: 'username' }"
             />
           </NFormItem>
         </div>

@@ -1,0 +1,24 @@
+{
+  "at": "2026-11-03T22:28:47.415Z",
+  "node": "v24.21.0",
+  "lockSha256": "a3bd620732103ae294d6d6692f66c896ddfcddd12d6ad57f9afe99f08521827f",
+  "runtime": {
+    "info": 0,
+    "low": 0,
+    "moderate": 0,
+    "high": 0,
+    "critical": 0,
+    "total": 0
+  },
+  "all": {
+    "info": 0,
+    "low": 0,
+    "moderate": 0,
+    "high": 0,
+    "critical": 0,
+    "total": 0
+  },
+  "policy": "all-dependencies",
+  "passed": true,
+  "limitations": "npm cobre dependências conhecidas. Não certifica código, SO, imagens, configuração ou ausência de falhas."
+}

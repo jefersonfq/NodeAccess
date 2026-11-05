@@ -1,0 +1,107 @@
+{
+  "fixture": true,
+  "startedAt": "2026-11-03T19:25:50.463Z",
+  "passed": true,
+  "privateProjectVerified": true,
+  "covered": {
+    "gate": {
+      "status": "OK",
+      "conditions": [
+        {
+          "status": "OK",
+          "metricKey": "new_coverage",
+          "comparator": "LT",
+          "errorThreshold": "80",
+          "actualValue": "100.0"
+        },
+        {
+          "status": "OK",
+          "metricKey": "new_duplicated_lines_density",
+          "comparator": "GT",
+          "errorThreshold": "3",
+          "actualValue": "0.0"
+        },
+        {
+          "status": "OK",
+          "metricKey": "new_violations",
+          "comparator": "GT",
+          "errorThreshold": "0",
+          "actualValue": "0"
+        }
+      ],
+      "ignoredConditions": false,
+      "period": {
+        "mode": "SPECIFIC_ANALYSIS",
+        "date": "2026-11-03T19:27:56+0000",
+        "parameter": "353ca650-da0f-4133-a214-8bd3245ec7bd"
+      },
+      "caycStatus": "compliant"
+    },
+    "measures": [
+      {
+        "metric": "new_lines",
+        "period": {
+          "index": 1,
+          "value": "4"
+        }
+      },
+      {
+        "metric": "new_coverage",
+        "period": {
+          "index": 1,
+          "value": "100.0",
+          "bestValue": true
+        }
+      },
+      {
+        "metric": "new_lines_to_cover",
+        "period": {
+          "index": 1,
+          "value": "3"
+        }
+      }
+    ]
+  },
+  "uncovered": {
+    "gate": {
+      "status": "ERROR",
+      "conditions": [
+        {
+          "status": "ERROR",
+          "metricKey": "new_coverage",
+          "comparator": "LT",
+          "errorThreshold": "80",
+          "actualValue": "42.9"
+        },
+        {
+          "status": "OK",
+          "metricKey": "new_duplicated_lines_density",
+          "comparator": "GT",
+          "errorThreshold": "3",
+          "actualValue": "0.0"
+        },
+        {
+          "status": "OK",
+          "metricKey": "new_violations",
+          "comparator": "GT",
+          "errorThreshold": "0",
+          "actualValue": "0"
+        }
+      ],
+      "ignoredConditions": false,
+      "period": {
+        "mode": "SPECIFIC_ANALYSIS",
+        "date": "2026-11-03T19:27:56+0000",
+        "parameter": "353ca650-da0f-4133-a214-8bd3245ec7bd"
+      },
+      "caycStatus": "compliant"
+    }
+  },
+  "analysisIds": {
+    "base": "353ca650-da0f-4133-a214-8bd3245ec7bd",
+    "covered": "24d4d78c-193b-4142-b41e-ae6b1c660ec7",
+    "uncovered": "718d3559-cfd1-4bb9-86b8-21b87d43b671"
+  },
+  "cleanup": "complete",
+  "finishedAt": "2026-11-03T19:28:58.041Z"
+}

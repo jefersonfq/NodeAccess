@@ -12,7 +12,7 @@ export class TerminalSessionEntityIndex {
   private command = ''
   private podNamespaces = new Map<string, string>()
 
-  observe(command: string, output: string) {
+  observe(command: string, output: string): void {
     if (command !== this.command) { this.remainder = ''; this.discardPartialLine = false; this.command = command }
     if (this.discardPartialLine) {
       const newline = output.indexOf('\n')
@@ -26,7 +26,7 @@ export class TerminalSessionEntityIndex {
     this.remainder = this.discardPartialLine ? '' : tail
     if (boundary < 0) return
     const clean = combined.slice(0, boundary + 1).split('\n').filter(line => line.length <= 8192).join('\n').replace(/\u001b\[[0-?]*[ -/]*[@-~]/g, '')
-    if (/^\s*(?:sudo\s+)?systemctl\b/.test(command)) this.addMany('systemd', [...clean.matchAll(/\b([A-Za-z0-9@_.-]+\.(?:service|socket|timer|mount|target))\b/g)].map((match) => match[1]!))
+    if (/^\s*(?:sudo\s+)?systemctl\b/.test(command)) this.addMany('systemd', [...clean.matchAll(/\b([A-Za-z0-9@_.-]+\.(?:service|socket|timer|mount|target))\b/g)].map((match) => match[1]))
     if (/^\s*docker\s+(?:ps|container\s+ls)\b/.test(command)) this.addMany('docker', dataLines(clean).map((line) => line.trim().split(/\s+/).at(-1) ?? ''))
     if (/^\s*kubectl\s+get\s+pods?\b/.test(command)) {
       const allNamespaces = /\s(?:-A|--all-namespaces)(?:\s|$)/.test(command)
@@ -43,7 +43,7 @@ export class TerminalSessionEntityIndex {
       const pods = this.entities.get('kubernetes')
       for (const identity of this.podNamespaces.keys()) if (!pods?.has(identity)) this.podNamespaces.delete(identity)
     }
-    if (/^\s*git\s+(?:branch|status)\b/.test(command)) this.addMany('git', [...clean.matchAll(/^\s*\*?\s*([A-Za-z0-9][A-Za-z0-9._/-]*)\s*$/gm)].map((match) => match[1]!))
+    if (/^\s*git\s+(?:branch|status)\b/.test(command)) this.addMany('git', clean.split('\n').map(line => line.trim().replace(/^\*/, '').trim()).filter(line => /^[A-Za-z0-9][A-Za-z0-9._/-]*$/.test(line)))
   }
 
   suggest(line: string, limit = 6): TerminalCompletion[] {
@@ -57,8 +57,8 @@ export class TerminalSessionEntityIndex {
       .map(([value]) => ({ value: `${route.linePrefix}${route.kind === 'kubernetes' ? value.split('/').at(-1)! : value}${route.kind === 'kubernetes' && this.podNamespaces.has(value) ? ` -n ${this.podNamespaces.get(value)}` : ''}`, descriptionKey: 'terminal.autocomplete.descriptions.sessionEntity', source: 'command', resourceType: 'command', contextLabel: route.label, persistable: false }))
   }
 
-  clear() { this.entities.clear(); this.podNamespaces.clear(); this.remainder = ''; this.discardPartialLine = false; this.command = '' }
-  private addMany(kind: EntityKind, values: string[]) {
+  clear(): void { this.entities.clear(); this.podNamespaces.clear(); this.remainder = ''; this.discardPartialLine = false; this.command = '' }
+  private addMany(kind: EntityKind, values: string[]): void {
     const bucket = this.entities.get(kind) ?? new Map<string, number>()
     for (const value of values) if (SAFE_ENTITY.test(value) && !/^(?:name|names|status|ready|namespace)$/i.test(value)) bucket.set(value, (bucket.get(value) ?? 0) + 1)
     while (bucket.size > MAX_PER_KIND) bucket.delete(bucket.keys().next().value!)
@@ -66,7 +66,7 @@ export class TerminalSessionEntityIndex {
   }
 }
 
-function dataLines(output: string) { return output.split(/\r?\n/).filter((line) => line.trim() && !/^(?:NAME|CONTAINER ID|NAMESPACE)\b/i.test(line.trim())) }
+function dataLines(output: string): string[] { return output.split(/\r?\n/).filter((line) => line.trim() && !/^(?:NAME|CONTAINER ID|NAMESPACE)\b/i.test(line.trim())) }
 function entityRoute(line: string): { kind: EntityKind; linePrefix: string; prefix: string; label: string } | null {
   const routes: Array<[RegExp, EntityKind, string]> = [
     [/^(.*\bsystemctl\s+(?:status|restart|stop|start)\s+)([^\s]*)$/, 'systemd', 'systemd · sessão'],
@@ -74,6 +74,6 @@ function entityRoute(line: string): { kind: EntityKind; linePrefix: string; pref
     [/^(.*\bkubectl\s+(?:logs|describe\s+pod)\s+)([^\s]*)$/, 'kubernetes', 'Kubernetes · sessão'],
     [/^(.*\bgit\s+(?:checkout|switch)\s+)([^\s]*)$/, 'git', 'Git · sessão'],
   ]
-  for (const [pattern, kind, label] of routes) { const match = line.match(pattern); if (match) return { kind, label, linePrefix: match[1]!, prefix: match[2]! } }
+  for (const [pattern, kind, label] of routes) { const match = line.match(pattern); if (match) return { kind, label, linePrefix: match[1], prefix: match[2] } }
   return null
 }

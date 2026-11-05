@@ -1,3 +1,4 @@
+import { trimTrailingCharacters } from '@/services/text-boundaries'
 import { ref, watch, onUnmounted, type Ref } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import { handleExpiredSession } from '@/services/auth-session.service'
@@ -312,6 +313,7 @@ interface TerminalController {
   savePasswordOffer: Ref<SavePasswordOffer | null>
   terminalMetrics: Ref<{ cols: number; rows: number; width: number; height: number; lastResizeSentAt: string | null }>
   activeHighlightRules: Ref<EffectiveTerminalHighlights['rules']>
+  highlightWarning: Ref<string>
   focusedHighlightRuleId: Ref<string | null>
   mount(this: void, el: HTMLElement, handlers?: {
     onOpenSearch?: () => void
@@ -365,6 +367,7 @@ export function useTerminal(tabId?: string): TerminalController {
   const agentName          = ref<string | null>(null)
 
   let term:           TerminalAdapter | null = null
+  const highlightWarning = ref('')
   let highlighter: TerminalHighlighter | null = null
   const activeHighlightRules = ref<EffectiveTerminalHighlights['rules']>([])
   const focusedHighlightRuleId = ref<string | null>(null)
@@ -558,7 +561,7 @@ export function useTerminal(tabId?: string): TerminalController {
       if (now - lastHighlightTelemetryAt < 30_000) return
       lastHighlightTelemetryAt = now
       void terminalHighlightService.telemetry(sample).catch(() => {})
-    })
+    }, 8, 120, undefined, warning => { highlightWarning.value = warning })
     // connect determines whether private preferences are allowed before loading.
     window.addEventListener(TERMINAL_HIGHLIGHTS_CHANGED_EVENT, refreshHighlights)
     window.addEventListener('nodeaccess:terminal-highlights-invalidated', refreshHighlights)
@@ -662,7 +665,7 @@ export function useTerminal(tabId?: string): TerminalController {
     const handleInput = async (data: string): Promise<void> => {
       if (status.value !== 'connected') return
       const normalized = data.replace(/\r\n/g, '\n').replace(/\r/g, '\n')
-      const trimmed = normalized.replace(/\n+$/g, '')
+      const trimmed = trimTrailingCharacters(normalized, '\n')
       const looksLikeMultilinePaste = trimmed.includes('\n')
       if (looksLikeMultilinePaste && confirmMultilinePasteHandler) {
         const allowed = await confirmMultilinePasteHandler(data)
@@ -1137,7 +1140,7 @@ export function useTerminal(tabId?: string): TerminalController {
   return {
     status, error, errorCode, sessionId, hostName, isScrolledUp, latency, currentDirectory, closedReason, tunnelState, hostKeyChallenge, outputVersion, latestOutputChunk,
     connectionMethod, agentName, credentialsChallenge, savePasswordOffer,
-    terminalMetrics, activeHighlightRules, focusedHighlightRuleId,
+    terminalMetrics, activeHighlightRules, focusedHighlightRuleId, highlightWarning,
     mount, connect, reconnect, disconnect, fit, focus,
     searchNext, searchPrev, focusHighlightRule,
     clear, scrollToBottom, sendText, sendSnippetText, sendSecretText, sendCredentialsResponse, dismissSavePasswordOffer, canInsertAiCommand, getBufferText, getSelectionText, getCursorAnchor, setDisableStdin, isMouseTrackingEnabled, setAiPrefixHandler,

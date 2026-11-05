@@ -1,3 +1,4 @@
+import { artifactPath } from '../shared/private-artifacts.cjs'
 /** Opt-in, isolated API/gateway fixture for real PTY certification. No database. */
 import http from 'node:http'
 import { WebSocketServer } from 'ws'
@@ -46,7 +47,7 @@ sockets.on('connection', async (ws, req) => {
 })
 api.listen(3000, '127.0.0.1')
 gateway.listen(3001, '127.0.0.1')
-writeFileSync('/tmp/nodeaccess-utilities-lab.env', `JWT_SECRET=${process.env.JWT_SECRET}\n`)
+writeFileSync(artifactPath('nodeaccess-utilities-lab.env'), `JWT_SECRET=${process.env.JWT_SECRET}\n`)
 console.log('Disposable lab API :3000 and SSH gateway :3001 ready; fixture auth, real SshSession/OpenSSH')
 function stop() { for (const ws of sockets.clients) ws.close(); sockets.close(); gateway.close(); api.close() }
 process.on('SIGINT', stop); process.on('SIGTERM', stop)

@@ -1,3 +1,4 @@
+const { artifactPath } = require('../shared/private-artifacts.cjs')
 /** Use local artifacts created by review-exported-session.ts. Never connects to an audited host. */
 const fs = require('node:fs')
 const { chromium } = require('playwright')
@@ -65,7 +66,7 @@ async function main() {
         await context.close()
       }
     }
-    fs.writeFileSync('/tmp/nodeaccess-audit-export-browser-review.json',JSON.stringify({ok:true,results},null,2))
+    fs.writeFileSync(artifactPath('nodeaccess-audit-export-browser-review.json'),JSON.stringify({ok:true,results},null,2))
   } finally {await browser.close()}
 }
 main().catch(e=>{console.error(e.stack);process.exitCode=1})

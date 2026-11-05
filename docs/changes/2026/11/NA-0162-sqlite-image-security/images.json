@@ -1,0 +1,58 @@
+{
+  "at": "2026-11-04T17:55:58.281Z",
+  "passed": true,
+  "images": [
+    {
+      "candidate": "nodeaccess-tls-agent:na0162",
+      "canonicalRole": "nodeaccess-tls-agent:security-local",
+      "digest": "sha256:3d5c576e76573540488dbcdc63903e353a850eb9117e8200a371c62c20a67d5f",
+      "databaseBuilt": "2026-11-04T06:20:59Z",
+      "databaseValid": true,
+      "reviewed": [
+        {
+          "package": "sqlite-libs",
+          "version": "3.54.1-r0",
+          "id": "CVE-2026-119586",
+          "severity": "High"
+        }
+      ],
+      "unreviewed": [],
+      "passed": true
+    },
+    {
+      "candidate": "nodeaccess-guacd:na0162",
+      "canonicalRole": "nodeaccess-guacd:1.6.0-1",
+      "digest": "sha256:9ba8d179a5963ecea12c1f408c4dd8a6cb480767ce43edfc78ff3df193a87cb3",
+      "databaseBuilt": "2026-11-04T06:20:59Z",
+      "databaseValid": true,
+      "reviewed": [
+        {
+          "package": "sqlite-libs",
+          "version": "3.54.1-r0",
+          "id": "CVE-2026-119586",
+          "severity": "High"
+        },
+        {
+          "package": "libssh2",
+          "version": "1.11.1-r4",
+          "id": "CVE-2026-59851",
+          "severity": "High"
+        },
+        {
+          "package": "cups-libs",
+          "version": "2.4.19-r1",
+          "id": "CVE-2018-6553",
+          "severity": "High"
+        },
+        {
+          "package": "libssh2",
+          "version": "1.11.1-r4",
+          "id": "CVE-2026-59850",
+          "severity": "High"
+        }
+      ],
+      "unreviewed": [],
+      "passed": true
+    }
+  ]
+}

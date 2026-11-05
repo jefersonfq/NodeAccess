@@ -1,0 +1,21 @@
+npm notice run nodeaccess@0.1.0 test:dependency-compatibility
+npm notice run node --test scripts/dependency-patches/dependency-compatibility.test.cjs scripts/dependency-patches/typedoc-minimatch.test.mjs
+✔ minimatch named/class APIs match expected Vue/TS/ESLint path patterns (34.149532ms)
+✔ minimatch adversarial preprocessing stays bounded with unchanged basic negative (56.811776ms)
+✔ glob discovery and already-aborted traversal preserve filesystem and avoid reads (101.248572ms)
+✔ Fastify static real loopback supports enumerated routes, ignores, 404 and swagger assets (594.886819ms)
+✔ follow-redirects strips cross-realm sensitive header and retains harmless header (24.748559ms)
+✔ Joi email multiple handles large whitespace and preserves valid/custom separator cases (117.73528ms)
+✔ patch replaces only removed traversal API and is idempotent (15.175002ms)
+✔ unknown source refuses mutation even if target text is present (6.236379ms)
+✔ new upstream version requires review rather than silently applying stale patch (3.324242ms)
+✔ runtime without optional documentation tool needs no patch (0.99502ms)
+✔ real TypeDoc discovers nested package globs and excludes files with the patched public API (1601.022366ms)
+ℹ tests 11
+ℹ suites 0
+ℹ pass 11
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1763.811765

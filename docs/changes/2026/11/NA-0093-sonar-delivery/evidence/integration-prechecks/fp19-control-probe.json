@@ -1,0 +1,10 @@
+{
+  "status": "passed",
+  "checks": 16,
+  "versions": [
+    "previous-reviewed",
+    "current-working-tree"
+  ],
+  "method": "Actual function declarations extracted by TypeScript AST; only module export removed; synthetic OSC BEL/ST, charset, ANSI, NUL/backspace and cwd cases with exact expected outputs",
+  "limitations": "Eight cases per version, not exhaustive terminal reconstruction, not a live SSH/PTY test; no product or server mutation"
+}

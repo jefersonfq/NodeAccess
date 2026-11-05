@@ -42,3 +42,6 @@ tools/*
 !tools/manual/**
 !tools/tls/
 !tools/tls/**
+!tools/shared/
+tools/shared/*
+!tools/shared/trusted-executable.cjs

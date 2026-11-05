@@ -2,7 +2,7 @@ export function isEncryptedPrivateKey(content: string): boolean {
   const normalized = content.trim()
   if (/-----BEGIN ENCRYPTED PRIVATE KEY-----/.test(normalized)) return true
   if (/Proc-Type:\s*4,ENCRYPTED/i.test(normalized)) return true
-  const puttyEncryption = normalized.match(/^Encryption:\s*(.+)$/mi)?.[1]?.trim()
+  const puttyEncryption = normalized.split(/\r?\n/).find(line => /^Encryption:/i.test(line))?.slice('Encryption:'.length).trim()
   if (puttyEncryption) return puttyEncryption.toLowerCase() !== 'none'
   if (!normalized.includes('-----BEGIN OPENSSH PRIVATE KEY-----')) return false
 

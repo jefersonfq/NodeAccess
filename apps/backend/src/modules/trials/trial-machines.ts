@@ -100,7 +100,7 @@ export class TrialMachines {
       const inventoryRoot = await tx.inventoryNode.findFirst({ where: { tenantId, rootTenantId: tenantId, type: 'ROOT', deletedAt: null }, select: { id: true } })
       if (!inventoryRoot) throw new Error('TRIAL_INVENTORY_UNAVAILABLE')
       const existing = await tx.host.findMany({ where: { tenantId, ip: { in: state.hostAddresses }, deletedAt: null } })
-      if (existing.length !== state.hostAddresses.length || existing.some(host => !lab.hosts.some(next => next.ip === host.ip && next.port === host.port && next.sshUser === host.sshUser && host.passwordEncrypted && decrypt(JSON.parse(host.passwordEncrypted) as EncryptedPayload) === next.password && `${next.fingerprint.replace(/=+$/, '')}=` === host.trustedHostKeyFingerprint))) {
+      if (existing.length !== state.hostAddresses.length || existing.some(host => !lab.hosts.some(next => next.ip === host.ip && next.port === host.port && next.sshUser === host.sshUser && host.passwordEncrypted && decrypt(JSON.parse(host.passwordEncrypted) as EncryptedPayload) === next.password && `${next.fingerprint.replace(/=$/, '')}=` === host.trustedHostKeyFingerprint))) {
         throw new Error('LAB_EXISTING_HOST_CHANGED')
       }
       const added = lab.hosts.filter(host => !state.hostAddresses.includes(host.ip))
@@ -116,7 +116,7 @@ export class TrialMachines {
       for (const host of added) {
         const created = await tx.host.create({ data: { name: host.name, ip: host.ip, port: host.port, sshUser: host.sshUser,
           authType: 'PASSWORD', passwordEncrypted: JSON.stringify(encrypt(host.password)), scope: 'GLOBAL', ownerId: owner.id,
-          tenantId, trustedHostKeyFingerprint: `${host.fingerprint.replace(/=+$/, '')}=`, operatingSystem: 'LINUX' } })
+          tenantId, trustedHostKeyFingerprint: `${host.fingerprint.replace(/=$/, '')}=`, operatingSystem: 'LINUX' } })
         await tx.$executeRaw(Prisma.sql`INSERT INTO inventory_nodes (tenant_id, parent_id, type, host_id, name, path, depth, updated_at)
           SELECT ${tenantId}, id, 'HOST', ${created.id}, ${host.name}, '', 1, CURRENT_TIMESTAMP(3)
           FROM inventory_nodes WHERE root_tenant_id = ${tenantId}`)

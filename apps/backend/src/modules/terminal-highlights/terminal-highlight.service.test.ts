@@ -1,8 +1,8 @@
 import { createHighlightPreset, highlightPresets } from '../../../../frontend/src/services/terminal-highlight-presets.js'
 import { describe, expect, it, vi } from 'vitest'
 import type { TerminalHighlightRule } from '@nodeaccess/shared'
-import { compileHighlightRules, matchTerminalLine } from '../../../../../apps/frontend/src/terminal/terminal-highlighter.js'
-import { TerminalHighlightService } from './terminal-highlight.service.js'
+import { compileHighlightRules, matchTerminalLine } from '../../../../../apps/frontend/src/terminal/terminal-highlight-engine.js'
+import { TerminalHighlightService, hasRejectedQuantifiers } from './terminal-highlight.service.js'
 
 let sequence = 0
 function rule(patch: Partial<TerminalHighlightRule> = {}): TerminalHighlightRule {
@@ -350,3 +350,14 @@ for (const preset of highlightPresets) {
     expect(events.publish).toHaveBeenCalledWith(expect.objectContaining({ tenantId: 9400, userIds: [2, 3] }))
   })
 }
+
+
+describe('linear legacy quantifier heuristic', () => {
+  it.each(['(a+)+', '((a*){', '(a+))', 'a++', 'a**', 'a+*', '(a|aa)+$', 'WARN(?:ING)?'])('preserves rejection semantics: %s', pattern => {
+    expect(hasRejectedQuantifiers(pattern)).toBe(/\([^)]*[+*][^)]*\)[+*{]/.test(pattern) || /([+*])\1/.test(pattern))
+  })
+  it('handles long malformed nesting in one scan without claiming regex safety', () => {
+    expect(hasRejectedQuantifiers('('.repeat(100000) + '*'.repeat(100000))).toBe(true)
+    expect(hasRejectedQuantifiers('(a|aa)+$')).toBe(false)
+  })
+})

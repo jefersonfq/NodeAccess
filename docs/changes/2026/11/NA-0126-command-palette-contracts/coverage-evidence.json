@@ -1,0 +1,11 @@
+{
+  "base": "f4a44b4b7ae87a8f688b1246d9e52a31f9a104bc",
+  "file": "apps/frontend/src/components/CommandPalette.vue",
+  "scope": "Focused SSR run; not integrated gate",
+  "lines": 35,
+  "coveredLines": 31,
+  "conditions": 5,
+  "coveredConditions": 4,
+  "total": 40,
+  "covered": 35
+}

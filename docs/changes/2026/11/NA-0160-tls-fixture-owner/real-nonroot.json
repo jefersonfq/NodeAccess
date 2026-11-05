@@ -1,0 +1,31 @@
+{
+  "base": "9a47efdba488adeff100ebf28dfb3f74798e1d4d",
+  "uid": 1001,
+  "baseline": "HTTP01_LOCAL_FAILED",
+  "candidate": {
+    "passed": true,
+    "runnerSocketOwnership": true,
+    "readOnlyVolumeRecovery": true,
+    "readOnlyCertificatesRecovery": true,
+    "durableAuditOutbox": true,
+    "installationPreparation": true,
+    "repeatedStartup": true,
+    "singleWorkerLock": true,
+    "realNginx": true,
+    "realCertbotAcme": true,
+    "realHttp01": true,
+    "blockedChallengeRecovery": true,
+    "dryRun": true,
+    "realTlsSwap": true,
+    "workerPrivileges": true,
+    "acmeWebroot": true,
+    "realSshPty": true,
+    "websocketPreserved": true,
+    "sshConnections": 1,
+    "wsConnections": 1,
+    "failedConfigPreservesLiveSession": true,
+    "workerRestartRecovery": true
+  },
+  "image": "nodeaccess-tls-agent:na0149",
+  "sourceImageChecks": "challenge-files.mjs and entrypoint.sh SHA256 matched"
+}

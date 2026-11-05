@@ -131,7 +131,6 @@ async function probe(): Promise<void> {
           <template v-if="setup.register">
             <p>Execute uma vez no terminal escolhido. O comando cadastra o servidor no Codex do usuário atual; revise se já existir uma entrada chamada <code>nodeaccess</code>.</p>
             <pre
-              tabindex="0"
               aria-label="Comando de cadastro Codex"
               data-testid="mcp-register"
             >{{ setup.register }}</pre>
@@ -148,7 +147,6 @@ async function probe(): Promise<void> {
               <summary>Alternativa: configurar pelo arquivo</summary>
               <p>Destino: <strong data-testid="mcp-config-destination">{{ setup.destination }}</strong>. Mescle esta entrada e preserve os outros servidores.</p>
               <pre
-                tabindex="0"
                 aria-label="Configuração MCP"
                 data-testid="mcp-config"
               >{{ setup.config }}</pre>
@@ -164,7 +162,6 @@ async function probe(): Promise<void> {
             <p>Destino: <strong data-testid="mcp-config-destination">{{ setup.destination }}</strong>.</p>
             <p>Mescle a entrada <code>nodeaccess</code> no arquivo. Preserve outros servidores e revise antes de substituir uma entrada com esse nome.</p>
             <pre
-              tabindex="0"
               aria-label="Configuração MCP"
               data-testid="mcp-config"
             >{{ setup.config }}</pre>
@@ -193,7 +190,6 @@ async function probe(): Promise<void> {
         <template v-if="setup">
           <p>Cole no terminal escolhido, na pasta em que usará o agente. O comando pede o token sem exibi-lo e abre o {{ agentLabel }}.</p>
           <pre
-            tabindex="0"
             aria-label="Comando de inicialização"
             data-testid="mcp-start"
           >{{ setup.start }}</pre>

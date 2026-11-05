@@ -1,0 +1,1556 @@
+[
+  {
+    "id": "SQ-0100",
+    "issueId": "17a7c454-1215-476c-9512-a55c4660791d",
+    "rule": "Web:InputWithoutLabelCheck",
+    "file": "apps/frontend/src/components/FileManager.vue",
+    "baselineLine": 685,
+    "currentLine": 685,
+    "decision": "technical_fp_supported",
+    "category": "rule_intent_not_violated",
+    "reason": "O input uploadRef de seleção múltipla de arquivos do gerenciador usa class hidden (display:none) e não é o controle apresentado ao usuário. A seleção é aberta por acionador visível nomeado; adicionar label ao elemento oculto não corrige uma falta de nome na interface. A regra exige nome/associação para controles apresentados ao usuário; este controle com display:none não participa da árvore de acessibilidade. Não se usa tabindex=-1 isoladamente como justificativa.",
+    "evidence": [
+      "apps/frontend/src/components/FileManager.vue:685",
+      "/tmp/NA0093-frontend-rule-definitions.json — Web:InputWithoutLabelCheck"
+    ],
+    "validation": "Releitura da definição instalada via GET /api/rules/show, comparação do trecho ee436402 com fonte integrada e inspeção do consumidor pertinente; nenhuma alteração do produto ou transição no servidor.",
+    "limitations": "Revisados input oculto e acionador correspondente na fonte; não repetido seletor nativo de arquivos/tecnologia assistiva. A conclusão depende da classe hidden continuar display:none.",
+    "sourceSha256": "d80e52e9d1a4647c694ef9cd9e5d73603f43a2713f5a26071f7378f9c6a1ff7f",
+    "sourceUnchangedAtOccurrence": true
+  },
+  {
+    "id": "SQ-0103",
+    "issueId": "802e7b24-b894-43ab-a3c0-660dbc6a115e",
+    "rule": "typescript:S1313",
+    "file": "apps/frontend/src/components/ImportHostsModal.vue",
+    "baselineLine": 665,
+    "currentLine": 665,
+    "decision": "technical_fp_supported",
+    "category": "rule_intent_not_violated",
+    "reason": "O IP pertence a GUACAMOLE_JDBC_TEMPLATE, exemplo exportável para o usuário preencher; não é endpoint operacional fixado nem conexão iniciada por esse literal. A regra evita acoplamento operacional a endpoints de infraestrutura. O literal aqui é dado demonstrativo editável/exportável, não endpoint fixo usado pelo transporte. Faixas privadas não são exceção automática da regra; RFC5737 seria uma melhoria editorial separada.",
+    "evidence": [
+      "apps/frontend/src/components/ImportHostsModal.vue:665",
+      "/tmp/NA0093-frontend-rule-definitions.json — typescript:S1313"
+    ],
+    "validation": "Releitura da definição instalada via GET /api/rules/show, comparação do trecho ee436402 com fonte integrada e inspeção do consumidor pertinente; nenhuma alteração do produto ou transição no servidor.",
+    "limitations": "O usuário pode importar o exemplo deliberadamente; isso não equivale a destino de produção aprovado. Trocar por faixa documental seria melhoria de exemplo, não correção de segredo/endpoint obrigatório.",
+    "sourceSha256": "e6e59d8431b649761ab17ccc3770faf0128ec7afefe2e8b0853b602cbc0d7cc6",
+    "sourceUnchangedAtOccurrence": true
+  },
+  {
+    "id": "SQ-0104",
+    "issueId": "37509f88-2ee7-4d6d-bc37-494774e1b76c",
+    "rule": "Web:InputWithoutLabelCheck",
+    "file": "apps/frontend/src/components/ImportHostsModal.vue",
+    "baselineLine": 1924,
+    "currentLine": 1924,
+    "decision": "technical_fp_supported",
+    "category": "rule_intent_not_violated",
+    "reason": "O input universalFileRef de entrada universal do importador, acionada também por Enter/Space no botão de drop usa class hidden (display:none) e não é o controle apresentado ao usuário. A seleção é aberta por acionador visível nomeado; adicionar label ao elemento oculto não corrige uma falta de nome na interface. A regra exige nome/associação para controles apresentados ao usuário; este controle com display:none não participa da árvore de acessibilidade. Não se usa tabindex=-1 isoladamente como justificativa.",
+    "evidence": [
+      "apps/frontend/src/components/ImportHostsModal.vue:1924",
+      "/tmp/NA0093-frontend-rule-definitions.json — Web:InputWithoutLabelCheck"
+    ],
+    "validation": "Releitura da definição instalada via GET /api/rules/show, comparação do trecho ee436402 com fonte integrada e inspeção do consumidor pertinente; nenhuma alteração do produto ou transição no servidor.",
+    "limitations": "Revisados input oculto e acionador correspondente na fonte; não repetido seletor nativo de arquivos/tecnologia assistiva. A conclusão depende da classe hidden continuar display:none.",
+    "sourceSha256": "e6e59d8431b649761ab17ccc3770faf0128ec7afefe2e8b0853b602cbc0d7cc6",
+    "sourceUnchangedAtOccurrence": true
+  },
+  {
+    "id": "SQ-0106",
+    "issueId": "6a458e75-14da-4f35-819d-e4cf7511f500",
+    "rule": "Web:InputWithoutLabelCheck",
+    "file": "apps/frontend/src/components/ImportHostsModal.vue",
+    "baselineLine": 2078,
+    "currentLine": 2078,
+    "decision": "technical_fp_supported",
+    "category": "rule_intent_not_violated",
+    "reason": "O input sshFileRef de carregamento de configuração SSH usa class hidden (display:none) e não é o controle apresentado ao usuário. A seleção é aberta por acionador visível nomeado; adicionar label ao elemento oculto não corrige uma falta de nome na interface. A regra exige nome/associação para controles apresentados ao usuário; este controle com display:none não participa da árvore de acessibilidade. Não se usa tabindex=-1 isoladamente como justificativa.",
+    "evidence": [
+      "apps/frontend/src/components/ImportHostsModal.vue:2078",
+      "/tmp/NA0093-frontend-rule-definitions.json — Web:InputWithoutLabelCheck"
+    ],
+    "validation": "Releitura da definição instalada via GET /api/rules/show, comparação do trecho ee436402 com fonte integrada e inspeção do consumidor pertinente; nenhuma alteração do produto ou transição no servidor.",
+    "limitations": "Revisados input oculto e acionador correspondente na fonte; não repetido seletor nativo de arquivos/tecnologia assistiva. A conclusão depende da classe hidden continuar display:none.",
+    "sourceSha256": "e6e59d8431b649761ab17ccc3770faf0128ec7afefe2e8b0853b602cbc0d7cc6",
+    "sourceUnchangedAtOccurrence": true
+  },
+  {
+    "id": "SQ-0107",
+    "issueId": "a4a4ac67-1571-4e32-8c90-843e7c8ed168",
+    "rule": "Web:InputWithoutLabelCheck",
+    "file": "apps/frontend/src/components/ImportHostsModal.vue",
+    "baselineLine": 2111,
+    "currentLine": 2111,
+    "decision": "technical_fp_supported",
+    "category": "rule_intent_not_violated",
+    "reason": "O input csvFileRef de carregamento CSV usa class hidden (display:none) e não é o controle apresentado ao usuário. A seleção é aberta por acionador visível nomeado; adicionar label ao elemento oculto não corrige uma falta de nome na interface. A regra exige nome/associação para controles apresentados ao usuário; este controle com display:none não participa da árvore de acessibilidade. Não se usa tabindex=-1 isoladamente como justificativa.",
+    "evidence": [
+      "apps/frontend/src/components/ImportHostsModal.vue:2111",
+      "/tmp/NA0093-frontend-rule-definitions.json — Web:InputWithoutLabelCheck"
+    ],
+    "validation": "Releitura da definição instalada via GET /api/rules/show, comparação do trecho ee436402 com fonte integrada e inspeção do consumidor pertinente; nenhuma alteração do produto ou transição no servidor.",
+    "limitations": "Revisados input oculto e acionador correspondente na fonte; não repetido seletor nativo de arquivos/tecnologia assistiva. A conclusão depende da classe hidden continuar display:none.",
+    "sourceSha256": "e6e59d8431b649761ab17ccc3770faf0128ec7afefe2e8b0853b602cbc0d7cc6",
+    "sourceUnchangedAtOccurrence": true
+  },
+  {
+    "id": "SQ-0108",
+    "issueId": "a571a75e-1826-4f29-adf7-da031092ec50",
+    "rule": "Web:InputWithoutLabelCheck",
+    "file": "apps/frontend/src/components/ImportHostsModal.vue",
+    "baselineLine": 2260,
+    "currentLine": 2260,
+    "decision": "technical_fp_supported",
+    "category": "rule_intent_not_violated",
+    "reason": "O input guacamoleFileRef de carregamento XML/JSON do Guacamole usa class hidden (display:none) e não é o controle apresentado ao usuário. A seleção é aberta por acionador visível nomeado; adicionar label ao elemento oculto não corrige uma falta de nome na interface. A regra exige nome/associação para controles apresentados ao usuário; este controle com display:none não participa da árvore de acessibilidade. Não se usa tabindex=-1 isoladamente como justificativa.",
+    "evidence": [
+      "apps/frontend/src/components/ImportHostsModal.vue:2260",
+      "/tmp/NA0093-frontend-rule-definitions.json — Web:InputWithoutLabelCheck"
+    ],
+    "validation": "Releitura da definição instalada via GET /api/rules/show, comparação do trecho ee436402 com fonte integrada e inspeção do consumidor pertinente; nenhuma alteração do produto ou transição no servidor.",
+    "limitations": "Revisados input oculto e acionador correspondente na fonte; não repetido seletor nativo de arquivos/tecnologia assistiva. A conclusão depende da classe hidden continuar display:none.",
+    "sourceSha256": "e6e59d8431b649761ab17ccc3770faf0128ec7afefe2e8b0853b602cbc0d7cc6",
+    "sourceUnchangedAtOccurrence": true
+  },
+  {
+    "id": "SQ-0109",
+    "issueId": "e989d673-060b-46ef-b746-65433ca5e20b",
+    "rule": "Web:S6845",
+    "file": "apps/frontend/src/components/ImportHostsModal.vue",
+    "baselineLine": 2401,
+    "currentLine": 2401,
+    "decision": "technical_fp_supported",
+    "category": "rule_intent_not_violated",
+    "reason": "tabindex=0 torna a lista de dependências com max-height e overflow-y:auto alcançável para rolagem por teclado. Há aria-label e estilo focus-visible explícito; retirar foco prejudicaria navegação da região rolável. Região com altura máxima e overflow-y:auto tem interação real de rolagem; difere dos quatro pre sem dimensão limitada.",
+    "evidence": [
+      "apps/frontend/src/components/ImportHostsModal.vue:2401",
+      "/tmp/NA0093-frontend-rule-definitions.json — Web:S6845",
+      "apps/frontend/src/components/ImportHostsModal.vue:3391",
+      "https://www.w3.org/WAI/standards-guidelines/act/rules/0ssw9k/"
+    ],
+    "validation": "Releitura da definição instalada via GET /api/rules/show, comparação do trecho ee436402 com fonte integrada e inspeção do consumidor pertinente; nenhuma alteração do produto ou transição no servidor.",
+    "limitations": "Não executado leitor de tela; nome de região genérica pode ser aprimorado semanticamente sem invalidar necessidade de foco para scroll.",
+    "sourceSha256": "e6e59d8431b649761ab17ccc3770faf0128ec7afefe2e8b0853b602cbc0d7cc6",
+    "sourceUnchangedAtOccurrence": true
+  },
+  {
+    "id": "SQ-0111",
+    "issueId": "837cb40c-e519-4569-a645-2fe22f255c74",
+    "rule": "Web:S6853",
+    "file": "apps/frontend/src/components/integrations/TenantAuthPolicyCard.vue",
+    "baselineLine": 310,
+    "currentLine": 310,
+    "decision": "technical_fp_supported",
+    "category": "rule_intent_not_violated",
+    "reason": "O label envolve lockoutMaxAttempts, usado para limite de tentativas antes do bloqueio. Naive renderiza o controle nativo dentro desse ancestral; a evidência DOM desta ocorrência possui nome acessível e foco. O scanner estático não expande o componente Vue. A intenção é associação efetiva label-controle, não exigir que o analisador estático conheça a expansão do componente Vue. A evidência DOM individual anterior é reutilizada com o trecho preservado.",
+    "evidence": [
+      "apps/frontend/src/components/integrations/TenantAuthPolicyCard.vue:310",
+      "/tmp/NA0093-frontend-rule-definitions.json — Web:S6853",
+      "docs/changes/2026/11/NA-0145-sonar-open-review/frontend-dom-evidence.json — SQ-0111"
+    ],
+    "validation": "Releitura da definição instalada via GET /api/rules/show, comparação do trecho ee436402 com fonte integrada e inspeção do consumidor pertinente; nenhuma alteração do produto ou transição no servidor. Associação/nome/foco comprovados no artefato DOM por ID; browser não repetido nesta revisão.",
+    "limitations": "Fixture DOM por ocorrência, não homologação do formulário inteiro ou leitor de tela. Nome/foco foram realmente medidos na coleta existente, não inferidos só do nome do componente.",
+    "sourceSha256": "b5932dcd806612ec70799f5b4807eacb816e18938679b7c933be437cf25cb2dd",
+    "sourceUnchangedAtOccurrence": true
+  },
+  {
+    "id": "SQ-0112",
+    "issueId": "b11287e3-9121-4ef2-b1de-3f4e068123ed",
+    "rule": "Web:S6853",
+    "file": "apps/frontend/src/components/integrations/TenantAuthPolicyCard.vue",
+    "baselineLine": 315,
+    "currentLine": 315,
+    "decision": "technical_fp_supported",
+    "category": "rule_intent_not_violated",
+    "reason": "O label envolve lockoutDurationMinutes, usado para duração do bloqueio em minutos. Naive renderiza o controle nativo dentro desse ancestral; a evidência DOM desta ocorrência possui nome acessível e foco. O scanner estático não expande o componente Vue. A intenção é associação efetiva label-controle, não exigir que o analisador estático conheça a expansão do componente Vue. A evidência DOM individual anterior é reutilizada com o trecho preservado.",
+    "evidence": [
+      "apps/frontend/src/components/integrations/TenantAuthPolicyCard.vue:315",
+      "/tmp/NA0093-frontend-rule-definitions.json — Web:S6853",
+      "docs/changes/2026/11/NA-0145-sonar-open-review/frontend-dom-evidence.json — SQ-0112"
+    ],
+    "validation": "Releitura da definição instalada via GET /api/rules/show, comparação do trecho ee436402 com fonte integrada e inspeção do consumidor pertinente; nenhuma alteração do produto ou transição no servidor. Associação/nome/foco comprovados no artefato DOM por ID; browser não repetido nesta revisão.",
+    "limitations": "Fixture DOM por ocorrência, não homologação do formulário inteiro ou leitor de tela. Nome/foco foram realmente medidos na coleta existente, não inferidos só do nome do componente.",
+    "sourceSha256": "b5932dcd806612ec70799f5b4807eacb816e18938679b7c933be437cf25cb2dd",
+    "sourceUnchangedAtOccurrence": true
+  },
+  {
+    "id": "SQ-0113",
+    "issueId": "87095c85-f631-4cbe-bc4c-a65ba78e4709",
+    "rule": "Web:S6853",
+    "file": "apps/frontend/src/components/integrations/TenantAuthPolicyCard.vue",
+    "baselineLine": 320,
+    "currentLine": 320,
+    "decision": "technical_fp_supported",
+    "category": "rule_intent_not_violated",
+    "reason": "O label envolve accessTokenMinutes, usado para validade do access token. Naive renderiza o controle nativo dentro desse ancestral; a evidência DOM desta ocorrência possui nome acessível e foco. O scanner estático não expande o componente Vue. A intenção é associação efetiva label-controle, não exigir que o analisador estático conheça a expansão do componente Vue. A evidência DOM individual anterior é reutilizada com o trecho preservado.",
+    "evidence": [
+      "apps/frontend/src/components/integrations/TenantAuthPolicyCard.vue:320",
+      "/tmp/NA0093-frontend-rule-definitions.json — Web:S6853",
+      "docs/changes/2026/11/NA-0145-sonar-open-review/frontend-dom-evidence.json — SQ-0113"
+    ],
+    "validation": "Releitura da definição instalada via GET /api/rules/show, comparação do trecho ee436402 com fonte integrada e inspeção do consumidor pertinente; nenhuma alteração do produto ou transição no servidor. Associação/nome/foco comprovados no artefato DOM por ID; browser não repetido nesta revisão.",
+    "limitations": "Fixture DOM por ocorrência, não homologação do formulário inteiro ou leitor de tela. Nome/foco foram realmente medidos na coleta existente, não inferidos só do nome do componente.",
+    "sourceSha256": "b5932dcd806612ec70799f5b4807eacb816e18938679b7c933be437cf25cb2dd",
+    "sourceUnchangedAtOccurrence": true
+  },
+  {
+    "id": "SQ-0114",
+    "issueId": "d5ec8fbb-fe40-4f34-926d-aeb1d94bf79f",
+    "rule": "Web:S6853",
+    "file": "apps/frontend/src/components/integrations/TenantAuthPolicyCard.vue",
+    "baselineLine": 325,
+    "currentLine": 325,
+    "decision": "technical_fp_supported",
+    "category": "rule_intent_not_violated",
+    "reason": "O label envolve refreshTokenDays, usado para validade do refresh token em dias. Naive renderiza o controle nativo dentro desse ancestral; a evidência DOM desta ocorrência possui nome acessível e foco. O scanner estático não expande o componente Vue. A intenção é associação efetiva label-controle, não exigir que o analisador estático conheça a expansão do componente Vue. A evidência DOM individual anterior é reutilizada com o trecho preservado.",
+    "evidence": [
+      "apps/frontend/src/components/integrations/TenantAuthPolicyCard.vue:325",
+      "/tmp/NA0093-frontend-rule-definitions.json — Web:S6853",
+      "docs/changes/2026/11/NA-0145-sonar-open-review/frontend-dom-evidence.json — SQ-0114"
+    ],
+    "validation": "Releitura da definição instalada via GET /api/rules/show, comparação do trecho ee436402 com fonte integrada e inspeção do consumidor pertinente; nenhuma alteração do produto ou transição no servidor. Associação/nome/foco comprovados no artefato DOM por ID; browser não repetido nesta revisão.",
+    "limitations": "Fixture DOM por ocorrência, não homologação do formulário inteiro ou leitor de tela. Nome/foco foram realmente medidos na coleta existente, não inferidos só do nome do componente.",
+    "sourceSha256": "b5932dcd806612ec70799f5b4807eacb816e18938679b7c933be437cf25cb2dd",
+    "sourceUnchangedAtOccurrence": true
+  },
+  {
+    "id": "SQ-0115",
+    "issueId": "76693a96-55cf-497b-b5c4-af0393ca2e56",
+    "rule": "Web:S6845",
+    "file": "apps/frontend/src/components/mcp/McpAgentSetup.vue",
+    "baselineLine": 133,
+    "currentLine": 133,
+    "decision": "needs_reassessment",
+    "category": "rule_applies_correction_proposed",
+    "reason": "O pre do comando de cadastro Codex contém texto estático e já tem botão Copiar. CSS pre-wrap/overflow-wrap:anywhere sem max-height não demonstra região rolável que precise receber Tab.",
+    "evidence": [
+      "apps/frontend/src/components/mcp/McpAgentSetup.vue:133",
+      "/tmp/NA0093-frontend-rule-definitions.json — Web:S6845",
+      "apps/frontend/src/components/mcp/McpAgentSetup.vue:318"
+    ],
+    "validation": "Releitura da definição instalada via GET /api/rules/show, comparação do trecho ee436402 com fonte integrada e inspeção do consumidor pertinente; nenhuma alteração do produto ou transição no servidor.",
+    "limitations": "Revisão técnica confirma necessidade de reconsiderar a proposta FP; nenhuma correção implementada nesta reconciliação. Não se alega vulnerabilidade explorável nem impacto em leitor de tela medido.",
+    "sourceSha256": "3ff649e500894b202e3b516e38b9b5580eda0b387da80362563d1ec1e789bf98",
+    "sourceUnchangedAtOccurrence": true
+  },
+  {
+    "id": "SQ-0116",
+    "issueId": "84adc557-c63f-48b8-8072-4454abed948b",
+    "rule": "Web:S6845",
+    "file": "apps/frontend/src/components/mcp/McpAgentSetup.vue",
+    "baselineLine": 150,
+    "currentLine": 150,
+    "decision": "needs_reassessment",
+    "category": "rule_applies_correction_proposed",
+    "reason": "O pre de configuração na alternativa expansível recebe Tab adicional sem ação de teclado; o details e o botão Copiar já são controles nativos. A possibilidade abstrata de seleção não torna o pre interativo.",
+    "evidence": [
+      "apps/frontend/src/components/mcp/McpAgentSetup.vue:150",
+      "/tmp/NA0093-frontend-rule-definitions.json — Web:S6845",
+      "apps/frontend/src/components/mcp/McpAgentSetup.vue:318"
+    ],
+    "validation": "Releitura da definição instalada via GET /api/rules/show, comparação do trecho ee436402 com fonte integrada e inspeção do consumidor pertinente; nenhuma alteração do produto ou transição no servidor.",
+    "limitations": "Revisão técnica confirma necessidade de reconsiderar a proposta FP; nenhuma correção implementada nesta reconciliação. Não se alega vulnerabilidade explorável nem impacto em leitor de tela medido.",
+    "sourceSha256": "3ff649e500894b202e3b516e38b9b5580eda0b387da80362563d1ec1e789bf98",
+    "sourceUnchangedAtOccurrence": true
+  },
+  {
+    "id": "SQ-0117",
+    "issueId": "3c252e24-150c-4efc-849f-e9cafcf20ee8",
+    "rule": "Web:S6845",
+    "file": "apps/frontend/src/components/mcp/McpAgentSetup.vue",
+    "baselineLine": 166,
+    "currentLine": 166,
+    "decision": "needs_reassessment",
+    "category": "rule_applies_correction_proposed",
+    "reason": "O pre da configuração sem cadastro automático é conteúdo estático com quebra de linha, sem dimensão limitada nem interação própria. overflow:auto isolado não sustenta a exceção de rolagem.",
+    "evidence": [
+      "apps/frontend/src/components/mcp/McpAgentSetup.vue:166",
+      "/tmp/NA0093-frontend-rule-definitions.json — Web:S6845",
+      "apps/frontend/src/components/mcp/McpAgentSetup.vue:318"
+    ],
+    "validation": "Releitura da definição instalada via GET /api/rules/show, comparação do trecho ee436402 com fonte integrada e inspeção do consumidor pertinente; nenhuma alteração do produto ou transição no servidor.",
+    "limitations": "Revisão técnica confirma necessidade de reconsiderar a proposta FP; nenhuma correção implementada nesta reconciliação. Não se alega vulnerabilidade explorável nem impacto em leitor de tela medido.",
+    "sourceSha256": "3ff649e500894b202e3b516e38b9b5580eda0b387da80362563d1ec1e789bf98",
+    "sourceUnchangedAtOccurrence": true
+  },
+  {
+    "id": "SQ-0118",
+    "issueId": "86ece36a-8222-4fea-9a77-8eb9259976bb",
+    "rule": "Web:S6845",
+    "file": "apps/frontend/src/components/mcp/McpAgentSetup.vue",
+    "baselineLine": 195,
+    "currentLine": 195,
+    "decision": "needs_reassessment",
+    "category": "rule_applies_correction_proposed",
+    "reason": "O pre do comando de inicialização do agente é estático e tem ação Copiar separada. tabindex=0 acrescenta parada sem função demonstrada, exatamente o problema descrito por S6845.",
+    "evidence": [
+      "apps/frontend/src/components/mcp/McpAgentSetup.vue:195",
+      "/tmp/NA0093-frontend-rule-definitions.json — Web:S6845",
+      "apps/frontend/src/components/mcp/McpAgentSetup.vue:318"
+    ],
+    "validation": "Releitura da definição instalada via GET /api/rules/show, comparação do trecho ee436402 com fonte integrada e inspeção do consumidor pertinente; nenhuma alteração do produto ou transição no servidor.",
+    "limitations": "Revisão técnica confirma necessidade de reconsiderar a proposta FP; nenhuma correção implementada nesta reconciliação. Não se alega vulnerabilidade explorável nem impacto em leitor de tela medido.",
+    "sourceSha256": "3ff649e500894b202e3b516e38b9b5580eda0b387da80362563d1ec1e789bf98",
+    "sourceUnchangedAtOccurrence": true
+  },
+  {
+    "id": "SQ-0119",
+    "issueId": "ae05e55c-7fdf-480b-8b31-7abf36b98ee2",
+    "rule": "Web:S6853",
+    "file": "apps/frontend/src/components/platform/TenantLicenseEditor.vue",
+    "baselineLine": 176,
+    "currentLine": 176,
+    "decision": "technical_fp_supported",
+    "category": "rule_intent_not_violated",
+    "reason": "O label envolve maxUsers, usado para quantidade máxima de usuários e ajuda contextual. Naive renderiza o controle nativo dentro desse ancestral; a evidência DOM desta ocorrência possui nome acessível e foco. O scanner estático não expande o componente Vue. A intenção é associação efetiva label-controle, não exigir que o analisador estático conheça a expansão do componente Vue. A evidência DOM individual anterior é reutilizada com o trecho preservado.",
+    "evidence": [
+      "apps/frontend/src/components/platform/TenantLicenseEditor.vue:176",
+      "/tmp/NA0093-frontend-rule-definitions.json — Web:S6853",
+      "docs/changes/2026/11/NA-0145-sonar-open-review/frontend-dom-evidence.json — SQ-0119"
+    ],
+    "validation": "Releitura da definição instalada via GET /api/rules/show, comparação do trecho ee436402 com fonte integrada e inspeção do consumidor pertinente; nenhuma alteração do produto ou transição no servidor. Associação/nome/foco comprovados no artefato DOM por ID; browser não repetido nesta revisão.",
+    "limitations": "Fixture DOM por ocorrência, não homologação do formulário inteiro ou leitor de tela. Nome/foco foram realmente medidos na coleta existente, não inferidos só do nome do componente.",
+    "sourceSha256": "9eb999fceed0f395f6a0fde4818270175ebd2d82105281d321f153cf865a56fd",
+    "sourceUnchangedAtOccurrence": true
+  },
+  {
+    "id": "SQ-0122",
+    "issueId": "6b3dbbd2-f165-49b8-8c08-6f2233a0f5b1",
+    "rule": "Web:S6853",
+    "file": "apps/frontend/src/components/snippets/MacroStepEditor.vue",
+    "baselineLine": 161,
+    "currentLine": 161,
+    "decision": "technical_fp_supported",
+    "category": "rule_intent_not_violated",
+    "reason": "O label envolve timeoutMs, usado para timeout da etapa wait, incluindo aria-label no input-props. Naive renderiza o controle nativo dentro desse ancestral; a evidência DOM desta ocorrência possui nome acessível e foco. O scanner estático não expande o componente Vue. A intenção é associação efetiva label-controle, não exigir que o analisador estático conheça a expansão do componente Vue. A evidência DOM individual anterior é reutilizada com o trecho preservado.",
+    "evidence": [
+      "apps/frontend/src/components/snippets/MacroStepEditor.vue:161",
+      "/tmp/NA0093-frontend-rule-definitions.json — Web:S6853",
+      "docs/changes/2026/11/NA-0145-sonar-open-review/frontend-dom-evidence.json — SQ-0122"
+    ],
+    "validation": "Releitura da definição instalada via GET /api/rules/show, comparação do trecho ee436402 com fonte integrada e inspeção do consumidor pertinente; nenhuma alteração do produto ou transição no servidor. Associação/nome/foco comprovados no artefato DOM por ID; browser não repetido nesta revisão.",
+    "limitations": "Fixture DOM por ocorrência, não homologação do formulário inteiro ou leitor de tela. Nome/foco foram realmente medidos na coleta existente, não inferidos só do nome do componente.",
+    "sourceSha256": "dd7ee2a36281d13036628779eca9e7d756bb9a10d031a79ac3734dfb8c21240a",
+    "sourceUnchangedAtOccurrence": true
+  },
+  {
+    "id": "SQ-0123",
+    "issueId": "ce693eb8-2ada-454c-a936-a1f0b0680fbd",
+    "rule": "Web:S6853",
+    "file": "apps/frontend/src/components/snippets/MacroStepEditor.vue",
+    "baselineLine": 173,
+    "currentLine": 173,
+    "decision": "technical_fp_supported",
+    "category": "rule_intent_not_violated",
+    "reason": "O label envolve durationMs, usado para duração da pausa, incluindo aria-label no input-props. Naive renderiza o controle nativo dentro desse ancestral; a evidência DOM desta ocorrência possui nome acessível e foco. O scanner estático não expande o componente Vue. A intenção é associação efetiva label-controle, não exigir que o analisador estático conheça a expansão do componente Vue. A evidência DOM individual anterior é reutilizada com o trecho preservado.",
+    "evidence": [
+      "apps/frontend/src/components/snippets/MacroStepEditor.vue:173",
+      "/tmp/NA0093-frontend-rule-definitions.json — Web:S6853",
+      "docs/changes/2026/11/NA-0145-sonar-open-review/frontend-dom-evidence.json — SQ-0123"
+    ],
+    "validation": "Releitura da definição instalada via GET /api/rules/show, comparação do trecho ee436402 com fonte integrada e inspeção do consumidor pertinente; nenhuma alteração do produto ou transição no servidor. Associação/nome/foco comprovados no artefato DOM por ID; browser não repetido nesta revisão.",
+    "limitations": "Fixture DOM por ocorrência, não homologação do formulário inteiro ou leitor de tela. Nome/foco foram realmente medidos na coleta existente, não inferidos só do nome do componente.",
+    "sourceSha256": "dd7ee2a36281d13036628779eca9e7d756bb9a10d031a79ac3734dfb8c21240a",
+    "sourceUnchangedAtOccurrence": true
+  },
+  {
+    "id": "SQ-0124",
+    "issueId": "eaa3c373-f07d-4d30-b489-0aee1d8b58b8",
+    "rule": "Web:S6853",
+    "file": "apps/frontend/src/components/snippets/SnippetCommandEditor.vue",
+    "baselineLine": 74,
+    "currentLine": 74,
+    "decision": "technical_fp_supported",
+    "category": "rule_intent_not_violated",
+    "reason": "O label envolve modelValue[field], usado para editor textarea do comando com aria-label traduzido. Naive renderiza o controle nativo dentro desse ancestral; a evidência DOM desta ocorrência possui nome acessível e foco. O scanner estático não expande o componente Vue. A intenção é associação efetiva label-controle, não exigir que o analisador estático conheça a expansão do componente Vue. A evidência DOM individual anterior é reutilizada com o trecho preservado.",
+    "evidence": [
+      "apps/frontend/src/components/snippets/SnippetCommandEditor.vue:74",
+      "/tmp/NA0093-frontend-rule-definitions.json — Web:S6853",
+      "docs/changes/2026/11/NA-0145-sonar-open-review/frontend-dom-evidence.json — SQ-0124"
+    ],
+    "validation": "Releitura da definição instalada via GET /api/rules/show, comparação do trecho ee436402 com fonte integrada e inspeção do consumidor pertinente; nenhuma alteração do produto ou transição no servidor. Associação/nome/foco comprovados no artefato DOM por ID; browser não repetido nesta revisão.",
+    "limitations": "Fixture DOM por ocorrência, não homologação do formulário inteiro ou leitor de tela. Nome/foco foram realmente medidos na coleta existente, não inferidos só do nome do componente.",
+    "sourceSha256": "bec515affdbce4ebef08e23604db8502218cdcf42e2a434ead6fdc6993cfbd23",
+    "sourceUnchangedAtOccurrence": true
+  },
+  {
+    "id": "SQ-0125",
+    "issueId": "739a8fec-c667-4a25-a144-605e43a1ee18",
+    "rule": "Web:InputWithoutLabelCheck",
+    "file": "apps/frontend/src/components/snippets/SnippetTransfer.vue",
+    "baselineLine": 44,
+    "currentLine": 44,
+    "decision": "technical_fp_supported",
+    "category": "rule_intent_not_violated",
+    "reason": "O input file de importação JSON de snippets usa class hidden (display:none) e não é o controle apresentado ao usuário. A seleção é aberta por acionador visível nomeado; adicionar label ao elemento oculto não corrige uma falta de nome na interface. A regra exige nome/associação para controles apresentados ao usuário; este controle com display:none não participa da árvore de acessibilidade. Não se usa tabindex=-1 isoladamente como justificativa.",
+    "evidence": [
+      "apps/frontend/src/components/snippets/SnippetTransfer.vue:44",
+      "/tmp/NA0093-frontend-rule-definitions.json — Web:InputWithoutLabelCheck"
+    ],
+    "validation": "Releitura da definição instalada via GET /api/rules/show, comparação do trecho ee436402 com fonte integrada e inspeção do consumidor pertinente; nenhuma alteração do produto ou transição no servidor.",
+    "limitations": "Revisados input oculto e acionador correspondente na fonte; não repetido seletor nativo de arquivos/tecnologia assistiva. A conclusão depende da classe hidden continuar display:none.",
+    "sourceSha256": "0a8bfe4bea8b0d4dccd8ee6d3425159d255c8e8ded00c3e36e5fa9042c277826",
+    "sourceUnchangedAtOccurrence": true
+  },
+  {
+    "id": "SQ-0130",
+    "issueId": "dc176616-0f62-47ea-b291-d61aff75e56f",
+    "rule": "typescript:S7767",
+    "file": "apps/frontend/src/components/UserAvatar.vue",
+    "baselineLine": 42,
+    "currentLine": 42,
+    "decision": "technical_fp_supported",
+    "category": "rule_intent_not_violated",
+    "reason": "A coerção hash |= 0 é deliberadamente um wrap signed-int32 no acumulador do hash, não um atalho para truncar parte fracionária (intenção de S7767). Comparação do corpo real com Math.trunc em três seeds sintéticos demonstrou hash e, em um seed, paleta diferentes; a substituição recomendada pela regra não preserva a operação pretendida.",
+    "evidence": [
+      "apps/frontend/src/components/UserAvatar.vue:42",
+      "/tmp/NA0093-frontend-rule-definitions.json — typescript:S7767",
+      "/tmp/NA0093-avatar-int32-probe.json"
+    ],
+    "validation": "Releitura da definição instalada via GET /api/rules/show, comparação do trecho ee436402 com fonte integrada e inspeção do consumidor pertinente; nenhuma alteração do produto ou transição no servidor. Executado corpo computed extraído da fonte real em Node24.22.1; três seeds sintéticos, contraste controlado Math.trunc e observação separada do hash.",
+    "limitations": "Experimento finito confirma não equivalência; não constitui prova universal de distribuição de cores ou segurança criptográfica (não exigida para avatar).",
+    "sourceSha256": "8ec40161a229c77a6ebe19bd35b37164e4fe5fd8a2f9ef27fa20d09d08bebbbd",
+    "sourceUnchangedAtOccurrence": true
+  },
+  {
+    "id": "SQ-0132",
+    "issueId": "7dec507b-3e5e-426e-b161-00389785b295",
+    "rule": "secrets:S6697",
+    "file": "apps/frontend/src/locales/en-BACKUP-UX.json",
+    "baselineLine": 1522,
+    "currentLine": 1522,
+    "decision": "technical_fp_supported",
+    "category": "rule_intent_not_violated",
+    "reason": "A tradução de exemplo MySQL em inglês, cópia BACKUP-UX, contém sintaxe de substituição de alias do cofre (duplas chaves secret:alias), não o valor resolvido de uma credencial. A descrição ensina resolução posterior no backend e mascaramento. A regra detecta credencial MySQL incorporada. Verificação do caminho JSON snippetsPage.help.examples[4].cmd confirmou placeholder não resolvido após a opção de senha, sem valor de credencial. Não se presume que placeholders dispensem autorização posterior.",
+    "evidence": [
+      "apps/frontend/src/locales/en-BACKUP-UX.json:1522",
+      "/tmp/NA0093-frontend-rule-definitions.json — secrets:S6697"
+    ],
+    "validation": "Releitura da definição instalada via GET /api/rules/show, comparação do trecho ee436402 com fonte integrada e inspeção do consumidor pertinente; nenhuma alteração do produto ou transição no servidor. Inspeção estruturada do JSON confirmou sintaxe de placeholder; valores e aliases não foram reproduzidos no relatório.",
+    "limitations": "Conclusão sobre o literal do exemplo; não garante redaction de toda execução de comando. Cópias históricas mantidas, sem exclusão de scanner.",
+    "sourceSha256": "71997df4799c7a81e59da23efb7c1ee0aee736213550e879862ffab0c4d82eed",
+    "sourceUnchangedAtOccurrence": true
+  },
+  {
+    "id": "SQ-0133",
+    "issueId": "459c43e5-ddb0-42a7-84ec-f5b4ea41a6fc",
+    "rule": "secrets:S6697",
+    "file": "apps/frontend/src/locales/en-NOTE-JEFF.json",
+    "baselineLine": 1247,
+    "currentLine": 1247,
+    "decision": "technical_fp_supported",
+    "category": "rule_intent_not_violated",
+    "reason": "A tradução de exemplo MySQL em inglês, cópia NOTE-JEFF, contém sintaxe de substituição de alias do cofre (duplas chaves secret:alias), não o valor resolvido de uma credencial. A descrição ensina resolução posterior no backend e mascaramento. A regra detecta credencial MySQL incorporada. Verificação do caminho JSON snippetsPage.help.examples[4].cmd confirmou placeholder não resolvido após a opção de senha, sem valor de credencial. Não se presume que placeholders dispensem autorização posterior.",
+    "evidence": [
+      "apps/frontend/src/locales/en-NOTE-JEFF.json:1247",
+      "/tmp/NA0093-frontend-rule-definitions.json — secrets:S6697"
+    ],
+    "validation": "Releitura da definição instalada via GET /api/rules/show, comparação do trecho ee436402 com fonte integrada e inspeção do consumidor pertinente; nenhuma alteração do produto ou transição no servidor. Inspeção estruturada do JSON confirmou sintaxe de placeholder; valores e aliases não foram reproduzidos no relatório.",
+    "limitations": "Conclusão sobre o literal do exemplo; não garante redaction de toda execução de comando. Cópias históricas mantidas, sem exclusão de scanner.",
+    "sourceSha256": "58095c04451e93a5e0574568bf644a58eae7214968837bd35e0612474adbb5d5",
+    "sourceUnchangedAtOccurrence": true
+  },
+  {
+    "id": "SQ-0134",
+    "issueId": "304c953c-ca09-4f1b-8e01-41ae8777740d",
+    "rule": "secrets:S6697",
+    "file": "apps/frontend/src/locales/pt-BR-BACKUP-UX.json",
+    "baselineLine": 1522,
+    "currentLine": 1522,
+    "decision": "technical_fp_supported",
+    "category": "rule_intent_not_violated",
+    "reason": "A tradução de exemplo MySQL em português, cópia BACKUP-UX, contém sintaxe de substituição de alias do cofre (duplas chaves secret:alias), não o valor resolvido de uma credencial. A descrição ensina resolução posterior no backend e mascaramento. A regra detecta credencial MySQL incorporada. Verificação do caminho JSON snippetsPage.help.examples[4].cmd confirmou placeholder não resolvido após a opção de senha, sem valor de credencial. Não se presume que placeholders dispensem autorização posterior.",
+    "evidence": [
+      "apps/frontend/src/locales/pt-BR-BACKUP-UX.json:1522",
+      "/tmp/NA0093-frontend-rule-definitions.json — secrets:S6697"
+    ],
+    "validation": "Releitura da definição instalada via GET /api/rules/show, comparação do trecho ee436402 com fonte integrada e inspeção do consumidor pertinente; nenhuma alteração do produto ou transição no servidor. Inspeção estruturada do JSON confirmou sintaxe de placeholder; valores e aliases não foram reproduzidos no relatório.",
+    "limitations": "Conclusão sobre o literal do exemplo; não garante redaction de toda execução de comando. Cópias históricas mantidas, sem exclusão de scanner.",
+    "sourceSha256": "4bbf983de4985bc24198f98f58af8dc9d3b6ea8897027c845530b41f3cbbfa10",
+    "sourceUnchangedAtOccurrence": true
+  },
+  {
+    "id": "SQ-0135",
+    "issueId": "32464ed2-e9a3-4645-87b0-1f2a38f05a88",
+    "rule": "secrets:S6697",
+    "file": "apps/frontend/src/locales/pt-BR-NOTE-JEFF.json",
+    "baselineLine": 1247,
+    "currentLine": 1247,
+    "decision": "technical_fp_supported",
+    "category": "rule_intent_not_violated",
+    "reason": "A tradução de exemplo MySQL em português, cópia NOTE-JEFF, contém sintaxe de substituição de alias do cofre (duplas chaves secret:alias), não o valor resolvido de uma credencial. A descrição ensina resolução posterior no backend e mascaramento. A regra detecta credencial MySQL incorporada. Verificação do caminho JSON snippetsPage.help.examples[4].cmd confirmou placeholder não resolvido após a opção de senha, sem valor de credencial. Não se presume que placeholders dispensem autorização posterior.",
+    "evidence": [
+      "apps/frontend/src/locales/pt-BR-NOTE-JEFF.json:1247",
+      "/tmp/NA0093-frontend-rule-definitions.json — secrets:S6697"
+    ],
+    "validation": "Releitura da definição instalada via GET /api/rules/show, comparação do trecho ee436402 com fonte integrada e inspeção do consumidor pertinente; nenhuma alteração do produto ou transição no servidor. Inspeção estruturada do JSON confirmou sintaxe de placeholder; valores e aliases não foram reproduzidos no relatório.",
+    "limitations": "Conclusão sobre o literal do exemplo; não garante redaction de toda execução de comando. Cópias históricas mantidas, sem exclusão de scanner.",
+    "sourceSha256": "8d3454753dd84d365667e7ca67450118962466ec77ac754cb73f02f35b6d2fe9",
+    "sourceUnchangedAtOccurrence": true
+  },
+  {
+    "id": "SQ-0146",
+    "issueId": "58537d45-fe46-4910-aa3f-845520ec34b1",
+    "rule": "typescript:S2245",
+    "file": "apps/frontend/src/services/service-cache.ts",
+    "baselineLine": 94,
+    "currentLine": 94,
+    "decision": "technical_fp_supported",
+    "category": "rule_intent_not_violated",
+    "reason": "O aleatório identifica a origem de mensagens BroadcastChannel para ignorar eco da própria aba, não cria token, senha ou decisão de autorização. A previsibilidade não fornece privilégio a outro origin. A definição se refere a valores aleatórios usados em contexto de segurança. A rastreabilidade deste identificador mostrou correlação, sem decisão de privilégio dependente de sua imprevisibilidade.",
+    "evidence": [
+      "apps/frontend/src/services/service-cache.ts:94",
+      "/tmp/NA0093-frontend-rule-definitions.json — typescript:S2245",
+      "apps/frontend/src/services/service-cache.ts:108",
+      "apps/frontend/src/services/service-cache.ts:123"
+    ],
+    "validation": "Releitura da definição instalada via GET /api/rules/show, comparação do trecho ee436402 com fonte integrada e inspeção do consumidor pertinente; nenhuma alteração do produto ou transição no servidor.",
+    "limitations": "Possibilidade de colisão é risco de confiabilidade distinto, não criptografia. Não certifica isolamento contra script já executando no mesmo origin.",
+    "sourceSha256": "753b968839b2d33adbda34bd2169ad58c0e39769e58d8131690924ce96a75377",
+    "sourceUnchangedAtOccurrence": true
+  },
+  {
+    "id": "SQ-0149",
+    "issueId": "b9900a35-4b3d-4816-98dd-1724aa8f69a8",
+    "rule": "typescript:S6324",
+    "file": "apps/frontend/src/services/terminal-input-model.service.ts",
+    "baselineLine": 49,
+    "currentLine": 49,
+    "decision": "technical_fp_supported",
+    "category": "rule_intent_not_violated",
+    "reason": "ESC introduz a sequência Alt+b/Alt+f; o modelo marca edição por palavra como não confiável em vez de interpretar esse byte como texto digitado. A definição trata controles inesperados como provável engano. Nesta ocorrência o byte é parte expressa do protocolo terminal, e sua função específica está descrita acima; não se justifica apenas por ausência de exploração.",
+    "evidence": [
+      "apps/frontend/src/services/terminal-input-model.service.ts:49",
+      "/tmp/NA0093-frontend-rule-definitions.json — typescript:S6324"
+    ],
+    "validation": "Releitura da definição instalada via GET /api/rules/show, comparação do trecho ee436402 com fonte integrada e inspeção do consumidor pertinente; nenhuma alteração do produto ou transição no servidor.",
+    "limitations": "Falso positivo da regra sobre presença de byte de controle; não declaração de que todo parser/regex seja seguro. Defeitos associados, quando existem, estão separados e não aceitos.",
+    "sourceSha256": "88c9abd8b4b4bd956e3f8306e3997dd9c71ecf6c5bc2b8abbd65a1d02bd8b18e",
+    "sourceUnchangedAtOccurrence": true
+  },
+  {
+    "id": "SQ-0150",
+    "issueId": "5be8a4e5-1585-44bf-b336-f0abfefb13e8",
+    "rule": "typescript:S6324",
+    "file": "apps/frontend/src/services/terminal-osc-command.service.ts",
+    "baselineLine": 5,
+    "currentLine": 5,
+    "decision": "technical_fp_supported",
+    "category": "rule_intent_not_violated",
+    "reason": "BEL é uma das duas terminações válidas da mensagem OSC133;D de status do comando; removê-lo altera o protocolo aceito. A definição trata controles inesperados como provável engano. Nesta ocorrência o byte é parte expressa do protocolo terminal, e sua função específica está descrita acima; não se justifica apenas por ausência de exploração.",
+    "evidence": [
+      "apps/frontend/src/services/terminal-osc-command.service.ts:5",
+      "/tmp/NA0093-frontend-rule-definitions.json — typescript:S6324"
+    ],
+    "validation": "Releitura da definição instalada via GET /api/rules/show, comparação do trecho ee436402 com fonte integrada e inspeção do consumidor pertinente; nenhuma alteração do produto ou transição no servidor.",
+    "limitations": "Falso positivo da regra sobre presença de byte de controle; não declaração de que todo parser/regex seja seguro. Defeitos associados, quando existem, estão separados e não aceitos.",
+    "sourceSha256": "6d95f873aa8a0aa6891fb610da7182b143757417c7c5ac50163828e6fd6679fd",
+    "sourceUnchangedAtOccurrence": true
+  },
+  {
+    "id": "SQ-0151",
+    "issueId": "8e96c3c6-a328-4ec7-92c1-ca14252d691f",
+    "rule": "typescript:S6324",
+    "file": "apps/frontend/src/services/terminal-osc-command.service.ts",
+    "baselineLine": 5,
+    "currentLine": 5,
+    "decision": "technical_fp_supported",
+    "category": "rule_intent_not_violated",
+    "reason": "ESC seguido de barra invertida compõe ST, a outra terminação de OSC133;D; o buffer está limitado a1024caracteres. A definição trata controles inesperados como provável engano. Nesta ocorrência o byte é parte expressa do protocolo terminal, e sua função específica está descrita acima; não se justifica apenas por ausência de exploração.",
+    "evidence": [
+      "apps/frontend/src/services/terminal-osc-command.service.ts:5",
+      "/tmp/NA0093-frontend-rule-definitions.json — typescript:S6324"
+    ],
+    "validation": "Releitura da definição instalada via GET /api/rules/show, comparação do trecho ee436402 com fonte integrada e inspeção do consumidor pertinente; nenhuma alteração do produto ou transição no servidor.",
+    "limitations": "Falso positivo da regra sobre presença de byte de controle; não declaração de que todo parser/regex seja seguro. Defeitos associados, quando existem, estão separados e não aceitos.",
+    "sourceSha256": "6d95f873aa8a0aa6891fb610da7182b143757417c7c5ac50163828e6fd6679fd",
+    "sourceUnchangedAtOccurrence": true
+  },
+  {
+    "id": "SQ-0152",
+    "issueId": "2de0581d-4ec3-41cc-b313-93006fc3eb5c",
+    "rule": "typescript:S6324",
+    "file": "apps/frontend/src/services/terminal-osc-directory.service.ts",
+    "baselineLine": 5,
+    "currentLine": 5,
+    "decision": "technical_fp_supported",
+    "category": "rule_intent_not_violated",
+    "reason": "BEL é excluído do trecho de autoridade do URI OSC7 para impedir que a mensagem ultrapasse o terminador nessa região. A definição trata controles inesperados como provável engano. Nesta ocorrência o byte é parte expressa do protocolo terminal, e sua função específica está descrita acima; não se justifica apenas por ausência de exploração.",
+    "evidence": [
+      "apps/frontend/src/services/terminal-osc-directory.service.ts:5",
+      "/tmp/NA0093-frontend-rule-definitions.json — typescript:S6324"
+    ],
+    "validation": "Releitura da definição instalada via GET /api/rules/show, comparação do trecho ee436402 com fonte integrada e inspeção do consumidor pertinente; nenhuma alteração do produto ou transição no servidor.",
+    "limitations": "Falso positivo da regra sobre presença de byte de controle; não declaração de que todo parser/regex seja seguro. Defeitos associados, quando existem, estão separados e não aceitos.",
+    "sourceSha256": "667b8cb4085c1eb6a3bb8a60ec97479c6b86e48dd25a71201b8c97f357ed2594",
+    "sourceUnchangedAtOccurrence": true
+  },
+  {
+    "id": "SQ-0153",
+    "issueId": "54effdb2-129d-46d1-82ab-520a90c9d5a2",
+    "rule": "typescript:S6324",
+    "file": "apps/frontend/src/services/terminal-osc-directory.service.ts",
+    "baselineLine": 5,
+    "currentLine": 5,
+    "decision": "technical_fp_supported",
+    "category": "rule_intent_not_violated",
+    "reason": "ESC é excluído da autoridade OSC7 porque inicia ST; não é caractere acidental da expressão. A definição trata controles inesperados como provável engano. Nesta ocorrência o byte é parte expressa do protocolo terminal, e sua função específica está descrita acima; não se justifica apenas por ausência de exploração.",
+    "evidence": [
+      "apps/frontend/src/services/terminal-osc-directory.service.ts:5",
+      "/tmp/NA0093-frontend-rule-definitions.json — typescript:S6324"
+    ],
+    "validation": "Releitura da definição instalada via GET /api/rules/show, comparação do trecho ee436402 com fonte integrada e inspeção do consumidor pertinente; nenhuma alteração do produto ou transição no servidor.",
+    "limitations": "Falso positivo da regra sobre presença de byte de controle; não declaração de que todo parser/regex seja seguro. Defeitos associados, quando existem, estão separados e não aceitos.",
+    "sourceSha256": "667b8cb4085c1eb6a3bb8a60ec97479c6b86e48dd25a71201b8c97f357ed2594",
+    "sourceUnchangedAtOccurrence": true
+  },
+  {
+    "id": "SQ-0154",
+    "issueId": "560176a2-6772-4170-828d-74ef224ac53f",
+    "rule": "typescript:S6324",
+    "file": "apps/frontend/src/services/terminal-osc-directory.service.ts",
+    "baselineLine": 5,
+    "currentLine": 5,
+    "decision": "technical_fp_supported",
+    "category": "rule_intent_not_violated",
+    "reason": "BEL é excluído da captura do caminho OSC7, separando caminho de fim de mensagem. A definição trata controles inesperados como provável engano. Nesta ocorrência o byte é parte expressa do protocolo terminal, e sua função específica está descrita acima; não se justifica apenas por ausência de exploração.",
+    "evidence": [
+      "apps/frontend/src/services/terminal-osc-directory.service.ts:5",
+      "/tmp/NA0093-frontend-rule-definitions.json — typescript:S6324"
+    ],
+    "validation": "Releitura da definição instalada via GET /api/rules/show, comparação do trecho ee436402 com fonte integrada e inspeção do consumidor pertinente; nenhuma alteração do produto ou transição no servidor.",
+    "limitations": "Falso positivo da regra sobre presença de byte de controle; não declaração de que todo parser/regex seja seguro. Defeitos associados, quando existem, estão separados e não aceitos.",
+    "sourceSha256": "667b8cb4085c1eb6a3bb8a60ec97479c6b86e48dd25a71201b8c97f357ed2594",
+    "sourceUnchangedAtOccurrence": true
+  },
+  {
+    "id": "SQ-0155",
+    "issueId": "72bbfbfd-9e08-4565-bbe5-df1c8d06005e",
+    "rule": "typescript:S6324",
+    "file": "apps/frontend/src/services/terminal-osc-directory.service.ts",
+    "baselineLine": 5,
+    "currentLine": 5,
+    "decision": "technical_fp_supported",
+    "category": "rule_intent_not_violated",
+    "reason": "ESC é excluído da captura do caminho OSC7 para não incorporar ST ao diretório devolvido. A definição trata controles inesperados como provável engano. Nesta ocorrência o byte é parte expressa do protocolo terminal, e sua função específica está descrita acima; não se justifica apenas por ausência de exploração.",
+    "evidence": [
+      "apps/frontend/src/services/terminal-osc-directory.service.ts:5",
+      "/tmp/NA0093-frontend-rule-definitions.json — typescript:S6324"
+    ],
+    "validation": "Releitura da definição instalada via GET /api/rules/show, comparação do trecho ee436402 com fonte integrada e inspeção do consumidor pertinente; nenhuma alteração do produto ou transição no servidor.",
+    "limitations": "Falso positivo da regra sobre presença de byte de controle; não declaração de que todo parser/regex seja seguro. Defeitos associados, quando existem, estão separados e não aceitos.",
+    "sourceSha256": "667b8cb4085c1eb6a3bb8a60ec97479c6b86e48dd25a71201b8c97f357ed2594",
+    "sourceUnchangedAtOccurrence": true
+  },
+  {
+    "id": "SQ-0156",
+    "issueId": "c1829053-a40e-4399-9d9b-3e6c51fb8737",
+    "rule": "typescript:S6324",
+    "file": "apps/frontend/src/services/terminal-osc-directory.service.ts",
+    "baselineLine": 5,
+    "currentLine": 5,
+    "decision": "technical_fp_supported",
+    "category": "rule_intent_not_violated",
+    "reason": "BEL na alternativa final encerra OSC7; é delimitador protocolar explícito com buffer2048. A definição trata controles inesperados como provável engano. Nesta ocorrência o byte é parte expressa do protocolo terminal, e sua função específica está descrita acima; não se justifica apenas por ausência de exploração.",
+    "evidence": [
+      "apps/frontend/src/services/terminal-osc-directory.service.ts:5",
+      "/tmp/NA0093-frontend-rule-definitions.json — typescript:S6324"
+    ],
+    "validation": "Releitura da definição instalada via GET /api/rules/show, comparação do trecho ee436402 com fonte integrada e inspeção do consumidor pertinente; nenhuma alteração do produto ou transição no servidor.",
+    "limitations": "Falso positivo da regra sobre presença de byte de controle; não declaração de que todo parser/regex seja seguro. Defeitos associados, quando existem, estão separados e não aceitos.",
+    "sourceSha256": "667b8cb4085c1eb6a3bb8a60ec97479c6b86e48dd25a71201b8c97f357ed2594",
+    "sourceUnchangedAtOccurrence": true
+  },
+  {
+    "id": "SQ-0157",
+    "issueId": "daaa581a-7de7-459b-961c-93abf6f8d327",
+    "rule": "typescript:S6324",
+    "file": "apps/frontend/src/services/terminal-osc-directory.service.ts",
+    "baselineLine": 5,
+    "currentLine": 5,
+    "decision": "technical_fp_supported",
+    "category": "rule_intent_not_violated",
+    "reason": "ESC na alternativa final forma ST para encerrar OSC7, preservando a variante de terminal que não usa BEL. A definição trata controles inesperados como provável engano. Nesta ocorrência o byte é parte expressa do protocolo terminal, e sua função específica está descrita acima; não se justifica apenas por ausência de exploração.",
+    "evidence": [
+      "apps/frontend/src/services/terminal-osc-directory.service.ts:5",
+      "/tmp/NA0093-frontend-rule-definitions.json — typescript:S6324"
+    ],
+    "validation": "Releitura da definição instalada via GET /api/rules/show, comparação do trecho ee436402 com fonte integrada e inspeção do consumidor pertinente; nenhuma alteração do produto ou transição no servidor.",
+    "limitations": "Falso positivo da regra sobre presença de byte de controle; não declaração de que todo parser/regex seja seguro. Defeitos associados, quando existem, estão separados e não aceitos.",
+    "sourceSha256": "667b8cb4085c1eb6a3bb8a60ec97479c6b86e48dd25a71201b8c97f357ed2594",
+    "sourceUnchangedAtOccurrence": true
+  },
+  {
+    "id": "SQ-0158",
+    "issueId": "525c047a-f7c2-41e0-a7af-9c916a99bfd5",
+    "rule": "typescript:S2310",
+    "file": "apps/frontend/src/services/terminal-path-autocomplete.service.ts",
+    "baselineLine": 212,
+    "currentLine": 212,
+    "decision": "needs_reassessment",
+    "category": "rule_applies_correction_proposed",
+    "reason": "A atribuição simples index = start - 1 altera o contador do for dentro do corpo. S2310 admite incremento/decremento/atribuição composta para saltos lexicais, mas esta atribuição simples não é essa exceção nem compensação de splice. Correção do parser não elimina a questão de clareza apontada.",
+    "evidence": [
+      "apps/frontend/src/services/terminal-path-autocomplete.service.ts:212",
+      "/tmp/NA0093-frontend-rule-definitions.json — typescript:S2310"
+    ],
+    "validation": "Releitura da definição instalada via GET /api/rules/show, comparação do trecho ee436402 com fonte integrada e inspeção do consumidor pertinente; nenhuma alteração do produto ou transição no servidor.",
+    "limitations": "Revisão técnica confirma necessidade de reconsiderar a proposta FP; nenhuma correção implementada nesta reconciliação. Não se alega vulnerabilidade explorável nem impacto em leitor de tela medido.",
+    "sourceSha256": "8a8977b845ba0a3e84c67cd79f7d58e439e932be9856f400daffbd57f1cfa9b5",
+    "sourceUnchangedAtOccurrence": true
+  },
+  {
+    "id": "SQ-0161",
+    "issueId": "46318762-793a-478e-90cc-e0b93ae7d526",
+    "rule": "typescript:S8786",
+    "file": "apps/frontend/src/views/admin/HighAvailabilityView.vue",
+    "baselineLine": 320,
+    "currentLine": 320,
+    "decision": "needs_reassessment",
+    "category": "rule_applies_correction_proposed",
+    "reason": "O padrão não ancorado de remoção da fração permite tentativas repetidas de sufixos em entradas gerais; a definição instalada de S8786 aborda essa estrutura não linear. Entrada exclusiva ISO curta reduz impacto/prioridade, mas não torna a ocorrência falso positivo. Formatação sem regex preservará a saída.",
+    "evidence": [
+      "apps/frontend/src/views/admin/HighAvailabilityView.vue:320",
+      "/tmp/NA0093-frontend-rule-definitions.json — typescript:S8786"
+    ],
+    "validation": "Releitura da definição instalada via GET /api/rules/show, comparação do trecho ee436402 com fonte integrada e inspeção do consumidor pertinente; nenhuma alteração do produto ou transição no servidor.",
+    "limitations": "Revisão técnica confirma necessidade de reconsiderar a proposta FP; nenhuma correção implementada nesta reconciliação. Não se alega vulnerabilidade explorável nem impacto em leitor de tela medido.",
+    "sourceSha256": "cdabcb01574cda1589ee4687054b5ac07b8c611866566c20b537075e2bf55840",
+    "sourceUnchangedAtOccurrence": true
+  },
+  {
+    "id": "SQ-0165",
+    "issueId": "034a0e51-7fef-44f1-9251-a1b19ad6eb23",
+    "rule": "Web:InputWithoutLabelCheck",
+    "file": "apps/frontend/src/views/admin/IntegrationsView.vue",
+    "baselineLine": 3581,
+    "currentLine": 3581,
+    "decision": "technical_fp_supported",
+    "category": "rule_intent_not_violated",
+    "reason": "O input localAiUploadRef de envio de arquivo para implantação de IA usa class hidden (display:none) e não é o controle apresentado ao usuário. A seleção é aberta por acionador visível nomeado; adicionar label ao elemento oculto não corrige uma falta de nome na interface. A regra exige nome/associação para controles apresentados ao usuário; este controle com display:none não participa da árvore de acessibilidade. Não se usa tabindex=-1 isoladamente como justificativa.",
+    "evidence": [
+      "apps/frontend/src/views/admin/IntegrationsView.vue:3581",
+      "/tmp/NA0093-frontend-rule-definitions.json — Web:InputWithoutLabelCheck"
+    ],
+    "validation": "Releitura da definição instalada via GET /api/rules/show, comparação do trecho ee436402 com fonte integrada e inspeção do consumidor pertinente; nenhuma alteração do produto ou transição no servidor.",
+    "limitations": "Revisados input oculto e acionador correspondente na fonte; não repetido seletor nativo de arquivos/tecnologia assistiva. A conclusão depende da classe hidden continuar display:none.",
+    "sourceSha256": "4766347e79a50ba524d6e21be6ea66a1e1914b75aea37119457aea821ab3a49a",
+    "sourceUnchangedAtOccurrence": true
+  },
+  {
+    "id": "SQ-0170",
+    "issueId": "32469d52-2866-4ebf-b024-8225fe5fb9be",
+    "rule": "typescript:S1313",
+    "file": "apps/frontend/src/views/admin/NativeSshGatewayView.vue",
+    "baselineLine": 37,
+    "currentLine": 37,
+    "decision": "technical_fp_supported",
+    "category": "rule_intent_not_violated",
+    "reason": "O endereço privado é exemplo em estado inicial editável sampleTarget, exibido para copiar; não alimenta diretamente transporte SSH da aplicação. O destino é configurável na seção Parâmetros dos exemplos. A regra evita acoplamento operacional a endpoints de infraestrutura. O literal aqui é dado demonstrativo editável/exportável, não endpoint fixo usado pelo transporte. Faixas privadas não são exceção automática da regra; RFC5737 seria uma melhoria editorial separada.",
+    "evidence": [
+      "apps/frontend/src/views/admin/NativeSshGatewayView.vue:37",
+      "/tmp/NA0093-frontend-rule-definitions.json — typescript:S1313"
+    ],
+    "validation": "Releitura da definição instalada via GET /api/rules/show, comparação do trecho ee436402 com fonte integrada e inspeção do consumidor pertinente; nenhuma alteração do produto ou transição no servidor.",
+    "limitations": "Não autoriza uso desse endereço em produção; segurança de comandos personalizados é um fluxo distinto. Não foi estabelecida conexão ao IP durante a revisão.",
+    "sourceSha256": "e23a8961586b212f97cd8119bc69c13ab293f5111f994b7303f4187e3b0805c0",
+    "sourceUnchangedAtOccurrence": true
+  },
+  {
+    "id": "SQ-0171",
+    "issueId": "13f51efd-0eb5-4e93-a1eb-fcd3495f55a2",
+    "rule": "typescript:S1313",
+    "file": "apps/frontend/src/views/admin/NativeSshGatewayView.vue",
+    "baselineLine": 61,
+    "currentLine": 61,
+    "decision": "technical_fp_supported",
+    "category": "rule_intent_not_violated",
+    "reason": "O endereço privado é exemplo em comando com usuário padrão via -l, exibido para copiar; não alimenta diretamente transporte SSH da aplicação. O destino é configurável na seção Parâmetros dos exemplos. A regra evita acoplamento operacional a endpoints de infraestrutura. O literal aqui é dado demonstrativo editável/exportável, não endpoint fixo usado pelo transporte. Faixas privadas não são exceção automática da regra; RFC5737 seria uma melhoria editorial separada.",
+    "evidence": [
+      "apps/frontend/src/views/admin/NativeSshGatewayView.vue:61",
+      "/tmp/NA0093-frontend-rule-definitions.json — typescript:S1313"
+    ],
+    "validation": "Releitura da definição instalada via GET /api/rules/show, comparação do trecho ee436402 com fonte integrada e inspeção do consumidor pertinente; nenhuma alteração do produto ou transição no servidor.",
+    "limitations": "Não autoriza uso desse endereço em produção; segurança de comandos personalizados é um fluxo distinto. Não foi estabelecida conexão ao IP durante a revisão.",
+    "sourceSha256": "e23a8961586b212f97cd8119bc69c13ab293f5111f994b7303f4187e3b0805c0",
+    "sourceUnchangedAtOccurrence": true
+  },
+  {
+    "id": "SQ-0172",
+    "issueId": "583835f7-b72e-47de-88b3-4990813c965c",
+    "rule": "typescript:S1313",
+    "file": "apps/frontend/src/views/admin/NativeSshGatewayView.vue",
+    "baselineLine": 65,
+    "currentLine": 65,
+    "decision": "technical_fp_supported",
+    "category": "rule_intent_not_violated",
+    "reason": "O endereço privado é exemplo em comando com override de usuário via -l, exibido para copiar; não alimenta diretamente transporte SSH da aplicação. O destino é configurável na seção Parâmetros dos exemplos. A regra evita acoplamento operacional a endpoints de infraestrutura. O literal aqui é dado demonstrativo editável/exportável, não endpoint fixo usado pelo transporte. Faixas privadas não são exceção automática da regra; RFC5737 seria uma melhoria editorial separada.",
+    "evidence": [
+      "apps/frontend/src/views/admin/NativeSshGatewayView.vue:65",
+      "/tmp/NA0093-frontend-rule-definitions.json — typescript:S1313"
+    ],
+    "validation": "Releitura da definição instalada via GET /api/rules/show, comparação do trecho ee436402 com fonte integrada e inspeção do consumidor pertinente; nenhuma alteração do produto ou transição no servidor.",
+    "limitations": "Não autoriza uso desse endereço em produção; segurança de comandos personalizados é um fluxo distinto. Não foi estabelecida conexão ao IP durante a revisão.",
+    "sourceSha256": "e23a8961586b212f97cd8119bc69c13ab293f5111f994b7303f4187e3b0805c0",
+    "sourceUnchangedAtOccurrence": true
+  },
+  {
+    "id": "SQ-0173",
+    "issueId": "3572e6ae-d574-4859-8a15-09a08adcb8ec",
+    "rule": "typescript:S1313",
+    "file": "apps/frontend/src/views/admin/NativeSshGatewayView.vue",
+    "baselineLine": 70,
+    "currentLine": 70,
+    "decision": "technical_fp_supported",
+    "category": "rule_intent_not_violated",
+    "reason": "O endereço privado é exemplo em forma inline com usuário padrão e IdentitiesOnly, exibido para copiar; não alimenta diretamente transporte SSH da aplicação. O destino é configurável na seção Parâmetros dos exemplos. A regra evita acoplamento operacional a endpoints de infraestrutura. O literal aqui é dado demonstrativo editável/exportável, não endpoint fixo usado pelo transporte. Faixas privadas não são exceção automática da regra; RFC5737 seria uma melhoria editorial separada.",
+    "evidence": [
+      "apps/frontend/src/views/admin/NativeSshGatewayView.vue:70",
+      "/tmp/NA0093-frontend-rule-definitions.json — typescript:S1313"
+    ],
+    "validation": "Releitura da definição instalada via GET /api/rules/show, comparação do trecho ee436402 com fonte integrada e inspeção do consumidor pertinente; nenhuma alteração do produto ou transição no servidor.",
+    "limitations": "Não autoriza uso desse endereço em produção; segurança de comandos personalizados é um fluxo distinto. Não foi estabelecida conexão ao IP durante a revisão.",
+    "sourceSha256": "e23a8961586b212f97cd8119bc69c13ab293f5111f994b7303f4187e3b0805c0",
+    "sourceUnchangedAtOccurrence": true
+  },
+  {
+    "id": "SQ-0174",
+    "issueId": "b41f16f6-a42c-4176-9303-6d286f19211b",
+    "rule": "typescript:S1313",
+    "file": "apps/frontend/src/views/admin/NativeSshGatewayView.vue",
+    "baselineLine": 75,
+    "currentLine": 75,
+    "decision": "technical_fp_supported",
+    "category": "rule_intent_not_violated",
+    "reason": "O endereço privado é exemplo em forma inline com override e IdentitiesOnly, exibido para copiar; não alimenta diretamente transporte SSH da aplicação. O destino é configurável na seção Parâmetros dos exemplos. A regra evita acoplamento operacional a endpoints de infraestrutura. O literal aqui é dado demonstrativo editável/exportável, não endpoint fixo usado pelo transporte. Faixas privadas não são exceção automática da regra; RFC5737 seria uma melhoria editorial separada.",
+    "evidence": [
+      "apps/frontend/src/views/admin/NativeSshGatewayView.vue:75",
+      "/tmp/NA0093-frontend-rule-definitions.json — typescript:S1313"
+    ],
+    "validation": "Releitura da definição instalada via GET /api/rules/show, comparação do trecho ee436402 com fonte integrada e inspeção do consumidor pertinente; nenhuma alteração do produto ou transição no servidor.",
+    "limitations": "Não autoriza uso desse endereço em produção; segurança de comandos personalizados é um fluxo distinto. Não foi estabelecida conexão ao IP durante a revisão.",
+    "sourceSha256": "e23a8961586b212f97cd8119bc69c13ab293f5111f994b7303f4187e3b0805c0",
+    "sourceUnchangedAtOccurrence": true
+  },
+  {
+    "id": "SQ-0175",
+    "issueId": "af7180f2-a438-4bd1-b586-4e6e8df1af16",
+    "rule": "Web:S6853",
+    "file": "apps/frontend/src/views/admin/NativeSshGatewayView.vue",
+    "baselineLine": 365,
+    "currentLine": 365,
+    "decision": "technical_fp_supported",
+    "category": "rule_intent_not_violated",
+    "reason": "O label envolve sampleTarget, usado para host de destino do exemplo SSH. Naive renderiza o controle nativo dentro desse ancestral; a evidência DOM desta ocorrência possui nome acessível e foco. O scanner estático não expande o componente Vue. A intenção é associação efetiva label-controle, não exigir que o analisador estático conheça a expansão do componente Vue. A evidência DOM individual anterior é reutilizada com o trecho preservado.",
+    "evidence": [
+      "apps/frontend/src/views/admin/NativeSshGatewayView.vue:365",
+      "/tmp/NA0093-frontend-rule-definitions.json — Web:S6853",
+      "docs/changes/2026/11/NA-0145-sonar-open-review/frontend-dom-evidence.json — SQ-0175"
+    ],
+    "validation": "Releitura da definição instalada via GET /api/rules/show, comparação do trecho ee436402 com fonte integrada e inspeção do consumidor pertinente; nenhuma alteração do produto ou transição no servidor. Associação/nome/foco comprovados no artefato DOM por ID; browser não repetido nesta revisão.",
+    "limitations": "Fixture DOM por ocorrência, não homologação do formulário inteiro ou leitor de tela. Nome/foco foram realmente medidos na coleta existente, não inferidos só do nome do componente.",
+    "sourceSha256": "e23a8961586b212f97cd8119bc69c13ab293f5111f994b7303f4187e3b0805c0",
+    "sourceUnchangedAtOccurrence": true
+  },
+  {
+    "id": "SQ-0176",
+    "issueId": "965f1baa-23a6-4e19-a71f-0c9fecbc6e1a",
+    "rule": "Web:S6853",
+    "file": "apps/frontend/src/views/admin/NativeSshGatewayView.vue",
+    "baselineLine": 369,
+    "currentLine": 369,
+    "decision": "technical_fp_supported",
+    "category": "rule_intent_not_violated",
+    "reason": "O label envolve sampleTargetUser, usado para usuário SSH opcional do exemplo. Naive renderiza o controle nativo dentro desse ancestral; a evidência DOM desta ocorrência possui nome acessível e foco. O scanner estático não expande o componente Vue. A intenção é associação efetiva label-controle, não exigir que o analisador estático conheça a expansão do componente Vue. A evidência DOM individual anterior é reutilizada com o trecho preservado.",
+    "evidence": [
+      "apps/frontend/src/views/admin/NativeSshGatewayView.vue:369",
+      "/tmp/NA0093-frontend-rule-definitions.json — Web:S6853",
+      "docs/changes/2026/11/NA-0145-sonar-open-review/frontend-dom-evidence.json — SQ-0176"
+    ],
+    "validation": "Releitura da definição instalada via GET /api/rules/show, comparação do trecho ee436402 com fonte integrada e inspeção do consumidor pertinente; nenhuma alteração do produto ou transição no servidor. Associação/nome/foco comprovados no artefato DOM por ID; browser não repetido nesta revisão.",
+    "limitations": "Fixture DOM por ocorrência, não homologação do formulário inteiro ou leitor de tela. Nome/foco foram realmente medidos na coleta existente, não inferidos só do nome do componente.",
+    "sourceSha256": "e23a8961586b212f97cd8119bc69c13ab293f5111f994b7303f4187e3b0805c0",
+    "sourceUnchangedAtOccurrence": true
+  },
+  {
+    "id": "SQ-0187",
+    "issueId": "3487a5af-f76e-4323-a02d-64f6562dd25b",
+    "rule": "typescript:S6324",
+    "file": "apps/frontend/src/views/admin/SessionAuditDetailView.vue",
+    "baselineLine": 802,
+    "currentLine": 803,
+    "decision": "technical_fp_supported",
+    "category": "rule_intent_not_violated",
+    "reason": "BEL é excluído do corpo OSC no sanitizador de auditoria para parar no delimitador, não texto de usuário. A definição trata controles inesperados como provável engano. Nesta ocorrência o byte é parte expressa do protocolo terminal, e sua função específica está descrita acima; não se justifica apenas por ausência de exploração.",
+    "evidence": [
+      "apps/frontend/src/views/admin/SessionAuditDetailView.vue:803",
+      "/tmp/NA0093-frontend-rule-definitions.json — typescript:S6324"
+    ],
+    "validation": "Releitura da definição instalada via GET /api/rules/show, comparação do trecho ee436402 com fonte integrada e inspeção do consumidor pertinente; nenhuma alteração do produto ou transição no servidor.",
+    "limitations": "Falso positivo da regra sobre presença de byte de controle; não declaração de que todo parser/regex seja seguro. Defeitos associados, quando existem, estão separados e não aceitos.",
+    "sourceSha256": "c2b90ac802b167ba29e832a5a9f2ac40e710963e19c631227290f06758dadc1f",
+    "sourceUnchangedAtOccurrence": true
+  },
+  {
+    "id": "SQ-0188",
+    "issueId": "3685a6e6-d0ea-48dd-88e6-12f161062375",
+    "rule": "typescript:S6324",
+    "file": "apps/frontend/src/views/admin/SessionAuditDetailView.vue",
+    "baselineLine": 802,
+    "currentLine": 803,
+    "decision": "technical_fp_supported",
+    "category": "rule_intent_not_violated",
+    "reason": "ESC é excluído do corpo OSC para reconhecer ST sem consumir o início da terminação. A definição trata controles inesperados como provável engano. Nesta ocorrência o byte é parte expressa do protocolo terminal, e sua função específica está descrita acima; não se justifica apenas por ausência de exploração.",
+    "evidence": [
+      "apps/frontend/src/views/admin/SessionAuditDetailView.vue:803",
+      "/tmp/NA0093-frontend-rule-definitions.json — typescript:S6324"
+    ],
+    "validation": "Releitura da definição instalada via GET /api/rules/show, comparação do trecho ee436402 com fonte integrada e inspeção do consumidor pertinente; nenhuma alteração do produto ou transição no servidor.",
+    "limitations": "Falso positivo da regra sobre presença de byte de controle; não declaração de que todo parser/regex seja seguro. Defeitos associados, quando existem, estão separados e não aceitos.",
+    "sourceSha256": "c2b90ac802b167ba29e832a5a9f2ac40e710963e19c631227290f06758dadc1f",
+    "sourceUnchangedAtOccurrence": true
+  },
+  {
+    "id": "SQ-0189",
+    "issueId": "a1c79e7d-46b6-475d-8cd3-16381e212563",
+    "rule": "typescript:S6324",
+    "file": "apps/frontend/src/views/admin/SessionAuditDetailView.vue",
+    "baselineLine": 802,
+    "currentLine": 803,
+    "decision": "technical_fp_supported",
+    "category": "rule_intent_not_violated",
+    "reason": "BEL na alternativa final conclui a remoção de OSC; suporte necessário ao formato de saída terminal. A definição trata controles inesperados como provável engano. Nesta ocorrência o byte é parte expressa do protocolo terminal, e sua função específica está descrita acima; não se justifica apenas por ausência de exploração.",
+    "evidence": [
+      "apps/frontend/src/views/admin/SessionAuditDetailView.vue:803",
+      "/tmp/NA0093-frontend-rule-definitions.json — typescript:S6324"
+    ],
+    "validation": "Releitura da definição instalada via GET /api/rules/show, comparação do trecho ee436402 com fonte integrada e inspeção do consumidor pertinente; nenhuma alteração do produto ou transição no servidor.",
+    "limitations": "Falso positivo da regra sobre presença de byte de controle; não declaração de que todo parser/regex seja seguro. Defeitos associados, quando existem, estão separados e não aceitos.",
+    "sourceSha256": "c2b90ac802b167ba29e832a5a9f2ac40e710963e19c631227290f06758dadc1f",
+    "sourceUnchangedAtOccurrence": true
+  },
+  {
+    "id": "SQ-0190",
+    "issueId": "a9f0e611-4fe5-4a35-bee7-78aacadf516a",
+    "rule": "typescript:S6324",
+    "file": "apps/frontend/src/views/admin/SessionAuditDetailView.vue",
+    "baselineLine": 802,
+    "currentLine": 803,
+    "decision": "technical_fp_supported",
+    "category": "rule_intent_not_violated",
+    "reason": "ESC na alternativa final compõe ST na remoção de OSC; não pode ser eliminado como caractere de controle supérfluo. A definição trata controles inesperados como provável engano. Nesta ocorrência o byte é parte expressa do protocolo terminal, e sua função específica está descrita acima; não se justifica apenas por ausência de exploração.",
+    "evidence": [
+      "apps/frontend/src/views/admin/SessionAuditDetailView.vue:803",
+      "/tmp/NA0093-frontend-rule-definitions.json — typescript:S6324"
+    ],
+    "validation": "Releitura da definição instalada via GET /api/rules/show, comparação do trecho ee436402 com fonte integrada e inspeção do consumidor pertinente; nenhuma alteração do produto ou transição no servidor.",
+    "limitations": "Falso positivo da regra sobre presença de byte de controle; não declaração de que todo parser/regex seja seguro. Defeitos associados, quando existem, estão separados e não aceitos.",
+    "sourceSha256": "c2b90ac802b167ba29e832a5a9f2ac40e710963e19c631227290f06758dadc1f",
+    "sourceUnchangedAtOccurrence": true
+  },
+  {
+    "id": "SQ-0191",
+    "issueId": "09ee6126-cd1d-46b0-a3cc-4ccf8b4ce0bf",
+    "rule": "typescript:S6324",
+    "file": "apps/frontend/src/views/admin/SessionAuditDetailView.vue",
+    "baselineLine": 803,
+    "currentLine": null,
+    "decision": "needs_reassessment",
+    "category": "source_removed_pending_scanner",
+    "reason": "A ocorrência histórica SQ-0191, na linha 803, deixou de existir após NA0148. Não é apropriado transicionar como falso positivo um trecho substituído: confirmar resolução/identidade no novo scanner. A intenção protocolar antiga não equivale a uma ocorrência atual.",
+    "evidence": [
+      "apps/frontend/src/views/admin/SessionAuditDetailView.vue (trecho original da linha 803 removido)",
+      "/tmp/NA0093-frontend-rule-definitions.json — typescript:S6324",
+      "apps/frontend/src/views/admin/SessionAuditDetailView.vue:804"
+    ],
+    "validation": "Releitura da definição instalada via GET /api/rules/show, comparação do trecho ee436402 com fonte integrada e inspeção do consumidor pertinente; nenhuma alteração do produto ou transição no servidor.",
+    "limitations": "Sem análise nova ou consulta de resolução desta issue no servidor; currentLine=null expressa ausência do trecho, não fechamento confirmado.",
+    "sourceSha256": "c2b90ac802b167ba29e832a5a9f2ac40e710963e19c631227290f06758dadc1f",
+    "sourceUnchangedAtOccurrence": false
+  },
+  {
+    "id": "SQ-0192",
+    "issueId": "736dba82-a117-4326-896e-1e9c27ba3254",
+    "rule": "typescript:S6324",
+    "file": "apps/frontend/src/views/admin/SessionAuditDetailView.vue",
+    "baselineLine": 803,
+    "currentLine": null,
+    "decision": "needs_reassessment",
+    "category": "source_removed_pending_scanner",
+    "reason": "A ocorrência histórica SQ-0192, na linha 803, deixou de existir após NA0148. Não é apropriado transicionar como falso positivo um trecho substituído: confirmar resolução/identidade no novo scanner. A intenção protocolar antiga não equivale a uma ocorrência atual.",
+    "evidence": [
+      "apps/frontend/src/views/admin/SessionAuditDetailView.vue (trecho original da linha 803 removido)",
+      "/tmp/NA0093-frontend-rule-definitions.json — typescript:S6324",
+      "apps/frontend/src/views/admin/SessionAuditDetailView.vue:804"
+    ],
+    "validation": "Releitura da definição instalada via GET /api/rules/show, comparação do trecho ee436402 com fonte integrada e inspeção do consumidor pertinente; nenhuma alteração do produto ou transição no servidor.",
+    "limitations": "Sem análise nova ou consulta de resolução desta issue no servidor; currentLine=null expressa ausência do trecho, não fechamento confirmado.",
+    "sourceSha256": "c2b90ac802b167ba29e832a5a9f2ac40e710963e19c631227290f06758dadc1f",
+    "sourceUnchangedAtOccurrence": false
+  },
+  {
+    "id": "SQ-0193",
+    "issueId": "a87faa89-0064-4fe7-8df3-e11e90a4ff69",
+    "rule": "typescript:S6324",
+    "file": "apps/frontend/src/views/admin/SessionAuditDetailView.vue",
+    "baselineLine": 803,
+    "currentLine": null,
+    "decision": "needs_reassessment",
+    "category": "source_removed_pending_scanner",
+    "reason": "A ocorrência histórica SQ-0193, na linha 803, deixou de existir após NA0148. Não é apropriado transicionar como falso positivo um trecho substituído: confirmar resolução/identidade no novo scanner. A intenção protocolar antiga não equivale a uma ocorrência atual.",
+    "evidence": [
+      "apps/frontend/src/views/admin/SessionAuditDetailView.vue (trecho original da linha 803 removido)",
+      "/tmp/NA0093-frontend-rule-definitions.json — typescript:S6324",
+      "apps/frontend/src/views/admin/SessionAuditDetailView.vue:804"
+    ],
+    "validation": "Releitura da definição instalada via GET /api/rules/show, comparação do trecho ee436402 com fonte integrada e inspeção do consumidor pertinente; nenhuma alteração do produto ou transição no servidor.",
+    "limitations": "Sem análise nova ou consulta de resolução desta issue no servidor; currentLine=null expressa ausência do trecho, não fechamento confirmado.",
+    "sourceSha256": "c2b90ac802b167ba29e832a5a9f2ac40e710963e19c631227290f06758dadc1f",
+    "sourceUnchangedAtOccurrence": false
+  },
+  {
+    "id": "SQ-0194",
+    "issueId": "fe92b416-ad6c-4791-b2b1-3b6a1861e310",
+    "rule": "typescript:S6324",
+    "file": "apps/frontend/src/views/admin/SessionAuditDetailView.vue",
+    "baselineLine": 805,
+    "currentLine": 806,
+    "decision": "technical_fp_supported",
+    "category": "rule_intent_not_violated",
+    "reason": "ESC inicia sequências de seleção de charset em stripTerminalControlSequences; retirada quebraria a limpeza de bytes ANSI. A definição trata controles inesperados como provável engano. Nesta ocorrência o byte é parte expressa do protocolo terminal, e sua função específica está descrita acima; não se justifica apenas por ausência de exploração.",
+    "evidence": [
+      "apps/frontend/src/views/admin/SessionAuditDetailView.vue:806",
+      "/tmp/NA0093-frontend-rule-definitions.json — typescript:S6324"
+    ],
+    "validation": "Releitura da definição instalada via GET /api/rules/show, comparação do trecho ee436402 com fonte integrada e inspeção do consumidor pertinente; nenhuma alteração do produto ou transição no servidor.",
+    "limitations": "Falso positivo da regra sobre presença de byte de controle; não declaração de que todo parser/regex seja seguro. Defeitos associados, quando existem, estão separados e não aceitos.",
+    "sourceSha256": "c2b90ac802b167ba29e832a5a9f2ac40e710963e19c631227290f06758dadc1f",
+    "sourceUnchangedAtOccurrence": true
+  },
+  {
+    "id": "SQ-0195",
+    "issueId": "a367d93e-9d8c-421c-8b46-4dec0464e86b",
+    "rule": "typescript:S6324",
+    "file": "apps/frontend/src/views/admin/SessionAuditDetailView.vue",
+    "baselineLine": 806,
+    "currentLine": 807,
+    "decision": "technical_fp_supported",
+    "category": "rule_intent_not_violated",
+    "reason": "ESC introduz a família genérica de controles ANSI de um caractere no sanitizador; contexto é processamento explícito do terminal. A definição trata controles inesperados como provável engano. Nesta ocorrência o byte é parte expressa do protocolo terminal, e sua função específica está descrita acima; não se justifica apenas por ausência de exploração.",
+    "evidence": [
+      "apps/frontend/src/views/admin/SessionAuditDetailView.vue:807",
+      "/tmp/NA0093-frontend-rule-definitions.json — typescript:S6324"
+    ],
+    "validation": "Releitura da definição instalada via GET /api/rules/show, comparação do trecho ee436402 com fonte integrada e inspeção do consumidor pertinente; nenhuma alteração do produto ou transição no servidor.",
+    "limitations": "Falso positivo da regra sobre presença de byte de controle; não declaração de que todo parser/regex seja seguro. Defeitos associados, quando existem, estão separados e não aceitos.",
+    "sourceSha256": "c2b90ac802b167ba29e832a5a9f2ac40e710963e19c631227290f06758dadc1f",
+    "sourceUnchangedAtOccurrence": true
+  },
+  {
+    "id": "SQ-0196",
+    "issueId": "9011cf17-5c88-4a04-bc04-eff61b7ef495",
+    "rule": "typescript:S6324",
+    "file": "apps/frontend/src/views/admin/SessionAuditDetailView.vue",
+    "baselineLine": 807,
+    "currentLine": 808,
+    "decision": "technical_fp_supported",
+    "category": "rule_intent_not_violated",
+    "reason": "ESC introduz comandos curtos como salvar/restaurar cursor e modos no sanitizador; não constitui texto de controle oculto acidental. A definição trata controles inesperados como provável engano. Nesta ocorrência o byte é parte expressa do protocolo terminal, e sua função específica está descrita acima; não se justifica apenas por ausência de exploração.",
+    "evidence": [
+      "apps/frontend/src/views/admin/SessionAuditDetailView.vue:808",
+      "/tmp/NA0093-frontend-rule-definitions.json — typescript:S6324"
+    ],
+    "validation": "Releitura da definição instalada via GET /api/rules/show, comparação do trecho ee436402 com fonte integrada e inspeção do consumidor pertinente; nenhuma alteração do produto ou transição no servidor.",
+    "limitations": "Falso positivo da regra sobre presença de byte de controle; não declaração de que todo parser/regex seja seguro. Defeitos associados, quando existem, estão separados e não aceitos.",
+    "sourceSha256": "c2b90ac802b167ba29e832a5a9f2ac40e710963e19c631227290f06758dadc1f",
+    "sourceUnchangedAtOccurrence": true
+  },
+  {
+    "id": "SQ-0199",
+    "issueId": "25a45bc9-4f10-4dbb-b161-37616ca58930",
+    "rule": "typescript:S6324",
+    "file": "apps/frontend/src/views/admin/SessionAuditDetailView.vue",
+    "baselineLine": 933,
+    "currentLine": null,
+    "decision": "needs_reassessment",
+    "category": "source_removed_pending_scanner",
+    "reason": "A ocorrência histórica SQ-0199, na linha 933, deixou de existir após NA0148. Não é apropriado transicionar como falso positivo um trecho substituído: confirmar resolução/identidade no novo scanner. A intenção protocolar antiga não equivale a uma ocorrência atual.",
+    "evidence": [
+      "apps/frontend/src/views/admin/SessionAuditDetailView.vue (trecho original da linha 933 removido)",
+      "/tmp/NA0093-frontend-rule-definitions.json — typescript:S6324",
+      "apps/frontend/src/views/admin/SessionAuditDetailView.vue:934"
+    ],
+    "validation": "Releitura da definição instalada via GET /api/rules/show, comparação do trecho ee436402 com fonte integrada e inspeção do consumidor pertinente; nenhuma alteração do produto ou transição no servidor.",
+    "limitations": "Sem análise nova ou consulta de resolução desta issue no servidor; currentLine=null expressa ausência do trecho, não fechamento confirmado.",
+    "sourceSha256": "c2b90ac802b167ba29e832a5a9f2ac40e710963e19c631227290f06758dadc1f",
+    "sourceUnchangedAtOccurrence": false
+  },
+  {
+    "id": "SQ-0200",
+    "issueId": "4cc6162f-7900-423c-b4a6-ce8060863ebd",
+    "rule": "typescript:S6324",
+    "file": "apps/frontend/src/views/admin/SessionAuditDetailView.vue",
+    "baselineLine": 933,
+    "currentLine": null,
+    "decision": "needs_reassessment",
+    "category": "source_removed_pending_scanner",
+    "reason": "A ocorrência histórica SQ-0200, na linha 933, deixou de existir após NA0148. Não é apropriado transicionar como falso positivo um trecho substituído: confirmar resolução/identidade no novo scanner. A intenção protocolar antiga não equivale a uma ocorrência atual.",
+    "evidence": [
+      "apps/frontend/src/views/admin/SessionAuditDetailView.vue (trecho original da linha 933 removido)",
+      "/tmp/NA0093-frontend-rule-definitions.json — typescript:S6324",
+      "apps/frontend/src/views/admin/SessionAuditDetailView.vue:934"
+    ],
+    "validation": "Releitura da definição instalada via GET /api/rules/show, comparação do trecho ee436402 com fonte integrada e inspeção do consumidor pertinente; nenhuma alteração do produto ou transição no servidor.",
+    "limitations": "Sem análise nova ou consulta de resolução desta issue no servidor; currentLine=null expressa ausência do trecho, não fechamento confirmado.",
+    "sourceSha256": "c2b90ac802b167ba29e832a5a9f2ac40e710963e19c631227290f06758dadc1f",
+    "sourceUnchangedAtOccurrence": false
+  },
+  {
+    "id": "SQ-0201",
+    "issueId": "6e9576d8-088d-4bb8-8356-be76a88ec569",
+    "rule": "typescript:S6324",
+    "file": "apps/frontend/src/views/admin/SessionAuditDetailView.vue",
+    "baselineLine": 933,
+    "currentLine": null,
+    "decision": "needs_reassessment",
+    "category": "source_removed_pending_scanner",
+    "reason": "A ocorrência histórica SQ-0201, na linha 933, deixou de existir após NA0148. Não é apropriado transicionar como falso positivo um trecho substituído: confirmar resolução/identidade no novo scanner. A intenção protocolar antiga não equivale a uma ocorrência atual.",
+    "evidence": [
+      "apps/frontend/src/views/admin/SessionAuditDetailView.vue (trecho original da linha 933 removido)",
+      "/tmp/NA0093-frontend-rule-definitions.json — typescript:S6324",
+      "apps/frontend/src/views/admin/SessionAuditDetailView.vue:934"
+    ],
+    "validation": "Releitura da definição instalada via GET /api/rules/show, comparação do trecho ee436402 com fonte integrada e inspeção do consumidor pertinente; nenhuma alteração do produto ou transição no servidor.",
+    "limitations": "Sem análise nova ou consulta de resolução desta issue no servidor; currentLine=null expressa ausência do trecho, não fechamento confirmado.",
+    "sourceSha256": "c2b90ac802b167ba29e832a5a9f2ac40e710963e19c631227290f06758dadc1f",
+    "sourceUnchangedAtOccurrence": false
+  },
+  {
+    "id": "SQ-0202",
+    "issueId": "a1917e2b-b10b-4c35-9302-b5cf80309e78",
+    "rule": "typescript:S6324",
+    "file": "apps/frontend/src/views/admin/SessionAuditDetailView.vue",
+    "baselineLine": 933,
+    "currentLine": null,
+    "decision": "needs_reassessment",
+    "category": "source_removed_pending_scanner",
+    "reason": "A ocorrência histórica SQ-0202, na linha 933, deixou de existir após NA0148. Não é apropriado transicionar como falso positivo um trecho substituído: confirmar resolução/identidade no novo scanner. A intenção protocolar antiga não equivale a uma ocorrência atual.",
+    "evidence": [
+      "apps/frontend/src/views/admin/SessionAuditDetailView.vue (trecho original da linha 933 removido)",
+      "/tmp/NA0093-frontend-rule-definitions.json — typescript:S6324",
+      "apps/frontend/src/views/admin/SessionAuditDetailView.vue:934"
+    ],
+    "validation": "Releitura da definição instalada via GET /api/rules/show, comparação do trecho ee436402 com fonte integrada e inspeção do consumidor pertinente; nenhuma alteração do produto ou transição no servidor.",
+    "limitations": "Sem análise nova ou consulta de resolução desta issue no servidor; currentLine=null expressa ausência do trecho, não fechamento confirmado.",
+    "sourceSha256": "c2b90ac802b167ba29e832a5a9f2ac40e710963e19c631227290f06758dadc1f",
+    "sourceUnchangedAtOccurrence": false
+  },
+  {
+    "id": "SQ-0203",
+    "issueId": "beeb18b0-02f9-478d-b589-226149f79c31",
+    "rule": "typescript:S6324",
+    "file": "apps/frontend/src/views/admin/SessionAuditDetailView.vue",
+    "baselineLine": 933,
+    "currentLine": null,
+    "decision": "needs_reassessment",
+    "category": "source_removed_pending_scanner",
+    "reason": "A ocorrência histórica SQ-0203, na linha 933, deixou de existir após NA0148. Não é apropriado transicionar como falso positivo um trecho substituído: confirmar resolução/identidade no novo scanner. A intenção protocolar antiga não equivale a uma ocorrência atual.",
+    "evidence": [
+      "apps/frontend/src/views/admin/SessionAuditDetailView.vue (trecho original da linha 933 removido)",
+      "/tmp/NA0093-frontend-rule-definitions.json — typescript:S6324",
+      "apps/frontend/src/views/admin/SessionAuditDetailView.vue:934"
+    ],
+    "validation": "Releitura da definição instalada via GET /api/rules/show, comparação do trecho ee436402 com fonte integrada e inspeção do consumidor pertinente; nenhuma alteração do produto ou transição no servidor.",
+    "limitations": "Sem análise nova ou consulta de resolução desta issue no servidor; currentLine=null expressa ausência do trecho, não fechamento confirmado.",
+    "sourceSha256": "c2b90ac802b167ba29e832a5a9f2ac40e710963e19c631227290f06758dadc1f",
+    "sourceUnchangedAtOccurrence": false
+  },
+  {
+    "id": "SQ-0204",
+    "issueId": "cd643ed1-287f-40c8-a2bd-4e25f14160f7",
+    "rule": "typescript:S6324",
+    "file": "apps/frontend/src/views/admin/SessionAuditDetailView.vue",
+    "baselineLine": 933,
+    "currentLine": null,
+    "decision": "needs_reassessment",
+    "category": "source_removed_pending_scanner",
+    "reason": "A ocorrência histórica SQ-0204, na linha 933, deixou de existir após NA0148. Não é apropriado transicionar como falso positivo um trecho substituído: confirmar resolução/identidade no novo scanner. A intenção protocolar antiga não equivale a uma ocorrência atual.",
+    "evidence": [
+      "apps/frontend/src/views/admin/SessionAuditDetailView.vue (trecho original da linha 933 removido)",
+      "/tmp/NA0093-frontend-rule-definitions.json — typescript:S6324",
+      "apps/frontend/src/views/admin/SessionAuditDetailView.vue:934"
+    ],
+    "validation": "Releitura da definição instalada via GET /api/rules/show, comparação do trecho ee436402 com fonte integrada e inspeção do consumidor pertinente; nenhuma alteração do produto ou transição no servidor.",
+    "limitations": "Sem análise nova ou consulta de resolução desta issue no servidor; currentLine=null expressa ausência do trecho, não fechamento confirmado.",
+    "sourceSha256": "c2b90ac802b167ba29e832a5a9f2ac40e710963e19c631227290f06758dadc1f",
+    "sourceUnchangedAtOccurrence": false
+  },
+  {
+    "id": "SQ-0205",
+    "issueId": "d40afe8e-6f8f-42cb-9f79-08b90a312128",
+    "rule": "typescript:S6324",
+    "file": "apps/frontend/src/views/admin/SessionAuditDetailView.vue",
+    "baselineLine": 933,
+    "currentLine": null,
+    "decision": "needs_reassessment",
+    "category": "source_removed_pending_scanner",
+    "reason": "A ocorrência histórica SQ-0205, na linha 933, deixou de existir após NA0148. Não é apropriado transicionar como falso positivo um trecho substituído: confirmar resolução/identidade no novo scanner. A intenção protocolar antiga não equivale a uma ocorrência atual.",
+    "evidence": [
+      "apps/frontend/src/views/admin/SessionAuditDetailView.vue (trecho original da linha 933 removido)",
+      "/tmp/NA0093-frontend-rule-definitions.json — typescript:S6324",
+      "apps/frontend/src/views/admin/SessionAuditDetailView.vue:934"
+    ],
+    "validation": "Releitura da definição instalada via GET /api/rules/show, comparação do trecho ee436402 com fonte integrada e inspeção do consumidor pertinente; nenhuma alteração do produto ou transição no servidor.",
+    "limitations": "Sem análise nova ou consulta de resolução desta issue no servidor; currentLine=null expressa ausência do trecho, não fechamento confirmado.",
+    "sourceSha256": "c2b90ac802b167ba29e832a5a9f2ac40e710963e19c631227290f06758dadc1f",
+    "sourceUnchangedAtOccurrence": false
+  },
+  {
+    "id": "SQ-0232",
+    "issueId": "2cbebbc8-bb22-4019-84df-0c6abcf41900",
+    "rule": "Web:InputWithoutLabelCheck",
+    "file": "apps/frontend/src/views/admin/WebhooksView.vue",
+    "baselineLine": 1078,
+    "currentLine": 1078,
+    "decision": "technical_fp_supported",
+    "category": "rule_intent_not_violated",
+    "reason": "Campo auxiliar de usuário para desviar autofill em criação de webhook inbound; class hidden e tabindex=-1 retiram-no da interação visual e por Tab. Não é o campo real de credencial nem carece de label de um controle visível. A regra exige nome/associação para controles apresentados ao usuário; este controle com display:none não participa da árvore de acessibilidade. Não se usa tabindex=-1 isoladamente como justificativa.",
+    "evidence": [
+      "apps/frontend/src/views/admin/WebhooksView.vue:1078",
+      "/tmp/NA0093-frontend-rule-definitions.json — Web:InputWithoutLabelCheck"
+    ],
+    "validation": "Releitura da definição instalada via GET /api/rules/show, comparação do trecho ee436402 com fonte integrada e inspeção do consumidor pertinente; nenhuma alteração do produto ou transição no servidor.",
+    "limitations": "A classificação cobre somente falta de label nesse campo oculto; não certifica comportamento de todos os gerenciadores de senhas ou segurança do autofill. Cópias BACKUP/NOTE foram preservadas.",
+    "sourceSha256": "81b9f1648f09f0e9143469846ef6291f8f8b3a00e2dbb554b17cd37c71e0db9e",
+    "sourceUnchangedAtOccurrence": true
+  },
+  {
+    "id": "SQ-0233",
+    "issueId": "41d12852-dd37-4c69-939b-065e369a35d8",
+    "rule": "Web:InputWithoutLabelCheck",
+    "file": "apps/frontend/src/views/admin/WebhooksView.vue",
+    "baselineLine": 1079,
+    "currentLine": 1079,
+    "decision": "technical_fp_supported",
+    "category": "rule_intent_not_violated",
+    "reason": "Campo auxiliar de senha para desviar autofill em criação de webhook inbound; class hidden e tabindex=-1 retiram-no da interação visual e por Tab. Não é o campo real de credencial nem carece de label de um controle visível. A regra exige nome/associação para controles apresentados ao usuário; este controle com display:none não participa da árvore de acessibilidade. Não se usa tabindex=-1 isoladamente como justificativa.",
+    "evidence": [
+      "apps/frontend/src/views/admin/WebhooksView.vue:1079",
+      "/tmp/NA0093-frontend-rule-definitions.json — Web:InputWithoutLabelCheck"
+    ],
+    "validation": "Releitura da definição instalada via GET /api/rules/show, comparação do trecho ee436402 com fonte integrada e inspeção do consumidor pertinente; nenhuma alteração do produto ou transição no servidor.",
+    "limitations": "A classificação cobre somente falta de label nesse campo oculto; não certifica comportamento de todos os gerenciadores de senhas ou segurança do autofill. Cópias BACKUP/NOTE foram preservadas.",
+    "sourceSha256": "81b9f1648f09f0e9143469846ef6291f8f8b3a00e2dbb554b17cd37c71e0db9e",
+    "sourceUnchangedAtOccurrence": true
+  },
+  {
+    "id": "SQ-0241",
+    "issueId": "833480a6-62e9-43a8-98dd-1750989ac29e",
+    "rule": "Web:InputWithoutLabelCheck",
+    "file": "apps/frontend/src/views/HostsView-BACKUP-UX.vue",
+    "baselineLine": 2264,
+    "currentLine": 2264,
+    "decision": "technical_fp_supported",
+    "category": "rule_intent_not_violated",
+    "reason": "Campo auxiliar de usuário para desviar autofill em formulário de host na cópia BACKUP-UX; class hidden e tabindex=-1 retiram-no da interação visual e por Tab. Não é o campo real de credencial nem carece de label de um controle visível. A regra exige nome/associação para controles apresentados ao usuário; este controle com display:none não participa da árvore de acessibilidade. Não se usa tabindex=-1 isoladamente como justificativa.",
+    "evidence": [
+      "apps/frontend/src/views/HostsView-BACKUP-UX.vue:2264",
+      "/tmp/NA0093-frontend-rule-definitions.json — Web:InputWithoutLabelCheck"
+    ],
+    "validation": "Releitura da definição instalada via GET /api/rules/show, comparação do trecho ee436402 com fonte integrada e inspeção do consumidor pertinente; nenhuma alteração do produto ou transição no servidor.",
+    "limitations": "A classificação cobre somente falta de label nesse campo oculto; não certifica comportamento de todos os gerenciadores de senhas ou segurança do autofill. Cópias BACKUP/NOTE foram preservadas.",
+    "sourceSha256": "80363c26b0e15a3f41f642f158b6fe3596239f14ce9a711873494d23045108f1",
+    "sourceUnchangedAtOccurrence": true
+  },
+  {
+    "id": "SQ-0242",
+    "issueId": "cbe3d036-1644-4461-b7fa-af1e068b29ca",
+    "rule": "Web:InputWithoutLabelCheck",
+    "file": "apps/frontend/src/views/HostsView-BACKUP-UX.vue",
+    "baselineLine": 2265,
+    "currentLine": 2265,
+    "decision": "technical_fp_supported",
+    "category": "rule_intent_not_violated",
+    "reason": "Campo auxiliar de senha para desviar autofill em formulário de host na cópia BACKUP-UX; class hidden e tabindex=-1 retiram-no da interação visual e por Tab. Não é o campo real de credencial nem carece de label de um controle visível. A regra exige nome/associação para controles apresentados ao usuário; este controle com display:none não participa da árvore de acessibilidade. Não se usa tabindex=-1 isoladamente como justificativa.",
+    "evidence": [
+      "apps/frontend/src/views/HostsView-BACKUP-UX.vue:2265",
+      "/tmp/NA0093-frontend-rule-definitions.json — Web:InputWithoutLabelCheck"
+    ],
+    "validation": "Releitura da definição instalada via GET /api/rules/show, comparação do trecho ee436402 com fonte integrada e inspeção do consumidor pertinente; nenhuma alteração do produto ou transição no servidor.",
+    "limitations": "A classificação cobre somente falta de label nesse campo oculto; não certifica comportamento de todos os gerenciadores de senhas ou segurança do autofill. Cópias BACKUP/NOTE foram preservadas.",
+    "sourceSha256": "80363c26b0e15a3f41f642f158b6fe3596239f14ce9a711873494d23045108f1",
+    "sourceUnchangedAtOccurrence": true
+  },
+  {
+    "id": "SQ-0243",
+    "issueId": "f625cc4f-4415-4aa0-bfba-7a4615c3a498",
+    "rule": "Web:InputWithoutLabelCheck",
+    "file": "apps/frontend/src/views/HostsView-NOTE-JEFF.vue",
+    "baselineLine": 2007,
+    "currentLine": 2007,
+    "decision": "technical_fp_supported",
+    "category": "rule_intent_not_violated",
+    "reason": "Campo auxiliar de usuário para desviar autofill em formulário de host na cópia NOTE-JEFF; class hidden e tabindex=-1 retiram-no da interação visual e por Tab. Não é o campo real de credencial nem carece de label de um controle visível. A regra exige nome/associação para controles apresentados ao usuário; este controle com display:none não participa da árvore de acessibilidade. Não se usa tabindex=-1 isoladamente como justificativa.",
+    "evidence": [
+      "apps/frontend/src/views/HostsView-NOTE-JEFF.vue:2007",
+      "/tmp/NA0093-frontend-rule-definitions.json — Web:InputWithoutLabelCheck"
+    ],
+    "validation": "Releitura da definição instalada via GET /api/rules/show, comparação do trecho ee436402 com fonte integrada e inspeção do consumidor pertinente; nenhuma alteração do produto ou transição no servidor.",
+    "limitations": "A classificação cobre somente falta de label nesse campo oculto; não certifica comportamento de todos os gerenciadores de senhas ou segurança do autofill. Cópias BACKUP/NOTE foram preservadas.",
+    "sourceSha256": "9017b48098ec6c8df11d351588b05a2782d21090a10ffbf87a8f9323096df5d9",
+    "sourceUnchangedAtOccurrence": true
+  },
+  {
+    "id": "SQ-0244",
+    "issueId": "d12d496d-68ac-4023-8b3f-d8a798a0a3ff",
+    "rule": "Web:InputWithoutLabelCheck",
+    "file": "apps/frontend/src/views/HostsView-NOTE-JEFF.vue",
+    "baselineLine": 2008,
+    "currentLine": 2008,
+    "decision": "technical_fp_supported",
+    "category": "rule_intent_not_violated",
+    "reason": "Campo auxiliar de senha para desviar autofill em formulário de host na cópia NOTE-JEFF; class hidden e tabindex=-1 retiram-no da interação visual e por Tab. Não é o campo real de credencial nem carece de label de um controle visível. A regra exige nome/associação para controles apresentados ao usuário; este controle com display:none não participa da árvore de acessibilidade. Não se usa tabindex=-1 isoladamente como justificativa.",
+    "evidence": [
+      "apps/frontend/src/views/HostsView-NOTE-JEFF.vue:2008",
+      "/tmp/NA0093-frontend-rule-definitions.json — Web:InputWithoutLabelCheck"
+    ],
+    "validation": "Releitura da definição instalada via GET /api/rules/show, comparação do trecho ee436402 com fonte integrada e inspeção do consumidor pertinente; nenhuma alteração do produto ou transição no servidor.",
+    "limitations": "A classificação cobre somente falta de label nesse campo oculto; não certifica comportamento de todos os gerenciadores de senhas ou segurança do autofill. Cópias BACKUP/NOTE foram preservadas.",
+    "sourceSha256": "9017b48098ec6c8df11d351588b05a2782d21090a10ffbf87a8f9323096df5d9",
+    "sourceUnchangedAtOccurrence": true
+  },
+  {
+    "id": "SQ-0245",
+    "issueId": "70968de4-2f43-43ac-a7a2-87781cc597fe",
+    "rule": "typescript:S6324",
+    "file": "apps/frontend/src/views/HostsView.vue",
+    "baselineLine": 3294,
+    "currentLine": null,
+    "decision": "needs_reassessment",
+    "category": "source_removed_pending_scanner",
+    "reason": "A ocorrência histórica SQ-0245, na linha 3294, deixou de existir após NA0148. Não é apropriado transicionar como falso positivo um trecho substituído: confirmar resolução/identidade no novo scanner. A intenção protocolar antiga não equivale a uma ocorrência atual.",
+    "evidence": [
+      "apps/frontend/src/views/HostsView.vue (trecho original da linha 3294 removido)",
+      "/tmp/NA0093-frontend-rule-definitions.json — typescript:S6324",
+      "apps/frontend/src/views/HostsView.vue:3321"
+    ],
+    "validation": "Releitura da definição instalada via GET /api/rules/show, comparação do trecho ee436402 com fonte integrada e inspeção do consumidor pertinente; nenhuma alteração do produto ou transição no servidor.",
+    "limitations": "Sem análise nova ou consulta de resolução desta issue no servidor; currentLine=null expressa ausência do trecho, não fechamento confirmado.",
+    "sourceSha256": "b8da8f1802d925b61a258e4854d9bef12662d0cf4582af093748a28c65c091b3",
+    "sourceUnchangedAtOccurrence": false
+  },
+  {
+    "id": "SQ-0246",
+    "issueId": "bb62b45e-9ab2-4860-94ec-479a18cc4a2a",
+    "rule": "Web:InputWithoutLabelCheck",
+    "file": "apps/frontend/src/views/HostsView.vue",
+    "baselineLine": 7468,
+    "currentLine": 7465,
+    "decision": "technical_fp_supported",
+    "category": "rule_intent_not_violated",
+    "reason": "O input hostPemKeyFileInput de seleção da chave no formulário de host usa class hidden (display:none) e não é o controle apresentado ao usuário. A seleção é aberta por acionador visível nomeado; adicionar label ao elemento oculto não corrige uma falta de nome na interface. A regra exige nome/associação para controles apresentados ao usuário; este controle com display:none não participa da árvore de acessibilidade. Não se usa tabindex=-1 isoladamente como justificativa.",
+    "evidence": [
+      "apps/frontend/src/views/HostsView.vue:7465",
+      "/tmp/NA0093-frontend-rule-definitions.json — Web:InputWithoutLabelCheck"
+    ],
+    "validation": "Releitura da definição instalada via GET /api/rules/show, comparação do trecho ee436402 com fonte integrada e inspeção do consumidor pertinente; nenhuma alteração do produto ou transição no servidor.",
+    "limitations": "Revisados input oculto e acionador correspondente na fonte; não repetido seletor nativo de arquivos/tecnologia assistiva. A conclusão depende da classe hidden continuar display:none.",
+    "sourceSha256": "b8da8f1802d925b61a258e4854d9bef12662d0cf4582af093748a28c65c091b3",
+    "sourceUnchangedAtOccurrence": true
+  },
+  {
+    "id": "SQ-0247",
+    "issueId": "ba8d47c8-3b80-44bf-8f69-35607b633fbb",
+    "rule": "Web:InputWithoutLabelCheck",
+    "file": "apps/frontend/src/views/PemKeysView.vue",
+    "baselineLine": 199,
+    "currentLine": 199,
+    "decision": "technical_fp_supported",
+    "category": "rule_intent_not_violated",
+    "reason": "O input pemKeyFileInput de seleção de chave PEM usa class hidden (display:none) e não é o controle apresentado ao usuário. A seleção é aberta por acionador visível nomeado; adicionar label ao elemento oculto não corrige uma falta de nome na interface. A regra exige nome/associação para controles apresentados ao usuário; este controle com display:none não participa da árvore de acessibilidade. Não se usa tabindex=-1 isoladamente como justificativa.",
+    "evidence": [
+      "apps/frontend/src/views/PemKeysView.vue:199",
+      "/tmp/NA0093-frontend-rule-definitions.json — Web:InputWithoutLabelCheck"
+    ],
+    "validation": "Releitura da definição instalada via GET /api/rules/show, comparação do trecho ee436402 com fonte integrada e inspeção do consumidor pertinente; nenhuma alteração do produto ou transição no servidor.",
+    "limitations": "Revisados input oculto e acionador correspondente na fonte; não repetido seletor nativo de arquivos/tecnologia assistiva. A conclusão depende da classe hidden continuar display:none.",
+    "sourceSha256": "913796c2afaa82a04b64cf1f69c95bb172a057a22a221acd242c55720fe52c07",
+    "sourceUnchangedAtOccurrence": true
+  },
+  {
+    "id": "SQ-0248",
+    "issueId": "5130a863-488e-42ac-8257-afcc4fe5952e",
+    "rule": "Web:InputWithoutLabelCheck",
+    "file": "apps/frontend/src/views/ProfileView.vue",
+    "baselineLine": 286,
+    "currentLine": 286,
+    "decision": "technical_fp_supported",
+    "category": "rule_intent_not_violated",
+    "reason": "O input avatarInput de seleção de imagem do perfil usa class hidden (display:none) e não é o controle apresentado ao usuário. A seleção é aberta por acionador visível nomeado; adicionar label ao elemento oculto não corrige uma falta de nome na interface. A regra exige nome/associação para controles apresentados ao usuário; este controle com display:none não participa da árvore de acessibilidade. Não se usa tabindex=-1 isoladamente como justificativa.",
+    "evidence": [
+      "apps/frontend/src/views/ProfileView.vue:286",
+      "/tmp/NA0093-frontend-rule-definitions.json — Web:InputWithoutLabelCheck"
+    ],
+    "validation": "Releitura da definição instalada via GET /api/rules/show, comparação do trecho ee436402 com fonte integrada e inspeção do consumidor pertinente; nenhuma alteração do produto ou transição no servidor.",
+    "limitations": "Revisados input oculto e acionador correspondente na fonte; não repetido seletor nativo de arquivos/tecnologia assistiva. A conclusão depende da classe hidden continuar display:none.",
+    "sourceSha256": "d8c8d14f30d8827b532ae51475ac098197c0889de074a41af5397e196ccf6ce3",
+    "sourceUnchangedAtOccurrence": true
+  },
+  {
+    "id": "SQ-0249",
+    "issueId": "2fc01788-1448-4cbd-80e4-8aa88ddcd828",
+    "rule": "Web:InputWithoutLabelCheck",
+    "file": "apps/frontend/src/views/SecretsView.vue",
+    "baselineLine": 483,
+    "currentLine": 483,
+    "decision": "technical_fp_supported",
+    "category": "rule_intent_not_violated",
+    "reason": "Campo auxiliar de usuário para desviar autofill em criação/edição de segredo; class hidden e tabindex=-1 retiram-no da interação visual e por Tab. Não é o campo real de credencial nem carece de label de um controle visível. A regra exige nome/associação para controles apresentados ao usuário; este controle com display:none não participa da árvore de acessibilidade. Não se usa tabindex=-1 isoladamente como justificativa.",
+    "evidence": [
+      "apps/frontend/src/views/SecretsView.vue:483",
+      "/tmp/NA0093-frontend-rule-definitions.json — Web:InputWithoutLabelCheck"
+    ],
+    "validation": "Releitura da definição instalada via GET /api/rules/show, comparação do trecho ee436402 com fonte integrada e inspeção do consumidor pertinente; nenhuma alteração do produto ou transição no servidor.",
+    "limitations": "A classificação cobre somente falta de label nesse campo oculto; não certifica comportamento de todos os gerenciadores de senhas ou segurança do autofill. Cópias BACKUP/NOTE foram preservadas.",
+    "sourceSha256": "3dea9261b5154f38b1cd375f72ee40ce9ce55446808f9c622cf058c7e943df0a",
+    "sourceUnchangedAtOccurrence": true
+  },
+  {
+    "id": "SQ-0250",
+    "issueId": "a9f5d014-437d-4323-ae23-0a4944ac8ef0",
+    "rule": "Web:InputWithoutLabelCheck",
+    "file": "apps/frontend/src/views/SecretsView.vue",
+    "baselineLine": 484,
+    "currentLine": 484,
+    "decision": "technical_fp_supported",
+    "category": "rule_intent_not_violated",
+    "reason": "Campo auxiliar de senha para desviar autofill em criação/edição de segredo; class hidden e tabindex=-1 retiram-no da interação visual e por Tab. Não é o campo real de credencial nem carece de label de um controle visível. A regra exige nome/associação para controles apresentados ao usuário; este controle com display:none não participa da árvore de acessibilidade. Não se usa tabindex=-1 isoladamente como justificativa.",
+    "evidence": [
+      "apps/frontend/src/views/SecretsView.vue:484",
+      "/tmp/NA0093-frontend-rule-definitions.json — Web:InputWithoutLabelCheck"
+    ],
+    "validation": "Releitura da definição instalada via GET /api/rules/show, comparação do trecho ee436402 com fonte integrada e inspeção do consumidor pertinente; nenhuma alteração do produto ou transição no servidor.",
+    "limitations": "A classificação cobre somente falta de label nesse campo oculto; não certifica comportamento de todos os gerenciadores de senhas ou segurança do autofill. Cópias BACKUP/NOTE foram preservadas.",
+    "sourceSha256": "3dea9261b5154f38b1cd375f72ee40ce9ce55446808f9c622cf058c7e943df0a",
+    "sourceUnchangedAtOccurrence": true
+  },
+  {
+    "id": "SQ-0251",
+    "issueId": "d588759e-235d-4423-9039-a401b0b93bfd",
+    "rule": "Web:InputWithoutLabelCheck",
+    "file": "apps/frontend/src/views/SecretsView.vue",
+    "baselineLine": 540,
+    "currentLine": 540,
+    "decision": "technical_fp_supported",
+    "category": "rule_intent_not_violated",
+    "reason": "Campo auxiliar de usuário para desviar autofill em rotação de segredo; class hidden e tabindex=-1 retiram-no da interação visual e por Tab. Não é o campo real de credencial nem carece de label de um controle visível. A regra exige nome/associação para controles apresentados ao usuário; este controle com display:none não participa da árvore de acessibilidade. Não se usa tabindex=-1 isoladamente como justificativa.",
+    "evidence": [
+      "apps/frontend/src/views/SecretsView.vue:540",
+      "/tmp/NA0093-frontend-rule-definitions.json — Web:InputWithoutLabelCheck"
+    ],
+    "validation": "Releitura da definição instalada via GET /api/rules/show, comparação do trecho ee436402 com fonte integrada e inspeção do consumidor pertinente; nenhuma alteração do produto ou transição no servidor.",
+    "limitations": "A classificação cobre somente falta de label nesse campo oculto; não certifica comportamento de todos os gerenciadores de senhas ou segurança do autofill. Cópias BACKUP/NOTE foram preservadas.",
+    "sourceSha256": "3dea9261b5154f38b1cd375f72ee40ce9ce55446808f9c622cf058c7e943df0a",
+    "sourceUnchangedAtOccurrence": true
+  },
+  {
+    "id": "SQ-0252",
+    "issueId": "b813dac2-d404-4ced-904b-95be0a919162",
+    "rule": "Web:InputWithoutLabelCheck",
+    "file": "apps/frontend/src/views/SecretsView.vue",
+    "baselineLine": 541,
+    "currentLine": 541,
+    "decision": "technical_fp_supported",
+    "category": "rule_intent_not_violated",
+    "reason": "Campo auxiliar de senha para desviar autofill em rotação de segredo; class hidden e tabindex=-1 retiram-no da interação visual e por Tab. Não é o campo real de credencial nem carece de label de um controle visível. A regra exige nome/associação para controles apresentados ao usuário; este controle com display:none não participa da árvore de acessibilidade. Não se usa tabindex=-1 isoladamente como justificativa.",
+    "evidence": [
+      "apps/frontend/src/views/SecretsView.vue:541",
+      "/tmp/NA0093-frontend-rule-definitions.json — Web:InputWithoutLabelCheck"
+    ],
+    "validation": "Releitura da definição instalada via GET /api/rules/show, comparação do trecho ee436402 com fonte integrada e inspeção do consumidor pertinente; nenhuma alteração do produto ou transição no servidor.",
+    "limitations": "A classificação cobre somente falta de label nesse campo oculto; não certifica comportamento de todos os gerenciadores de senhas ou segurança do autofill. Cópias BACKUP/NOTE foram preservadas.",
+    "sourceSha256": "3dea9261b5154f38b1cd375f72ee40ce9ce55446808f9c622cf058c7e943df0a",
+    "sourceUnchangedAtOccurrence": true
+  },
+  {
+    "id": "SQ-0258",
+    "issueId": "82e86ed8-7ffd-45a7-a0dc-27893a7e4ef0",
+    "rule": "typescript:S2245",
+    "file": "apps/frontend/src/views/TerminalView.vue",
+    "baselineLine": 1893,
+    "currentLine": 1893,
+    "decision": "technical_fp_supported",
+    "category": "rule_intent_not_violated",
+    "reason": "O fallback combina relógio e Math.random para correlação de execução de snippet; o caminho preferido já usa crypto.randomUUID. O identificador não é credencial nem concede autorização ao SSH. A definição se refere a valores aleatórios usados em contexto de segurança. A rastreabilidade deste identificador mostrou correlação, sem decisão de privilégio dependente de sua imprevisibilidade.",
+    "evidence": [
+      "apps/frontend/src/views/TerminalView.vue:1893",
+      "/tmp/NA0093-frontend-rule-definitions.json — typescript:S2245",
+      "apps/backend/src/modules/snippets/snippet.service.ts:41",
+      "apps/backend/src/modules/snippets/snippet.controller.ts:38"
+    ],
+    "validation": "Releitura da definição instalada via GET /api/rules/show, comparação do trecho ee436402 com fonte integrada e inspeção do consumidor pertinente; nenhuma alteração do produto ou transição no servidor.",
+    "limitations": "Não é garantia matemática de unicidade. Contexto de auditoria e autenticação real permanecem responsabilidade do backend, não inferidos deste ID. Resultado backend é escopado por tenant/usuário/snippet; não houve pentest nem avaliação estatística de colisões.",
+    "sourceSha256": "7b9c77d22098b3ea96beca6ff2ca19c3be42a0a4f89e1982eeb3ed70ba20ac60",
+    "sourceUnchangedAtOccurrence": true
+  },
+  {
+    "id": "SQ-0259",
+    "issueId": "636a6118-ffaf-49c1-a6ce-3a2e9637c4f8",
+    "rule": "Web:S6845",
+    "file": "apps/frontend/src/views/TerminalView.vue",
+    "baselineLine": 4391,
+    "currentLine": 4391,
+    "decision": "technical_fp_supported",
+    "category": "rule_intent_not_violated",
+    "reason": "O elemento é um separador interativo de colunas/vertical, com role=separator, orientação, valor atual/mínimo/máximo e handler de teclado. Não é um div decorativo colocado indevidamente na ordem de Tab. O handler usa setas da orientação correspondente e ajusta a proporção; o papel separator é efetivamente interativo.",
+    "evidence": [
+      "apps/frontend/src/views/TerminalView.vue:4391",
+      "/tmp/NA0093-frontend-rule-definitions.json — Web:S6845",
+      "apps/frontend/src/views/TerminalView.vue:2521"
+    ],
+    "validation": "Releitura da definição instalada via GET /api/rules/show, comparação do trecho ee436402 com fonte integrada e inspeção do consumidor pertinente; nenhuma alteração do produto ou transição no servidor.",
+    "limitations": "Fonte semântica e handlers conferidos; não reexecutado resize de terminal/PTY, pois nenhuma alteração foi feita. Isso não equivale a homologação de todas as combinações de teclado.",
+    "sourceSha256": "7b9c77d22098b3ea96beca6ff2ca19c3be42a0a4f89e1982eeb3ed70ba20ac60",
+    "sourceUnchangedAtOccurrence": true
+  },
+  {
+    "id": "SQ-0260",
+    "issueId": "9a5ede13-349c-4765-8d7c-24156b6103f7",
+    "rule": "Web:S6845",
+    "file": "apps/frontend/src/views/TerminalView.vue",
+    "baselineLine": 4408,
+    "currentLine": 4408,
+    "decision": "technical_fp_supported",
+    "category": "rule_intent_not_violated",
+    "reason": "O elemento é um separador interativo de linhas/horizontal, com role=separator, orientação, valor atual/mínimo/máximo e handler de teclado. Não é um div decorativo colocado indevidamente na ordem de Tab. O handler usa setas da orientação correspondente e ajusta a proporção; o papel separator é efetivamente interativo.",
+    "evidence": [
+      "apps/frontend/src/views/TerminalView.vue:4408",
+      "/tmp/NA0093-frontend-rule-definitions.json — Web:S6845",
+      "apps/frontend/src/views/TerminalView.vue:2521"
+    ],
+    "validation": "Releitura da definição instalada via GET /api/rules/show, comparação do trecho ee436402 com fonte integrada e inspeção do consumidor pertinente; nenhuma alteração do produto ou transição no servidor.",
+    "limitations": "Fonte semântica e handlers conferidos; não reexecutado resize de terminal/PTY, pois nenhuma alteração foi feita. Isso não equivale a homologação de todas as combinações de teclado.",
+    "sourceSha256": "7b9c77d22098b3ea96beca6ff2ca19c3be42a0a4f89e1982eeb3ed70ba20ac60",
+    "sourceUnchangedAtOccurrence": true
+  },
+  {
+    "id": "SQ-0262",
+    "issueId": "b989b69e-d796-4659-aa6d-5679943326e9",
+    "rule": "Web:InputWithoutLabelCheck",
+    "file": "apps/frontend/src/views/TerminalView.vue",
+    "baselineLine": 6010,
+    "currentLine": 6010,
+    "decision": "technical_fp_supported",
+    "category": "rule_intent_not_violated",
+    "reason": "O input pemFixFileInput de seleção de chave para corrigir a sessão do terminal usa class hidden (display:none) e não é o controle apresentado ao usuário. A seleção é aberta por acionador visível nomeado; adicionar label ao elemento oculto não corrige uma falta de nome na interface. A regra exige nome/associação para controles apresentados ao usuário; este controle com display:none não participa da árvore de acessibilidade. Não se usa tabindex=-1 isoladamente como justificativa.",
+    "evidence": [
+      "apps/frontend/src/views/TerminalView.vue:6010",
+      "/tmp/NA0093-frontend-rule-definitions.json — Web:InputWithoutLabelCheck"
+    ],
+    "validation": "Releitura da definição instalada via GET /api/rules/show, comparação do trecho ee436402 com fonte integrada e inspeção do consumidor pertinente; nenhuma alteração do produto ou transição no servidor.",
+    "limitations": "Revisados input oculto e acionador correspondente na fonte; não repetido seletor nativo de arquivos/tecnologia assistiva. A conclusão depende da classe hidden continuar display:none.",
+    "sourceSha256": "7b9c77d22098b3ea96beca6ff2ca19c3be42a0a4f89e1982eeb3ed70ba20ac60",
+    "sourceUnchangedAtOccurrence": true
+  }
+]

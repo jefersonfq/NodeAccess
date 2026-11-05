@@ -6,12 +6,16 @@ const { chromium } = require('playwright')
 
 dotenv.config({ path: path.resolve(__dirname, '../../apps/backend/.env'), override: true })
 
+for (const key of ['HOST_ID', 'HOST_IP', 'HOST_PORT']) {
+  if (!process.env[key]?.trim()) throw new Error(`${key} é obrigatório para selecionar explicitamente o host descartável`)
+}
+
 const frontend = (process.env.FRONTEND_BASE || 'http://127.0.0.1:5180').replace(/\/$/, '')
 const host = {
-  id: Number(process.env.HOST_ID || 7026),
-  name: process.env.HOST_NAME || 'VPN KING HOST',
-  ip: process.env.HOST_IP || '177.153.202.21',
-  port: Number(process.env.HOST_PORT || 2251),
+  id: Number(process.env.HOST_ID),
+  name: process.env.HOST_NAME || 'Explicit test host',
+  ip: process.env.HOST_IP,
+  port: Number(process.env.HOST_PORT),
   authType: process.env.HOST_AUTH_TYPE || 'pem_password',
   accessProtocol: 'ssh',
 }

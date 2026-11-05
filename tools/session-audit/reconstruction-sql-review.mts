@@ -1,3 +1,4 @@
+import { artifactPath } from '../shared/private-artifacts.cjs'
 /** Synthetic data only. Run after reconstruction-mysql-integration.mts on its disposable database. */
 import { Prisma, PrismaClient } from '@prisma/client'
 import { createHash } from 'node:crypto'
@@ -133,7 +134,7 @@ async function main() {
   await db.$executeRaw`UPDATE session_audit_reconstructions SET created_at='2026-09-29 12:00:00.000' WHERE session_id=1008`
   const history = await repo.history(1, 1008)
   assert.equal(history.length, 20)
-  assert.deepEqual(history.map(r => r.id), Array.from({ length: 25 }, (_, v) => hash(`1008:${v}`)).sort().reverse().slice(0, 20))
+  assert.deepEqual(history.map(r => r.id), Array.from({ length: 25 }, (_, v) => hash(`1008:${v}`)).sort(compareCodeUnits).reverse().slice(0, 20))
   checks.push('history bounded to 20 with deterministic order for equal timestamps')
 
   await db.$queryRawUnsafe('ANALYZE TABLE session_audit_reconstructions, session_audit_derived_commands')
@@ -146,7 +147,7 @@ async function main() {
     WHERE r.id=${large.metadata.id} AND r.tenant_id=1 AND r.session_id=1004 AND a.status <> 'PURGED' ORDER BY c.command_index ASC`)
   const searchQuery = Prisma.sql`SELECT run_id FROM session_audit_derived_commands WHERE tenant_id=1 AND MATCH(command_text) AGAINST (${'monthly_report'} IN NATURAL LANGUAGE MODE)`
   const searchPlan = await explain(searchQuery)
-  writeFileSync('/tmp/nodeaccess-audit-reconstruction-sql-plans.json', JSON.stringify({historyPlan,commandsPlan,searchPlan},null,2))
+  writeFileSync(artifactPath('nodeaccess-audit-reconstruction-sql-plans.json'), JSON.stringify({historyPlan,commandsPlan,searchPlan},null,2))
   for (const plan of [historyPlan, commandsPlan]) {
     assert.equal(walk(plan, o => o.access_type === 'ALL').length, 0, 'no full table scans')
     assert.equal(walk(plan, o => o.using_filesort === true).length, 0, 'index satisfies ordering')
@@ -171,7 +172,14 @@ async function main() {
   checks.push('retention denies reads and physical deletion cascades without affecting another tenant')
 
   const result = { ok: true, checks, syntheticSessions: 50, scaleCommands: 10000, write600ConcurrentMs: writeMs, read600Ms: readMs, plans: { history: historyPlan, commands: commandsPlan, search: searchPlan } }
-  writeFileSync('/tmp/nodeaccess-audit-reconstruction-sql-review.json', JSON.stringify(result, null, 2))
+  writeFileSync(artifactPath('nodeaccess-audit-reconstruction-sql-review.json'), JSON.stringify(result, null, 2))
   console.log(JSON.stringify({ ...result, plans: 'saved in report' }))
 }
 main().finally(() => db.$disconnect()).catch(error => { console.error(error); process.exitCode = 1 })
+
+// Preserve the native string sort order used by canonical output and digests.
+function compareCodeUnits(left: string, right: string): number {
+  if (left < right) return -1
+  if (left > right) return 1
+  return 0
+}

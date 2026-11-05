@@ -1,12 +1,13 @@
+import { resolveExecutable } from '../shared/trusted-executable.cjs'
 import { execFileSync } from 'node:child_process'
 import { setTimeout as delay } from 'node:timers/promises'
 import assert from 'node:assert/strict'
 import { SnippetService } from '../../apps/backend/src/modules/snippets/snippet.service.js'
 import { SnippetExecutionEventService } from '../../apps/backend/src/modules/snippets/snippet-execution-event.service.js'
 const name = 'nodeaccess-na0060-mysql-' + Date.now()
-const docker = (...args: string[]): string => execFileSync('docker', args, {encoding:'utf8',stdio:['pipe','pipe','pipe']})
+const docker = (...args: string[]): string => execFileSync(resolveExecutable('docker'), args, {encoding:'utf8',stdio:['pipe','pipe','pipe']})
 function sql(input: string): string {
-  return execFileSync('docker',['exec','-i',name,'mysql','-uroot','--batch','--skip-column-names'],{input,encoding:'utf8',stdio:['pipe','pipe','pipe']}).trim()
+  return execFileSync(resolveExecutable('docker'),['exec','-i',name,'mysql','-uroot','--batch','--skip-column-names'],{input,encoding:'utf8',stdio:['pipe','pipe','pipe']}).trim()
 }
 function quote(value: unknown): string {
   if (value === null || value === undefined) return 'NULL'

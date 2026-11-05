@@ -1,0 +1,5 @@
+
+> nodeaccess@0.1.0 sonar:ci
+> node tools/sonarqube/ci-run.mjs
+
+CI_VALID_BASE_SHA_REQUIRED

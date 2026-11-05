@@ -1,0 +1,37 @@
+✔ isolated browser orchestration uses loopback fixtures and private outputs without app/backend proxy (106.285064ms)
+✔ browser phase fails closed and cleans server on harness nonzero (23.990899ms)
+✔ browser phase fails closed and cleans server on harness deadline (18.727723ms)
+✔ browser phase fails closed and cleans server on non-loopback server (2.70223ms)
+✔ browser phase fails closed and cleans server on cleanup failure (12.456447ms)
+✔ browser setup errors remain explicit without claiming a harness ran (3.582591ms)
+✔ module readiness tolerates startup response then rejects an unavailable fixture within a deadline (205.626372ms)
+✔ real harness subprocesses retain logs, nonzero exits and forced termination (169.765636ms)
+✖ timeout kills resistant descendant when parent exits on SIGTERM (1534.380483ms)
+✔ timeout kills resistant descendant when parent also resists (6018.779038ms)
+ℹ tests 10
+ℹ suites 0
+ℹ pass 9
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 8565.673361
+
+✖ failing tests:
+
+test at tools/coverage/browser.test.mjs:88:44
+✖ timeout kills resistant descendant when parent exits on SIGTERM (1534.380483ms)
+  AssertionError [ERR_ASSERTION]: resistant descendant must not survive the harness timeout
+
+  true !== false
+
+      at TestContext.<anonymous> (file:///tmp/nodeaccess-NA-0112/tools/coverage/browser.test.mjs:107:10)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: true,
+    expected: false,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

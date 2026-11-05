@@ -1,0 +1,24 @@
+{
+  "base": "f4a44b4b7ae87a8f688b1246d9e52a31f9a104bc",
+  "scope": "Focused SSR+VNode run; not integrated gate",
+  "files": [
+    {
+      "file": "apps/frontend/src/views/admin/SettingsView.vue",
+      "lines": 53,
+      "coveredLines": 0,
+      "conditions": 0,
+      "coveredConditions": 0,
+      "total": 53,
+      "covered": 0
+    },
+    {
+      "file": "apps/frontend/src/components/TunnelManager.vue",
+      "lines": 42,
+      "coveredLines": 23,
+      "conditions": 40,
+      "coveredConditions": 26,
+      "total": 82,
+      "covered": 49
+    }
+  ]
+}

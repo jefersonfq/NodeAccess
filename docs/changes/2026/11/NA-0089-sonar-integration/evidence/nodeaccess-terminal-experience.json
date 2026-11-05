@@ -1,0 +1,205 @@
+{
+  "changeId": "NA-0014",
+  "frontend": "http://127.0.0.1:5199",
+  "result": "passed",
+  "highlights": {
+    "matchCount": 1,
+    "liveRefresh": {
+      "cycles": 3,
+      "geometryFocusInputAndConnectionPreserved": true
+    },
+    "screenshot": "/tmp/nodeaccess-harness-0-563aa224ba4d/nodeaccess-terminal-highlight-warning.png"
+  },
+  "snippets": {
+    "refreshedOnOpen": true,
+    "transientFailureRecovered": true,
+    "requestCount": 5
+  },
+  "sessionsNavigator": {
+    "lazyScaleRows": 20,
+    "totalHosts": 237,
+    "retryRecovered": true,
+    "staleSearchIgnored": true,
+    "deniedHostDisabled": true,
+    "doubleClickDeduplicated": true,
+    "focusReturnedFromPagination": true,
+    "mobileGeometry": {
+      "left": 0,
+      "right": 320,
+      "width": 320,
+      "viewportWidth": 820
+    },
+    "modeCycles": {
+      "cycles": 12,
+      "nodeDelta": -135,
+      "heapDelta": 68274988,
+      "resizeDelta": 17
+    }
+  },
+  "autocomplete": {
+    "review": {
+      "helpContrast": 12.571863836278725,
+      "retryRecovered": true,
+      "historyPreferenceAndClear": true,
+      "focusedInputLinkedToOption": true,
+      "staleRemoteResponseIgnored": true,
+      "insertionWithoutExecution": true,
+      "typingDuringRemoteFailure": true,
+      "escapeReopenedByLateResponse": false,
+      "modifiedArrowAcceptedCompletion": false,
+      "wordMovementBytes": "\u001b[1;5C",
+      "remoteEmptyAndErrorBothInvisible": false,
+      "invisibleRemoteStates": [
+        {
+          "path": "/review-empty",
+          "popupVisible": true,
+          "state": "empty"
+        },
+        {
+          "path": "/review-denied",
+          "popupVisible": true,
+          "state": "error"
+        }
+      ]
+    },
+    "literalPrefix": true,
+    "remotePath": true,
+    "escapedRemotePath": true,
+    "optionLikePathNeutralized": true,
+    "unicodePathSupported": true,
+    "orphanPathByteRecovered": true,
+    "cursorAwareEditing": true,
+    "sessionEntitiesLearned": true,
+    "successfulCommandLearning": true,
+    "failedCommandIgnored": true,
+    "contextualProviders": true,
+    "safeHistory": true,
+    "nonBlockingFailure": true,
+    "transientRetryRecovered": true,
+    "sessionSftpReuse": true,
+    "restSftpRequestCount": 0,
+    "intentionalAliasDiscovery": true,
+    "insertionWithoutExecution": true,
+    "keyboardNavigation": true,
+    "accessibleActiveOption": true,
+    "remoteRequestCount": 6,
+    "stressCycles": 1000,
+    "stressMs": 198,
+    "geometry": {
+      "placement": "above",
+      "gap": 6.40625,
+      "cursorUnobstructed": true,
+      "inside": true
+    },
+    "mobileGeometry": {
+      "placement": "above",
+      "gap": 5.8125,
+      "cursorUnobstructed": true,
+      "inside": true,
+      "width": 298,
+      "containerWidth": 314
+    },
+    "screenshot": "/tmp/nodeaccess-harness-0-563aa224ba4d/nodeaccess-terminal-autocomplete.png",
+    "mobileScreenshot": "/tmp/nodeaccess-harness-0-563aa224ba4d/nodeaccess-terminal-autocomplete-mobile.png"
+  },
+  "resilience": {
+    "tunnelCountConverged": true,
+    "forcedDisconnectRecovered": true,
+    "remoteCloseKeptTabAndReconnected": true,
+    "staleSocketOutputIgnored": true,
+    "pendingSftpCleared": true,
+    "sshSocketsCreated": 4
+  },
+  "initialFont": 14,
+  "zoomedFont": 15,
+  "zoomBounds": {
+    "min": 10,
+    "max": 24
+  },
+  "before": {
+    "rows": 40,
+    "cols": 159,
+    "rect": {
+      "x": 9,
+      "y": 251,
+      "width": 1364,
+      "height": 640,
+      "top": 251,
+      "right": 1373,
+      "bottom": 891,
+      "left": 9
+    }
+  },
+  "layout": {
+    "rows": 35,
+    "cols": 149,
+    "container": {
+      "width": 1364,
+      "height": 640
+    },
+    "screen": {
+      "width": 1346,
+      "height": 630
+    },
+    "viewport": {
+      "width": 1364,
+      "height": 630
+    },
+    "bottomGap": 10,
+    "lastResize": {
+      "type": "resize",
+      "cols": 149,
+      "rows": 35,
+      "at": 47761.09999996424
+    },
+    "errors": []
+  },
+  "htopRenderMs": 31,
+  "hostEdit": {
+    "updates": [
+      {
+        "name": "terminal-critical-host-renamed",
+        "ip": "10.40.0.1",
+        "port": 22,
+        "sshUser": "root"
+      },
+      {
+        "name": "terminal-critical-host-renamed",
+        "ip": "10.40.0.1",
+        "port": 2222,
+        "sshUser": "root"
+      }
+    ],
+    "nameOnlyKeptSession": true,
+    "connectionChangeReconnected": true,
+    "mobileModalFits": true
+  },
+  "cdp": {
+    "anomalies": [],
+    "metrics": {
+      "Nodes": 2964,
+      "LayoutCount": 15,
+      "RecalcStyleCount": 27,
+      "JSHeapUsedSize": 772311852
+    }
+  },
+  "presenceEndedImmediately": true,
+  "screenshot": "/tmp/nodeaccess-harness-0-563aa224ba4d/nodeaccess-terminal-htop.png",
+  "theme": "dark",
+  "themeSelection": {
+    "bodyTheme": "dark",
+    "rowBackgroundLuminance": 0.8535321090837791,
+    "tabBackgroundLuminance": 0.8535321090837791,
+    "navigatorBackgroundLuminance": 0.013200589788057916,
+    "onboardingBackgroundLuminance": 0.7345692439710385,
+    "toolRailBackgroundLuminance": 0.005670855304160607,
+    "sidebarHeaderBackgroundLuminance": 0.013200589788057916,
+    "screenshot": "/tmp/nodeaccess-terminal-sessions-dark.png"
+  },
+  "middleClickPaste": {
+    "singlePaste": true,
+    "remoteMouseTrackingPreserved": true,
+    "confirmationShown": true,
+    "canceledPasteNotSent": true
+  }
+}
