@@ -76,3 +76,12 @@ Preparado commit coerente da NA-0169 na branch isolada, dentro da autorização 
 A PR #60 executou testes e cobertura com sucesso no GitHub, mas o job Sonar reprovou com CI_UNSUPPORTED_SETTINGS: a lista estrita de propriedades não incluía sonar.python.coverage.reportPaths. Correção necessária nesta frente: admitir explicitamente essa propriedade e comprovar sua presença/valor no contexto do scanner. O relatório sanitizado também passou a incluir o harness tacacs-tls, os booleanos de verificação TLS/Python e os códigos de falha correspondentes, sem expor texto arbitrário.
 
 Ran: 23 testes focais e 231 contratos Sonar aprovados; lint estrito dos quatro arquivos aprovado. Revisão independente focal PASS, sem escape de contrato ou exposição. Sem alteração de protocolo, UI, limiares ou exclusões. O relatório de falha foi preservado no projeto principal. Próximo passo: commit de correção, gates no novo SHA e atualização da PR; resultados anteriores não substituem a validação do novo candidato. Homologação e merge permanecem pendentes.
+
+
+### 2026-11-04T23:00:55-03:00 — Sincronização determinística do teste de comparação
+
+Segunda rodada CI confirmou configuração Python efetiva, análises base/head, 206 revisões e zero novos achados, mas reprovou flows na asserção de contagem do campo de comparação. O componente abre o modal antes de aguardar listRunsForHost; o campo depende das opções retornadas. O harness contava imediatamente após click, sem aguardar a resposta/renderização. Essa interrupção impediu os harnesses seguintes e reduziu a cobertura (diff68,5446%,Sonar71,1%); o gate corretamente recusou a execução.
+
+Correção necessária do harness, sem alterar produto: gate controlado somente no GET do histórico, observação da requisição/modal com timeout existente, ausência confirmada enquanto a resposta está retida, liberação em finally e espera por campo visível antes de preservar count1/foco e demais verificações. Sem retries ou aumento de timeout. Ran: focal Chromium real passou nos seis grupos de cenários, desktop/mobile, geometrias sem overflow e zero pageErrors; lint estrito PASS; revisão independente do diff/cleanup PASS. O diagnóstico hospedado não expõe o valor da contagem; a causa foi validada pela fonte e pela simulação controlada.
+
+Relatório da segunda falha preservado no projeto principal. Novo commit e gates latest-SHA pendentes; sem homologação, merge ou deploy.

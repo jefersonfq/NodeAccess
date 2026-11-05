@@ -45,6 +45,7 @@ async function main() {
     const context = await browser.newContext({ viewport: { width: 1440, height: 1000 }, locale: 'pt-BR', acceptDownloads: true })
     await context.addInitScript(token => { localStorage.setItem('na_access_token', token); localStorage.setItem('na_refresh_token', 'fixture'); localStorage.setItem('na_ui_theme_mode', 'dark') }, authToken())
     const data = diagnosticFixture(), stats = dashboardFixture(), requests = [], errors = []
+    let comparisonHistoryGate
     const state = { failRun: false, failDashboard: false, failSummary: false, failTrace: false, failComparison: false, failJira: false }
     await context.route('**/api/v1/**', async route => {
       const req = route.request(), path = new URL(req.url()).pathname, method = req.method()
@@ -55,7 +56,10 @@ async function main() {
       else if (path === '/api/v1/dashboard/stats') { if (state.failDashboard) return fail('Falha simulada dashboard'); body = stats }
       else if (path === '/api/v1/diagnostic-runs/41') { if (state.failRun) return fail('Falha simulada diagnóstico'); body = data.run }
       else if (path === '/api/v1/diagnostic-runs/41/report') body = data.report
-      else if (path === '/api/v1/hosts/11/diagnostic-runs') body = [{ ...data.run, id: 40 }, data.run]
+      else if (path === '/api/v1/hosts/11/diagnostic-runs') {
+        if (method === 'GET' && comparisonHistoryGate) await comparisonHistoryGate.promise
+        body = [{ ...data.run, id: 40 }, data.run]
+      }
       else if (path === '/api/v1/diagnostic-runs/41/compare/40') { if (state.failComparison) return fail('Comparação indisponível'); body = data.comparison }
       else if (path === '/api/v1/diagnostic-runs/41/traceability' && method === 'PATCH') {
         requests.push({ path, body: req.postDataJSON() }); if (state.failTrace) return fail('Origem fora do escopo simulado')
@@ -105,14 +109,24 @@ async function main() {
     assert.deepEqual(requests.filter(r => r.path.endsWith('/traceability')).at(-1).body, { sessionId: 25, actionRunId: null, ticketKey: 'LAB-42' })
     evidence.scenarios.push('traceability validation, failed save and successful scoped request')
     stage = 'comparison-summary'
-    await page.getByRole('button', { name: 'Comparar antes/depois', exact: true }).click()
-    assert.equal(await page.getByLabel('Execução de referência (antes)', { exact: true }).count(), 1)
+    comparisonHistoryGate = Promise.withResolvers()
+    const baselineInput = page.getByLabel('Execução de referência (antes)', { exact: true })
+    try {
+      await Promise.all([
+        page.waitForRequest(request => request.method() === 'GET' && new URL(request.url()).pathname === '/api/v1/hosts/11/diagnostic-runs', { timeout: 15_000 }),
+        page.getByRole('button', { name: 'Comparar antes/depois', exact: true }).click(),
+      ])
+      await page.getByRole('dialog').waitFor({ state: 'visible', timeout: 15_000 })
+      assert.equal(await baselineInput.count(), 0, 'History-dependent control must not appear before the response')
+    } finally { comparisonHistoryGate.resolve() }
+    await baselineInput.waitFor({ state: 'visible', timeout: 15_000 })
+    assert.equal(await baselineInput.count(), 1)
     await assertLabelFocus(page, 'Execução de referência (antes)')
     state.failComparison = true; await page.getByRole('button', { name: 'Comparar', exact: true }).click(); await visible(page, 'Comparação indisponível')
     state.failComparison = false; await page.getByRole('button', { name: 'Comparar', exact: true }).click(); await visible(page, 'resultado misto'); await visible(page, 'Resolvido no laboratório'); await closeDialog(page)
     state.failSummary = true; await page.getByRole('button', { name: 'Regerar resumo' }).click(); await visible(page, 'Nao foi possivel solicitar a regeneracao')
     state.failSummary = false; await page.getByRole('button', { name: 'Regerar resumo' }).click(); await visible(page, 'Resumo sintético concluído')
-    evidence.scenarios.push('comparison and summary failure recovery with rendered evidence')
+    evidence.scenarios.push('comparison waits for controlled history response; comparison and summary failure recovery with rendered evidence')
     stage = 'jira'
     await page.getByRole('button', { name: 'Publicar no Jira', exact: true }).click()
     await page.getByRole('checkbox', { name: 'Anexar também o relatório JSON verificável' }).check()
