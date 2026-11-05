@@ -9,4 +9,15 @@ function assertFreshSftpListing(before, after, path) {
   assert.equal(current, previous + 1, `Comando mutável não invalidou exatamente uma listagem SFTP de ${path}: antes=${previous}, depois=${current}`)
   return { path, before: previous, after: current }
 }
-module.exports = { assertFreshSftpListing }
+// Typing can issue distinct prefixes for the same directory. Assert the
+// navigation and transport, not an absolute position in that asynchronous log.
+function assertSessionSftpNavigation(requests, restRequests) {
+  assert.equal(restRequests.length, 0, 'Autocomplete abriu transporte REST em vez do SFTP da sessão')
+  assert.equal(requests[0], '/', 'Navegação SFTP não iniciou na raiz')
+  let cursor = -1
+  for (const path of ['/', '/var', '/var/log', '/var/log/anaconda']) {
+    cursor = requests.indexOf(path, cursor + 1)
+    assert.ok(cursor >= 0, `Navegação SFTP ausente ou fora de ordem: ${path}`)
+  }
+}
+module.exports = { assertFreshSftpListing, assertSessionSftpNavigation }

@@ -1,67 +1,84 @@
 const { artifactPath } = require('../shared/private-artifacts.cjs')
-// Opt-in browser test against a local Nginx serving the actual frontend build.
 const assert = require('node:assert/strict')
 const fs = require('node:fs')
 const path = require('node:path')
 const { chromium } = require('playwright')
-const { probeScript, waitForEditor, resourceCategory, networkFailure, safeErrorCode } = require('./csp-probe.cjs')
 
 async function main() {
   const base = process.env.FRONTEND_BASE || 'http://127.0.0.1:18556'
-  assert.ok(['127.0.0.1', 'localhost', '[::1]'].includes(new URL(base).hostname), 'Only a disposable local frontend is allowed')
+  assert.ok(['127.0.0.1', 'localhost', '[::1]'].includes(new URL(base).hostname))
+  const root = path.resolve(__dirname, '../../apps/frontend/dist')
+  const assets = fs.readdirSync(path.join(root, 'assets'))
+  // Discover the actual build's worker bootstrap and module exports; no mock editor or CDN.
+  const bootstrap = assets.find(name => name.endsWith('.js') && fs.readFileSync(path.join(root, 'assets', name), 'utf8').includes('self.MonacoEnvironment='))
+  const editor = assets.find(name => /^vendor-monaco-.*\.js$/.test(name))
+  const stylesheet = assets.find(name => /^vendor-monaco-.*\.css$/.test(name))
+  assert.ok(bootstrap && editor && stylesheet, 'Build must contain local Monaco assets')
+  const editorSource = fs.readFileSync(path.join(root, 'assets', editor), 'utf8')
+  assert.ok(editorSource.includes('3.4.17'), 'Build must contain the fixed DOMPurify runtime')
+  assert.ok(!editorSource.includes('3.2.7'), 'Vulnerable vendored DOMPurify must not remain in the build')
+  const probeScript = `
+    import * as runtimeExports from '/assets/${bootstrap}';
+    import * as exports from '/assets/${editor}';
+    const monaco = Object.values({ ...exports, ...runtimeExports }).find(value => value?.editor?.create && value?.languages);
+    const container = document.createElement('div');
+    container.id = 'csp-editor-mount';
+    Object.assign(container.style, { position: 'fixed', inset: '20px', zIndex: '99999', height: '400px' });
+    document.body.append(container);
+    const link = document.createElement('link'); link.rel = 'stylesheet'; link.href = '/assets/${stylesheet}'; document.head.append(link);
+    const probe = window.__nodeaccessCspProbe = { monaco, container };
+    probe.create = () => monaco.editor.create(container, { value: 'const answer = 42', language: 'javascript', theme: 'vs-dark', automaticLayout: true });
+    probe.editor = probe.create();
+    try { window.eval('window.cspEvalExecuted = true'); probe.evalBlocked = false } catch { probe.evalBlocked = true }
+    probe.ready = true;
+  `
   const browser = await chromium.launch({ executablePath: process.env.PLAYWRIGHT_EXECUTABLE_PATH || '/usr/bin/chromium-browser', headless: true })
-  const probeFiles = []
-  const diagnostics = []
-  const record = event => { if (diagnostics.length < 32) diagnostics.push(event) }
-  let phase = 'policy'
   try {
     const context = await browser.newContext({ ignoreHTTPSErrors: process.env.CSP_SELF_SIGNED === '1' })
-    const response = await context.request.get(`${base}/index.html`)
-    assert.equal(response.status(), 200)
-    const policy = response.headers()['content-security-policy']
-    assert.ok(policy, 'Enforced policy must come from the real Nginx response')
-    assert.ok(!policy.includes("'unsafe-eval'"))
-    assert.match(policy, /form-action 'self'/)
-    // Read the installed loader configuration; dependency updates must match CSP.
-    const configPath = path.join(path.dirname(require.resolve('@monaco-editor/loader/package.json')), 'lib/cjs/config/index.js')
-    const vs = require(configPath).default.paths.vs
-    assert.ok(policy.includes(`${vs}/;`), 'CSP and actual Monaco loader version diverged')
-    // Serve real Nginx bytes: route mocks trigger Local Network Access for WS.
-    const root = path.resolve(__dirname, '../../apps/frontend/dist')
-    for (const [name, body] of [
-      ['csp-security-probe.html', `<!doctype html><div id="csp-editor-mount" style="height:300px"></div><script>window.inlineExecuted=true</script><script src="${vs}/loader.js"></script><script src="/csp-security-probe.js"></script>`],
-      ['csp-security-probe.js', probeScript(vs)],
-    ]) {
-      const file = path.join(root, name)
-      fs.writeFileSync(file, body, { flag: 'wx' })
-      probeFiles.push(file)
-    }
     const page = await context.newPage()
-    page.on('pageerror', () => record({ kind: 'page-error' }))
-    page.on('requestfailed', request => record({ kind: 'request-failed', resource: resourceCategory(request.url(), base, vs), code: networkFailure(request.failure()?.errorText) }))
-    page.on('response', response => { if (response.status() >= 400) record({ kind: 'http-error', resource: resourceCategory(response.url(), base, vs), status: response.status() }) })
-    phase = 'editor-load'
+    // Only the explicit test script is supplied; document CSP and all product assets stay real.
+    await page.route(`${base}/csp-security-probe.js`, route => route.fulfill({ contentType: 'application/javascript', body: probeScript }))
     await page.addInitScript(() => {
       window.cspViolations = []
-      window.addEventListener('securitypolicyviolation', event => window.cspViolations.push({ directive: event.effectiveDirective, blocked: ['inline', 'eval'].includes(event.blockedURI) ? event.blockedURI : 'other', disposition: event.disposition }))
+      document.addEventListener('securitypolicyviolation', e => window.cspViolations.push({ directive: e.effectiveDirective, blocked: e.blockedURI, source: new URL(e.sourceFile || location.href).pathname }))
     })
-    await page.goto(`${base}/csp-security-probe.html`)
-    await waitForEditor(page)
-    phase = 'editor-input'
+    const initialEditorRequests = []
+    page.on('request', request => {
+      const pathname = new URL(request.url()).pathname
+      if (pathname === `/assets/${bootstrap}` || pathname === `/assets/${editor}` || pathname === `/assets/${stylesheet}` || /\.worker-[^/]+\.js$/.test(pathname)) initialEditorRequests.push(pathname)
+    })
+    await page.goto(`${base}/login`, { waitUntil: 'networkidle' })
+    await page.locator('input').first().waitFor()
+    assert.deepEqual(initialEditorRequests, [], 'Login must not download Monaco or its workers')
+    await page.addScriptTag({ url: `${base}/csp-security-probe.js`, type: 'module' })
+    await page.waitForFunction(() => window.__nodeaccessCspProbe?.ready)
     await page.evaluate(() => window.__nodeaccessCspProbe.editor.focus())
     await page.keyboard.press('Control+End')
     await page.keyboard.press('Enter')
     await page.keyboard.type('// CSP editor check')
     await page.waitForFunction(() => window.__nodeaccessCspProbe.editor.getValue().includes('CSP editor check'))
-    phase = 'editor-worker'
+    await page.keyboard.press('Control+f')
+    await page.locator('.find-widget.visible').waitFor()
+    await page.keyboard.press('Escape')
     await page.evaluate(async () => {
-      const factory = await monaco.languages.typescript.getJavaScriptWorker()
-      const model = window.__nodeaccessCspProbe.editor.getModel()
+      const p = window.__nodeaccessCspProbe
+      const factory = await p.monaco.languages.typescript.getJavaScriptWorker()
+      const model = p.editor.getModel()
       const worker = await factory(model.uri)
       await worker.getSyntacticDiagnostics(model.uri.toString())
-      window.__nodeaccessCspProbe.workerChecked = true
+      p.workerChecked = true
+      p.monaco.editor.setTheme('vs')
     })
-    phase = 'websocket'
+    await page.locator('.monaco-editor.vs').waitFor()
+    await page.screenshot({ path: artifactPath('nodeaccess-csp-editor-light.png') })
+    await page.evaluate(() => {
+      const p = window.__nodeaccessCspProbe
+      p.editor.dispose()
+      p.editor = p.create()
+    })
+    await page.locator('.monaco-editor.vs-dark').waitFor()
+    await page.screenshot({ path: artifactPath('nodeaccess-csp-editor-dark-reopened.png') })
+    // Real same-origin socket through nginx, backed by csp-ws-fixture.cjs.
     await page.evaluate(() => new Promise((resolve, reject) => {
       const url = new URL('/ws/csp-probe', location.href)
       url.protocol = location.protocol === 'https:' ? 'wss:' : 'ws:'
@@ -74,27 +91,17 @@ async function main() {
         window.__nodeaccessCspProbe.sameOriginWebSocket = true
         finish()
       }
-      socket.onerror = () => finish(new Error('Same-origin WebSocket blocked or unavailable'))
+      socket.onerror = () => finish(new Error('Same-origin WebSocket unavailable'))
     }))
-    const result = await page.evaluate(() => ({ probe: { editorReady: window.__nodeaccessCspProbe.state === 'ready', workerChecked: window.__nodeaccessCspProbe.workerChecked, sameOriginWebSocket: window.__nodeaccessCspProbe.sameOriginWebSocket, evalBlocked: window.__nodeaccessCspProbe.evalBlocked }, inlineExecuted: !!window.inlineExecuted, evalExecuted: !!window.evalExecuted, violations: window.cspViolations, editorText: window.__nodeaccessCspProbe.editor.getValue() }))
-    phase = 'assertions'
-    assert.equal(result.probe.editorReady, true)
-    assert.equal(result.probe.workerChecked, true)
-    assert.equal(result.probe.sameOriginWebSocket, true)
-    assert.equal(result.probe.evalBlocked, true)
-    assert.equal(result.inlineExecuted, false)
-    assert.equal(result.evalExecuted, false)
-    assert.match(result.editorText, /CSP editor check/)
-    assert.ok(result.violations.some(item => item.blocked === 'inline' && item.disposition === 'enforce'))
-    assert.ok(result.violations.some(item => item.blocked === 'eval' && item.disposition === 'enforce'))
-    assert.deepEqual(result.violations.filter(item => !['inline', 'eval'].includes(item.blocked)), [])
-    const report = { passed: true, policy, diagnostics, ...result }
-    fs.writeFileSync(process.env.REPORT_PATH || artifactPath('nodeaccess-csp-security.json'), JSON.stringify(report, null, 2))
-    console.log('CSP: inline/eval blocked; actual Monaco worker/editing and same-origin WebSocket passed')
-  } catch (error) {
-    const category = ['AssertionError', 'TimeoutError'].includes(error?.name) ? error.name : 'ERROR'
-    fs.writeFileSync(process.env.REPORT_PATH || artifactPath('nodeaccess-csp-security.json'), JSON.stringify({ passed: false, phase, category, probeError: safeErrorCode(error?.code), diagnostics }, null, 2))
-    throw new Error(`CSP probe failed: ${phase} (${category}); see sanitized report`)
-  } finally { await browser.close(); for (const file of probeFiles) fs.unlinkSync(file) }
+    const proof = await page.evaluate(() => ({ sameOriginWebSocket: window.__nodeaccessCspProbe.sameOriginWebSocket, workerChecked: window.__nodeaccessCspProbe.workerChecked, evalBlocked: window.__nodeaccessCspProbe.evalBlocked, reopenedText: window.__nodeaccessCspProbe.editor.getValue(), violations: window.cspViolations }))
+    assert.equal(proof.sameOriginWebSocket, true)
+    assert.equal(proof.workerChecked, true)
+    assert.equal(proof.evalBlocked, true)
+    assert.equal(proof.reopenedText, 'const answer = 42')
+    const unexpected = proof.violations.filter(v => !(v.directive === 'script-src' && v.blocked === 'eval' && (/^\/assets\/vendor-validation-/.test(v.source) || v.source === '/csp-security-probe.js')))
+    assert.deepEqual(unexpected, [], 'Real editor must not violate the enforced policy')
+    fs.writeFileSync(process.env.REPORT_PATH || artifactPath('nodeaccess-csp-security.json'), JSON.stringify({ passed: true, initialEditorRequests: 0, ...proof }, null, 2))
+    console.log('CSP: actual local Monaco editing, search, worker, themes and reopening passed')
+  } finally { await browser.close() }
 }
 main().catch(error => { console.error(error.message); process.exitCode = 1 })

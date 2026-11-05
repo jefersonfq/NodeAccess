@@ -1,0 +1,49 @@
+{
+  "image": "sha256:9c5825da014dbbeaa88428a5dc1353324749413e4084e21ec269c11c9b5abffd",
+  "uid": "101",
+  "capDrop": [
+    "ALL"
+  ],
+  "noNewPrivileges": true,
+  "envsubst": true,
+  "nginxConfiguration": true,
+  "swMatchesSource": true,
+  "dompurifyVersion": "3.4.17",
+  "oldVersionAbsent": true,
+  "base": "http://127.0.0.1:32916",
+  "assetsMatchLocal": false,
+  "createdAt": "2026-11-05T17:14:27.195Z",
+  "harnessCopiesIdentical": true,
+  "harnessSha256": {
+    "tools/frontend/csp-styles-playwright.cjs": "aa44d4a0fde70d76d1dc4c5ae8b050253c4ccc2b7fa639905434dcf76ef4f2cb",
+    "tools/frontend/csp-security-playwright.cjs": "88306f682d8b88c2db078b071b28c01bd7e466f151a3102d91cf78aaae448425",
+    "tools/frontend/monaco-sanitizer-real.test.cjs": "120f984c0498fef512c9cfa2e43823de27bde9ca5d68d369a5928d636a921e1c",
+    "tools/shared/private-artifacts.cjs": "df357110c975d08f838b8ca1caeb682509688dc45d241ede6aab844fd4898e81"
+  },
+  "assetOrigin": "docker cp from final container /usr/share/nginx/html",
+  "browserCspPassed": true,
+  "editorWorkersWebsocketPassed": true,
+  "sanitizerAdversarialPassed": true,
+  "screenshots": [
+    {
+      "path": "/tmp/nodeaccess-harness-0-696ffd6be1f8/nodeaccess-csp-login.png",
+      "sha256": "fb7e3818729365812ca2deea82838dc49874e4df5eea7f4b9673d4928f9455c7"
+    },
+    {
+      "path": "/tmp/nodeaccess-harness-0-696ffd6be1f8/nodeaccess-csp-editor-light.png",
+      "sha256": "8c601526c1e51712fd5362c95ba3219495d15e0842f0735553bdd4bcfd5cac1c"
+    },
+    {
+      "path": "/tmp/nodeaccess-harness-0-696ffd6be1f8/nodeaccess-csp-editor-dark-reopened.png",
+      "sha256": "aa73d7e10c918554825679604ba307689ca6b6acfb83e102b100234e0b61084e"
+    }
+  ],
+  "cleanupComplete": true,
+  "previousProofPreserved": true,
+  "buildLog": "/tmp/NA0171-k8s-final-build.log",
+  "notes": [
+    "Initial inspector buffer limit corrected; no product failure.",
+    "Local dist filenames differed from Docker build; unchanged harness copies used image-extracted assets.",
+    "No source or primary workspace dist changed during final image validation."
+  ]
+}

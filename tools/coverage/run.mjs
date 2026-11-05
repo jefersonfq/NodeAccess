@@ -12,6 +12,7 @@ import { summarizeCoverage, mergeCollectorMaps } from './summary.mjs'
 import { browserCoverageRecords, overlayBrowserCoverage } from './browser-map.mjs'
 import { requiredBrowserHarnesses } from './browser.mjs'
 import { diffCoverage } from './lcov.mjs'
+import { verifiedCspCoverage } from '../security/csp-coverage-policy.mjs'
 
 const projectRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../..')
 export function argumentsForCoverage(args) {
@@ -46,9 +47,10 @@ export async function runCoverage({ root = projectRoot, base, execute = command,
   if (!existsSync(output)) mkdirSync(output, { mode: 0o700 })
   if (!lstatSync(output).isDirectory() || lstatSync(output).isSymbolicLink() || realpathSync(output) !== resolve(output)) throw new Error('Unsafe coverage output directory')
   chmodSync(output, 0o700)
-  for (const name of ['vitest', 'node-v8', 'browser', 'vitest-tests.json', 'summary.json', 'coverage-final.json', 'lcov.info', 'tls-lab.json', 'python.xml']) rmSync(join(output, name), { recursive: true, force: true })
+  for (const name of ['vitest', 'node-v8', 'browser', 'vitest-tests.json', 'summary.json', 'coverage-final.json', 'lcov.info', 'tls-lab.json', 'python.xml', 'csp']) rmSync(join(output, name), { recursive: true, force: true })
   mkdirSync(join(output, 'node-v8'), { mode: 0o700 })
   const childEnv = { ...env }; delete childEnv.SONAR_TOKEN; delete childEnv.SONAR_REVIEW_TOKEN; delete childEnv.NODE_V8_COVERAGE
+  delete childEnv.NODEACCESS_CSP_COVERAGE; delete childEnv.NODEACCESS_CSP_COVERAGE_RUN_ID; delete childEnv.RUN_MONACO_SANITIZER_REAL;
   delete childEnv.NODEACCESS_TLS_COVERAGE; delete childEnv.NODEACCESS_TLS_COVERAGE_RUN_ID; delete childEnv.NODEACCESS_TLS_COVERAGE_OUTPUT
   const result = { schemaVersion: 1, startedAt, head, requestedBase: base ?? null, sourceFingerprint: fingerprint,
     status: 'failed', failures: [], newCoverage: { status: 'not_requested' }, collectors: {} }
@@ -78,6 +80,11 @@ export async function runCoverage({ root = projectRoot, base, execute = command,
     if (!labVerified) result.failures.push('TLS_LABORATORY_NOT_VERIFIED')
     result.collectors.node.pythonCoverageVerified = verifiedPythonCoverage(root, output, lab?.pythonCoverage)
     if (!result.collectors.node.pythonCoverageVerified) result.failures.push('PYTHON_COVERAGE_NOT_VERIFIED')
+    const cspContext = { runId: randomUUID(), head, startedAt, fingerprint }
+    const cspExit = execute(root, [join(root, 'tools/security/csp-coverage.mjs')],
+      { ...childEnv, NODE_V8_COVERAGE: join(output, 'node-v8'), NODEACCESS_CSP_COVERAGE: 'true', NODEACCESS_CSP_COVERAGE_RUN_ID: cspContext.runId }, join(output, 'csp.log'))
+    result.collectors.csp = { exitCode: cspExit, verified: verifiedCspCoverage(root, cspContext) }
+    if (cspExit !== 0 || !result.collectors.csp.verified) result.failures.push('CSP_COVERAGE_NOT_VERIFIED')
     const browserExit = execute(root, [join(root, 'tools/coverage/browser.mjs')],
       { ...childEnv, NODE_V8_COVERAGE: join(output, 'node-v8') }, join(output, 'browser.log'))
     const browserReport = JSON.parse(readFileSync(join(output, 'browser/summary.json'), 'utf8'))
@@ -117,6 +124,7 @@ export async function runCoverage({ root = projectRoot, base, execute = command,
       if (result.newCoverage.status !== 'passed') result.failures.push('NEW_COVERAGE_BELOW_80_OR_INCOMPLETE')
     }
     if (!verifiedPythonCoverage(root, output, lab?.pythonCoverage) && !result.failures.includes('PYTHON_COVERAGE_NOT_VERIFIED')) result.failures.push('PYTHON_COVERAGE_NOT_VERIFIED')
+    if (!verifiedCspCoverage(root, cspContext) && !result.failures.includes('CSP_COVERAGE_NOT_VERIFIED')) result.failures.push('CSP_COVERAGE_NOT_VERIFIED')
     result.status = result.failures.length ? 'failed' : 'passed'
   } catch (error) {
     result.failures.push('COVERAGE_PIPELINE_FAILED')

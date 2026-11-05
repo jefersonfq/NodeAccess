@@ -74,3 +74,5 @@ Planos e registros versionados por implementação. PRs e checkpoints identifica
 | NA-0001-change-lifecycle-governance | [plano](2026/08/NA-0001-change-lifecycle-governance/plan.md) | Anterior à obrigatoriedade |
 
 - NA-0085 — SonarQube local, scanner e exportação supervisionada: [plano](2026/11/NA-0085-sonarqube/plan.md). LOCAL_WIP; código em worktree isolado.
+
+- [NA-0171 — CSP de estilos](2026/11/NA-0171-csp-styles/plan.md): correção autorizada, implementação e validação de interface em andamento.

@@ -4,7 +4,7 @@ import { useI18n } from 'vue-i18n'
 import { NButton, NSpace, NSpin, NAlert, NTooltip } from 'naive-ui'
 import { getSftpErrorMessage, sftpService } from '@/services/sftp.service'
 import { usePlatform } from '@/composables/usePlatform'
-import loader from '@monaco-editor/loader'
+import { loadMonaco } from '../services/monaco.service'
 
 const props = defineProps<{
   hostId:   number
@@ -86,7 +86,7 @@ async function init(): Promise<void> {
     })
 
     if (disposed) return
-    monacoApi = await loader.init() as MonacoApi
+    monacoApi = await loadMonaco()
     if (disposed) return
     monacoEditor = monacoApi.editor.create(editorEl.value!, {
       value:               data.content,

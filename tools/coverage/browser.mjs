@@ -13,7 +13,9 @@ const { readHarnessDiagnostic } = createRequire(import.meta.url)('./harness-diag
 const { manualPlugin } = createRequire(import.meta.url)('../manual/build.cjs')
 export const requiredBrowserHarnesses = [
   ['frontend', 'tools/frontend/sonar-frontend-review.cjs'], ['table', 'tools/sonarqube/table-review.cjs'],
-  ['terminal', 'tools/frontend/terminal-experience-playwright.cjs'], ['platform', 'tools/frontend/platform-settings-playwright.cjs'],
+  ['terminal', 'tools/frontend/terminal-experience-playwright.cjs'],
+  ['terminal-lifecycle', 'tools/frontend/terminal-experience-playwright.cjs'],
+  ['supervision', 'tools/coverage/supervision-browser.cjs'], ['platform', 'tools/frontend/platform-settings-playwright.cjs'],
   ['flows', 'tools/frontend/sonar-flow-coverage.cjs'],
   ['ha', 'tools/frontend/ha-playwright-smoke.cjs'],
   ['audit-input', 'tools/frontend/audit-input-safety-playwright.cjs'],
@@ -22,10 +24,10 @@ export const requiredBrowserHarnesses = [
 ]
 
 const projectRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../..')
-export function executeBrowserHarness(root, script, env, logfile, timeoutMs = 120_000) {
+export function executeBrowserHarness(root, script, env, logfile, timeoutMs = 120_000, options = {}) {
   return new Promise((resolveRun, reject) => {
     const fd = openSync(logfile, 'w', 0o600)
-    const child = spawn(process.execPath, [join(root, script)], { cwd: root, env, stdio: ['ignore', fd, fd], detached: process.platform !== 'win32' })
+    const child = spawn(process.execPath, [...(options.nodeArgs ?? []), join(root, script), ...(options.args ?? [])], { cwd: root, env, stdio: ['ignore', fd, fd], detached: process.platform !== 'win32' })
     let timedOut = false, force, settled = false
     const stop = signal => {
       try { process.kill(process.platform === 'win32' ? child.pid : -child.pid, signal) } catch { /* Process already closed. */ }
@@ -105,6 +107,11 @@ export async function collectBrowserCoverage({ root = projectRoot, env = process
       for (const key of Object.keys(childEnv)) if (key.endsWith('_REVIEW') || key.endsWith('_SMOKE')) delete childEnv[key]
       for (const key of ['REPORT_PATH', 'SCREENSHOT_PATH', 'AUTOCOMPLETE_SCREENSHOT_PATH', 'AUTOCOMPLETE_MOBILE_SCREENSHOT_PATH', 'THEME_SCREENSHOT_PATH', 'HIGHLIGHT_SCREENSHOT_PATH']) childEnv[key] = join(directory, key === 'REPORT_PATH' ? 'report.json' : key.toLowerCase() + '.png')
       childEnv.ARTIFACTS_DIR = directory
+      childEnv.ASSERT_CSP_NONCE = 'false'
+      childEnv.UX_REPORT_DIR = directory
+      delete childEnv.SUPERVISION_CSP_ONLY
+      if (name === 'terminal-lifecycle') childEnv.TERMINAL_LIFECYCLE_REVIEW = '1'
+      if (name === 'supervision') childEnv.SUPERVISION_CSP_ONLY = '1'
       childEnv.AUDIT_INPUT_OUTPUT = directory
       childEnv.HIGHLIGHT_BUDGET_OUTPUT = directory
       delete childEnv.RUN_TACACS_TLS_UX; delete childEnv.TACACS_TLS_UX_OUTPUT

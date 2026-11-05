@@ -104,7 +104,7 @@
     "id": "sftp",
     "title": "Arquivos e SFTP",
     "summary": "Navegue, transfira e edite arquivos respeitando as permissões do destino.",
-    "reviewedAt": "2026-10-10",
+    "reviewedAt": "2026-11-05T15:16:02.200Z",
     "sourceFiles": [
       "apps/frontend/src/components/FileManager.vue",
       "apps/frontend/src/components/FileEditorModal.vue",
@@ -121,7 +121,7 @@
       "Abrir o arquivo",
       "Revisar e salvar"
     ],
-    "reviewedSourceHash": "5edf66f9c350fcfc66520976c010158669b9a30799e9768e0bb72cc9e317faaf"
+    "reviewedSourceHash": "a4980d9f964c400eca962c168cc1bf0ffc3c446eff3fbc14a3bbba312c4da7ae"
   },
   {
     "id": "tenants",

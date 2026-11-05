@@ -4,9 +4,11 @@ export const sourcePatterns = [
   'apps/backend/src/**/*.{ts,js,mjs,cjs,mts}',
   'apps/backend/prisma/**/*.{ts,js,mjs,cjs,mts}',
   'apps/frontend/src/**/*.{ts,js,mjs,cjs,mts,vue}',
+  'apps/frontend/public/sw.js',
   'apps/agent/src/**/*.{ts,js,mjs,cjs,mts}',
   'packages/shared/src/**/*.{ts,js,mjs,cjs,mts}',
   'scripts/**/*.{ts,js,mjs,cjs,mts}',
+  'docker/csp/**/*.{js,mjs,cjs}',
   'tools/**/*.{ts,js,mjs,cjs,mts}',
 ]
 export const nonSourcePatterns = ['**/*.{test,spec}.{ts,js,mjs,cjs,mts}', '**/*.d.ts']

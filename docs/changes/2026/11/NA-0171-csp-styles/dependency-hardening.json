@@ -1,0 +1,16 @@
+{
+  "generatedAt": "2026-11-05T16:18:40.686300+00:00",
+  "monacoVersion": "0.55.1",
+  "dompurifyRuntimeVersion": "3.4.17",
+  "auditVulnerabilities": {
+    "info": 0,
+    "low": 0,
+    "moderate": 0,
+    "high": 0,
+    "critical": 0,
+    "total": 0
+  },
+  "bundle": "vendor-monaco-DFa8rA6S.js",
+  "vulnerableRuntimeVersionAbsent": true,
+  "scope": "npm audit + actual bundle inspection + Chromium CSP/editor/sanitizer; not full Sonar validation"
+}

@@ -2,7 +2,7 @@ FROM node:24.22.1-alpine@sha256:06d7adf3e0ef61a13f1d28682726366f97a15aa1888c934d
 FROM node-runtime AS base
 WORKDIR /app
 COPY package*.json ./
-COPY scripts/dependency-patches/typedoc-minimatch.mjs ./scripts/dependency-patches/typedoc-minimatch.mjs
+COPY scripts/dependency-patches/ ./scripts/dependency-patches/
 COPY apps/frontend/package*.json ./apps/frontend/
 COPY packages/shared/package*.json ./packages/shared/
 RUN npm ci --no-audit --no-fund --workspace=apps/frontend --workspace=packages/shared
@@ -31,6 +31,7 @@ RUN sed -i 's/dl-cdn.alpinelinux.org/dl-4.alpinelinux.org/g' /etc/apk/repositori
   && apk --timeout 30 upgrade --no-cache
 COPY --from=builder /app/apps/frontend/dist /usr/share/nginx/html
 COPY docker/nginx.https.conf /etc/nginx/nginx.conf
+COPY docker/csp /etc/nginx/csp
 EXPOSE 80
 
 # ── Kubernetes — HTTP neutro atrás de Ingress ─────────────────
@@ -43,6 +44,8 @@ USER root
 RUN sed -i 's/dl-cdn.alpinelinux.org/dl-4.alpinelinux.org/g' /etc/apk/repositories \
   && apk --no-network del nginx-module-image-filter curl libcurl \
   && apk --timeout 30 upgrade --no-cache
+RUN sed -i '1i load_module /usr/lib/nginx/modules/ngx_http_js_module.so;' /etc/nginx/nginx.conf
+COPY docker/csp /etc/nginx/csp
 USER 101
 ENV API_UPSTREAM=api:3000
 ENV GATEWAY_UPSTREAM=ssh-gateway:3001
@@ -71,6 +74,7 @@ RUN apk add --no-cache /tmp/sqlite-libs-3.54.1-r0.apk && rm /tmp/sqlite-libs-3.5
 ENV PATH="/opt/certbot/bin:${PATH}"
 COPY --from=node-runtime /usr/local/bin/node /usr/local/bin/node
 COPY docker/nginx.https.conf /etc/nginx/nginx.conf
+COPY docker/csp /etc/nginx/csp
 COPY tools/tls /opt/nodeaccess-tls
 COPY tools/shared/trusted-executable.cjs /opt/shared/trusted-executable.cjs
 STOPSIGNAL SIGTERM

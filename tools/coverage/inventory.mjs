@@ -13,7 +13,7 @@ export function repositoryFiles(root) {
 }
 export function sourceInventory(root) { return repositoryFiles(root).filter(file => isSource(file) && existsSync(resolve(root, file))) }
 export function nodeTestFiles(root) {
-  return repositoryFiles(root).filter(file => existsSync(resolve(root, file)) && /^(apps\/agent\/src|scripts|tools)\//.test(file) && /\.(?:test|spec)\.(?:js|mjs|cjs)$/.test(file))
+  return repositoryFiles(root).filter(file => existsSync(resolve(root, file)) && /^(apps\/agent\/src|scripts|tools|docker\/csp)\//.test(file) && /\.(?:test|spec)\.(?:js|mjs|cjs)$/.test(file))
 }
 export function sourceFingerprint(root, files) {
   const hash = createHash('sha256')

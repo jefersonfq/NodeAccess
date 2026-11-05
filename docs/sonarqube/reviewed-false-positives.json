@@ -2452,12 +2452,13 @@
         "startOffset": 69,
         "endOffset": 75
       },
-      "sourceSha256": "315c57c74f924735a7fe80dd941ebf57d6ce742afcdc7615d1f5a590b643b591",
+      "sourceSha256": "15a69ad920ff1beb4e4bb8721827d61170a1f607da87262bb626f778d08c8280",
       "ruleSha256": "dd04cc3a405bf2c0d4625cf865de3aa06b22038c4847ba25a8bfd8b2bde0ca84",
-      "rationale": "TemporaryDirectory cria diretório exclusivo0700 em /tmp, não arquivo previsível público; chaves de laboratório ficam dentro desse pai privado e contexto remove ao final.",
+      "rationale": "Independently re-reviewed: TemporaryDirectory creates an exclusive unpredictable lab directory, with no write permission for other users. The directory is 0755 only to let the nginx worker read public synthetic fixtures. The disposable self-signed TLS private key is explicitly verified as a regular non-symlink file owned by the runner with mode0600 before any container starts. No production/user data is present; containers bind loopback and the directory is removed by the context manager. The old rationale relying on a0700 parent no longer applies.",
       "evidence": [
         "docs/changes/2026/11/NA-0093-sonar-delivery/reconciliation/tooling.json",
-        "tools/deploy/engineering-security-headers-harness.py"
+        "tools/deploy/engineering-security-headers-harness.py",
+        "docs/changes/2026/11/NA-0171-csp-styles/security-review-previous-decisions.md"
       ]
     },
     {
@@ -3256,12 +3257,13 @@
         "startOffset": 182,
         "endOffset": 193
       },
-      "sourceSha256": "be931e39a0c4b5acb9ef049355a26d185e9394b54dd80b7458db6a8aa8da3858",
+      "sourceSha256": "4bd26c2a15edea7dce20d65db154ac0a7aa16255ca47ed12e64e9f787c66f5c2",
       "ruleSha256": "47a5ad141f589cc10929bc37af67e1b72748bafba5026868b88f10f0dc5977a0",
       "rationale": "Literal representa host do terminal com FakeWebSocket. Não é endereço de infraestrutura configurado pelo produto: o consumidor recebe dado sintético através da fronteira de simulação verificada.",
       "evidence": [
         "docs/changes/2026/11/NA-0093-sonar-delivery/reconciliation/tooling.json",
-        "tools/frontend/terminal-experience-playwright.cjs"
+        "tools/frontend/terminal-experience-playwright.cjs",
+        "docs/changes/2026/11/NA-0171-csp-styles/security-review-previous-decisions.md"
       ]
     },
     {
@@ -3275,12 +3277,13 @@
         "startOffset": 63,
         "endOffset": 74
       },
-      "sourceSha256": "be931e39a0c4b5acb9ef049355a26d185e9394b54dd80b7458db6a8aa8da3858",
+      "sourceSha256": "4bd26c2a15edea7dce20d65db154ac0a7aa16255ca47ed12e64e9f787c66f5c2",
       "ruleSha256": "47a5ad141f589cc10929bc37af67e1b72748bafba5026868b88f10f0dc5977a0",
       "rationale": "Literal representa host de retry com FakeWebSocket. Não é endereço de infraestrutura configurado pelo produto: o consumidor recebe dado sintético através da fronteira de simulação verificada.",
       "evidence": [
         "docs/changes/2026/11/NA-0093-sonar-delivery/reconciliation/tooling.json",
-        "tools/frontend/terminal-experience-playwright.cjs"
+        "tools/frontend/terminal-experience-playwright.cjs",
+        "docs/changes/2026/11/NA-0171-csp-styles/security-review-previous-decisions.md"
       ]
     },
     {
@@ -3294,12 +3297,13 @@
         "startOffset": 67,
         "endOffset": 78
       },
-      "sourceSha256": "be931e39a0c4b5acb9ef049355a26d185e9394b54dd80b7458db6a8aa8da3858",
+      "sourceSha256": "4bd26c2a15edea7dce20d65db154ac0a7aa16255ca47ed12e64e9f787c66f5c2",
       "ruleSha256": "47a5ad141f589cc10929bc37af67e1b72748bafba5026868b88f10f0dc5977a0",
       "rationale": "Literal representa host bloqueado com FakeWebSocket. Não é endereço de infraestrutura configurado pelo produto: o consumidor recebe dado sintético através da fronteira de simulação verificada.",
       "evidence": [
         "docs/changes/2026/11/NA-0093-sonar-delivery/reconciliation/tooling.json",
-        "tools/frontend/terminal-experience-playwright.cjs"
+        "tools/frontend/terminal-experience-playwright.cjs",
+        "docs/changes/2026/11/NA-0171-csp-styles/security-review-previous-decisions.md"
       ]
     },
     {

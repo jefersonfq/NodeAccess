@@ -36,20 +36,28 @@ module.exports = async function review({ page, context, frontend, host }) {
   assert.equal(readCount, 3)
   assert.equal(await sshCount(page), fileSockets)
   assert.equal(await page.evaluate(() => window.__reviewDocumentId), 'same-document')
-  // Stub only Monaco rendering; exercise the real modal, requests and draft state.
-  await page.evaluate(() => {
-    window.monaco = { KeyMod: { CtrlCmd: 1 }, KeyCode: { KeyS: 2 }, editor: { create(el, options) {
-      const input = document.createElement('textarea'); input.dataset.testid = 'review-file-editor'; input.value = options.value; el.appendChild(input)
-      return { getValue: () => input.value, onDidChangeModelContent: fn => input.addEventListener('input', fn), addCommand() {}, dispose() { input.remove() } }
-    } } }
-  })
   const writes = []
   await context.route('**/api/v1/sftp/*/write', route => {
     writes.push(route.request().postDataJSON())
     return route.fulfill(writes.length === 1 ? { status: 503, json: { message: 'Falha temporária ao salvar' } } : { json: { ok: true, hash: 'saved-hash', size: 12, modifiedAt: '2026-09-23T00:01:00Z' } })
   })
   await page.getByRole('button', { name: 'Tentar novamente', exact: true }).click()
-  const editor = page.getByTestId('review-file-editor')
+  // Exercise the bundled Monaco editor through user input, including its real
+  // draft and rendering lifecycle. These fixtures contain a single visible line.
+  const editorRoot = page.locator('.monaco-editor').first()
+  const renderedLine = editorRoot.locator('.view-line')
+  const editor = {
+    async fill(value) {
+      await editorRoot.waitFor()
+      await renderedLine.first().click()
+      await page.keyboard.press('ControlOrMeta+A')
+      await page.keyboard.insertText(value)
+      await page.waitForFunction(expected => [...document.querySelector('.monaco-editor').querySelectorAll('.view-line')].map(line => line.textContent).join('\n').replace(/\u00a0/g, ' ') === expected, value)
+    },
+    async inputValue() { return (await renderedLine.allTextContents()).join('\n').replace(/\u00a0/g, ' ') },
+    isVisible: () => editorRoot.isVisible(),
+    waitFor: options => editorRoot.waitFor(options),
+  }
   await editor.fill('mode=changed')
   await page.getByRole('button', { name: 'Salvar', exact: true }).click()
   await page.getByRole('button', { name: 'Tentar novamente', exact: true }).waitFor()

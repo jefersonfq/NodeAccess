@@ -25,6 +25,10 @@ async function main() {
         localStorage.setItem('nodeaccess_locale', 'pt-BR')
         const Native = window.WebSocket
         window.__observers = []
+        window.__cspStyleViolations = []
+        document.addEventListener('securitypolicyviolation', event => {
+          if (event.effectiveDirective.startsWith('style-src')) window.__cspStyleViolations.push(event.effectiveDirective)
+        })
         window.WebSocket = class extends EventTarget {
           constructor(url, protocols) {
             super()
@@ -81,6 +85,15 @@ async function main() {
         })
         await check('observer output, no input and explicit end state', async () => {
           await page.evaluate(() => { const ws = window.__observers.at(-1); ws.onmessage({ data: JSON.stringify({ type: 'resize', cols: 160, rows: 40 }) }); ws.onmessage({ data: new TextEncoder().encode('OUTPUT_SIMULADO\r\n').buffer }) })
+          await page.waitForFunction(() => document.querySelector('.xterm-rows')?.textContent.includes('OUTPUT_SIMULADO'))
+          const terminalStyles = await page.locator('.xterm style').evaluateAll(styles =>
+            styles.map(style => ({ loaded: !!style.sheet, nonced: !!style.nonce })))
+          assert.ok(terminalStyles.length > 0, 'Supervision must render actual terminal styles')
+          assert.ok(terminalStyles.every(style => style.loaded), 'Terminal styles must be loaded')
+          if (process.env.ASSERT_CSP_NONCE === 'true') {
+            assert.ok(terminalStyles.every(style => style.nonced), 'Enforced CSP requires nonce on every terminal style')
+          }
+          await page.screenshot({ path: path.join(output, `supervision-${theme}-desktop.png`), fullPage: true })
           await page.locator('.xterm-helper-textarea').focus(); await page.keyboard.type('comando indevido')
           assert.equal(await page.evaluate(() => window.__observers.at(-1).sent.length), 1)
           await page.evaluate(() => window.__observers.at(-1).close())
@@ -101,6 +114,11 @@ async function main() {
           assert.equal(await start.count(), 0, 'Stale session action remains after permission failure')
           state.mode = 'active'; await page.getByRole('button', { name: 'Atualizar sessões' }).click(); await start.waitFor()
         })
+        if (process.env.SUPERVISION_CSP_ONLY === '1') {
+          assert.deepEqual(await page.evaluate(() => window.__cspStyleViolations), [], 'Supervision must not violate style CSP')
+          assert.deepEqual(errors, [], 'Unhandled browser errors')
+          continue // Explicit production-build subset; permission/agent component mounts require Vite.
+        }
         // Mount the real permission editor with the same providers as the app.
         await mount(page, 'SessionSupervisionPermission', { userId: 9 })
         await check('failed permission load is safe and can be retried', async () => {
@@ -134,7 +152,7 @@ async function main() {
       finally { await context.close() }
     }
   } finally { await browser.close(); await fs.writeFile(path.join(output, 'report.json'), JSON.stringify(results, null, 2)) }
-  console.log(JSON.stringify({ passed: results.length, report: path.join(output, 'report.json') }))
+  console.log(JSON.stringify({ scope: process.env.SUPERVISION_CSP_ONLY === '1' ? 'supervision-production-csp-only' : 'full', passed: results.length, report: path.join(output, 'report.json') }))
 }
 async function mount(page, component, props) {
   await page.evaluate(async ({ component, props }) => {
