@@ -8,11 +8,15 @@ services:
     env_file: [apps/backend/.env]
     environment:
       NODEACCESS_TACACS_ENABLE: 'true'
-      # Explicit operator acknowledgement; never enabled by this example.
-      NODEACCESS_TACACS_LEGACY_RISK_ACKNOWLEDGED: '${NODEACCESS_TACACS_LEGACY_RISK_ACKNOWLEDGED:-}'
+      NODEACCESS_TACACS_TLS_KEY_FILE: /run/tacacs-pki/server.key
+      NODEACCESS_TACACS_TLS_CERT_FILE: /run/tacacs-pki/server.crt
+      NODEACCESS_TACACS_TLS_CA_FILE: /run/tacacs-pki/ca.crt
+      NODEACCESS_TACACS_TLS_CRL_FILE: /run/tacacs-pki/ca.crl
       NODEACCESS_TACACS_BIND: '0.0.0.0'
-      NODEACCESS_TACACS_PORT: '4949'
+      NODEACCESS_TACACS_PORT: '3300'
       NODEACCESS_TACACS_HEALTH_PORT: '4950'
+    volumes:
+      - '${NODEACCESS_TACACS_PKI_DIR:?Provide a PKI directory with key, cert, CA and CRL}:/run/tacacs-pki:ro'
     healthcheck:
       test: [CMD, node, -e, "fetch('http://127.0.0.1:4950/ready').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
       interval: 15s
@@ -20,7 +24,7 @@ services:
       retries: 3
       start_period: 20s
     ports:
-      - '${NODEACCESS_TACACS_PUBLISH_IP:-127.0.0.1}:4949:4949'
+      - '${NODEACCESS_TACACS_PUBLISH_IP:-127.0.0.1}:300:3300'
     restart: unless-stopped
     read_only: true
     tmpfs: [/tmp]

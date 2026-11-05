@@ -14,26 +14,21 @@ vi.mock('./tacacs-health.js', () => ({ TacacsHealthStore: vi.fn(), operationalSt
 
 afterEach(() => { vi.unstubAllEnvs(); vi.clearAllMocks() })
 
-describe('legacy TACACS+ activation', () => {
+describe('TLS TACACS+ activation', () => {
   it.each([undefined, '', 'false', 'TRUE', '1', ' true '])('keeps the optional service disabled for enable=%s even with acknowledgement', enable => {
     expect(() => assertTacacsActivation({ NODEACCESS_TACACS_ENABLE: enable, NODEACCESS_TACACS_LEGACY_RISK_ACKNOWLEDGED: 'true' }))
       .toThrow('NODEACCESS_TACACS_ENABLE=true')
   })
 
-  it.each([undefined, '', 'false', 'TRUE', '1', ' true '])('rejects missing or ambiguous acknowledgement=%s', acknowledgement => {
-    expect(() => assertTacacsActivation({ NODEACCESS_TACACS_ENABLE: 'true', NODEACCESS_TACACS_LEGACY_RISK_ACKNOWLEDGED: acknowledgement }))
-      .toThrow('NODEACCESS_TACACS_LEGACY_RISK_ACKNOWLEDGED=true')
+  it('allows explicit optional-service activation', () => {
+    expect(() => assertTacacsActivation({ NODEACCESS_TACACS_ENABLE: 'true' })).not.toThrow()
   })
 
-  it('allows an explicit opt-in and operational risk acknowledgement', () => {
-    expect(() => assertTacacsActivation({ NODEACCESS_TACACS_ENABLE: 'true', NODEACCESS_TACACS_LEGACY_RISK_ACKNOWLEDGED: 'true' })).not.toThrow()
-  })
-
-  it('blocks the real bootstrap before constructing either listener without acknowledgement', async () => {
+  it('blocks the real bootstrap before constructing either listener without TLS material', async () => {
     vi.resetModules()
     vi.stubEnv('NODEACCESS_TACACS_ENABLE', 'true')
-    vi.stubEnv('NODEACCESS_TACACS_LEGACY_RISK_ACKNOWLEDGED', undefined)
-    await expect(import('./tacacs-main.js')).rejects.toThrow('does not verify protection or resolve the MD5 risk')
+    vi.stubEnv('NODEACCESS_TACACS_TLS_KEY_FILE', undefined)
+    await expect(import('./tacacs-main.js')).rejects.toThrow('NODEACCESS_TACACS_TLS_KEY_FILE')
     expect(runtime.create).not.toHaveBeenCalled()
     expect(runtime.diagnostics).not.toHaveBeenCalled()
   })

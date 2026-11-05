@@ -1,10 +1,10 @@
 import { describe, it, expect, vi } from 'vitest'
 import { Prisma, type PrismaClient } from '@prisma/client'
 import bcrypt from 'bcrypt'
-import { encrypt, decrypt } from '../../shared/crypto.js'
 import { NetworkAccessService, DeviceSchema, CredentialSchema } from './network-access.service.js'
 
-const device = { id: 3, tenantId: 7, hostId: 11, secret: 'synthetic-device-secret-32-characters' }
+const device = { id: 3, tenantId: 7, hostId: 11 }
+const fingerprint = 'ab'.repeat(32)
 function fixture() {
   const db = {
     $queryRaw: vi.fn().mockResolvedValue([]), $executeRaw: vi.fn().mockResolvedValue(1),
@@ -61,28 +61,30 @@ describe('network access settings and health', () => {
 
 describe('network access provision contracts', () => {
   it('normalizes IPv6 and rejects mapped addresses and oversize UTF8 passwords', () => {
-    const dto = { hostId: 11, sourceIp: '2001:db8:0:0::1', secret: device.secret, enabled: true }
+    const dto = { hostId: 11, sourceIp: '2001:db8:0:0::1', certificateFingerprintSha256: fingerprint, enabled: true }
     expect(DeviceSchema.parse(dto).sourceIp).toBe('2001:db8::1')
     for (const sourceIp of ['::ffff:192.0.2.1', 'fe80::1%eth0', 'host.test']) expect(DeviceSchema.safeParse({ ...dto, sourceIp }).success).toBe(false)
     expect(CredentialSchema.safeParse({ userId: 5, username: 'alice', password: 'é'.repeat(40), enabled: true }).success).toBe(false)
   })
-  it('encrypts device secrets and scopes host and ownership checks', async () => {
+  it('pins the public certificate and scopes host and ownership checks', async () => {
     const s = fixture(); s.db.$queryRaw.mockResolvedValue([{ id: 3 }])
-    await s.service.saveDevice(7, 2, { hostId: 11, sourceIp: '192.0.2.1', secret: device.secret, enabled: true })
+    await s.service.saveDevice(7, 2, { hostId: 11, sourceIp: '192.0.2.1', certificateFingerprintSha256: fingerprint, enabled: true })
     expect(s.db.host.findFirst).toHaveBeenCalledWith({ where: { id: 11, tenantId: 7, deletedAt: null } })
     const values = sql(s.db.$executeRaw.mock.calls[0]!).values
-    expect(decrypt(JSON.parse(values[3] as string) as Parameters<typeof decrypt>[0])).toBe(device.secret)
-    expect(JSON.stringify(s.db.adminLog.create.mock.calls)).not.toContain(device.secret)
-    expect(sql(s.db.$queryRaw.mock.calls[0]!).values).toEqual([7, 11, '192.0.2.1'])
+    expect(values[3]).toBe(fingerprint)
+    expect(sql(s.db.$executeRaw.mock.calls[0]!).sql).toContain('secret_cipher=IF')
+    expect(sql(s.db.$executeRaw.mock.calls[0]!).sql).toContain('NULL,secret_cipher)')
+    expect(JSON.stringify(s.db.adminLog.create.mock.calls)).toContain('certificateFingerprintSha256')
+    expect(sql(s.db.$queryRaw.mock.calls[0]!).values).toEqual([7, 11, '192.0.2.1', fingerprint])
   })
   it.each([null, { accessProtocol: 'RDP' }])('rejects absent/non-SSH host %s before write', async host => {
     const s = fixture(); s.db.host.findFirst.mockResolvedValue(host)
-    await expect(s.service.saveDevice(7, 2, { hostId: 11, sourceIp: '192.0.2.1', secret: device.secret, enabled: true })).rejects.toThrow('host SSH')
+    await expect(s.service.saveDevice(7, 2, { hostId: 11, sourceIp: '192.0.2.1', certificateFingerprintSha256: fingerprint, enabled: true })).rejects.toThrow('host SSH')
     expect(s.db.$executeRaw).not.toHaveBeenCalled()
   })
   it('rejects an IP collision without a success audit', async () => {
     const s = fixture()
-    await expect(s.service.saveDevice(7, 2, { hostId: 11, sourceIp: '192.0.2.1', secret: device.secret, enabled: true })).rejects.toThrow('já reservado')
+    await expect(s.service.saveDevice(7, 2, { hostId: 11, sourceIp: '192.0.2.1', certificateFingerprintSha256: fingerprint, enabled: true })).rejects.toThrow('já reservado')
     expect(s.db.adminLog.create).not.toHaveBeenCalled()
   })
   it.each([false, true])('hashes credentials for insert/update existing=%s', async existing => {
@@ -132,11 +134,12 @@ describe('network access provision contracts', () => {
 })
 
 describe('network access identity and event contracts', () => {
-  it('resolves active device secret and handles missing devices', async () => {
-    const s = fixture(); expect(await s.service.device('192.0.2.1')).toBeNull()
-    s.db.$queryRaw.mockResolvedValue([{ ...device, secretCipher: JSON.stringify(encrypt(device.secret)) }])
-    expect(await s.service.device('192.0.2.1')).toEqual(device)
-    const query = sql(s.db.$queryRaw.mock.calls[1]!); expect(query.values).toEqual(['192.0.2.1'])
+  it('resolves only the matching certificate and source in the active tenant', async () => {
+    const s = fixture(); expect(await s.service.device('192.0.2.1', fingerprint)).toBeNull()
+    s.db.$queryRaw.mockResolvedValue([device])
+    expect(await s.service.device('192.0.2.1', fingerprint)).toEqual(device)
+    const query = sql(s.db.$queryRaw.mock.calls[1]!); expect(query.values).toEqual(['192.0.2.1', fingerprint])
+    expect(query.sql).toContain('d.certificate_fingerprint_sha256='); expect(query.sql).not.toContain('secret_cipher');
     expect(query.sql).toContain('h.tenant_id=d.tenant_id'); expect(query.sql).toContain('t.active=TRUE')
   })
   it('authenticates with real bcrypt and records permit/deny', async () => {
@@ -166,4 +169,46 @@ describe('network access identity and event contracts', () => {
     s.db.$executeRaw.mockRejectedValue(new Error('event unavailable'))
     await expect(s.service.authenticate(device, 'alice', 'wrong')).rejects.toThrow('event unavailable')
   })
+})
+
+
+describe('TLS certificate enrollment', () => {
+  const dto = { hostId: 11, sourceIp: '192.0.2.1', certificateFingerprintSha256: fingerprint, enabled: true }
+  it('normalizes OpenSSL fingerprint notation without accepting arbitrary separators', () => {
+    expect(DeviceSchema.parse({ ...dto, certificateFingerprintSha256: ('AB:'.repeat(31) + 'AB') }).certificateFingerprintSha256).toBe(fingerprint)
+    expect(DeviceSchema.parse({ ...dto, certificateFingerprintSha256: '  ' + fingerprint.toUpperCase() + '  ' }).certificateFingerprintSha256).toBe(fingerprint)
+  })
+  it.each(['', 'ab'.repeat(31), 'ab'.repeat(33), 'gg'.repeat(32), 'a:b'.repeat(32), 'ab-'.repeat(31) + 'ab'])('rejects invalid fingerprint %s before writes', async value => {
+    const s = fixture()
+    await expect(s.service.saveDevice(7, 2, { ...dto, certificateFingerprintSha256: value })).rejects.toThrow()
+    expect(s.db.$transaction).not.toHaveBeenCalled()
+  })
+  it('rejects legacy shared-secret payloads instead of silently downgrading', async () => {
+    const s = fixture()
+    await expect(s.service.saveDevice(7, 2, { hostId: 11, sourceIp: '192.0.2.1', secret: 'old-contract-is-unsupported', enabled: true })).rejects.toThrow()
+    await expect(s.service.saveDevice(7, 2, { ...dto, secret: 'unexpected-legacy-field' })).rejects.toThrow()
+    expect(s.db.$executeRaw).not.toHaveBeenCalled()
+  })
+  it('denies absent or malformed certificate before database access', async () => {
+    const s = fixture()
+    expect(await s.service.device('192.0.2.1', '')).toBeNull()
+    expect(await s.service.device('192.0.2.1', 'not-a-fingerprint')).toBeNull()
+    expect(s.db.$queryRaw).not.toHaveBeenCalled()
+  })
+  it('re-queries identity on each request and propagates audit failures', async () => {
+    const s = fixture()
+    s.db.$queryRaw.mockResolvedValueOnce([device]).mockResolvedValueOnce([])
+    expect(await s.service.device('192.0.2.1', fingerprint)).toEqual(device)
+    expect(await s.service.device('192.0.2.1', fingerprint)).toBeNull()
+    expect(s.db.$queryRaw).toHaveBeenCalledTimes(2)
+    s.db.$queryRaw.mockResolvedValue([{ id: device.id }]); s.db.adminLog.create.mockRejectedValue(new Error('audit unavailable'))
+    await expect(s.service.saveDevice(7, 2, dto)).rejects.toThrow('audit unavailable')
+  })
+  it('maps database uniqueness conflicts to a safe enrollment error', async () => {
+    const s = fixture()
+    s.db.$executeRaw.mockRejectedValue(new Prisma.PrismaClientKnownRequestError('private database detail', { code: 'P2010', clientVersion: 'test', meta: { code: '1062' } }))
+    await expect(s.service.saveDevice(7, 2, dto)).rejects.toThrow('Origem ou certificado já reservado')
+    expect(s.db.adminLog.create).not.toHaveBeenCalled()
+  })
+
 })

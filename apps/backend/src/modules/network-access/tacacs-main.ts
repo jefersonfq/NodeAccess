@@ -7,19 +7,20 @@ import { SshRepository } from '../ssh/ssh.repository.js'
 import { InventoryAclRepository } from '../inventory/inventory-acl.repository.js'
 import { NetworkAccessService } from './network-access.service.js'
 import { createTacacsServer } from './tacacs-server.js'
+import { loadTacacsTls } from './tacacs-tls.js'
 import { assertTacacsActivation } from './tacacs-activation.js'
 import { TacacsHealthStore, operationalState, requiresSupervisorRestart, type Heartbeat } from './tacacs-health.js'
 
 assertTacacsActivation(process.env)
 const host = process.env.NODEACCESS_TACACS_BIND ?? '127.0.0.1'
-const port = Number(process.env.NODEACCESS_TACACS_PORT ?? 4949)
+const port = Number(process.env.NODEACCESS_TACACS_PORT ?? 300)
 const healthPort = Number(process.env.NODEACCESS_TACACS_HEALTH_PORT ?? 0)
 const stallMs = Number(process.env.NODEACCESS_TACACS_STALL_MS ?? 60000)
 if (!Number.isInteger(port) || port < 1 || port > 65535) throw new Error('Invalid TACACS+ port')
 if (!Number.isInteger(healthPort) || healthPort < 0 || healthPort > 65535) throw new Error('Invalid health port')
 if (!Number.isInteger(stallMs) || stallMs < 15000 || stallMs > 300000) throw new Error('Stall deadline must be 15000..300000 ms')
 const service = new NetworkAccessService(prisma, new SshRepository(prisma, new InventoryAclRepository(prisma)))
-const runtime = createTacacsServer(service)
+const runtime = createTacacsServer(service, loadTacacsTls(process.env))
 const health = new TacacsHealthStore(env.REDIS_URL, env.REDIS_PASSWORD ?? undefined)
 const instanceId = randomUUID()
 let closing = false, publishing = false, probing = false, databaseAt = 0, database = false

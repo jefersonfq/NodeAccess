@@ -1037,7 +1037,7 @@ const localAiUseCases: IntegrationGuideItem[] = [
         <div class="min-w-0">
           <div class="flex flex-wrap items-center gap-2">
             <h2 class="font-semibold text-white">
-              Equipamentos de rede e TACACS+
+              Equipamentos de rede e TACACS+ sobre TLS
             </h2>
             <NTag
               size="small"
@@ -1050,7 +1050,7 @@ const localAiUseCases: IntegrationGuideItem[] = [
             depth="3"
             class="text-xs"
           >
-            Centralize o acesso a equipamentos de rede, as identidades AAA e as permissões de comandos deste cliente.
+            Centralize identidades AAA e permissões de comandos. Serviço próprio exclusivo com TLS 1.3 e certificados mútuos; TACACS+ legado não suportado.
           </NText>
         </div>
       </div>
@@ -3833,5 +3833,12 @@ const localAiUseCases: IntegrationGuideItem[] = [
   color: var(--na-text-muted);
   font-size: 12px;
   line-height: 1.45;
+}
+/* Keep the nested TACACS setup readable on small screens without changing other integrations. */
+@media (max-width: 640px) {
+  [data-testid="network-access-integration"] :deep(.n-card-content) {
+    padding-left: 12px;
+    padding-right: 12px;
+  }
 }
 </style>

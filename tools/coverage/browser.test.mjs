@@ -12,6 +12,9 @@ function fixture(t) {
   t.after(() => rmSync(root, { recursive: true, force: true }))
   return root
 }
+function completeTlsReport(env) {
+  if (env.RUN_TACACS_TLS_UX === 'true') writeFileSync(join(env.TACACS_TLS_UX_OUTPUT, 'report.json'), JSON.stringify({ passed: true, captureRunId: env.BROWSER_COVERAGE_RUN_ID, checks: Array.from({ length: 5 }, (_, index) => `Check ${index}`) }))
+}
 function fakeVite(options = {}) {
   let closed = false
   return { get closed() { return closed }, async create(config) {
@@ -34,9 +37,13 @@ test('isolated browser orchestration uses loopback fixtures and private outputs 
   const root = fixture(t), vite = fakeVite(), runs = []
   mkdirSync(join(root, 'coverage/browser/chromium-v8'), { recursive: true })
   writeFileSync(join(root, 'coverage/browser/chromium-v8/stale.json'), 'previous run')
-  const result = await collectBrowserCoverage({ root, env: { NODE_V8_COVERAGE: '/synthetic/raw', PLAYWRIGHT_EXECUTABLE_PATH: '/synthetic/chromium', SONAR_ASSIGNED: '/wrong/fixture', SONAR_TOKEN: 'synthetic-secret', SONAR_REVIEW_TOKEN: 'synthetic-read' }, create: vite.create,
+  const result = await collectBrowserCoverage({ root, env: { NODE_V8_COVERAGE: '/synthetic/raw', PLAYWRIGHT_EXECUTABLE_PATH: '/synthetic/chromium', SONAR_ASSIGNED: '/wrong/fixture', RUN_TACACS_TLS_UX: 'false', TACACS_TLS_UX_OUTPUT: '/wrong/tls', SONAR_TOKEN: 'synthetic-secret', SONAR_REVIEW_TOKEN: 'synthetic-read' }, create: vite.create,
     execute: async (_root, script, env) => {
       runs.push(script)
+      const tls = script.endsWith('tls-ux.test.cjs')
+      assert.equal(env.RUN_TACACS_TLS_UX, tls ? 'true' : undefined)
+      assert.equal(env.TACACS_TLS_UX_OUTPUT, tls ? env.SONAR_REVIEW_OUTPUT : undefined)
+      completeTlsReport(env)
       assert.equal(existsSync(join(root, 'coverage/browser/chromium-v8/stale.json')), false)
       assert.equal(env.SONAR_TOKEN, undefined); assert.equal(env.SONAR_REVIEW_TOKEN, undefined)
       assert.equal(env.SONAR_ASSIGNED, join(root, 'docs/changes/2026/11/NA-0087-sonar-frontend/dispositions.json'))
@@ -55,7 +62,7 @@ test('isolated browser orchestration uses loopback fixtures and private outputs 
       assert.equal((await fetch(env.FRONTEND_BASE + '/api/v1/user')).status, 404)
       return { exitCode: 0, timedOut: false }
     } })
-  assert.equal(requiredBrowserHarnesses.length, 8)
+  assert.equal(requiredBrowserHarnesses.length, 9)
   assert.equal(result.harnesses.at(-1).coverageMode, 'node-only')
   assert.equal(result.status, 'passed'); assert.equal(result.phase, 'complete'); assert.equal(vite.closed, true)
   assert.deepEqual(runs, requiredBrowserHarnesses.map(([, script]) => script))
@@ -69,7 +76,7 @@ for (const [name, options, outcome] of [
   ['cleanup failure', { closeFailure: true }, { exitCode: 0, timedOut: false }],
 ]) test(`browser phase fails closed and cleans server on ${name}`, async t => {
   const root = fixture(t), vite = fakeVite(options)
-  const result = await collectBrowserCoverage({ root, env: {}, create: vite.create, execute: async () => outcome })
+  const result = await collectBrowserCoverage({ root, env: {}, create: vite.create, execute: async (_root, _script, env) => { completeTlsReport(env); return outcome } })
   assert.equal(result.status, 'failed'); assert.equal(vite.closed, true)
   assert.equal(result.phase, options.closeFailure ? 'cleanup' : options.badAddress ? 'listen' : 'harness')
   assert.equal(JSON.parse(readFileSync(join(root, 'coverage/browser/summary.json'))).status, 'failed')
@@ -152,7 +159,7 @@ for (const segment of ['coverage', 'coverage/browser']) test(`refuses symlinked 
   if (segment === 'coverage') assert.equal(existsSync(join(outside, 'browser')), false)
 })
 
-for (const override of [undefined, '', '/explicit/chromium']) test(`all eight children share ${override ? 'explicit' : 'managed'} Chromium without a system fallback`, async t => {
+for (const override of [undefined, '', '/explicit/chromium']) test(`all nine children share ${override ? 'explicit' : 'managed'} Chromium without a system fallback`, async t => {
   const root = fixture(t), vite = fakeVite(), paths = []
   const expected = override || chromium.executablePath()
   const result = await collectBrowserCoverage({ root, env: { PLAYWRIGHT_EXECUTABLE_PATH: override, CHROMIUM_PATH: '/conflicting/system-browser' }, create: vite.create,
@@ -160,10 +167,11 @@ for (const override of [undefined, '', '/explicit/chromium']) test(`all eight ch
       assert.equal(env.PLAYWRIGHT_EXECUTABLE_PATH, expected)
       assert.equal(env.CHROMIUM_PATH, expected)
       paths.push(expected)
+      completeTlsReport(env)
       return { exitCode: 0, timedOut: false }
     } })
   assert.equal(result.status, 'passed', result.error)
-  assert.equal(paths.length, 8); assert.equal(vite.closed, true)
+  assert.equal(paths.length, 9); assert.equal(vite.closed, true)
 })
 
 test('missing explicit browser stays explicit and failure cannot fall back to another executable', async t => {
@@ -207,12 +215,12 @@ test('failed frontend retains bounded stack coordinates without private text or 
   assert.doesNotMatch(JSON.stringify(result), /PRIVATE|selector/)
 })
 
-for (const name of ['ha', 'audit-input', 'highlight-budget']) {
+for (const name of ['ha', 'audit-input', 'tacacs-tls', 'highlight-budget']) {
   test(`new required browser harness ${name} blocks completion on failure`, async t => {
     const root = fixture(t), vite = fakeVite(), calls = []
     const script = requiredBrowserHarnesses.find(([candidate]) => candidate === name)[1]
     const result = await collectBrowserCoverage({ root, env: {}, create: vite.create,
-      execute: async (_root, current) => { calls.push(current); return { exitCode: current === script ? 7 : 0, timedOut: false } } })
+      execute: async (_root, current, env) => { completeTlsReport(env); calls.push(current); return { exitCode: current === script ? 7 : 0, timedOut: false } } })
     assert.equal(result.status, 'failed')
     assert.equal(vite.closed, true)
     assert.equal(calls.at(-1), script)
@@ -220,3 +228,17 @@ for (const name of ['ha', 'audit-input', 'highlight-budget']) {
     assert.equal(result.harnesses.at(-1).exitCode, 7)
   })
 }
+
+for (const proof of ['missing', 'stale', 'malformed', 'incomplete', 'failed']) test(`TACACS TLS zero exit with ${proof} proof cannot pass`, async t => {
+  const root = fixture(t), vite = fakeVite()
+  const result = await collectBrowserCoverage({ root, env: { RUN_TACACS_TLS_UX: 'false' }, create: vite.create, execute: async (_root, script, env) => {
+    if (script.endsWith('tls-ux.test.cjs')) {
+      assert.equal(env.RUN_TACACS_TLS_UX, 'true')
+      if (proof !== 'missing') writeFileSync(join(env.TACACS_TLS_UX_OUTPUT, 'report.json'), proof === 'malformed' ? '{' : JSON.stringify({ passed: proof !== 'failed', captureRunId: proof === 'stale' ? 'previous-run' : env.BROWSER_COVERAGE_RUN_ID, checks: Array.from({ length: proof === 'incomplete' ? 4 : 5 }, () => 'Check') }))
+    }
+    return { exitCode: 0, timedOut: false }
+  } })
+  assert.equal(result.status, 'failed'); assert.equal(vite.closed, true)
+  assert.equal(result.harnesses.at(-1).name, 'tacacs-tls')
+  assert.match(result.error, /harness incomplete: tacacs-tls/)
+})

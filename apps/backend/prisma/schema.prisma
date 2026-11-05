@@ -2630,7 +2630,8 @@ model NetworkTacacsDevice {
   tenantId     Int     @map("tenant_id")
   hostId       Int     @map("host_id")
   sourceIp     String  @unique(map: "source_ip") @map("source_ip") @db.VarChar(45)
-  secretCipher String  @map("secret_cipher") @db.Text
+  secretCipher String? @map("secret_cipher") @db.Text
+  certificateFingerprintSha256 String? @unique(map: "network_device_certificate") @map("certificate_fingerprint_sha256") @db.Char(64)
   enabled      Boolean @default(true)
   tenant       Tenant  @relation(fields: [tenantId], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "network_tacacs_devices_ibfk_1")
   host         Host    @relation(fields: [hostId], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "network_tacacs_devices_ibfk_2")

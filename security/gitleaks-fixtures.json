@@ -299,8 +299,8 @@
     {
       "path": "apps/backend/src/modules/network-access/network-access.service.test.ts",
       "rule": "generic-api-key",
-      "line": 163,
-      "fileSha256": "74e3a3a248a1ef7372e0d6a1bb9d728dcdbc715363c59152f11c420fcf1ffa88",
+      "line": 166,
+      "fileSha256": "6e55773353d1e47b4e0646415012a5c6f8e0d3b59c8a44f796864bea7df0026b",
       "reason": "Argumentos literais sintéticos cmd=password/cmd-arg=synthetic exercitam a redação de comandos; a asserção exige texto omitido no evento, não autentica equipamento."
     },
     {

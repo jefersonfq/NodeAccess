@@ -193,7 +193,10 @@ Guia: `docs/OPERATIONS-lucien-feedback-2026-09-10.md`.
 
 ## Expansão para operação de rede — piloto
 
-Perfis adaptam o acesso ao equipamento sem reconfigurar hosts antigos. A integração preserva servidores AAA existentes, e o listener TACACS+ próprio pode ser iniciado separadamente para um piloto com identidade individual, ACL e comandos explicitamente permitidos. O módulo não acrescenta chamadas AAA ao transporte SSH comum. Ainda não representa homologação multivendor ou substituição certificada de um AAA de produção; limites em `docs/PRD-network-access-lite.md`.
+Perfis adaptam o acesso ao equipamento sem reconfigurar hosts antigos.
+
+O listener próprio exige TLS 1.3 e autenticação mútua por certificados; TACACS+ legado sem TLS não é suportado por segurança. A integração orienta o vínculo de IP de origem/fingerprint e os requisitos de PKI. A modalidade continua em piloto, sem homologação de fabricantes.
+ A integração preserva servidores AAA existentes, e o listener TACACS+ próprio pode ser iniciado separadamente para um piloto com identidade individual, ACL e comandos explicitamente permitidos. O módulo não acrescenta chamadas AAA ao transporte SSH comum. Ainda não representa homologação multivendor ou substituição certificada de um AAA de produção; limites em `docs/PRD-network-access-lite.md`.
 # Leitura operacional assistida
 
 - Destaques configuráveis reduzem o tempo para localizar erros e avisos durante uma sessão SSH.

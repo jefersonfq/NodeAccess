@@ -797,6 +797,9 @@ Atualização: aplicar a migração `20260910150000_session_supervision` e recon
 
 ### Equipamentos de rede e TACACS+ (piloto opcional)
 
+O listener próprio exige TLS 1.3 e autenticação mútua por certificados; TACACS+ legado sem TLS não é suportado por segurança. A integração orienta o vínculo de IP de origem/fingerprint e os requisitos de PKI. A modalidade continua em piloto, sem homologação de fabricantes.
+
+
 Perfis de equipamento preservam servidores SSH existentes e permitem um padrão por tenant para novos hosts. O equipamento pode continuar usando seu AAA externo. O serviço TACACS+ próprio roda em processo/container separado, desativado por padrão; não é iniciado junto à API ou ao gateway. Consulte [contrato do piloto](docs/PRD-network-access-lite.md) e [instalação e testes](docs/guides/network-access-tacacs.md) antes de habilitar.
 # Destaques do terminal
 

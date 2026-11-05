@@ -2,9 +2,13 @@ import { artifactPath } from '../shared/private-artifacts.cjs'
 // Freeze only this disposable daemon's database TCP proxy. Never pause the real DB.
 import assert from 'node:assert/strict'
 import { createServer, connect } from 'node:net'
+import { connect as connectTls } from 'node:tls'
+import { join } from 'node:path'
+import { createTacacsTestPki } from '../../apps/backend/dist/modules/network-access/tacacs-tls.test-pki.js'
 import { spawn } from 'node:child_process'
 import { writeFileSync } from 'node:fs'
 if(process.env.RUN_NETWORK_WATCHDOG_LIVE!=='true')throw Error('Set RUN_NETWORK_WATCHDOG_LIVE=true')
+const pki=createTacacsTestPki()
 const database=new URL(process.env.DATABASE_URL), peers=new Set()
 let frozen=false,child,client
 const proxy=createServer(downstream=>{
@@ -23,7 +27,7 @@ const port=await freePort(),healthPort=await freePort()
 const target=new URL(database);target.hostname='127.0.0.1';target.port=String(proxy.address().port)
 const pause=ms=>new Promise(r=>setTimeout(r,ms))
 try{
-  child=spawn(process.execPath,['--env-file=apps/backend/.env','apps/backend/dist/modules/network-access/tacacs-main.js'],{env:{...process.env,DATABASE_URL:target.toString(),NODEACCESS_TACACS_ENABLE:'true',NODEACCESS_TACACS_BIND:'127.0.0.1',NODEACCESS_TACACS_PORT:String(port),NODEACCESS_TACACS_HEALTH_PORT:String(healthPort),NODEACCESS_TACACS_STALL_MS:'15000'},stdio:['ignore','ignore','pipe']})
+  child=spawn(process.execPath,['apps/backend/dist/modules/network-access/tacacs-main.js'],{env:{...process.env,DATABASE_URL:target.toString(),NODEACCESS_TACACS_ENABLE:'true',NODEACCESS_TACACS_TLS_KEY_FILE:join(pki.directory,'server.key'),NODEACCESS_TACACS_TLS_CERT_FILE:join(pki.directory,'server.crt'),NODEACCESS_TACACS_TLS_CA_FILE:join(pki.directory,'root/ca.crt'),NODEACCESS_TACACS_TLS_CRL_FILE:join(pki.directory,'root/ca.crl'),NODEACCESS_TACACS_BIND:'127.0.0.1',NODEACCESS_TACACS_PORT:String(port),NODEACCESS_TACACS_HEALTH_PORT:String(healthPort),NODEACCESS_TACACS_STALL_MS:'15000'},stdio:['ignore','ignore','pipe']})
   let watchdogLogged=false
   child.stderr.on('data',b=>{if(b.toString().includes('supervisor restart required'))watchdogLogged=true})
   const exited=new Promise(resolve=>child.once('exit',(code,signal)=>resolve({code,signal})))
@@ -37,12 +41,12 @@ try{
   const metrics=await (await fetch(`http://127.0.0.1:${healthPort}/metrics`)).json()
   assert.equal(metrics.listening,true);assert.equal('tenants' in metrics,false)
   frozen=true
-  client=connect(port,'127.0.0.1');client.on('error',()=>{})
+  client=connectTls({...pki.client,crl:pki.server.crl,port,host:'127.0.0.1'});client.on('error',()=>{})
   const frames=[];client.on('data',b=>frames.push(b))
   const closed=new Promise(resolve=>client.once('close',resolve))
-  // Header is valid. Backend source lookup stalls before body decryption.
-  await new Promise(resolve=>client.once('connect',resolve))
-  const frame=Buffer.alloc(13);frame[0]=0xc0;frame[1]=2;frame[2]=1;frame.writeUInt32BE(42,4);frame.writeUInt32BE(1,8)
+  // Header is valid. Backend source lookup stalls after the authenticated TLS handshake.
+  await new Promise(resolve=>client.once('secureConnect',resolve))
+  const frame=Buffer.alloc(13);frame[0]=0xc0;frame[1]=2;frame[2]=1;frame[3]=1;frame.writeUInt32BE(42,4);frame.writeUInt32BE(1,8)
   client.write(frame)
   const started=Date.now()
   await pause(6000)
@@ -56,5 +60,5 @@ try{
 }finally{
   client?.destroy();if(child&&child.exitCode===null)child.kill('SIGKILL')
   for(const socket of peers)socket.destroy()
-  await new Promise(resolve=>proxy.close(resolve))
+  await new Promise(resolve=>proxy.close(resolve));pki.cleanup()
 }

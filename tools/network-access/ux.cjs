@@ -52,17 +52,20 @@ if(process.env.RUN_NETWORK_UX!=='true')throw Error('Set RUN_NETWORK_UX=true agai
   await healthCard.getByRole('button',{name:'Atualizar diagnóstico',exact:true}).click()
   await healthCard.getByText('Serviço observado como disponível',{exact:true}).waitFor()
 
-  assert.equal(await card.getByRole('button',{name:'Salvar equipamento / rotacionar segredo'}).isDisabled(),true)
+  assert.equal(await card.getByRole('button',{name:'Salvar equipamento e certificado'}).isDisabled(),true)
   assert.equal(await card.getByRole('button',{name:'Salvar / rotacionar credencial'}).isDisabled(),true)
   assert.equal(await card.getByRole('button',{name:'Salvar permissões de comandos'}).isDisabled(),true)
-  assert.equal(await card.getByLabel('Segredo compartilhado',{exact:true}).getAttribute('type'),'password')
+  assert.equal(await card.getByLabel('Segredo compartilhado',{exact:true}).count(),0)
+  await page.getByTestId('tacacs-tls-compatibility').waitFor()
+  await card.getByLabel('Impressão SHA-256 do certificado',{exact:true}).fill('invalid')
+  assert.equal(await card.getByRole('button',{name:'Salvar equipamento e certificado'}).isDisabled(),true)
   await card.getByLabel('Ativar TACACS+ do cliente',{exact:true}).click()
   await card.getByRole('button',{name:'Salvar configuração',exact:true}).click()
   await page.getByText('Ativar TACACS+ deste cliente?',{exact:true}).waitFor()
   assert.equal(writes.length,0,'activation requires explicit confirmation')
   await page.getByRole('button',{name:'Cancelar',exact:true}).click();assert.equal(writes.length,0)
   await card.getByRole('button',{name:'Salvar configuração',exact:true}).click()
-  overview.devices=[{id:8,hostId:9402,name:'Switch de laboratório',sourceIp:'10.0.0.2',enabled:true}]
+  overview.devices=[{id:8,hostId:9402,name:'Switch de laboratório',sourceIp:'10.0.0.2',certificateFingerprintSha256:'a'.repeat(64),enabled:true}]
   overview.credentials=[{userId:1,username:'alice',name:'Alice',enabled:true}]
   overview.grants=[{userId:1,hostId:9402,commands:[['show','version']]}]
   overview.events=[{id:'1',deviceId:99,username:'alice',kind:'authorization',outcome:'deny',command:JSON.stringify({hostId:9401,arguments:['service=shell','cmd=configure','cmd-arg=terminal']}),createdAt:new Date().toISOString()}]

@@ -1,10 +1,14 @@
-import { afterEach, describe, expect, it, vi } from 'vitest'
-import { connect, type Socket } from 'node:net'
+import { afterAll, afterEach, describe, expect, it, vi } from 'vitest'
+import { type Socket } from 'node:net'
+import { connect as connectTls } from 'node:tls'
+import { createTacacsTestPki } from './tacacs-tls.test-pki.js'
 import { createTacacsServer } from './tacacs-server.js'
-import { cryptBody, type Header } from './tacacs-protocol.js'
 
-const secret = 'disposable-resilience-secret-at-least-32-characters'
-const device = { id: 1, hostId: 1, tenantId: 1, secret }
+
+const pki = createTacacsTestPki()
+afterAll(()=>pki.cleanup())
+const connect=(port:number,host:string)=>connectTls({...pki.client,port,host})
+const device = { id: 1, hostId: 1, tenantId: 1, certificateFingerprintSha256:pki.fingerprint }
 const runtimes: ReturnType<typeof createTacacsServer>[] = []
 const clients = new Set<Socket>()
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
@@ -19,7 +23,7 @@ afterEach(async () => {
   vi.restoreAllMocks()
   await Promise.all(runtimes.splice(0).map(runtime => runtime.close()))
 })
-async function setup(overrides = {}, limits: Parameters<typeof createTacacsServer>[1] = { connections: 64, perSource: 64, operations: 32, timeoutMs: 1000 }) {
+async function setup(overrides = {}, limits: Parameters<typeof createTacacsServer>[2] = { connections: 64, perSource: 64, operations: 32, timeoutMs: 1000 }) {
   const backend = {
     device: vi.fn().mockResolvedValue(device),
     authenticate: vi.fn().mockResolvedValue(true),
@@ -27,18 +31,17 @@ async function setup(overrides = {}, limits: Parameters<typeof createTacacsServe
     event: vi.fn().mockResolvedValue(undefined),
     ...overrides,
   }
-  const runtime = createTacacsServer(backend, limits)
+  const runtime = createTacacsServer(backend, pki.server, limits)
   runtimes.push(runtime)
   await new Promise<void>(resolve => runtime.server.listen(0, '127.0.0.1', resolve))
   return { runtime, backend, port: (runtime.server.address() as { port: number }).port }
 }
-function packet(type = 2, body = argsBody(), sequence = 1, sessionId = 12345, key = secret) {
+function packet(type = 2, body = argsBody(), sequence = 1, sessionId = 12345) {
   const version = type === 1 && sequence === 1 && body[2] === 2 ? 0xc1 : 0xc0
-  const header: Header = { version, type, sequence, sessionId, flags: 0, length: body.length }
   const wire = Buffer.alloc(12)
-  wire[0] = version; wire[1] = type; wire[2] = sequence
+  wire[0] = version; wire[1] = type; wire[2] = sequence; wire[3] = 1
   wire.writeUInt32BE(sessionId, 4); wire.writeUInt32BE(body.length, 8)
-  return Buffer.concat([wire, cryptBody(header, body, key)])
+  return Buffer.concat([wire, body])
 }
 function start(username = 'alice', password = 'valid-password-123', ascii = false) {
   return Buffer.concat([Buffer.from([1, 1, ascii ? 1 : 2, 1, Buffer.byteLength(username), 0, 0, Buffer.byteLength(password)]), Buffer.from(username + password)])
@@ -50,11 +53,11 @@ function continuation(value: string, abort = false) {
 function argsBody(username = 'alice', args = ['service=shell', 'cmd=show', 'cmd-arg=version'], accounting = false) {
   return Buffer.concat([Buffer.from([...(accounting ? [2] : []), 6, 1, 1, 1, Buffer.byteLength(username), 0, 0, args.length]), Buffer.from(args.map(a => Buffer.byteLength(a))), Buffer.from(username + args.join(''))])
 }
-function decoded(wire: Buffer, key = secret) {
+function decoded(wire: Buffer) {
   expect(wire.length).toBeGreaterThanOrEqual(12)
   const h = { version: wire[0]!, type: wire[1]!, sequence: wire[2]!, flags: wire[3]!, sessionId: wire.readUInt32BE(4), length: wire.readUInt32BE(8) }
   expect(wire.length).toBe(12 + h.length)
-  return { header: h, body: cryptBody(h, wire.subarray(12), key) }
+  return { header: h, body: wire.subarray(12) }
 }
 // Frame accumulation is deliberate: TCP data events are not protocol frame boundaries.
 async function client(port: number) {
@@ -193,12 +196,13 @@ describe('TACACS+ fault injection and concurrent recovery', () => {
     await healthy(port)
   })
 
-  it.each(['revocation', 'key rotation', 'abort', 'session mismatch', 'sequence mismatch'])('fails an ASCII continuation after %s and keeps the listener healthy', async scenario => {
+  it.each(['revocation', 'pin rotation', 'identity rebinding', 'abort', 'session mismatch', 'sequence mismatch'])('fails an ASCII continuation after %s and keeps the listener healthy', async scenario => {
     const { port, backend } = await setup(); const c = await client(port)
     c.socket.write(packet(1, start('alice', '', true)))
     expect(decoded(await c.frame()).body[0]).toBe(5)
     if (scenario === 'revocation') backend.device.mockResolvedValueOnce(null)
-    if (scenario === 'key rotation') backend.device.mockResolvedValueOnce({ ...device, secret: secret + '-rotated' })
+    if (scenario === 'pin rotation') backend.device.mockResolvedValueOnce(null)
+    if (scenario === 'identity rebinding') backend.device.mockResolvedValueOnce({ ...device, id:2,tenantId:2,hostId:2 })
     c.socket.write(packet(1, continuation('valid-password-123', scenario === 'abort'), scenario === 'sequence mismatch' ? 5 : 3, scenario === 'session mismatch' ? 999 : 12345))
     await c.closed; expect(c.frames).toHaveLength(0); expect(backend.authenticate).not.toHaveBeenCalled()
     await healthy(port)

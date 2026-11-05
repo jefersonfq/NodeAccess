@@ -2,6 +2,7 @@ import { mkdirSync, readFileSync, writeFileSync, rmSync, openSync, closeSync, ex
 import { resolve, join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { spawnSync, execFileSync } from 'node:child_process'
+import { createHash, randomUUID } from 'node:crypto'
 import libCoverage from 'istanbul-lib-coverage'
 import libReport from 'istanbul-lib-report'
 import reports from 'istanbul-reports'
@@ -25,6 +26,17 @@ function command(root, args, env, logfile) {
     return result.status ?? 1
   } finally { closeSync(fd) }
 }
+function verifiedPythonCoverage(root, output, proof) {
+  try {
+    const file = join(output, 'python.xml'), stat = lstatSync(file)
+    if (!stat.isFile() || stat.isSymbolicLink()) return false
+    return proof?.sourceSha256 === createHash('sha256').update(readFileSync(join(root, 'tools/network-access/tacacs-client.py'))).digest('hex')
+      && proof.helperSourceSha256 === createHash('sha256').update(readFileSync(join(root, 'tools/network-access/tls-python-coverage.py'))).digest('hex')
+      && proof.reportSha256 === createHash('sha256').update(readFileSync(file)).digest('hex')
+      && Number.isSafeInteger(proof.totalLines) && proof.totalLines > 0
+      && Number.isSafeInteger(proof.executedLines) && proof.executedLines > 0 && proof.executedLines <= proof.totalLines
+  } catch { return false }
+}
 export async function runCoverage({ root = projectRoot, base, execute = command, env = process.env } = {}) {
   const startedAt = new Date().toISOString()
   const files = sourceInventory(root), fingerprint = sourceFingerprint(root, files)
@@ -34,9 +46,10 @@ export async function runCoverage({ root = projectRoot, base, execute = command,
   if (!existsSync(output)) mkdirSync(output, { mode: 0o700 })
   if (!lstatSync(output).isDirectory() || lstatSync(output).isSymbolicLink() || realpathSync(output) !== resolve(output)) throw new Error('Unsafe coverage output directory')
   chmodSync(output, 0o700)
-  for (const name of ['vitest', 'node-v8', 'browser', 'vitest-tests.json', 'summary.json', 'coverage-final.json', 'lcov.info']) rmSync(join(output, name), { recursive: true, force: true })
+  for (const name of ['vitest', 'node-v8', 'browser', 'vitest-tests.json', 'summary.json', 'coverage-final.json', 'lcov.info', 'tls-lab.json', 'python.xml']) rmSync(join(output, name), { recursive: true, force: true })
   mkdirSync(join(output, 'node-v8'), { mode: 0o700 })
   const childEnv = { ...env }; delete childEnv.SONAR_TOKEN; delete childEnv.SONAR_REVIEW_TOKEN; delete childEnv.NODE_V8_COVERAGE
+  delete childEnv.NODEACCESS_TLS_COVERAGE; delete childEnv.NODEACCESS_TLS_COVERAGE_RUN_ID; delete childEnv.NODEACCESS_TLS_COVERAGE_OUTPUT
   const result = { schemaVersion: 1, startedAt, head, requestedBase: base ?? null, sourceFingerprint: fingerprint,
     status: 'failed', failures: [], newCoverage: { status: 'not_requested' }, collectors: {} }
   try {
@@ -49,10 +62,22 @@ export async function runCoverage({ root = projectRoot, base, execute = command,
     if (vitestExit !== 0) result.failures.push('VITEST_TESTS_FAILED')
     const nodeTests = nodeTestFiles(root)
     if (!nodeTests.length) throw new Error('No Node test suites discovered')
+    if (!nodeTests.includes('tools/network-access/tls-lab.test.mjs')) throw new Error('Required TLS laboratory test missing')
+    const labRunId = randomUUID(), labOutput = join(output, 'tls-lab.json')
     const nodeExit = execute(root, ['--test', '--test-concurrency=2', ...nodeTests],
-      { ...childEnv, NODE_V8_COVERAGE: join(output, 'node-v8') }, join(output, 'node.log'))
+      { ...childEnv, NODE_V8_COVERAGE: join(output, 'node-v8'), NODEACCESS_TLS_COVERAGE: 'true',
+        NODEACCESS_TLS_COVERAGE_RUN_ID: labRunId, NODEACCESS_TLS_COVERAGE_OUTPUT: labOutput }, join(output, 'node.log'))
     result.collectors.node = { exitCode: nodeExit, testFiles: nodeTests.length }
     if (nodeExit !== 0) result.failures.push('NODE_TESTS_FAILED')
+    let lab
+    try { lab = JSON.parse(readFileSync(labOutput, 'utf8')) } catch { /* Missing or malformed proof cannot pass. */ }
+    const labVerified = lab?.schemaVersion === 1 && lab.runId === labRunId && lab.passed === true && lab.isolated === true
+      && lab.cleanupVerified === true && Array.isArray(lab.checks) && lab.checks.length === 4
+      && ['live', 'health', 'soak', 'watchdog'].every(check => lab.checks.includes(check))
+    result.collectors.node.tlsLaboratoryVerified = labVerified
+    if (!labVerified) result.failures.push('TLS_LABORATORY_NOT_VERIFIED')
+    result.collectors.node.pythonCoverageVerified = verifiedPythonCoverage(root, output, lab?.pythonCoverage)
+    if (!result.collectors.node.pythonCoverageVerified) result.failures.push('PYTHON_COVERAGE_NOT_VERIFIED')
     const browserExit = execute(root, [join(root, 'tools/coverage/browser.mjs')],
       { ...childEnv, NODE_V8_COVERAGE: join(output, 'node-v8') }, join(output, 'browser.log'))
     const browserReport = JSON.parse(readFileSync(join(output, 'browser/summary.json'), 'utf8'))
@@ -91,6 +116,7 @@ export async function runCoverage({ root = projectRoot, base, execute = command,
       result.newCoverage = diffCoverage(root, base, undefined, readFileSync(join(output, 'lcov.info'), 'utf8'))
       if (result.newCoverage.status !== 'passed') result.failures.push('NEW_COVERAGE_BELOW_80_OR_INCOMPLETE')
     }
+    if (!verifiedPythonCoverage(root, output, lab?.pythonCoverage) && !result.failures.includes('PYTHON_COVERAGE_NOT_VERIFIED')) result.failures.push('PYTHON_COVERAGE_NOT_VERIFIED')
     result.status = result.failures.length ? 'failed' : 'passed'
   } catch (error) {
     result.failures.push('COVERAGE_PIPELINE_FAILED')

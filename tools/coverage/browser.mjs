@@ -1,4 +1,4 @@
-import { mkdirSync, openSync, closeSync, writeFileSync, rmSync, chmodSync, lstatSync, realpathSync, existsSync } from 'node:fs'
+import { readFileSync, mkdirSync, openSync, closeSync, writeFileSync, rmSync, chmodSync, lstatSync, realpathSync, existsSync } from 'node:fs'
 import { join, resolve, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { spawn } from 'node:child_process'
@@ -17,6 +17,7 @@ export const requiredBrowserHarnesses = [
   ['flows', 'tools/frontend/sonar-flow-coverage.cjs'],
   ['ha', 'tools/frontend/ha-playwright-smoke.cjs'],
   ['audit-input', 'tools/frontend/audit-input-safety-playwright.cjs'],
+  ['tacacs-tls', 'tools/network-access/tls-ux.test.cjs'],
   ['highlight-budget', 'tools/frontend/terminal-highlight-budget.mjs'],
 ]
 
@@ -106,6 +107,12 @@ export async function collectBrowserCoverage({ root = projectRoot, env = process
       childEnv.ARTIFACTS_DIR = directory
       childEnv.AUDIT_INPUT_OUTPUT = directory
       childEnv.HIGHLIGHT_BUDGET_OUTPUT = directory
+      delete childEnv.RUN_TACACS_TLS_UX; delete childEnv.TACACS_TLS_UX_OUTPUT
+      if (name === 'tacacs-tls') {
+        childEnv.RUN_TACACS_TLS_UX = 'true'
+        childEnv.TACACS_TLS_UX_OUTPUT = directory
+        rmSync(join(directory, 'report.json'), { force: true })
+      }
       // DOM-only frontend/table fixtures have no source capture hook; budget owns
       // a separate Vite origin. Their real browser assertions still run with Node V8.
       const coverageMode = ['frontend', 'table', 'highlight-budget'].includes(name) ? 'node-only' : 'node-and-browser'
@@ -121,6 +128,13 @@ export async function collectBrowserCoverage({ root = projectRoot, env = process
       const diagnostic = run.exitCode !== 0 || run.timedOut ? readHarnessDiagnostic(join(output, `${name}.log`), script) : undefined
       result.harnesses.push({ name, coverageMode, ...run, ...(failure ? { failure } : {}), ...(diagnostic ? { diagnostic } : {}) })
       if (run.exitCode !== 0 || run.timedOut) throw new Error(`Browser coverage harness failed: ${name}`)
+      if (name === 'tacacs-tls') {
+        let report
+        try { report = JSON.parse(readFileSync(join(directory, 'report.json'), 'utf8')) } catch { /* Missing or malformed proof cannot pass. */ }
+        if (report?.passed !== true || report.captureRunId !== result.captureRunId || !Array.isArray(report.checks) || report.checks.length !== 5 || report.checks.some(check => typeof check !== 'string' || !check.trim())) {
+          throw new Error('Browser coverage harness incomplete: tacacs-tls')
+        }
+      }
     }
     result.status = 'passed'
     result.phase = 'complete'

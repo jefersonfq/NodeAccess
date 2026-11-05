@@ -3,12 +3,12 @@ import assert from 'node:assert/strict'
 import { generateKeyPairSync } from 'node:crypto'
 import ssh2 from 'ssh2'
 const { Server, Client } = ssh2
-import { createTacacsServer } from '../../apps/backend/src/modules/network-access/tacacs-server.ts'
+import { createTacacsServer } from '../../apps/backend/dist/modules/network-access/tacacs-server.js'
 
-export async function runDeviceEmulation({ service, probe, setCommands }) {
-  let primary=createTacacsServer(service)
+export async function runDeviceEmulation({ service, probe, setCommands, tlsMaterial }) {
+  let primary=createTacacsServer(service,tlsMaterial)
   await new Promise(resolve=>primary.server.listen(0,'127.0.0.1',resolve))
-  const secondary=createTacacsServer(service)
+  const secondary=createTacacsServer(service,tlsMaterial)
   await new Promise(resolve=>secondary.server.listen(0,'127.0.0.1',resolve))
   const secondaryPort=secondary.server.address().port
   let firstPort=primary.server.address().port, hostname='lab-switch', fallbackCalls=0, denied=0
@@ -81,15 +81,15 @@ export async function runDeviceEmulation({ service, probe, setCommands }) {
     checks.push('policy revocation takes effect inside an already open SSH session')
     await primary.close()
     assert.match(await session.command('show version'),/simulated network OS/);assert.ok(fallbackCalls>0)
-    checks.push('closed primary AAA listener uses secondary service over TCP')
+    checks.push('closed primary AAA listener uses secondary service over mutually authenticated TLS')
     await secondary.close()
     assert.match(await session.command('hostname changed'),/AAA denied/);assert.equal(hostname,'changed')
     checks.push('both AAA services unavailable never permit a configuration command')
-    primary=createTacacsServer(service)
+    primary=createTacacsServer(service,tlsMaterial)
     await new Promise(resolve=>primary.server.listen(0,'127.0.0.1',resolve));firstPort=primary.server.address().port
     assert.match(await session.command('show version'),/simulated network OS/)
     checks.push('existing SSH session recovers when primary AAA returns')
-    return {ok:true,checks,denied,fallbackCalls,firmware:false,transport:'real SSH + independent Python TACACS+ client',primaryOutage:'primary TCP listener closed; independent listeners share one laboratory process/database'}
+    return {ok:true,checks,denied,fallbackCalls,firmware:false,transport:'real SSH + independent Python RFC9887 TLS client',primaryOutage:'primary TCP listener closed; independent listeners share one laboratory process/database'}
   }finally{
     session?.client.destroy();for(const socket of sockets)socket.end()
     await new Promise(resolve=>ssh.close(resolve));if(secondary.server.listening)await secondary.close();if(primary.server.listening)await primary.close()
