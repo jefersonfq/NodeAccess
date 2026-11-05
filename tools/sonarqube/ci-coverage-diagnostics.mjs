@@ -9,6 +9,7 @@ const failures = new Set([
   'VITEST_TESTS_FAILED', 'NODE_TESTS_FAILED', 'BROWSER_TESTS_FAILED',
   'BROWSER_RESULT_NOT_VERIFIED', 'VITEST_RESULT_NOT_VERIFIED', 'COVERAGE_PIPELINE_FAILED',
   'SOURCE_CHANGED_DURING_COVERAGE', 'LEGACY_SOURCE_SET_INCOMPLETE',
+  'TLS_LABORATORY_NOT_VERIFIED', 'PYTHON_COVERAGE_NOT_VERIFIED',
   'LEGACY_LINES_BELOW_70', 'LEGACY_FUNCTIONS_BELOW_70', 'LEGACY_BRANCHES_BELOW_60',
   'SOURCE_COVERAGE_INCOMPLETE', 'UNEXPECTED_SOURCE_COVERAGE', 'NEW_COVERAGE_BELOW_80_OR_INCOMPLETE',
 ])
@@ -30,14 +31,14 @@ function errorCategory(message) {
     ['Browser fixture must bind loopback', 'BROWSER_BIND_NOT_LOOPBACK'],
     ['Browser fixture cleanup failed', 'BROWSER_CLEANUP_FAILED'],
   ])
-  if (/^Browser coverage harness failed: (frontend|table|terminal|platform|flows|ha|audit-input|highlight-budget)$/.test(message)) return 'BROWSER_HARNESS_FAILED'
+  if (/^Browser coverage harness failed: (frontend|table|terminal|platform|flows|ha|audit-input|tacacs-tls|highlight-budget)$/.test(message)) return 'BROWSER_HARNESS_FAILED'
   return browserErrors.get(message) ?? 'UNCLASSIFIED'
 }
 function browserDiagnostics(source) {
   const safe = { errorCategory: errorCategory(source.error), harnesses: [] }
   if (['setup', 'listen', 'readiness', 'harness', 'complete', 'cleanup'].includes(source.phase)) safe.phase = source.phase
   const runs = Array.isArray(source.harnesses) ? source.harnesses : []
-  for (const name of ['frontend', 'table', 'terminal', 'platform', 'flows', 'ha', 'audit-input', 'highlight-budget']) {
+  for (const name of ['frontend', 'table', 'terminal', 'platform', 'flows', 'ha', 'audit-input', 'tacacs-tls', 'highlight-budget']) {
     const run = runs.find(item => item?.name === name)
     if (!run) continue
     const entry = harnessDiagnostics(name, run)
@@ -61,6 +62,9 @@ function collectorDiagnostics(collector) {
   for (const key of ['exitCode', 'testFiles', 'passed', 'failed', 'skipped']) {
     const value = collector[key]
     if (Number.isSafeInteger(value) && value >= 0 && (key !== 'exitCode' || value <= 255)) safe[key] = value
+  }
+  for (const key of ['tlsLaboratoryVerified', 'pythonCoverageVerified']) {
+    if (typeof collector[key] === 'boolean') safe[key] = collector[key]
   }
   if (['passed', 'failed'].includes(collector.status)) safe.status = collector.status
   return safe

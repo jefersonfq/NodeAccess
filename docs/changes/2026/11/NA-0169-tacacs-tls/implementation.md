@@ -69,3 +69,10 @@ Atalho test:network-access:lab passou a usar recursos Docker próprios; soak man
 Ran: coleta integrada aprovada com3.658Vitest/673Node,125/7skips,noveharnessesChromium e85,78199%decobertura incremental. Provas TLS/Python atuais verificadas, quatroetapas laboratoriais e798requisições de soak comcleanup. Lint28arquivosPASS; Semgrep0/903arquivos eGitleaks42fixturesrevisadas/0pendências. Revisão independente PASS_WITH_WARNINGS confirmou fontes/fingerprint, hashes e isolamento. As falhas anteriores permanecem no histórico e não foram convertidas em aprovação.
 
 Preparado commit coerente da NA-0169 na branch isolada, dentro da autorização desta frente. Após o commit serão executados os gates do SHA final; SonarA não é declarado antecipadamente. PR será empilhado sobre a basePR59para revisão, com merge/homologação ainda pendentes e semdeploy.
+
+
+### 2026-11-04T22:21:42-03:00 — Correção do contrato Sonar no CI
+
+A PR #60 executou testes e cobertura com sucesso no GitHub, mas o job Sonar reprovou com CI_UNSUPPORTED_SETTINGS: a lista estrita de propriedades não incluía sonar.python.coverage.reportPaths. Correção necessária nesta frente: admitir explicitamente essa propriedade e comprovar sua presença/valor no contexto do scanner. O relatório sanitizado também passou a incluir o harness tacacs-tls, os booleanos de verificação TLS/Python e os códigos de falha correspondentes, sem expor texto arbitrário.
+
+Ran: 23 testes focais e 231 contratos Sonar aprovados; lint estrito dos quatro arquivos aprovado. Revisão independente focal PASS, sem escape de contrato ou exposição. Sem alteração de protocolo, UI, limiares ou exclusões. O relatório de falha foi preservado no projeto principal. Próximo passo: commit de correção, gates no novo SHA e atualização da PR; resultados anteriores não substituem a validação do novo candidato. Homologação e merge permanecem pendentes.

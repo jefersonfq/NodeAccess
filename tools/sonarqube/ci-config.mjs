@@ -3,7 +3,7 @@ import { lstatSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 
 const allowed = new Set(['sonar.projectKey', 'sonar.projectName', 'sonar.sourceEncoding', 'sonar.sources', 'sonar.tests',
-  'sonar.test.inclusions', 'sonar.exclusions', 'sonar.javascript.lcov.reportPaths'])
+  'sonar.test.inclusions', 'sonar.exclusions', 'sonar.javascript.lcov.reportPaths', 'sonar.python.coverage.reportPaths'])
 const unsupportedScope = new Set(['sonar.inclusions', 'sonar.test.exclusions', 'sonar.coverage.exclusions',
   'sonar.cpd.exclusions', 'sonar.global.exclusions', 'sonar.global.test.exclusions'])
 const sha256 = bytes => createHash('sha256').update(bytes).digest('hex')
