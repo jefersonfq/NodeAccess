@@ -85,3 +85,10 @@ Segunda rodada CI confirmou configuração Python efetiva, análises base/head, 
 Correção necessária do harness, sem alterar produto: gate controlado somente no GET do histórico, observação da requisição/modal com timeout existente, ausência confirmada enquanto a resposta está retida, liberação em finally e espera por campo visível antes de preservar count1/foco e demais verificações. Sem retries ou aumento de timeout. Ran: focal Chromium real passou nos seis grupos de cenários, desktop/mobile, geometrias sem overflow e zero pageErrors; lint estrito PASS; revisão independente do diff/cleanup PASS. O diagnóstico hospedado não expõe o valor da contagem; a causa foi validada pela fonte e pela simulação controlada.
 
 Relatório da segunda falha preservado no projeto principal. Novo commit e gates latest-SHA pendentes; sem homologação, merge ou deploy.
+
+
+### 2026-11-05T08:58:09-03:00 — Aceite de integração e atualização do README
+
+Usuário autorizou seguir com homologação e merge das PRs59/60 e pediu documentação das ferramentas de qualidade/segurança. Aceite de integração baseado nas evidências apresentadas; nenhum ensaio manual em hardware ou deploy foi declarado. PR59 integrada em e1d4995c1869accb685aedd8b602ede5bfd0e289 e master sincronizado em worktree limpo; pasta principal suja preservada. Base nova tem árvore idêntica à base anterior df8482674.
+
+README substitui texto desatualizado de preparação Sonar local por controles reais de CI e inventário verificado: Sonar,Semgrep,Gitleaks,npm audit/SBOM,Grype,ESLint/TypeScript/Vitest/Node/Playwright. ZAP e Stryker são propostas explícitas,sem instalação. Fontes oficiais consultadas. Correção documental incluída na NA-0169 por autorização expressa; não altera comportamento do produto. Próximo passo: validar diff/documentação,registrar commit de integração,redirecionar PR60 ao master e conferir gates do novo SHA antes do merge.

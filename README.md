@@ -835,6 +835,39 @@ Escopo e evidências: [NA-0068](docs/changes/2026/10/NA-0068-trial-review/plan.m
 
 O cadastro de degustação também oferece telefone opcional para contato solicitado sobre a avaliação, visível apenas ao administrador da plataforma. A coleta não autoriza marketing por telefone; o dado é cifrado e segue a retenção do ambiente de teste. A página usa a identidade visual do NodeAccess e o site orienta a confirmação de e-mail antes da preparação do laboratório (NA-0072).
 
-## Análise estática local (SonarQube)
+## Segurança e qualidade de software
 
-A frente NA-0085 prepara análise local e exportação de achados para revisão supervisionada. Instalação, comandos, credenciais, limites de cobertura e estado real: [guia operacional](docs/OPERATIONS-sonarqube.md). A configuração está em worktree enquanto LOCAL_WIP; não implica enforcement no CI nem certificação de segurança do produto.
+O NodeAccess usa **SonarQube** na validação local e no CI. O check obrigatório
+`sonar-real` executa análises reais da base e do candidato em ambiente descartável,
+confere a configuração efetiva, importa cobertura e exige o Quality Gate.
+As decisões de falso positivo são documentadas e revalidadas; mudanças nas fontes
+ou nas regras podem invalidá-las. Resultados são vinculados ao SHA testado.
+
+| Ferramenta ou controle em uso | Finalidade | Onde conferir |
+|---|---|---|
+| SonarQube | Análise estática de segurança, confiabilidade e manutenção; cobertura de código novo | [Workflow](.github/workflows/sonarqube.yml) e [operação](docs/OPERATIONS-sonarqube.md) |
+| Semgrep | Regras de segurança para JavaScript/TypeScript | `npm run security:scan` |
+| Gitleaks | Detecção de segredos, com segredos ocultados nos relatórios e fixtures revisadas | `npm run security:scan`; histórico sob demanda: `npm run security:history` |
+| npm audit e SBOM CycloneDX | Auditoria de dependências e inventário dos componentes de runtime | `npm run security:check` e [workflow de segurança](.github/workflows/security.yml) |
+| Grype | Vulnerabilidades nas imagens construídas | `npm run security:images -- <imagens>` e [validação da stack](.github/workflows/stack-compatibility.yml) |
+| ESLint, TypeScript, Vitest e Node test runner | Qualidade estática, tipos e regressões automatizadas | [Quality gate](.github/workflows/quality-gate.yml) |
+| Playwright/Chromium e laboratórios isolados | Fluxos de interface e contratos reais, incluindo TLS, falhas e recuperação | `npm run test:coverage -- --base <SHA>` e [guia de cobertura](docs/OPERATIONS-sonarqube.md) |
+
+Os checks publicam evidências no CI. A cobertura de código novo e a cobertura
+global têm escopos diferentes; aprovação do gate não equivale a certificação de
+segurança nem substitui homologação operacional. Consulte os resultados da revisão
+atual, sem assumir que uma nota histórica continuará válida após novas mudanças.
+Para um resumo local das evidências e de sua atualidade: `npm run quality:context`.
+
+**Complementos em avaliação, ainda não integrados:**
+
+- [OWASP ZAP](https://www.zaproxy.org/docs/automate/automation-framework/): prioridade
+  para análise dinâmica da aplicação em ambiente de homologação descartável,
+  começando por navegação e análise passiva e evoluindo para cenários autenticados.
+  Varreduras ativas precisam de escopo explícito e dados de teste.
+- [StrykerJS](https://stryker-mutator.io/docs/stryker-js/introduction/): testes de
+  mutação em módulos críticos para verificar se os testes detectam alterações
+  deliberadas de comportamento. Adotar por módulo, com orçamento de execução.
+
+Atualize esta seção quando uma ferramenta for adotada, removida ou mudar de escopo,
+incluindo o comando/workflow e distinguindo o que está em uso do que é proposta.

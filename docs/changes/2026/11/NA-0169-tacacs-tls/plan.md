@@ -69,3 +69,7 @@ IN_PLAN: pedido explícito de implementação fim a fim e aviso na integração.
 
 ### Complemento necessário de validação
 A primeira coleta completa executou os nove fluxos Chromium, mas a cobertura incremental ficou em59,8651%. Lacunas eram a interface com registros/permissões preenchidos e laboratórios reais fora do coletor. A frente inclui ampliação desses cenários e laboratório descartável obrigatório no coletor Node, com prova de execução/cleanup e cobertura Python real em Cobertura. Sem novo limite, exclusão de fonte ou aceitação de risco. Falha inicial de import foi preservada; bateria repetida com Vite auxiliar encerrado passou.
+
+
+### Integração e documentação autorizadas em 2026-11-05
+Atualizar base após merge da PR59,documentar ferramentas realmente usadas no README e distinguir propostas futuras. Usuário autorizou a integração das duas PRs. Nenhum teste manual em hardware ou deploy foi presumido. Nova revisão do CI exigida antes do merge; alterações locais alheias preservadas em worktree separado.
