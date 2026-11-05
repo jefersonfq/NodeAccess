@@ -45,3 +45,6 @@ tools/*
 !tools/shared/
 tools/shared/*
 !tools/shared/trusted-executable.cjs
+
+# Mutation-testing sandboxes are local generated artifacts.
+.stryker-tmp/

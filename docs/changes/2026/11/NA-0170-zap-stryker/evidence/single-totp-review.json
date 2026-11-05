@@ -1,0 +1,16 @@
+{
+  "analysisId": "38eaad8c-8a57-4f0e-9d51-c64752d2e040",
+  "sourceFingerprint": "220c841bc36cc3135443d8b9543d1db72429f04ea35554af5464eca1b1a809d2",
+  "issue": "d7704a4c-bdcf-47e6-acb5-4acfbd772b77",
+  "project": "nodeaccess",
+  "sourceSha256": "959f5df50d32f8179bf8786135da4e2570d3395e19dac2caede1e267ee8d2456",
+  "authorizedDecision": "FALSE_POSITIVE",
+  "startedAt": "2026-11-05T15:43:21.734280+00:00",
+  "changed": true,
+  "cleanup": [
+    "token_revoked",
+    "user_deactivated"
+  ],
+  "readCredentialsPreserved": true,
+  "finishedAt": "2026-11-05T15:43:24.227532+00:00"
+}
