@@ -4,8 +4,10 @@ Planos e registros versionados por implementação. PRs e checkpoints identifica
 
 | Mudança | Plano | Registro IA |
 |---|---|---|
-| NA-0174-security-diagnosis (correções de controles em desenvolvimento) | [plano](2026/11/NA-0174-security-diagnosis/plan.md) | [registro](2026/11/NA-0174-security-diagnosis/implementation.md) |
-| NA-0172-security-center (imagens/runtime PASS; reconciliação do commit pendente; PR63 draft) | [plano](2026/11/NA-0172-security-center/plan.md) | [registro](2026/11/NA-0172-security-center/implementation.md) |
+| NA-0176-base-reconciliation (in-development; candidato em validação) | [plano](2026/11/NA-0176-base-reconciliation/plan.md) | [registro](2026/11/NA-0176-base-reconciliation/implementation.md) |
+| NA-0173-codex-token-efficiency (integração candidata NA-0176; gates pendentes) | [plano](2026/11/NA-0173-codex-token-efficiency/plan.md) | [registro](2026/11/NA-0173-codex-token-efficiency/implementation.md) |
+| NA-0174-security-diagnosis (merged; PR64; be4daff2e) | [plano](2026/11/NA-0174-security-diagnosis/plan.md) | [registro](2026/11/NA-0174-security-diagnosis/implementation.md) |
+| NA-0172-security-center (merged; PR63; 28685c5b2) | [plano](2026/11/NA-0172-security-center/plan.md) | [registro](2026/11/NA-0172-security-center/implementation.md) |
 | NA-0080-terminal-mouse | [plano](2026/10/NA-0080-terminal-mouse/plan.md) | [registro](2026/10/NA-0080-terminal-mouse/implementation.md) |
 | NA-0069-release-integration | [plano](2026/10/NA-0069-release-integration/plan.md) | [registro](2026/10/NA-0069-release-integration/implementation.md) |
 | NA-0068-trial-review | [plano](2026/10/NA-0068-trial-review/plan.md) | [registro](2026/10/NA-0068-trial-review/implementation.md) |

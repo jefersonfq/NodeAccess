@@ -17,7 +17,7 @@ O resumo local usa campos selecionados: SHA/árvore suja, validação/coverage a
 
 Durante implementação, testes focais reduzem ciclos de correção. Antes de promover a entrega, os testes completos exigidos, scanner, checks e revisão seguem obrigatórios. Não reduzir percentuais, silenciar regras, trocar por mocks favoráveis ou ocultar falhas para economizar.
 
-As instruções estáveis ficam curtas e apontam para documentação sob demanda. Não removemos regras do AGENTS.md nem alteramos configurações globais do Codex. Evitar delegação redundante e repetir leituras cujo conteúdo não mudou.
+As instruções estáveis ficam curtas e apontam para documentação sob demanda. Em 2026-11-08 (NA-0173) o AGENTS.md foi enxugado sem remover regras obrigatórias (checklists de frontend/UX movidos para `ai/frontend-guidelines.md`) e as regras de aprovação do Codex foram consolidadas; reversão em `ai/backup/codex-config-2026-11-08/ROLLBACK.md`. Evitar delegação redundante e repetir leituras cujo conteúdo não mudou.
 
 ## Cache e modelos: o que validar antes de adotar
 
@@ -34,3 +34,31 @@ Testes do resumo cobrem SHA diferente, árvore suja, falha de teste/scanner/gate
 - [Instruções AGENTS.md no Codex](https://learn.chatgpt.com/docs/agent-configuration/agents-md): descoberta hierárquica de instruções e limite configurável.
 - [Prompt caching na API](https://developers.openai.com/api/docs/guides/prompt-caching): prefixos estáveis, contabilização e diferenças de cache por modelo.
 - [Checks obrigatórios no GitHub](https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-rulesets/available-rules-for-rulesets): exigir origem específica do check e base atualizada.
+
+## Medição de 2026-11-08 (NA-0173)
+
+Leitura das sessões locais do Codex de outubro e novembro (`token_count` dos rollouts):
+cerca de 3,76 bilhões de tokens de entrada em 71 sessões principais (98% em cache) e
+548 milhões em 267 sessões do revisor automático de aprovações. Maiores fatores: threads
+únicas muito longas (uma com ~747 milhões), milhares de pedidos de escalação revisados um a um
+(1.920 regras pontuais que quase nunca voltavam a casar) e leituras repetidas de `plan.md`,
+`implementation.md`, `package.json` e da skill de lifecycle. Ações: thread por assunto,
+regras genéricas de leitura/teste, temporários em `.tmp/`, saída limitada e instruções
+sob demanda. A economia real deve ser medida nas próximas semanas com a mesma leitura.
+
+### Como repetir a medição
+
+`npm run ai:usage -- --since AAAA-MM-DD [--until AAAA-MM-DD] [--top N]` lê os registros locais
+do Codex (`~/.codex/sessions`) e do Claude Code (`~/.claude/projects`, todos os projetos) e
+imprime só contadores: sessões, entrada total/cache/fora do cache, saída, escalações, compactações
+e as maiores sessões (nome do arquivo e contexto da última chamada). Nada de prompts ou comandos.
+Rodar como o mesmo usuário dos agentes (root neste WSL). Linha de base de 2026-11-08 (01/10–08/11):
+Codex 71 sessões / 3,76 bi (55 mi fora do cache), revisor 267 / 548 mi (48 mi fora do cache),
+18.617 escalações; Claude Code 23 sessões / 2,27 bi (25 mi fora do cache), contexto máximo de
+744 mil tokens com `opus[1m]`.
+
+Limitação confirmada em 11/11: `--since` e `--until` selecionam arquivos pela data de
+modificação, mas os contadores incluem todo o histórico de cada arquivo selecionado.
+Esses totais não representam consumo restrito ao período e não sustentam comparação
+semanal ou economia após os ajustes. Esse uso exige recorte por timestamps dos eventos
+e diferenças dos contadores cumulativos; a correção continua pendente.

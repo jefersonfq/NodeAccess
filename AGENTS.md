@@ -1,298 +1,77 @@
 # NodeAccess
 
-Objetivo:
-Plataforma web para acesso SSH via navegador, com foco em segurança, usabilidade, performance e manutenção simples.
+Plataforma web de acesso SSH via navegador (segurança, usabilidade, performance,
+manutenção simples). Use contexto mínimo: leia só o necessário e pare quando bastar.
 
-Princípio principal:
-Use contexto mínimo. Leia apenas o necessário para resolver a tarefa com precisão.
-
-Princípio complementar:
-Atue também como especialista em frontend, UX e design de interface, priorizando clareza, consistência, acessibilidade, responsividade e baixo acoplamento.
-
----
+Versão enxuta desde 2026-11-08. Backup e reversão: `ai/backup/codex-config-2026-11-08/ROLLBACK.md`.
 
 ## Ordem de leitura
 
-Leia somente na ordem abaixo e pare assim que tiver contexto suficiente:
+1. `ai/context.md` → 2. `ai/patterns.md`
+3. `docs/PRD-lite.md` só se precisar de regra de produto
+4. Um único `ai/modules/*` do domínio tocado
+5. `ai/frontend-guidelines.md` só se tocar UI/UX, terminal, SSH/WebSocket ou auth
+6. `ai/debug.md` só para investigação; `docs/PRD.txt` só para regra não coberta no lite
+7. Lifecycle de mudança: `codex/skills/nodeaccess-change-lifecycle/SKILL.md` e apenas a referência do estado atual
 
-1. `ai/context.md`
-2. `ai/patterns.md`
-3. `docs/PRD-lite.md` se a tarefa exigir regra de negócio do produto
-4. Um único módulo de `ai/modules/*` apenas se a tarefa tocar esse domínio
-5. `ai/debug.md` apenas para investigação ou troubleshooting
-6. `docs/PRD.txt` apenas para regra de negócio específica e não coberta no PRD-lite
+## Economia de contexto (obrigatório)
 
----
-
-## Regras de contexto
-
-- Não carregar o PRD inteiro por padrão
-- Prefira `docs/PRD-lite.md` ao `docs/PRD.txt`
-- Não repetir resumo do produto na resposta
-- Cite caminhos de arquivo em vez de colar trechos longos
-- Para mudanças pequenas, leia somente os arquivos diretamente afetados
-- Não abrir múltiplos módulos de `ai/modules/*` sem necessidade clara
-- Se o problema estiver restrito a um arquivo ou função, mantenha o foco apenas nele
-- Evite ler diretórios inteiros ou arquivos grandes sem justificativa
-
----
+- Uma thread por assunto/Change ID. Ao retomar, ler o resumo de `implementation.md` e o `plan.md`; não reler histórico inteiro.
+- Não reler arquivo que não mudou na mesma thread; não abrir diretórios inteiros nem arquivos grandes sem motivo.
+- Limitar saída: `rg -m`/`| head`, `sed -n` com faixa curta, `tail -n 40` em logs, `git diff --stat` antes do diff completo. Testes: mostrar resumo e falhas, não o log inteiro.
+- `package.json` tem ~160 scripts: buscar com `rg -n '"<nome>' package.json` em vez de ler o arquivo.
+- Leituras (`cat`, `rg`, `sed -n`, `tail`, `ls`, `git status|diff|log|show`) rodam direto, sem `runuser`/`bash -c` e sem pedir escalação. Use `runuser -u jeferson -- …/bin/dev` só para comandos que gravam, constroem, usam rede ou docker.
+- Arquivos temporários, logs e scripts auxiliares em `.tmp/` do workspace (ignorado no git), não em `/tmp`.
+- Não repetir resumo do produto; citar caminhos em vez de colar trechos longos.
 
 ## Regras de atuação
 
-- Trabalhe com alterações pequenas, controladas e reversíveis
-- Nunca refatore o projeto inteiro sem solicitação explícita
-- Preserve a arquitetura existente sempre que possível
-- Não alterar autenticação, autorização, sessão, websocket ou fluxo crítico sem necessidade clara
-- Não introduzir dependências novas sem justificativa objetiva
-- Sempre preferir a menor mudança que resolva o problema
-- Se houver risco de efeito colateral, explicitar antes de sugerir alteração ampla
-- Em frontend, preferir composição e reutilização em vez de duplicação
-- Evitar componentes excessivamente grandes ou com múltiplas responsabilidades
-- Separar apresentação, estado e regras de negócio sempre que possível
-- Não criar abstrações prematuras
-- Ao ajustar UI, preservar consistência com padrões já existentes do projeto
-
----
-
-## Regras de resposta
-
-- Seja técnico, objetivo e direto
-- Explique a causa antes da correção quando estiver em modo debug
-- Priorize:
-  1. causa provável
-  2. impacto
-  3. correção sugerida
-  4. arquivos afetados
-- Evite respostas longas quando a tarefa for pontual
-- Evite reexplicar contexto já presente nos arquivos de referência
-- Quando possível, responda com diff mental, alteração pontual ou bloco pequeno
-- Em tarefas de interface, informar também:
-  1. impacto na experiência do usuário
-  2. estados afetados
-  3. risco visual ou funcional
-  4. como validar rapidamente
-
----
-
-## Estratégia de debug
-
-Quando o objetivo for investigar problema:
-
-- primeiro identificar a causa provável
-- depois validar o fluxo afetado
-- só então sugerir correção
-- não propor refatoração como primeira resposta
-- considerar regressão, estado, evento, concorrência, foco, renderização, websocket e terminal buffer quando aplicável
-
----
-
-## Estratégia por domínio
-
-### Frontend / UX
-Priorizar análise de:
-- clareza do fluxo
-- hierarquia visual
-- responsividade
-- acessibilidade
-- consistência entre telas e componentes
-- estados de loading, vazio, erro e sucesso
-- feedback ao usuário
-- microcopy
-- navegação
-- fricção desnecessária
-- semântica HTML
-- acoplamento entre UI e regra de negócio
-
-### Terminal / xterm.js
-Priorizar análise de:
-- seleção
-- copy/paste
-- scroll
-- resize
-- foco
-- input
-- buffer
-- renderização
-- eventos de teclado/mouse
-
-Toda alteração que possa mudar a área útil do terminal deve executar `npm run test:terminal-experience:web`. Alterações de resize, WebSocket ou transporte SSH devem executar também `npm run test:terminal-pty:real` contra um host descartável. Essas validações são opt-in e não podem adicionar sondagens, comandos ou latência ao fluxo normal do usuário.
-
-### Backend / SSH / websocket
-Priorizar análise de:
-- sessão
-- conexão
-- stream
-- concorrência
-- fechamento de socket
-- reconexão
-- latência
-- perda de estado
-
-### Auth / acesso
-Priorizar análise de:
-- sessão
-- permissões
-- escopo de usuário
-- isolamento de acesso
-- expiração
-- segurança
-
----
-
-## Critérios obrigatórios para frontend
-
-Sempre que tocar interface, validar mentalmente ou tecnicamente:
-
-- A tela tem objetivo claro?
-- O próximo passo do usuário está evidente?
-- O CTA principal está claro?
-- Existem estados de loading, vazio, erro e sucesso?
-- A interface funciona em telas menores?
-- Labels, foco e navegação por teclado estão minimamente corretos?
-- O texto da interface está claro e direto?
-- Há consistência visual com o restante do projeto?
-- A alteração melhora a usabilidade ou apenas muda aparência?
-- Existe forma mais simples de resolver com menos complexidade?
-
----
-
-## Regras de UX e design
-
-- Priorizar clareza antes de sofisticação visual
-- Evitar poluição visual
-- Destacar ações principais e reduzir peso de ações secundárias
-- Minimizar esforço cognitivo
-- Confirmar ações destrutivas ou de alto impacto
-- Informar claramente erro, progresso e sucesso
-- Evitar esconder informação importante atrás de interações desnecessárias
-- Preferir interfaces previsíveis e consistentes
-- Melhorar microcopy quando houver ambiguidade
-- Não assumir que “mais elementos” significam melhor UX
-
----
-
-## Regras de acessibilidade
-
-- Preferir HTML semântico sempre que possível
-- Garantir labels em inputs relevantes
-- Garantir foco visível em elementos interativos
-- Não depender apenas de cor para comunicar estado
-- Garantir textos e botões compreensíveis fora de contexto visual
-- Considerar navegação por teclado em fluxos importantes
-- Em modais, dropdowns e overlays, considerar foco e fechamento adequados
-
----
-
-## Estratégia de implementação frontend
-
-Ao implementar ou ajustar interface:
-
-1. entender o objetivo da tela ou fluxo
-2. identificar o menor ponto de mudança possível
-3. verificar se já existe componente ou padrão reutilizável
-4. implementar preservando consistência visual e estrutural
-5. validar estados principais da tela
-6. revisar acessibilidade básica
-7. apontar possíveis melhorias de UX sem expandir escopo sem necessidade
-
----
-
-## Estratégia de revisão de componentes
-
-Ao revisar componente frontend, verificar:
-
-- responsabilidade única
-- legibilidade
-- facilidade de manutenção
-- repetição de lógica
-- repetição de estilos
-- nomes claros
-- props e eventos previsíveis
-- acoplamento excessivo
-- tratamento de estados
-- impacto em mobile
-- impacto em acessibilidade
-
----
-
-## Boas práticas obrigatórias
-
-- Sempre trabalhar por módulo, arquivo ou fluxo específico
-- Se a tarefa estiver ambígua, assumir o menor escopo razoável
-- Antes de sugerir mudanças amplas, verificar se uma correção localizada resolve
-- Se houver múltiplos caminhos possíveis, preferir o mais simples, previsível e fácil de manter
-- Otimizar para clareza, manutenção e baixo custo de contexto
-- Em frontend, otimizar para experiência do usuário e consistência, não apenas para funcionamento técnico
-- Considerar efeitos colaterais visuais e de interação antes de concluir uma alteração
-
----
-
-## Forma ideal de execução
-
-Ao receber uma tarefa:
-
-1. identificar o menor escopo possível
-2. ler apenas o contexto mínimo necessário
-3. localizar a causa ou ponto de alteração
-4. propor a menor mudança funcional possível
-5. evitar expansão desnecessária de contexto
-
-Se a tarefa envolver frontend ou UX:
-
-6. verificar impacto na usabilidade
-7. validar consistência visual e estrutural
-8. revisar acessibilidade básica
-9. conferir estados principais da interface
-10. informar como validar rapidamente a alteração
-
----
-
-## Saída ideal para tarefas de frontend
-
-Quando a tarefa envolver interface, preferir responder no formato:
-
-- objetivo da alteração
-- causa do problema ou oportunidade de melhoria
-- alteração sugerida
-- arquivos afetados
-- impacto em UX
-- como validar rapidamente
-- riscos ou trade-offs, se existirem
-
+- Alterações pequenas, controladas e reversíveis; menor mudança que resolva. Escopo ambíguo → menor escopo razoável.
+- Não refatorar amplamente nem introduzir dependências sem pedido/justificativa objetiva.
+- Não alterar autenticação, autorização, sessão, websocket ou fluxo crítico sem necessidade clara; explicitar risco de efeito colateral antes de mudança ampla.
+- Debug: causa provável → validar fluxo → correção; não começar por refatoração.
+- Respostas técnicas, objetivas; priorizar causa, impacto, correção e arquivos afetados. Em UI, informar impacto em UX, estados afetados, risco e como validar.
+- Terminal: mudança que possa alterar a área útil exige `npm run test:terminal-experience:web`; resize, WebSocket ou transporte SSH exigem também `npm run test:terminal-pty:real` contra host descartável (opt-in, sem latência no fluxo normal).
 
 ## Manual de uso
 
-Quando alterar fluxos mapeados em `docs/manual/manifest.json`, aplicar `.agents/skills/nodeaccess-manual/SKILL.md` para manter procedimentos, capturas e evidências correspondentes. O manual integrado é a fonte das ajudas desses fluxos. A revisão editorial só é marcada após validação; a versão é injetada automaticamente pelo build. Mudanças sem impacto no procedimento podem manter o texto, registrando a revalidação do capítulo.
-
+Ao alterar fluxos mapeados em `docs/manual/manifest.json`, aplicar `.agents/skills/nodeaccess-manual/SKILL.md` (procedimentos, capturas, evidências). Revisão editorial só após validação; mudanças sem impacto no procedimento registram a revalidação do capítulo.
 
 ## Registro das implementações assistidas por IA
 
-A partir de NA-0055, manter `implementation.md` junto ao `plan.md` da frente.
-Antes de encerrar cada interação relevante, registrar data/hora com timezone,
-pedido/decisão, o que foi feito, arquivos/fluxos afetados, validações realmente
-executadas, limitações e próximo passo. Perguntas que mudem decisões também entram.
-Atualizar o resumo em vez de copiar transcrições; não incluir segredos, dados
-pessoais ou saída de terminal do usuário. Não inventar testes, aprovação ou métricas.
-Usar o template `codex/skills/nodeaccess-change-lifecycle/assets/implementation.template.md`.
-Registrar SHA base no documento; SHA final/merge e checks ficam no PR/tag/evidência,
-para não criar commits recursivos só para registrar o próprio hash.
-O CI valida presença e estrutura; a IA é responsável pelo conteúdo e veracidade.
-Consultar `docs/DEVELOPMENT-recovery.md` para checkpoints e recuperação. Nenhuma
-instrução autoriza commit/publicação fora do escopo já autorizado pelo usuário.
+A partir de NA-0055, manter `implementation.md` junto ao `plan.md` da frente, a partir de
+`codex/skills/nodeaccess-change-lifecycle/assets/implementation.template.md`.
+Antes de encerrar cada interação relevante, registrar data/hora com timezone, pedido/decisão,
+o que foi feito, arquivos/fluxos afetados, validações realmente executadas, limitações e
+próximo passo (incluindo perguntas que mudem decisões). Atualizar o resumo em vez de copiar
+transcrições; manter o diário enxuto (consolidar entradas antigas). Sem segredos, dados
+pessoais ou saída de terminal do usuário; não inventar testes, aprovação ou métricas.
+SHA base no documento; SHA final/checks no PR/tag/evidência. Recuperação:
+`docs/DEVELOPMENT-recovery.md`. Nenhuma instrução autoriza commit/publicação fora do escopo
+já autorizado pelo usuário.
 
-## Validação SonarQube na rotina normal
+## Destino dos documentos
 
-Por solicitação do usuário em 03/11/2026, toda alteração de código deve registrar
-validação SonarQube junto aos testes aplicáveis, antes de considerar a frente
-pronta. Usar `npm run validate:sonar` com servidor local e tokens separados;
-consultar docs/OPERATIONS-sonarqube.md. A rotina gera cobertura real, executa
-scanner, exporta e compara achados com decisões revisadas em docs/sonarqube.
-Falha de testes/cobertura continua falha mesmo com Quality Gate verde. Ausência
-de servidor/token ou relatório incompleto é bloqueio de validação, não aprovação.
-Não excluir código/regras nem reduzir thresholds para obter verde. Atualizar a
-tabela integral e evidência por achado, distinguindo correção, contexto revisado
-e presença na reanálise. Mudanças na baseline de achados exigem justificativa
-individual e revisão independente; nunca aceitar automaticamente novos achados.
-Manter branches/commits por frente recuperável e comparar o candidato final.
-Execução remota de CI não alcança localhost do WSL: testes da integração rodam
-no CI existente; análise real exige a rotina local ou runner devidamente preparado.
+PRDs e documentação: `/home/jeferson/projects/NodeAccess-current/docs/`; planos e registros em
+`docs/changes/<ano>/<mes>/<ChangeID>/`. Em worktree isolado, sincronizar só os documentos da
+frente com a pasta canônica (sem código, sem afirmar testes no checkout principal), atualizar
+índices e entregar links do projeto atual; nunca deixar documentos só em `/tmp`.
+
+## Planejamento vivo — metas 2027
+
+Manter `docs/planejamento/METAS e OBJETVIVOS Nodeaccess 2027.xlsx` (aba `Roadmap 2027`, por ID
+estável; decisão na aba `Revisões`) atualizado com ideias, funcionalidades, mudanças de escopo,
+cancelamentos e estado de entrega. Para economizar, agrupar em **uma única escrita por
+interação** que tenha mudado algo do roadmap (não a cada item). Preservar `Original 2027`, IDs
+e edições do usuário; distinguir ideia, piloto, código, validação local, homologação e
+publicação; não inventar prazos, responsáveis ou prioridades. Se não puder editar/validar,
+registrar pendência no `implementation.md` e avisar. Em worktree, sincronizar com a planilha canônica.
+
+## Validação SonarQube
+
+Toda alteração de código registra `npm run validate:sonar` (servidor local, tokens separados;
+ver `docs/OPERATIONS-sonarqube.md`) junto aos testes aplicáveis antes de considerar a frente
+pronta. Falha de testes/cobertura é falha mesmo com gate verde; servidor/token ausente ou
+relatório incompleto é bloqueio, não aprovação. Não excluir código/regras nem reduzir
+thresholds. Atualizar tabela e evidência por achado em `docs/sonarqube`; mudança na baseline
+exige justificativa individual e revisão independente. CI remoto não alcança o localhost do WSL.

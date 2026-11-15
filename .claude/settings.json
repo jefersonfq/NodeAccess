@@ -1,0 +1,57 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "bashOutputMaxChars": 15000,
+  "permissions": {
+    "allow": [
+      "Bash(cat *)",
+      "Bash(head *)",
+      "Bash(tail *)",
+      "Bash(ls *)",
+      "Bash(wc *)",
+      "Bash(rg *)",
+      "Bash(grep *)",
+      "Bash(sed -n *)",
+      "Bash(diff *)",
+      "Bash(stat *)",
+      "Bash(which *)",
+      "Bash(ps *)",
+      "Bash(ss -ltnp)",
+      "Bash(git status *)",
+      "Bash(git diff *)",
+      "Bash(git log *)",
+      "Bash(git show *)",
+      "Bash(git rev-parse *)",
+      "Bash(git branch --show-current)",
+      "Bash(git worktree list)",
+      "Bash(docker ps *)",
+      "Bash(docker logs *)",
+      "Bash(gh run view *)",
+      "Bash(gh run list *)",
+      "Bash(gh pr view *)",
+      "Bash(gh pr checks *)",
+      "Bash(mkdir -p *)",
+      "Bash(npm run *)",
+      "Bash(npm test *)",
+      "Bash(npx vitest *)",
+      "Bash(npx eslint *)",
+      "Bash(npx tsx --test *)",
+      "Bash(node --test *)",
+      "Bash(runuser -u jeferson -- /home/jeferson/nodeaccess-workspace/bin/dev npm run *)",
+      "Bash(runuser -u jeferson -- /home/jeferson/nodeaccess-workspace/bin/dev node --test *)"
+    ],
+    "ask": [
+      "Bash(git push *)",
+      "Bash(gh pr merge *)",
+      "Bash(rm -rf *)"
+    ],
+    "deny": [
+      "Read(./.env)",
+      "Read(./.env.*)",
+      "Read(./apps/*/.env)",
+      "Read(./data/**)",
+      "Read(./backups/**)",
+      "Read(./node_modules/**)",
+      "Read(./package-lock.json)"
+    ]
+  }
+}
