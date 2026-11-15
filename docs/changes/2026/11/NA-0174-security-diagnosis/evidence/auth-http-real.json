@@ -1,0 +1,101 @@
+{
+  "scope": "HTTP loopback -> real auth/user routes, services, Prisma/MySQL and Redis; full server bootstrap/UI not included",
+  "observations": [
+    {
+      "scenario": "logout",
+      "positive_access": 200,
+      "mutation_status": 204,
+      "persisted_state": {
+        "active": true,
+        "role": "ADMIN",
+        "sessionVersion": 1
+      },
+      "old_access_status": 200,
+      "refresh_status": 401,
+      "fresh_access_status": null,
+      "fresh_login_status": 200
+    },
+    {
+      "scenario": "deactivate",
+      "positive_access": 200,
+      "mutation_status": 200,
+      "persisted_state": {
+        "active": false,
+        "role": "ADMIN",
+        "sessionVersion": 1
+      },
+      "old_access_status": 200,
+      "refresh_status": 401,
+      "fresh_access_status": null,
+      "fresh_login_status": 401
+    },
+    {
+      "scenario": "downgrade",
+      "positive_access": 200,
+      "mutation_status": 200,
+      "persisted_state": {
+        "active": true,
+        "role": "USER",
+        "sessionVersion": 0
+      },
+      "old_access_status": 200,
+      "refresh_status": 200,
+      "fresh_access_status": 403,
+      "fresh_login_status": null
+    }
+  ],
+  "negative_control_unauthenticated": 401,
+  "webhook_calls_discarded": 1,
+  "conclusion": "Old admin access tokens still authorize real user listing after logout-all, deactivation or downgrade; refresh/new login obey persisted state.",
+  "limitations": [
+    "Normal tenant only",
+    "No global server bootstrap, WebSocket or UI",
+    "Webhook egress stubbed; no user/session repository or token/guard stubs",
+    "Fixtures seeded directly; subsequent mutations use real HTTP routes",
+    "Observed until immediate request; no claim beyond JWT expiry",
+    "Fixture bcrypt cost 4 only reduces seeding time; production auth verify and generated password remain real."
+  ],
+  "execution": {
+    "source_sha": "0b68abaf301e72b2fd4820b47876457a5b8915d3",
+    "started_at": "2026-11-15T01:30:35Z",
+    "cleanup": true,
+    "exit_code": 0,
+    "finished_at": "2026-11-15T01:31:40Z"
+  },
+  "commands": [
+    "docker run --rm --label nodeaccess.diagnosis=NA-0174-auth -p 127.0.0.1::<port> <disposable mysql/redis> (random credentials withheld)",
+    "node node_modules/prisma/build/index.js db push --skip-generate --schema apps/backend/prisma/schema.prisma (disposable DATABASE_URL)",
+    "node --import node_modules/tsx/dist/loader.mjs .tmp/NA-0174-auth-e2e/auth-harness.mjs",
+    "docker rm -f -v <exact names created by runner>"
+  ],
+  "preparation_failures": [
+    "Initial root-only MySQL account rejected mapped-host connection; all containers removed; corrected harness to dedicated diagnosis DB user, no root privilege widening."
+  ],
+  "source_sha256": {
+    "modules/auth/auth.service.ts": {
+      "algorithm": "SHA256",
+      "digest": "7875cbdb69604d769411bfbd57f4c1c7d4b377306d2f39370e924e7d88506dce"
+    },
+    "modules/auth/auth.controller.ts": {
+      "algorithm": "SHA256",
+      "digest": "14dd7a645e3a3d210a2003034860ccf48a7f3cd34464ccdf27c5d93923e8dde4"
+    },
+    "modules/auth/auth.routes.ts": {
+      "algorithm": "SHA256",
+      "digest": "bd75c5fed4765eea0a83d0d42f1ed37dd4247527f851e54dc1eeb0549ee9d946"
+    },
+    "modules/users/user.service.ts": "8b1e168f371a2b1520e21bff7808427b491edfd6eec29e3398347e024014bbe9",
+    "modules/users/user.repository.ts": "b576355acae823294b46873021518efafc8584d55089d8a66b19edb9aad20d69",
+    "modules/users/user.controller.ts": "c37d5503736851f1817d93434e339e9d6e3f2fdbae5be25c7d8f2e725db3f6d1",
+    "modules/users/user.routes.ts": "b77759f10e4868699de33fd9bab89d242474ca7abb77bb294f66ef64f3517567",
+    "shared/guards.ts": "ee8ca8eede6c6564089fcdee05932eb3ee35a76c0be8ba75d9f116667ceca7a6",
+    "modules/trials/trial-policy.ts": "8fd3cf8a4a539f4ae01c658e7b3b2d3fdc67f77a32f8eccef4d6b968a4acef8f",
+    "plugins/jwt.plugin.ts": "08baa77288b6c1c00b6d2dd0825f7a2377e43b9bfd3676d8341131a2faa9de8a"
+  },
+  "sources_match_head": true,
+  "harness_sha256": "2d5260e7f2f5a03bb23f033419e563843961c483e91d7f67e219b5de49031daf",
+  "field_clarification": {
+    "logout.fresh_login_status": "Value200 is GET /users using newly issued token; password+TOTP login asserted separately by harness."
+  },
+  "digestRepresentationNote": "Três hashes históricos representados como algorithm/digest para distinguir evidência de credencial; valores dos digests preservados."
+}

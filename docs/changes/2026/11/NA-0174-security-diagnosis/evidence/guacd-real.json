@@ -1,0 +1,64 @@
+{
+  "at": "2026-11-15T01:47:41.693Z",
+  "image": "sha256:89bbbbe3bdf52e24607938e23b7f197348705f2999fe5363a758517d19454fdd",
+  "scope": "real guacd plugin SSH and VNC protocol smoke over loopback; no browser or full NodeAccess auth",
+  "cases": [
+    {
+      "protocol": "ssh",
+      "ready": true,
+      "authenticated": true,
+      "terminalDrawInstructions": 10,
+      "inputReachedShell": true,
+      "errors": []
+    },
+    {
+      "protocol": "vnc",
+      "ready": true,
+      "encoding6Negotiated": true,
+      "framesSent": 1,
+      "compressedBytes": 2369,
+      "pngs": [
+        {
+          "width": 32,
+          "height": 32,
+          "decodedBytes": 3104,
+          "pixelsMatched": 1024,
+          "pixelsExpected": 1024,
+          "sha256": "59edb161029c07b3828f4e20b605880ccc4530834ee0c8c6254130eb2a4b75e7"
+        }
+      ],
+      "keyReachedServer": true,
+      "errors": []
+    }
+  ],
+  "cleanup": {
+    "containerRemoved": true,
+    "listenersClosed": true,
+    "socketCount": 0,
+    "noPersistentVolumes": true,
+    "remainingProbeContainers": []
+  },
+  "sshInputCodes": [
+    97,
+    13
+  ],
+  "passed": true,
+  "sourceHead": "0b68abaf301e72b2fd4820b47876457a5b8915d3",
+  "sourceState": "Candidate Docker recipe uncommitted; image ID is the tested immutable artifact, not a claim of committed build provenance.",
+  "recipeSha256": "4b3b503a42161048f12421a3581b0ce3a16258e1e998d09d350b2999d2711606",
+  "harnessSha256": "dfd42598b38d03b958214ed75991df629a71ef5477c35a1180b91f50bd5d47ed",
+  "command": "runuser -u jeferson -g jeferson -G docker -- /home/jeferson/nodeaccess-workspace/bin/dev node .tmp/NA-0174-guacd-e2e/smoke.cjs",
+  "zlibPackage": {
+    "P": "zlib",
+    "V": "1.4-r0",
+    "A": "x86_64"
+  },
+  "limitations": [
+    "No RDP fixture available or executed.",
+    "No browser compositor, NodeAccess authentication/ACL or production endpoint tested.",
+    "SSH fixture accepts synthetic password and omits known-host verification for this image regression smoke; host-key policy is outside this case.",
+    "VNC sends one 32x32 gradient frame in zlib encoding6; verifies all1024 decoded RGB pixels and bidirectional key transport. Does not cover other encodings, long-lived streams or load.",
+    "Earlier fixture/auth-list/readiness/MIME-parser failures retained; final smoke exits0 with both protocols passing."
+  ],
+  "metadataNote": "Initial apk info attempted repository lookups with network disabled; no mutation, then package version read directly from installed DB."
+}

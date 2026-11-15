@@ -1,3 +1,4 @@
+import { assertCurrentUserSession } from '../modules/auth/current-session.js'
 import { assertTrialHttpAccess, assertTrialUserAccess } from '../modules/trials/trial-policy.js'
 import type { FastifyRequest, FastifyReply } from 'fastify'
 import { UnauthorizedError, ForbiddenError } from './errors.js'
@@ -53,8 +54,9 @@ export async function requireAuth(request: FastifyRequest, _reply: FastifyReply)
   }
   // Ending authentication is allowed even after the trial/user has been revoked.
   const authPath = request.url.split('?')[0]?.replace(/\/$/, '')
-  if (request.method === 'POST' && (authPath === '/api/v1/auth/logout' || authPath === '/api/v1/auth/logout-all'
-    || (request.jwtUser.isPlatformAdmin && authPath === '/api/v1/auth/platform/exit-tenant'))) return
+  if (request.method === 'POST' && authPath === '/api/v1/auth/logout') return
+  await assertCurrentUserSession(request.jwtUser)
+  if (request.method === 'POST' && request.jwtUser.isPlatformAdmin && authPath === '/api/v1/auth/platform/exit-tenant') return
   const trial = await assertTrialUserAccess(request.jwtUser.tenantId, Number(request.jwtUser.sub), request.jwtUser.sessionVersion)
   await assertTrialHttpAccess(request.jwtUser.tenantId, request.method, request.url, trial)
 }

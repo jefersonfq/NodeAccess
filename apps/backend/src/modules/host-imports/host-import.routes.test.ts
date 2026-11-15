@@ -1,5 +1,6 @@
+import { configureCurrentSessionReader, type CurrentSessionState } from '../auth/current-session.js'
 import Fastify from 'fastify'
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import type {
   GuacamoleImportCommitResponse,
   GuacamoleImportPreviewResponse,
@@ -7,6 +8,9 @@ import type {
 import { hostImportRoutes } from './host-import.routes.js'
 import { HostImportController } from './host-import.controller.js'
 import type { HostImportService } from './host-import.service.js'
+
+const principals = new Map<number, CurrentSessionState>()
+afterEach(() => { configureCurrentSessionReader(undefined); principals.clear() })
 
 const previewBody = {
   source: 'guacamole' as const,
@@ -41,10 +45,17 @@ async function appFor(role: 'admin' | 'user' = 'admin', canManageHosts = true) {
     history: vi.fn(() => Promise.resolve({ items: [], total: 0 })),
     revert: vi.fn(() => Promise.resolve({ status: 'reverted' as const, revertedHosts: 1, revertedFolders: 1, failures: [] })),
   }
+  const userId = role === 'admin' ? 9 : canManageHosts ? 10 : 11
+  principals.set(userId, {
+    tenantId: 7, active: true, deletedAt: null, tenantActive: true, targetTenantActive: true,
+    sessionVersion: 3, role: role === 'admin' ? 'ADMIN' : 'USER', isPlatformAdmin: false,
+    canManageHosts, canViewLiveSessions: false,
+  })
+  configureCurrentSessionReader((id, tenantId) => Promise.resolve(tenantId === 7 ? principals.get(id) ?? null : null))
   const app = Fastify()
   app.decorateRequest('jwtVerify', function () {
     return Promise.resolve({
-      sub: '9', email: 'admin@example.test', role, isPlatformAdmin: false, tenantId: 7,
+      sub: String(userId), sessionVersion: 3, email: 'admin@example.test', role, isPlatformAdmin: false, tenantId: 7,
       canManageHosts, canViewLiveSessions: false, forcePasswordChange: false, stage: 'authenticated',
     })
   })

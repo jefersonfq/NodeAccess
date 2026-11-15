@@ -1,5 +1,7 @@
+import { configureCurrentSessionReader } from './current-session.js'
+afterEach(() => configureCurrentSessionReader(undefined))
 import Fastify from 'fastify'
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { OidcConfigController } from './oidc-config.controller.js'
 import { oidcConfigRoutes } from './oidc-config.routes.js'
 import type { OidcConfigService } from './oidc-config.service.js'
@@ -12,6 +14,7 @@ const publicConfig = {
 }
 
 async function appFor(role: 'admin' | 'user' = 'admin') {
+  configureCurrentSessionReader( (userId, tenantId) => Promise.resolve(userId === 11 && tenantId === 7 ? ({ tenantId: 7, active: true, deletedAt: null, tenantActive: true, targetTenantActive: true, sessionVersion: 0, role: role === 'admin' ? 'ADMIN' : 'USER', isPlatformAdmin: false, canManageHosts: true, canViewLiveSessions: true }) : null))
   const service = {
     getPublic: vi.fn().mockResolvedValue(publicConfig),
     upsert: vi.fn().mockResolvedValue(publicConfig),

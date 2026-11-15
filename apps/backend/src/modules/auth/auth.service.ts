@@ -1,3 +1,4 @@
+import type { AppEventBus } from '../app-events/app-event.bus.js'
 import { assertTrialAccess } from '../trials/trial-policy.js'
 import jwt from 'jsonwebtoken'
 import type { SignOptions } from 'jsonwebtoken'
@@ -91,6 +92,7 @@ export class AuthService {
     private readonly localIdentityProvider?: IdentityProvider,
     private readonly ldapIdentityProvider?:  IdentityProvider,
     private readonly passwordLoginPolicy?: PasswordLoginPolicyProvider,
+    private readonly appEventBus?: AppEventBus,
   ) {}
 
   // ---------------------------------------------------------------------------
@@ -427,9 +429,10 @@ export class AuthService {
       role: 'admin',
       isPlatformAdmin: true,
       tenantId: tenant.id,
-      platformTenantId: currentTenantId,
+      platformTenantId: user.tenantId,
       actingTenantId: tenant.id,
       impersonatedByUserId: user.id,
+      sessionVersion: user.sessionVersion,
       canManageHosts: true,
       canViewLiveSessions: true,
       forcePasswordChange: false,
@@ -487,8 +490,10 @@ export class AuthService {
     if (currentSessionVersion === null || currentSessionVersion !== expectedSessionVersion) {
       throw new UnauthorizedError()
     }
-    const sessionVersion = await this.userRepo.incrementSessionVersion(userId, tenantId)
+    const sessionVersion = await this.userRepo.incrementSessionVersion(userId, tenantId, expectedSessionVersion)
     if (sessionVersion === null) throw new UnauthorizedError()
+    await this.appEventBus?.publish({ type: 'user_sessions_revoked', tenantId, userId, sessionVersion,
+      reason: 'logout_all', changedAt: new Date().toISOString() })
   }
 
   async issueTokensForUser(user: User, tenantId: number, authMethod: AuthMethod): Promise<AuthTokens> {

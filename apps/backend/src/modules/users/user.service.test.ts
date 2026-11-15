@@ -13,7 +13,7 @@ import type { AppEventBus } from '../app-events/app-event.bus.js'
 const createDefaults = { canManageHosts: false, canViewLiveSessions: false, groupIds: [] as number[] }
 const baseUser = () => ({ id: 7, tenantId: 2, name: 'Synthetic User', email: 'user@example.test', role: 'USER',
   passwordHash: 'private', mfaSecret: 'private', active: true, deletedAt: null, mfaEnabled: true,
-  canManageHosts: false, isPlatformAdmin: false, forcePasswordChange: false,
+  sessionVersion: 0, canManageHosts: false, isPlatformAdmin: false, forcePasswordChange: false,
   createdAt: new Date('2026-01-01'), updatedAt: new Date('2026-01-01') })
 function fixture() {
   const user = baseUser()
@@ -34,6 +34,7 @@ function fixture() {
     update: vi.fn((_id: number, data: Parameters<UserRepository['update']>[1]) => Promise.resolve({ ...user, ...data })),
     logAdminEvent: vi.fn().mockResolvedValue(undefined),
     softDelete: vi.fn().mockResolvedValue(undefined), restore: vi.fn().mockResolvedValue(undefined),
+    findSessionVersion: vi.fn().mockResolvedValue(1),
     setActive: vi.fn().mockResolvedValue(undefined), updatePassword: vi.fn<UserRepository['updatePassword']>().mockResolvedValue(undefined),
     setForcePasswordChange: vi.fn().mockResolvedValue(undefined), resetMfa: vi.fn().mockResolvedValue(undefined),
     findPreferencesByIdInTenant: vi.fn().mockResolvedValue(null), updatePreferences: vi.fn().mockResolvedValue(undefined),
@@ -75,6 +76,23 @@ describe('UserService tenant and credential behavior', () => {
     await expect(service.updatePreferences(7, 99, {})).rejects.toThrow()
     await expect(service.changePassword(7, 99, undefined, 'NewPass123')).rejects.toThrow()
     expect(repo.update).not.toHaveBeenCalled(); expect(repo.setActive).not.toHaveBeenCalled()
+  })
+  it('publishes revocation only after persisted permission version changes', async () => {
+    const { service, repo, events, user } = fixture()
+    repo.update.mockResolvedValueOnce({ ...user, role: 'ADMIN', sessionVersion: 1 })
+    await service.update(7, { role: 'admin' }, 2)
+    expect(events.publish).toHaveBeenCalledWith(expect.objectContaining({ type: 'user_sessions_revoked', tenantId: 2, userId: 7, sessionVersion: 1, reason: 'permissions_changed' }))
+    expect(repo.update.mock.invocationCallOrder[0]).toBeLessThan(events.publish.mock.invocationCallOrder[0]!)
+    events.publish.mockClear()
+    await service.update(7, { name: 'Renamed' }, 2)
+    expect(events.publish).not.toHaveBeenCalled()
+  })
+  it('does not report successful deactivation if revocation publication fails after persistence', async () => {
+    const { service, repo, events } = fixture()
+    events.publish.mockRejectedValueOnce(new Error('redis unavailable'))
+    await expect(service.setActive(7, false, 2)).rejects.toThrow('redis unavailable')
+    expect(repo.setActive).toHaveBeenCalledWith(7, false)
+    expect(events.publish).toHaveBeenCalledWith(expect.objectContaining({ type: 'user_sessions_revoked', sessionVersion: 1, reason: 'user_deactivated' }))
   })
   it('enforces license before creation/restoration/reactivation', async () => {
     const { service, repo, user } = fixture()

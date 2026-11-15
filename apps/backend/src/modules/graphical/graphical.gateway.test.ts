@@ -1,6 +1,7 @@
 import { EventEmitter } from 'node:events'
 import jwt from 'jsonwebtoken'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { configureCurrentSessionReader } from '../auth/current-session.js'
 import type { WebSocket } from 'ws'
 import type { GraphicalSessionAdapterResult, GraphicalSessionTransport } from './graphical-session.adapter.js'
 import { GraphicalSessionRuntimeRegistry } from './graphical-session-runtime.registry.js'
@@ -15,7 +16,14 @@ vi.mock('../../config/env.js', () => ({
 
 import { GraphicalGateway } from './graphical.gateway.js'
 
+beforeEach(() => {
+  configureCurrentSessionReader((userId, tenantId) => Promise.resolve(userId === 10 && tenantId === 1 ? {
+    tenantId: 1, active: true, deletedAt: null, tenantActive: true, targetTenantActive: true,
+    sessionVersion: 0, role: 'USER', isPlatformAdmin: false, canManageHosts: false, canViewLiveSessions: false,
+  } : null))
+})
 afterEach(() => {
+  configureCurrentSessionReader(undefined)
   vi.useRealTimers()
 })
 
@@ -28,6 +36,8 @@ function token() {
     isPlatformAdmin: false,
     tenantId: 1,
     canManageHosts: false,
+    canViewLiveSessions: false,
+    sessionVersion: 0,
     forcePasswordChange: false,
   }, 'test-secret')
 }
@@ -54,8 +64,8 @@ function createWs() {
 }
 
 function createGateway(
-  hostAccessProtocol: 'RDP' | 'SSH' = 'RDP',
-  adapterOpen: () => Promise<GraphicalSessionAdapterResult> = async () => ({
+  hostAccessProtocol: 'RDP' | 'VNC' | 'SSH' = 'RDP',
+  adapterOpen: () => Promise<GraphicalSessionAdapterResult> = () => Promise.resolve({
     status: 'pending' as const,
     code: 'GRAPHICAL_GATEWAY_PENDING' as const,
     message: 'Gateway gráfico em preparação',
@@ -64,7 +74,7 @@ function createGateway(
   runtimeRegistry?: GraphicalSessionRuntimeRegistry,
 ) {
   const repo = {
-    findHostWithCredentials: vi.fn(async () => ({
+    findHostWithCredentials: vi.fn(() => Promise.resolve({
       id: 20,
       name: 'srv-rdp',
       ip: '10.0.0.20',
@@ -78,19 +88,19 @@ function createGateway(
       passwordEncrypted: hostAccessProtocol === 'RDP' ? 'encrypted-password' : null,
       ...hostOverrides,
     })),
-    hasEffectiveHostPermission: vi.fn(async () => true),
-    getUserGroupIds: vi.fn(async () => [2]),
-    startSession: vi.fn(async () => 123),
-    findUserSnapshot: vi.fn(async () => ({ name: 'Admin', email: 'admin@example.com' })),
-    endSession: vi.fn(async () => undefined),
-    touchSession: vi.fn(async () => undefined),
+    hasEffectiveHostPermission: vi.fn(() => Promise.resolve(true)),
+    getUserGroupIds: vi.fn(() => Promise.resolve([2])),
+    startSession: vi.fn(() => Promise.resolve(123)),
+    findUserSnapshot: vi.fn(() => Promise.resolve({ name: 'Admin', email: 'admin@example.com' })),
+    endSession: vi.fn(() => Promise.resolve(undefined)),
+    touchSession: vi.fn(() => Promise.resolve(undefined)),
   }
   const publisher = {
-    publish: vi.fn(async () => undefined),
+    publish: vi.fn(() => Promise.resolve(undefined)),
     clearSession: vi.fn(),
   }
   const policy = {
-    shouldAuditSession: vi.fn(async () => true),
+    shouldAuditSession: vi.fn(() => Promise.resolve(true)),
   }
   const adapter = {
     open: vi.fn(adapterOpen),
@@ -200,7 +210,7 @@ describe('GraphicalGateway', () => {
     }
 
     const transport = new FakeTransport()
-    const { gateway, repo, publisher } = createGateway('RDP', async () => ({
+    const { gateway, repo, publisher } = createGateway('RDP', () => Promise.resolve({
       status: 'connected',
       code: 'GRAPHICAL_GATEWAY_CONNECTED',
       message: 'Gateway gráfico conectado',
@@ -273,7 +283,10 @@ describe('GraphicalGateway', () => {
     vi.useRealTimers()
   })
 
-  it('registers connected graphical sessions so they can be closed through the runtime registry', async () => {
+  it.each([
+    ['RDP', 'admin_closed'], ['RDP', 'acl_revoked'], ['VNC', 'acl_revoked'],
+    ['RDP', 'session_revoked'], ['VNC', 'session_revoked'],
+  ] as const)('closes %s through runtime registry with reason %s', async (protocol, reason) => {
     class FakeTransport extends EventEmitter implements GraphicalSessionTransport {
       closed = false
 
@@ -298,7 +311,7 @@ describe('GraphicalGateway', () => {
 
     const transport = new FakeTransport()
     const runtimeRegistry = new GraphicalSessionRuntimeRegistry()
-    const { gateway, repo, publisher } = createGateway('RDP', async () => ({
+    const { gateway, repo, publisher } = createGateway(protocol, () => Promise.resolve({
       status: 'connected',
       code: 'GRAPHICAL_GATEWAY_CONNECTED',
       message: 'Gateway gráfico conectado',
@@ -309,21 +322,48 @@ describe('GraphicalGateway', () => {
     await gateway.handleConnection(ws, token(), 20)
 
     expect(runtimeRegistry.has(123)).toBe(true)
-    expect(runtimeRegistry.close(123)).toBe(true)
+    expect(runtimeRegistry.close(123, reason)).toBe(true)
     await vi.waitFor(() => {
       expect(publisher.publish).toHaveBeenCalledWith('session_ended', expect.any(Object), expect.objectContaining({
-        reason: 'admin_closed',
+        reason,
         gatewayStatus: 'closed',
       }))
     })
 
     expect(transport.closed).toBe(true)
-    expect(repo.endSession).toHaveBeenCalledWith(123, { endedReason: 'admin_closed' })
+    expect(repo.endSession).toHaveBeenCalledWith(123, { endedReason: reason })
+    expect(repo.endSession).toHaveBeenCalledTimes(1)
+    expect(runtimeRegistry.close(123, reason)).toBe(false)
     expect(sent).toContainEqual({
       type: 'closed',
-      reason: 'admin_closed',
+      reason,
     })
     expect(runtimeRegistry.has(123)).toBe(false)
+  })
+
+  it.each(['identity', 'acl'] as const)('closes transport if %s is revoked during graphical adapter connection', async trigger => {
+    let reads = 0
+    configureCurrentSessionReader(() => Promise.resolve(++reads === 1 || trigger === 'acl' ? {
+      tenantId: 1, active: true, deletedAt: null, tenantActive: true, targetTenantActive: true,
+      sessionVersion: 0, role: 'USER', isPlatformAdmin: false, canManageHosts: false, canViewLiveSessions: false,
+    } : null))
+    const transport = {
+      write: vi.fn(), close: vi.fn(), onData: vi.fn(), onClose: vi.fn(), onError: vi.fn(),
+    } satisfies GraphicalSessionTransport
+    const registry = new GraphicalSessionRuntimeRegistry()
+    const { gateway, repo } = createGateway('RDP', () => Promise.resolve({
+      status: 'connected', code: 'GRAPHICAL_GATEWAY_CONNECTED', message: 'fixture', transport,
+    }), {}, registry)
+    if (trigger === 'acl') repo.hasEffectiveHostPermission.mockResolvedValueOnce(true).mockResolvedValue(false)
+    const { ws, sent } = createWs()
+    await gateway.handleConnection(ws, token(), 20)
+    expect(reads).toBe(2)
+    expect(transport.close).toHaveBeenCalledTimes(1)
+    expect(transport.write).not.toHaveBeenCalled()
+    expect(transport.onData).not.toHaveBeenCalled()
+    expect(repo.endSession).toHaveBeenCalledWith(123, { endedReason: trigger === 'identity' ? 'session_revoked' : 'acl_revoked' })
+    expect(registry.has(123)).toBe(false)
+    expect(sent).not.toContainEqual(expect.objectContaining({ type: 'graphical_gateway_connected' }))
   })
 
   it('does not reserve a graphical session for text terminal protocols', async () => {
@@ -350,7 +390,7 @@ describe('GraphicalGateway', () => {
 
     expect(repo.startSession).toHaveBeenCalled()
     expect(adapter.open).toHaveBeenCalledWith(expect.not.objectContaining({
-      rdpCredentials: expect.anything(),
+      rdpCredentials: expect.anything() as unknown,
     }))
     expect(sent).not.toContainEqual(expect.objectContaining({
       type: 'graphical_credentials_required',
@@ -398,9 +438,7 @@ describe('GraphicalGateway', () => {
   })
 
   it('ends the reserved session when the graphical adapter fails', async () => {
-    const { gateway, repo, publisher } = createGateway('RDP', async () => {
-      throw new Error('guacd unavailable')
-    })
+    const { gateway, repo, publisher } = createGateway('RDP', () => Promise.reject(new Error('guacd unavailable')))
     const { ws, sent } = createWs()
 
     await gateway.handleConnection(ws, token(), 20)

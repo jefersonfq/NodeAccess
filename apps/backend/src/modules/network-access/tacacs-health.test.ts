@@ -1,10 +1,12 @@
-import { describe, it, expect, vi } from 'vitest'
+import { afterEach, describe, it, expect, vi } from 'vitest'
+import { configureCurrentSessionReader } from '../auth/current-session.js'
 import Fastify from 'fastify'
 import jwt from '@fastify/jwt'
 import { TacacsMetrics } from './tacacs-metrics.js'
 import { tenantHealth, operationalState, requiresSupervisorRestart, type Heartbeat } from './tacacs-health.js'
 import { NetworkAccessService } from './network-access.service.js'
 import { networkAccessRoutes } from './network-access.routes.js'
+afterEach(() => configureCurrentSessionReader(undefined))
 function beat(): Heartbeat { return { observedAt: Date.now(), database: true, runtime: { listening:true, connections:0, limits:{connections:64,perSource:8,operations:32,timeoutMs:5000},accepted:0,rejected:0,requests:0,errors:0,timeouts:0,pendingOperations:0,oldestOperationMs:0,tenants:{} } } }
 describe('TACACS+ tenant diagnostics', () => {
   it('distinguishes ready, stale, database failure and capacity exhaustion', () => {
@@ -47,18 +49,23 @@ describe('TACACS+ tenant diagnostics', () => {
   })
   it('does not query monitoring for a disabled tenant; store failure is unknown, never ready', async () => {
     const read=vi.fn().mockRejectedValue(Error('Redis unavailable'))
-    const service=new NetworkAccessService({} as any,{} as any,{read})
-    vi.spyOn(service,'settings').mockResolvedValue({defaultProfile:'server_ssh',tacacsEnabled:false})
+    const service=new NetworkAccessService({} as never,{} as never,{read})
+    const settings=vi.spyOn(service,'settings').mockResolvedValue({defaultProfile:'server_ssh',tacacsEnabled:false})
     expect((await service.health(1)).status).toBe('disabled');expect(read).not.toHaveBeenCalled()
-    vi.mocked(service.settings).mockResolvedValue({defaultProfile:'server_ssh',tacacsEnabled:true})
+    settings.mockResolvedValue({defaultProfile:'server_ssh',tacacsEnabled:true})
     expect((await service.health(1)).status).toBe('unavailable')
   })
   it('requires admin and scopes health to the authenticated tenant, ignoring a supplied tenant', async () => {
-    const app=Fastify(),service=new NetworkAccessService({} as any,{} as any)
+    configureCurrentSessionReader((userId, tenantId) => Promise.resolve((userId === 1 || userId === 2) && tenantId === 7 ? {
+      tenantId: 7, role: userId === 1 ? 'ADMIN' : 'USER', active: true, deletedAt: null,
+      tenantActive: true, targetTenantActive: true, sessionVersion: 0, isPlatformAdmin: false,
+      canManageHosts: false, canViewLiveSessions: false,
+    } : null))
+    const app=Fastify(),service=new NetworkAccessService({} as never,{} as never)
     const health=vi.spyOn(service,'health').mockResolvedValue({status:'unobserved',instances:[]})
-    await app.register(jwt,{secret:'disposable-health-test-key-at-least-32'})
+    await app.register(jwt,{secret:'test-only-secret'})
     await networkAccessRoutes(app,service)
-    const auth=(role:string)=>({authorization:'Bearer '+app.jwt.sign({sub:'1',tenantId:7,role,stage:'authenticated'})})
+    const auth=(role:string)=>({authorization:'Bearer '+app.jwt.sign({sub:role==='admin'?'1':'2',tenantId:7,role,stage:'authenticated',sessionVersion:0,isPlatformAdmin:false,canManageHosts:false,canViewLiveSessions:false})})
     try{
       expect((await app.inject({url:'/health'})).statusCode).toBe(401)
       expect((await app.inject({url:'/health',headers:auth('user')})).statusCode).toBe(403)

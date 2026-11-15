@@ -2,7 +2,7 @@ import { SshSession } from './ssh.session.js'
 import { encrypt } from '../../shared/crypto.js'
 import { describe, it, expect, beforeAll, afterAll } from 'vitest'
 import { Client, type SFTPWrapper } from 'ssh2'
-import { randomUUID } from 'node:crypto'
+import { randomUUID, createHash } from 'node:crypto'
 import { EventEmitter } from 'node:events'
 import { createRequire } from 'node:module'
 import { mkdtemp, readFile, writeFile, rm } from 'node:fs/promises'
@@ -13,9 +13,9 @@ import { agentRegistry, type ActiveAgent } from '../agents/agent.registry.js'
 import { SessionFiles, SESSION_FILE_LIMIT } from './session-files.js'
 
 describe.skipIf(process.env.RUN_SFTP_REAL !== 'true')('authenticated session files on disposable OpenSSH', () => {
-  const client = new Client(); let sftp: SFTPWrapper; let files: SessionFiles; let directory: string
+  const client = new Client(); let sftp: SFTPWrapper; let files: SessionFiles; let directory: string; let fixtureFingerprint: string
   beforeAll(async () => {
-    await new Promise<void>((resolve, reject) => client.on('ready', resolve).on('error', reject).connect({ host: '127.0.0.1', port: 22283, username: 'sftptest', password: 'disposable-sftp-review', readyTimeout: 15000 }))
+    await new Promise<void>((resolve, reject) => client.on('ready', resolve).on('error', reject).connect({ host: '127.0.0.1', port: 22283, username: 'sftptest', password: 'disposable-sftp-review', readyTimeout: 15000, hostVerifier: (key: Buffer) => { fixtureFingerprint = `SHA256:${createHash('sha256').update(key).digest('base64')}`; return true } }))
     sftp = await new Promise((resolve, reject) => client.sftp((error, wrapper) => error ? reject(error) : resolve(wrapper)))
     files = new SessionFiles(sftp)
     directory = `${await files.home()}/utilities-${randomUUID()}`
@@ -57,7 +57,7 @@ describe.skipIf(process.env.RUN_SFTP_REAL !== 'true')('authenticated session fil
   it('closing utility SFTP leaves the authenticated shell alive', async () => {
     const output: string[] = []
     const session = new SshSession({ send: (data: Buffer | string) => output.push(data.toString()) }, {
-      host: '127.0.0.1', port: 22283, username: 'sftptest', authType: 'PASSWORD', passwordEncrypted: JSON.stringify(encrypt('disposable-sftp-review')),
+      trustedHostKeyFingerprint: fixtureFingerprint, host: '127.0.0.1', port: 22283, username: 'sftptest', authType: 'PASSWORD', passwordEncrypted: JSON.stringify(encrypt('disposable-sftp-review')),
     })
     try {
       await session.connect()

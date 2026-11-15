@@ -10,7 +10,7 @@ function replyHarness() {
     send: vi.fn(),
   }
   reply.status.mockReturnValue(reply)
-  reply.send.mockImplementation((value) => value)
+  reply.send.mockImplementation((value: unknown) => value)
   return reply
 }
 
@@ -56,5 +56,19 @@ describe('AuthController credential rate-limit dimensions', () => {
     })
     expect(rateLimit.check.mock.invocationCallOrder[0])
       .toBeLessThan(auth.logout.mock.invocationCallOrder[0] ?? Number.MAX_SAFE_INTEGER)
+  })
+})
+
+describe('AuthController global logout identity', () => {
+  it.each([
+    { tenantId: 1, sessionVersion: 2 },
+    { tenantId: 9, platformTenantId: 1, actingTenantId: 9, impersonatedByUserId: 7, sessionVersion: 2 },
+  ])('revokes the authenticated home principal after guard validation: %o', async identity => {
+    const auth = { logoutAll: vi.fn().mockResolvedValue(undefined) }
+    const controller = new AuthController(auth as never, {} as never)
+    const reply = replyHarness()
+    await controller.logoutAll({ jwtUser: { sub: '7', ...identity } } as never, reply as never)
+    expect(auth.logoutAll).toHaveBeenCalledWith(7, 1, 2)
+    expect(reply.status).toHaveBeenCalledWith(204)
   })
 })

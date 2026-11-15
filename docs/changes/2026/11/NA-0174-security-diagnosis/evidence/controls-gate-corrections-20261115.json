@@ -1,0 +1,66 @@
+{
+  "at": "2026-11-15T15:23:51-03:00",
+  "based_on_head": "ce7a31fda88ec0d19500286af7e6c9f037e48f79",
+  "working_tree_changes": true,
+  "vitest": {
+    "passed": 3782,
+    "failed": 0,
+    "skipped": 124
+  },
+  "collector_contracts": {
+    "passed": 34,
+    "failed": 0
+  },
+  "independent_focal": {
+    "passed": 81,
+    "failed": 0,
+    "lint": "PASS"
+  },
+  "user_repository_focal": {
+    "passed": 13,
+    "failed": 0,
+    "lint": "PASS"
+  },
+  "first_corrected_collection": {
+    "passed": false,
+    "reason": [
+      "TLS live fixture lacked current-session reader",
+      "Sources changed during browser collection while fixing that fixture"
+    ],
+    "diagnostic_diff_coverage_percent": 84.40111420612813,
+    "not_approval": true
+  },
+  "tls_corrected_focal": {
+    "passed": 3,
+    "failed": 0,
+    "checks": [
+      "live",
+      "health",
+      "soak",
+      "watchdog"
+    ],
+    "requests": 608,
+    "python_lines_covered": 89,
+    "python_lines_total": 102,
+    "isolated": true,
+    "cleanup_verified": true,
+    "source": "tools/network-access/live.mjs",
+    "sha256": "95dc205c408d3c4e648556c917ce6937825e22eaca48e26fdec5ab328ce1ceb2"
+  },
+  "remote_ce7": {
+    "run": 43744130661,
+    "status": "failure",
+    "new_violations": 0,
+    "hotspots": 0,
+    "diff_coverage_percent": 76.0961810466761
+  },
+  "thresholds_rules_or_baselines_changed": false,
+  "next": "Full local Sonar and remote CI on corrective commit",
+  "frozen_browser": {
+    "passed": true,
+    "harnesses": 10,
+    "duration_seconds": 329.5
+  },
+  "manual_reviewed": "PASS",
+  "security_catalog": "PASS"
+}

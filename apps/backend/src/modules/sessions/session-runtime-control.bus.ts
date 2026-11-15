@@ -12,7 +12,7 @@ interface CloseSessionRequest {
   type: 'session_close_request'
   requestId: string
   sessionId: number
-  reason: 'admin_closed' | 'acl_revoked'
+  reason: 'admin_closed' | 'acl_revoked' | 'session_revoked'
   requestedAt: string
 }
 
@@ -37,14 +37,14 @@ export class SessionRuntimeControlBus {
   async closeSession(
     sessionId: number,
     timeoutMs = DEFAULT_TIMEOUT_MS,
-    reason: 'admin_closed' | 'acl_revoked' = 'admin_closed',
+    reason: 'admin_closed' | 'acl_revoked' | 'session_revoked' = 'admin_closed',
   ): Promise<{ closed: boolean; handledByRuntime: boolean }> {
     const requestId = randomUUID()
     const subscriber = this.redis.duplicate()
 
     return new Promise((resolve) => {
       let settled = false
-      const finish = (result: { closed: boolean; handledByRuntime: boolean }) => {
+      const finish = (result: { closed: boolean; handledByRuntime: boolean }): void => {
         if (settled) return
         settled = true
         clearTimeout(timer)
@@ -64,13 +64,19 @@ export class SessionRuntimeControlBus {
       })
       subscriber.on('message', (_channel, raw) => {
         const response = parseResponse(raw)
-        if (!response || response.requestId !== requestId) return
+        if (!response || response.requestId !== requestId || response.sessionId !== sessionId) return
+        // A peer without the runtime cannot speak for the owner. Wait for its ACK.
+        if (!response.closed || !response.handledByRuntime) return
         finish({ closed: response.closed, handledByRuntime: response.handledByRuntime })
       })
 
       subscriber.connect()
-        .then(() => subscriber.subscribe(RESPONSE_CHANNEL))
         .then(() => {
+          if (settled) { subscriber.disconnect(); return }
+          return subscriber.subscribe(RESPONSE_CHANNEL)
+        })
+        .then(() => {
+          if (settled) return
           const request: CloseSessionRequest = {
             type: 'session_close_request',
             requestId,
@@ -114,8 +120,13 @@ export class SessionRuntimeControlBus {
     const request = parseRequest(raw)
     if (!request) return
 
-    const closed = this.sshRuntimeRegistry.close(request.sessionId, request.reason)
-      || this.graphicalRuntimeRegistry.close(request.sessionId, request.reason)
+    let closed = false
+    try {
+      closed = this.sshRuntimeRegistry.close(request.sessionId, request.reason)
+        || this.graphicalRuntimeRegistry.close(request.sessionId, request.reason)
+    } catch (err) {
+      logger.warn({ err, sessionId: request.sessionId }, 'Falha ao encerrar runtime de sessão')
+    }
     const response: CloseSessionResponse = {
       type: 'session_close_response',
       requestId: request.requestId,
@@ -140,7 +151,7 @@ function parseRequest(raw: string): CloseSessionRequest | null {
       type: 'session_close_request',
       requestId: value.requestId,
       sessionId: Number(value.sessionId),
-      reason: value.reason === 'acl_revoked' ? 'acl_revoked' : 'admin_closed',
+      reason: value.reason === 'acl_revoked' ? 'acl_revoked' : value.reason === 'session_revoked' ? 'session_revoked' : 'admin_closed',
       requestedAt: typeof value.requestedAt === 'string' ? value.requestedAt : new Date().toISOString(),
     }
   } catch {

@@ -335,6 +335,10 @@ export class UserService {
         changedAt: new Date().toISOString(),
       }).catch(() => { /* best-effort realtime */ })
     }
+    if (updated.sessionVersion !== user.sessionVersion) {
+      await this.appEventBus?.publish({ type: 'user_sessions_revoked', tenantId, userId: id,
+        sessionVersion: updated.sessionVersion, reason: 'permissions_changed', changedAt: new Date().toISOString() })
+    }
     const canViewLiveSessions = dto.canViewLiveSessions ?? await this.userRepo.canViewLiveSessions(id)
     const avatar = await this.userRepo.findAvatarMetadata(id, tenantId)
     return toPublic(withAvatarMetadata(updated, avatar?.avatarUpdatedAt), groupIds, canViewLiveSessions)
@@ -354,6 +358,12 @@ export class UserService {
     }
 
     await this.userRepo.setActive(id, active)
+    if (!active && this.appEventBus) {
+      const sessionVersion = await this.userRepo.findSessionVersion(id, tenantId)
+      if (sessionVersion === null) throw new NotFoundError('Usuário')
+      await this.appEventBus.publish({ type: 'user_sessions_revoked', tenantId, userId: id,
+        sessionVersion, reason: 'user_deactivated', changedAt: new Date().toISOString() })
+    }
     if (adminId) {
       const action = active ? 'ACTIVATE_USER' : 'DEACTIVATE_USER'
       await this.userRepo.logAdminEvent({ adminId, action, targetType: 'User', targetId: id }).catch(() => { /* best-effort */ })

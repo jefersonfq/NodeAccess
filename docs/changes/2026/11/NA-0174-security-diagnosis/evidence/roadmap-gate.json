@@ -1,0 +1,10 @@
+{
+  "at": "2026-11-14T23:23:51-03:00",
+  "updated": [
+    "META-051",
+    "META-054"
+  ],
+  "original_and_unrelated_members_preserved": true,
+  "before_sha256": "d4db2d47af21c1ff343003fda6dd981b8695791346e3039c36f5af38600e2f15",
+  "after_sha256": "dc4b1119252e55748a7f318cc70f80823942de16d4a42ecb0ce19d0944e9d0e0"
+}

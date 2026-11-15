@@ -1,0 +1,140 @@
+{
+  "sourceSha": "0b68abaf301e72b2fd4820b47876457a5b8915d3",
+  "at": "2026-11-15T01:31:45.686Z",
+  "boundary": "real product service to real loopback SSH/SFTP; synthetic repository and tenant; not REST/UI E2E",
+  "cases": [
+    {
+      "case": "tunnel_target_match",
+      "operation": true
+    },
+    {
+      "case": "tunnel_target_mismatch",
+      "rejected": true,
+      "authentication": false
+    },
+    {
+      "case": "sftp_target_match",
+      "operation": true
+    },
+    {
+      "case": "sftp_target_mismatch",
+      "operation": true,
+      "authentication": true,
+      "expectedSecurityOutcome": "reject",
+      "findingReproduced": true
+    },
+    {
+      "case": "sftp_acl_denied",
+      "rejected": true,
+      "authentication": false
+    },
+    {
+      "case": "sftp_bastion_and_target_mismatch",
+      "operation": true,
+      "targetAuthentication": true,
+      "bastionAuthentication": true,
+      "findingReproduced": true
+    },
+    {
+      "case": "tunnel_bastion_no_verifier_target_match",
+      "operation": true,
+      "bastionAuthentication": true,
+      "findingReproduced": true,
+      "limitation": "caller supplies bastion config without verifier as product builder does; no REST/UI request"
+    },
+    {
+      "case": "tunnel_bastion_explicit_verifier_reject",
+      "rejected": true,
+      "bastionAuthentication": false
+    },
+    {
+      "case": "native_acl_revocation",
+      "fullNativeSshLogin": true,
+      "realTargetShell": true,
+      "realRedisEvent": true,
+      "syntheticRepository": true,
+      "registeredRuntime": false,
+      "revocationAudit": {
+        "tenantId": 1,
+        "inventoryNodeId": 1,
+        "hostId": 1,
+        "userId": 1,
+        "principalType": "USER",
+        "principalId": 1,
+        "aclAction": "delete",
+        "closed": false,
+        "handledByRuntime": false
+      },
+      "postRevocationCommandAccepted": true,
+      "newChannelDenied": true,
+      "sessionEndedBeforeCleanup": false,
+      "findingReproduced": true
+    },
+    {
+      "case": "distributed_non_owner_first",
+      "iterations": 10,
+      "falseReturns": 8,
+      "physicalSshConnectionsClosed": 10,
+      "realRedis": true,
+      "realSsh": true,
+      "ownerAndNonOwnerActualBuses": true,
+      "negativeResponses": 10,
+      "positiveResponses": 10,
+      "findingReproduced": true,
+      "limitation": "same-process bus instances over real Redis, natural response scheduling; no multi-host deployment"
+    }
+  ],
+  "cleanup": {
+    "serversClosed": true,
+    "socketCount": 0,
+    "container": "na0174-e2e-redis",
+    "removed": true,
+    "persistentVolumesCreated": false,
+    "ephemeralHostKeyRemoved": true,
+    "remainingProbeContainers": []
+  },
+  "commands": {
+    "exit": 0,
+    "redisImage": "sha256:fdd7c467318565990fdbe9959d27f0977e295f799dffc36dd5814b03184adc1a",
+    "command": "vitest run --config .tmp/NA-0174-e2e/vitest.config.mjs",
+    "sourceSha": "0b68abaf301e72b2fd4820b47876457a5b8915d3"
+  },
+  "sourceFiles": {
+    "apps/backend/src/modules/sftp/sftp.service.ts": "534ded6c82a910332bc4b11184bf4712183fa80c3327c8abce8f56d8785dd829",
+    "apps/backend/src/modules/tunnels/tunnel-ssh-connection.ts": "2009630a585046c64b9e9bb107c1a3d3dbd91e70c1579e6ff12e8d9ca3d11b8d",
+    "apps/backend/src/modules/native-ssh-gateway/native-ssh-gateway.service.ts": "775d618eaeece1699dd99a3fadf34f1a908b1ccc1f3d624238fcd1ecad31a308",
+    "apps/backend/src/modules/ssh/managed-ssh-session.service.ts": "b48412ad198e2e6359db79f16403ec92ac2ab464b4517a40df92caf9cb75cf5b",
+    "apps/backend/src/modules/ssh/ssh-session-runtime.registry.ts": "e9e7f203e457fac2d026b644983aade53a7bd1b3b5ad056918554816a054e3bf",
+    "apps/backend/src/modules/ssh/ssh.session.ts": "02912fae074f60cd03211ea37b92bddc7cd74db2d264b6ed9cb8a76c8254db93",
+    "apps/backend/src/modules/sessions/session-runtime-control.bus.ts": "037048ba40c9a0dae97b55807a9f745ff2a242bf0bc502170a8c1fb7eeceb92c",
+    "apps/backend/src/modules/inventory/inventory-acl-session-revocation.service.ts": "1375e7cf13ba0f52a968b50adb8e0e2f69a99e3b50461ef66ff826d224343232",
+    "apps/backend/src/modules/app-events/app-event.bus.ts": "37b8747ab3ace7b95ff586324b7f90db8e35d0593027099d663035a5c091aa1b"
+  },
+  "harnessSha256": "a1d147643c1e3cd8beea6d67bee9b6e865b15c22841a7d9011f187a510860be2",
+  "limitations": [
+    "Repository/user/host/ACL/session persistence are synthetic in-memory adapters; no MySQL persistence or REST/UI authorization tested.",
+    "Native gateway executes real bcrypt login for fixture with MFA disabled; MFA itself is outside this case.",
+    "SSH, SFTP, Redis pubsub, native gateway, managed session, ACL revocation service and runtime control bus are real.",
+    "Bastion tunnel reproduction passes config equivalent to production builder, without invoking entire TunnelService/controller.",
+    "Distributed response race uses two actual bus instances in one process over real Redis, not two deployment hosts.",
+    "Tests assert observed behavior to reproduce findings; 10 passing tests do not mean security controls passed.",
+    "Early fixture/import/readiness failures preserved in logs; final run exit0."
+  ],
+  "result": "REPRODUCED_WITH_LIMITATIONS",
+  "tests": {
+    "passed": 10,
+    "failed": 0
+  },
+  "sourceMatchesHead": {
+    "apps/backend/src/modules/sftp/sftp.service.ts": true,
+    "apps/backend/src/modules/tunnels/tunnel-ssh-connection.ts": true,
+    "apps/backend/src/modules/native-ssh-gateway/native-ssh-gateway.service.ts": true,
+    "apps/backend/src/modules/ssh/managed-ssh-session.service.ts": true,
+    "apps/backend/src/modules/ssh/ssh-session-runtime.registry.ts": true,
+    "apps/backend/src/modules/ssh/ssh.session.ts": true,
+    "apps/backend/src/modules/sessions/session-runtime-control.bus.ts": true,
+    "apps/backend/src/modules/inventory/inventory-acl-session-revocation.service.ts": true,
+    "apps/backend/src/modules/app-events/app-event.bus.ts": true
+  },
+  "workspaceLimitation": "Parent working concurrently on Docker/docs fixes; all nine exercised runtime source files hash-equal to identified SHA. Worktree is not globally clean."
+}

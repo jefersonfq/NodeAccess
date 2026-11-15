@@ -1,3 +1,4 @@
+import type { CurrentSessionState } from '../auth/current-session.js'
 import { withUserSlot } from '../../shared/user-quota.js'
 import { Prisma, type PrismaClient, type User, type Tenant, type AuthEventType } from '@prisma/client'
 
@@ -309,21 +310,20 @@ export class UserRepository {
       groupIds?: number[]
     },
   ): Promise<User> {
-    const { groupIds, canViewLiveSessions, ...rest } = data
-    const user = await this.db.user.update({
-      where: { id },
-      data: {
+    const { groupIds, ...rest } = data
+    return this.db.$transaction(async (tx) => {
+      // Serialize privilege edits, so concurrent no-op checks cannot miss a revocation.
+      await tx.$queryRaw`SELECT id FROM users WHERE id = ${id} FOR UPDATE`
+      const previous = await tx.user.findUniqueOrThrow({ where: { id } })
+      const revoke = (data.role !== undefined && data.role !== previous.role)
+        || (data.canManageHosts !== undefined && data.canManageHosts !== previous.canManageHosts)
+        || (data.canViewLiveSessions !== undefined && data.canViewLiveSessions !== previous.canViewLiveSessions)
+      return tx.user.update({ where: { id }, data: {
         ...rest,
-        ...(groupIds !== undefined && {
-          groups: {
-            deleteMany: {},
-            create: groupIds.map((groupId) => ({ groupId })),
-          },
-        }),
-      },
+        ...(revoke && { sessionVersion: { increment: 1 } }),
+        ...(groupIds !== undefined && { groups: { deleteMany: {}, create: groupIds.map(groupId => ({ groupId })) } }),
+      } })
     })
-    if (canViewLiveSessions !== undefined) await this.setCanViewLiveSessions(id, canViewLiveSessions)
-    return user
   }
 
   async setCanViewLiveSessions(id: number, value: boolean): Promise<void> {
@@ -350,6 +350,19 @@ export class UserRepository {
     `
   }
 
+  async findCurrentSessionState(userId: number, targetTenantId: number): Promise<CurrentSessionState | null> {
+    const user = await this.db.user.findUnique({ where: { id: userId }, select: {
+      tenantId: true, active: true, deletedAt: true, sessionVersion: true, role: true,
+      isPlatformAdmin: true, canManageHosts: true, canViewLiveSessions: true,
+      tenant: { select: { active: true } },
+    } })
+    if (!user) return null
+    const targetTenantActive = user.tenantId === targetTenantId ? user.tenant.active
+      : !!(await this.db.tenant.findUnique({ where: { id: targetTenantId }, select: { active: true } }))?.active
+    const { tenant, ...state } = user
+    return { ...state, tenantActive: tenant.active, targetTenantActive }
+  }
+
   async findSessionVersion(id: number, tenantId: number): Promise<number | null> {
     const rows = await this.db.$queryRaw<Array<{ sessionVersion: number }>>`
       SELECT session_version AS sessionVersion
@@ -362,16 +375,17 @@ export class UserRepository {
     return rows[0]?.sessionVersion ?? null
   }
 
-  async incrementSessionVersion(id: number, tenantId: number): Promise<number | null> {
+  async incrementSessionVersion(id: number, tenantId: number, expectedVersion: number): Promise<number | null> {
     const changed = await this.db.$executeRaw`
       UPDATE users
       SET session_version = session_version + 1
       WHERE id = ${id}
         AND tenant_id = ${tenantId}
         AND deleted_at IS NULL
+        AND session_version = ${expectedVersion}
     `
     if (changed !== 1) return null
-    return this.findSessionVersion(id, tenantId)
+    return expectedVersion + 1
   }
 
   async setForcePasswordChange(id: number, value: boolean): Promise<void> {

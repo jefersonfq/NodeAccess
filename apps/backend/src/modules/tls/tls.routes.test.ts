@@ -1,10 +1,30 @@
-import {describe,it,expect,vi} from 'vitest'
+import {afterEach,describe,it,expect,vi} from 'vitest'
+import {configureCurrentSessionReader} from '../auth/current-session.js'
 import {randomUUID} from 'node:crypto'
 import Fastify from 'fastify'
 import jwt from '@fastify/jwt'
 import {tlsRoutes} from './tls.routes.js'
 import {AppError} from '../../shared/errors.js'
-async function fixture(){const app=Fastify();await app.register(jwt,{secret:'tls-test-secret-only'});const client={request:vi.fn(()=>Promise.resolve({id:'job',status:'running'}))},db={tlsAuditEvent:{findMany:vi.fn(()=>Promise.resolve([]))},adminLog:{create:vi.fn(()=>Promise.resolve({}))}};app.setErrorHandler((error: Error & { statusCode?: number },_req,reply)=>reply.code(error.statusCode||500).send({message:error.message}));await tlsRoutes(app,{db:db as never,client});return {app,client,db,token:(extra={})=>app.jwt.sign({sub:'1',role:'admin',isPlatformAdmin:true,tenantId:1,stage:'authenticated',...extra})}}
+afterEach(()=>configureCurrentSessionReader(undefined))
+async function fixture(){
+ configureCurrentSessionReader((userId,targetTenantId)=>Promise.resolve([1,2,3].includes(userId)&&[1,2].includes(targetTenantId)?{
+  tenantId:1,role:userId===3?'USER':'ADMIN',isPlatformAdmin:userId===1,active:true,deletedAt:null,
+  tenantActive:true,targetTenantActive:true,sessionVersion:0,canManageHosts:userId===1,canViewLiveSessions:userId===1,
+ }:null))
+ const app=Fastify();await app.register(jwt,{secret:'tls-test-secret-only'})
+ const client={request:vi.fn(()=>Promise.resolve({id:'job',status:'running'}))},db={tlsAuditEvent:{findMany:vi.fn(()=>Promise.resolve([]))},adminLog:{create:vi.fn(()=>Promise.resolve({}))}}
+ app.setErrorHandler((error: Error & { statusCode?: number },_req,reply)=>reply.code(error.statusCode||500).send({message:error.message}))
+ await tlsRoutes(app,{db:db as never,client})
+ const token=(extra:Record<string,unknown>={})=>{
+  const platform=extra.isPlatformAdmin!==false
+  const delegated=extra.actingTenantId===2
+  return app.jwt.sign({sub:extra.role==='user'?'3':platform?'1':'2',role:'admin',isPlatformAdmin:platform,
+   tenantId:1,stage:'authenticated',sessionVersion:0,canManageHosts:platform,canViewLiveSessions:platform,
+   ...extra,...(delegated?{tenantId:2,platformTenantId:1,actingTenantId:2,impersonatedByUserId:1}:{}),
+  })
+ }
+ return {app,client,db,token}
+}
 describe('TLS platform boundary',()=>{
  it.each([{role:'user',isPlatformAdmin:false},{role:'admin',isPlatformAdmin:false},{actingTenantId:2}])('blocks non-platform or delegated identity %j',async claims=>{const {app,token,client}=await fixture();try{for(const url of ['/status','/alerts','/audit','/operations/'+randomUUID()])expect((await app.inject({url,headers:{authorization:`Bearer ${token(claims)}`}})).statusCode).toBe(403);expect((await app.inject({method:'POST',url:'/operations',headers:{authorization:`Bearer ${token(claims)}`},payload:{requestId:randomUUID(),action:'check'}})).statusCode).toBe(403);expect(client.request).not.toHaveBeenCalled()}finally{await app.close()}})
  it('requires authentication',async()=>{const {app}=await fixture();try{expect((await app.inject('/status')).statusCode).toBe(401)}finally{await app.close()}})

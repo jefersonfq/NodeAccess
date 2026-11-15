@@ -1,0 +1,39 @@
+{
+  "head": "ce7a31fda88ec0d19500286af7e6c9f037e48f79",
+  "pr": "https://github.com/jefersonfq/NodeAccess/pull/64",
+  "local_sonar": {
+    "head": "ce7a31fda88ec0d19500286af7e6c9f037e48f79",
+    "exit_code": 1,
+    "duration_seconds": 686.5,
+    "log": "/home/jeferson/projects/NodeAccess-current/.tmp/NA-0174-controls/sonar-1794765303.log",
+    "checkout_unchanged": true,
+    "report": "/home/jeferson/NodeAccess-NA-0174/.sonar-reports/validation-1794765303988-88da7865-b692-430d-ae66-8773c74e380f/validation.json",
+    "passed": false,
+    "failures": [
+      "TESTS_OR_COVERAGE_FAILED",
+      "SCANNER_OR_GATE_FAILED",
+      "QUALITY_GATE_NOT_OK"
+    ],
+    "warnings": [],
+    "analysisVerified": true,
+    "reviewsVerified": true
+  },
+  "sonar_new_violations": 0,
+  "sonar_hotspots_to_review": 0,
+  "sonar_new_coverage": 76.2,
+  "threshold": 80,
+  "ci_upgrade_restore_images": {
+    "run": 43744130624,
+    "status": "success",
+    "images_passed": 7,
+    "production_deployed": false
+  },
+  "corrective_actions": [
+    "Clean PATH for trusted executable resolution",
+    "Compare rendered review date to current public catalog",
+    "Include self-contained loopback SSH/SFTP/tunnel tests in shared Vitest coverage collector",
+    "Add repository privilege/CAS and native admission/late runtime bus behavior tests"
+  ],
+  "thresholds_or_baselines_changed": false,
+  "homologation": "pending"
+}

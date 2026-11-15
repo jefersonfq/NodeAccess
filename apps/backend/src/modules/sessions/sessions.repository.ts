@@ -397,6 +397,16 @@ export class SessionsRepository {
     `)
   }
 
+  /** Revocation belongs to the principal's home tenant, including delegated target sessions. */
+  async findActiveAuthenticatedByPrincipal(authTenantId: number, userId: number): Promise<Array<{ id: number }>> {
+    return this.db.$queryRaw<Array<{ id: number }>>`
+      SELECT s.id FROM sessions s
+      INNER JOIN users u ON u.id = s.user_id AND u.tenant_id = ${authTenantId}
+      WHERE s.user_id = ${userId} AND s.active = true
+        AND COALESCE(s.access_type, 'authenticated') = 'authenticated'
+    `
+  }
+
   /** Encerra TODAS as sessões ativas globalmente (usado no startup do gateway). */
   async endAllActive(): Promise<number> {
     const result = await this.db.session.updateMany({

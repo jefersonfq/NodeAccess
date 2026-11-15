@@ -18,7 +18,7 @@ describe('SshRepository host-backed bastion credentials', () => {
     const query = vi.fn()
       .mockResolvedValueOnce([{ privateAccessConnectorId: null, deviceProfile: 'cisco_ios' }])
       .mockResolvedValueOnce([{
-        ip: '203.0.113.21', port: 22, sshUser: 'ubuntu', authType: 'PEM',
+        id: 99, trustedHostKeyFingerprint: 'SHA256:source', ip: '203.0.113.21', port: 22, sshUser: 'ubuntu', authType: 'PEM',
         passwordEncrypted: null, encryptedKey: 'cipher', iv: 'iv',
         encryptedPassphrase: 'pass-cipher', passphraseIv: 'pass-iv',
       }])
@@ -31,14 +31,14 @@ describe('SshRepository host-backed bastion credentials', () => {
     const result = await repository.findHostWithCredentials(5, 7)
     expect(result?.deviceProfile).toBe('cisco_ios')
     expect(result?.bastion).toEqual({
-      id: 31, passwordSecretId: null,
+      id: 31, passwordSecretId: null, sourceHostId: 99, trustedHostKeyFingerprint: 'SHA256:source',
       ip: '203.0.113.21', port: 22, sshUser: 'ubuntu', authType: 'PEM',
       passwordEncrypted: null,
       pemKey: { encryptedKey: 'cipher', iv: 'iv', encryptedPassphrase: 'pass-cipher', passphraseIv: 'pass-iv' },
     })
   })
 
-  it('keeps the legacy bastion snapshot when there is no source Host', async () => {
+  it('rejects legacy bastion without a trusted source Host', async () => {
     const query = vi.fn()
       .mockResolvedValueOnce([{ privateAccessConnectorId: null }])
       .mockResolvedValueOnce([])
@@ -48,7 +48,6 @@ describe('SshRepository host-backed bastion credentials', () => {
       $queryRaw: query,
     } as never)
 
-    const result = await repository.findHostWithCredentials(5, 7)
-    expect(result?.bastion).toMatchObject({ ip: 'snapshot.invalid', port: 2200, sshUser: 'old-user', passwordEncrypted: 'old-secret' })
+    await expect(repository.findHostWithCredentials(5, 7)).rejects.toMatchObject({ code: 'BASTION_HOST_KEY_SOURCE_REQUIRED' })
   })
 })

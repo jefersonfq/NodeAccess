@@ -6,7 +6,7 @@ vi.hoisted(() => {
   process.env.DATABASE_URL ||= 'mysql://user:pass@127.0.0.1:3306/nodeaccess_test'
   process.env.REDIS_URL ||= 'redis://127.0.0.1:6379'
   process.env.JWT_SECRET ||= 'test-jwt-secret-with-at-least-32-chars'
-  process.env.PEM_ENCRYPTION_KEY ||= '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef'
+  process.env.PEM_ENCRYPTION_KEY ||= '00'.repeat(32)
   process.env.NODE_ENV ||= 'test'
 })
 
@@ -55,10 +55,7 @@ function makeHarness(options: {
     isPlatformAdmin: vi.fn().mockResolvedValue(false),
     canViewLiveSessions: vi.fn().mockResolvedValue(false),
     findAvatarMetadata: vi.fn().mockResolvedValue(null),
-    findSessionVersion: vi.fn().mockImplementation(async () => {
-      if (!user) return null
-      return (user as User & { sessionVersion?: number }).sessionVersion ?? 0
-    }),
+    findSessionVersion: vi.fn().mockImplementation(() => Promise.resolve(user ? (user as User & { sessionVersion?: number }).sessionVersion ?? 0 : null)),
     incrementSessionVersion: vi.fn().mockResolvedValue(1),
   }
   const redis = {
@@ -159,7 +156,7 @@ describe('AuthService refresh token tenant isolation', () => {
       canRefresh: true,
     })
 
-    await expect(service.refresh(refreshToken)).resolves.toMatchObject({ accessToken: expect.any(String) })
+    expect((await service.refresh(refreshToken)).accessToken).toEqual(expect.any(String))
     expect(policy?.canRefreshSession).toHaveBeenCalledWith(7, 'refresh@example.test', 'oidc')
     expect(redis.del).not.toHaveBeenCalled()
   })
@@ -181,7 +178,7 @@ describe('AuthService refresh token tenant isolation', () => {
     delete legacyPayload.exp
     const legacyToken = jwt.sign(legacyPayload, env.JWT_SECRET, { expiresIn: '5m' })
 
-    await expect(service.refresh(legacyToken)).resolves.toMatchObject({ accessToken: expect.any(String) })
+    expect((await service.refresh(legacyToken)).accessToken).toEqual(expect.any(String))
   })
 
   it('increments the scoped user session version when signing out from every device', async () => {
@@ -189,7 +186,7 @@ describe('AuthService refresh token tenant isolation', () => {
 
     await service.logoutAll(42, 7, 0)
 
-    expect(userRepo.incrementSessionVersion).toHaveBeenCalledWith(42, 7)
+    expect(userRepo.incrementSessionVersion).toHaveBeenCalledWith(42, 7, 0)
   })
 
   it('rejects repeated global logout from an access token with an older session version', async () => {
@@ -200,4 +197,11 @@ describe('AuthService refresh token tenant isolation', () => {
     await expect(service.logoutAll(42, 7, 0)).rejects.toBeInstanceOf(UnauthorizedError)
     expect(userRepo.incrementSessionVersion).not.toHaveBeenCalled()
   })
+  it('rejects a logout-all that loses the atomic version comparison', async () => {
+    const { service, userRepo } = makeHarness()
+    userRepo.incrementSessionVersion.mockResolvedValueOnce(null)
+    await expect(service.logoutAll(42, 7, 0)).rejects.toBeInstanceOf(UnauthorizedError)
+    expect(userRepo.incrementSessionVersion).toHaveBeenCalledWith(42, 7, 0)
+  })
+
 })

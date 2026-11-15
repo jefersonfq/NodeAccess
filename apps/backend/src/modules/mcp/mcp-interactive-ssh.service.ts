@@ -1,6 +1,7 @@
+import { createHostKeyVerifier, type HostKeyVerificationError, type SshHostKeyStep } from '../../shared/ssh-host-key.js'
 import { assertTrialCapability, assertTrialHostAccess, assertTrialUserAccess, monitorTrialAccess } from '../trials/trial-policy.js'
 import { deviceCapabilities } from '@nodeaccess/shared'
-import { randomUUID, createHash } from 'node:crypto'
+import { randomUUID } from 'node:crypto'
 import type { Duplex } from 'node:stream'
 import { Prisma, type PrismaClient } from '@prisma/client'
 import { Client, type ConnectConfig } from 'ssh2'
@@ -91,15 +92,17 @@ export class McpInteractiveSshService {
       }
 
       const resolved = await this.resolveHostCredentials(host)
-      const targetConfig = this.buildConnectConfig(resolved.target, true)
-      const bastionConfig = resolved.bastion ? this.buildConnectConfig(resolved.bastion, false) : null
+      let verificationError: HostKeyVerificationError | null = null
+      const rememberVerification = (error: HostKeyVerificationError | null): void => { verificationError = error }
+      const targetConfig = this.buildConnectConfig(resolved.target, 'target', rememberVerification)
+      const bastionConfig = resolved.bastion ? this.buildConnectConfig(resolved.bastion, 'bastion', rememberVerification) : null
       const trialSessionId = trial ? await this.sshRepository.startSession(Number(user.sub), host.id, { connectionMethod: 'direct', routeSnapshot: { trialResource: 'mcp_interactive' } }, user.tenantId) : undefined
       let connection
       try { connection = bastionConfig
         ? await this.connectViaBastion(targetConfig, bastionConfig)
         : await this.connectDirect(targetConfig) } catch (error) {
         if (trialSessionId) await this.sshRepository.endSession(trialSessionId).catch(() => {})
-        throw error
+        throw verificationError ?? error
       }
 
       try {
@@ -386,7 +389,7 @@ export class McpInteractiveSshService {
     pemKey: { encryptedKey: string; iv: string; encryptedPassphrase?: string | null; passphraseIv?: string | null } | null
     trustedHostKeyFingerprint?: string | null
     sock?: Duplex
-  }, verifyHostKey: boolean): ConnectConfig {
+  }, step: SshHostKeyStep, onVerification: (error: HostKeyVerificationError | null) => void): ConnectConfig {
     const config: ConnectConfig = {
       host: creds.ip,
       port: creds.port,
@@ -396,12 +399,7 @@ export class McpInteractiveSshService {
       ...(creds.sock ? { sock: creds.sock } : {}),
     }
 
-    if (verifyHostKey) {
-      config.hostVerifier = (key: Buffer): boolean => {
-        const fingerprint = `SHA256:${createHash('sha256').update(key).digest('base64')}`
-        return !!creds.trustedHostKeyFingerprint && creds.trustedHostKeyFingerprint === fingerprint
-      }
-    }
+    config.hostVerifier = createHostKeyVerifier(creds.trustedHostKeyFingerprint, step, onVerification)
 
     if ((creds.authType === 'PASSWORD' || creds.authType === 'PEM_PASSWORD') && creds.passwordEncrypted) {
       const payload = JSON.parse(creds.passwordEncrypted) as EncryptedPayload

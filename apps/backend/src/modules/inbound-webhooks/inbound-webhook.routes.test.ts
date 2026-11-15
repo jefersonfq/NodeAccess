@@ -1,3 +1,6 @@
+import { configureCurrentSessionReader } from '../auth/current-session.js'
+import { afterEach } from 'vitest'
+afterEach(() => configureCurrentSessionReader(undefined))
 import Fastify from 'fastify'
 import jwt from '@fastify/jwt'
 import { beforeEach, describe, it, expect, vi } from 'vitest'
@@ -5,6 +8,7 @@ import { inboundWebhookRoutes } from './inbound-webhook.routes.js'
 import { InboundWebhookController } from './inbound-webhook.controller.js'
 
 async function setup() {
+  configureCurrentSessionReader((id, tenantId) => Promise.resolve((id === 1 || id === 2) && tenantId === 7 ? { tenantId: 7, active: true, deletedAt: null, tenantActive: true, targetTenantActive: true, sessionVersion: 0, role: id === 1 ? 'ADMIN' : 'USER', isPlatformAdmin: false, canManageHosts: false, canViewLiveSessions: false } : null))
   const app = Fastify()
   await app.register(jwt, { secret: 'webhooks-test-only-secret' })
   const service = {
@@ -13,7 +17,7 @@ async function setup() {
   }
   await app.register(async scope => inboundWebhookRoutes(scope, new InboundWebhookController(service as never)), { prefix: '/inbound-webhooks' })
   await app.ready()
-  const auth = (role = 'admin') => ({ authorization: `Bearer ${app.jwt.sign({ sub: '1', tenantId: 7, role, stage: 'authenticated' })}` })
+  const auth = (role = 'admin') => ({ authorization: `Bearer ${app.jwt.sign({ sub: role === 'admin' ? '1' : '2', tenantId: 7, role, stage: 'authenticated', sessionVersion: 0, isPlatformAdmin: false, canManageHosts: false, canViewLiveSessions: false })}` })
   return { app, service, auth }
 }
 describe('inbound HTTP contracts', () => {
@@ -26,7 +30,7 @@ describe('inbound HTTP contracts', () => {
       const payload = '{ "type": "host.unavailable", "text": "ação" }\n'
       const response = await app.inject({ method: 'POST', url: '/inbound-webhooks/monitoring/token', headers: { 'content-type': 'application/json' }, payload })
       expect(response.statusCode).toBe(202)
-      expect(service.ingest).toHaveBeenCalledWith(expect.objectContaining({ rawBody: payload, body: JSON.parse(payload) }))
+      expect(service.ingest).toHaveBeenCalledWith(expect.objectContaining({ rawBody: payload, body: JSON.parse(payload) as unknown }))
       expect((await app.inject({ method: 'POST', url: '/inbound-webhooks/monitoring/token', headers: { 'content-type': 'application/json' }, payload: '{bad' })).statusCode).toBe(400)
       expect(service.ingest).toHaveBeenCalledTimes(1)
     } finally { await app.close() }

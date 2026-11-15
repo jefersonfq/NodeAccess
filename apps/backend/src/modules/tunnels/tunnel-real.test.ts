@@ -38,10 +38,11 @@ describe.runIf(process.env.RUN_TUNNEL_REAL === 'true')('real SSH forwarding', ()
       const remotePort = (echo.address() as net.AddressInfo).port
       const host = { id: 7, tenantId: 1, name: 'disposable-ssh', ip: '127.0.0.1', port: sshPort, sshUser: 'test', authType: 'PASSWORD', connectionMode: 'DIRECT', trustedHostKeyFingerprint: `SHA256:${createHash('sha256').update((utils.parseKey(key) as import('ssh2').ParsedKey).getPublicSSH()).digest('base64')}`, bastion: route === 'bastion' ? { ip: '127.0.0.1', port: sshPort, sshUser: 'jump', authType: 'PASSWORD' } : null }
       service = new TunnelService({
-        findHostWithCredentials: vi.fn().mockImplementation(async () => host),
+        findHostWithCredentials: vi.fn(() => Promise.resolve(host)),
         hasEffectiveHostPermission: vi.fn().mockResolvedValue(true),
       } as never, {} as never, { logAdminEvent: vi.fn().mockResolvedValue(undefined) } as never)
       const trusted = host.trustedHostKeyFingerprint
+      if (host.bastion) Object.assign(host.bastion, { trustedHostKeyFingerprint: trusted })
       for (const fingerprint of ['', 'SHA256:unexpected']) {
         host.trustedHostKeyFingerprint = fingerprint
         await expect(service.create(1100, 1, 'user', 7, 0, '127.0.0.1', remotePort)).rejects.toMatchObject({
@@ -59,14 +60,14 @@ describe.runIf(process.env.RUN_TUNNEL_REAL === 'true')('real SSH forwarding', ()
       expect(tunnel.bindAddress).toBe('127.0.0.1')
       client = net.connect(tunnel.assignedLocalPort, '127.0.0.1')
       await once(client, 'connect')
-      const response = once(client, 'data')
+      const response = new Promise<Buffer>(resolve => client!.once('data', resolve))
       client.write('tunnel-echo-ação')
-      expect((await response)[0].toString()).toBe('tunnel-echo-ação')
+      expect((await response).toString()).toBe('tunnel-echo-ação')
       client.destroy()
       await service.closeForUser(tunnel.id, 1100, 1)
       expect(service.listForUser(1100, 1)).toEqual([])
       const probe = net.connect(tunnel.assignedLocalPort, '127.0.0.1')
-      const [error] = await once(probe, 'error')
+      const error = await new Promise<NodeJS.ErrnoException>(resolve => probe.once('error', resolve))
       expect(error.code).toBe('ECONNREFUSED')
       probe.destroy()
       const disconnected = await service.create(1100, 1, 'user', 7, 0, '127.0.0.1', remotePort)

@@ -21,3 +21,21 @@ Os caminhos completos e hashes constam no catálogo interno. Os testes mapeados 
 Confirmar abrangência de host keys em cada caminho de conexão, revogação em cada protocolo, fluxo completo de credenciais/importação/integrações, isolamento multi-tenant e política de falha dos controles. São pontos de investigação, não vulnerabilidades demonstradas por esta leitura. Reusar ferramentas e matriz de testes existentes antes de introduzir novos scanners.
 
 Nenhuma topologia real, credencial, dado pessoal ou limiar de detecção foi usado neste inventário.
+
+
+## Revalidação focal NA-0174 — 15/11/2026
+
+A descrição anterior registra a inspeção inicial. No candidato sobre master28685c5b2,
+foram corrigidos os controles reproduzidos de tokens, identidade SSH/SFTP/bastion e
+revogação nativa/distribuída. Catálogo interno revisto por conteúdo e hashes; alegações
+públicas e estados partial preservados. `testsExecuted:false` refere-se ao inventário
+editorial; testes realmente executados ficam na evidência da NA-0174, sem misturar os papéis.
+
+Laboratórios exercitaram login/TOTP/HTTP/MySQL/Redis, ACL e Cofre com banco real, SSH/SFTP
+com chaves distintas, encerramento nativo, ACK distribuído e PTY da aplicação completa.
+RDP/VNC foram verificados nos contratos de gateway/registry com transporte injetado,
+não em sessão gráfica real. Redis Pub/Sub não é fila durável; evento tardio pode encerrar
+uma reconexão válida do mesmo principal. Estado operacional de produção não foi consultado.
+
+O catálogo continua informativo, sem certificar uma instalação ou transformar a matriz
+focal em auditoria exaustiva. Gates finais e entrega: docs/changes/2026/11/NA-0174-security-diagnosis.

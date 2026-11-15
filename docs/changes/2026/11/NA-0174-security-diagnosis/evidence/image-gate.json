@@ -1,0 +1,176 @@
+{
+  "recorded_at": "2026-11-14T22:23:12-03:00",
+  "head": "0b68abaf301e72b2fd4820b47876457a5b8915d3",
+  "run": "https://github.com/jefersonfq/NodeAccess/actions/runs/43660430571",
+  "result": "FAIL",
+  "source_artifact": "stack-upgrade-report",
+  "summary_sha256": "79def0e57f1ee8d4973f573a8938879e1e4f1fdf8ab05f128a2f64b6982fcd40",
+  "blocking_findings": [
+    {
+      "image": "nodeaccess-backend:security-local",
+      "findings": [
+        {
+          "package": "stdlib",
+          "version": "go1.26.10",
+          "id": "GO-2026-6859",
+          "severity": "Unknown",
+          "fix": {
+            "versions": [
+              "1.26.11",
+              "1.27.4"
+            ],
+            "state": "fixed",
+            "available": [
+              {
+                "version": "1.26.11",
+                "date": "2026-11-10",
+                "kind": "release"
+              },
+              {
+                "version": "1.27.4",
+                "date": "2026-11-10",
+                "kind": "release"
+              }
+            ]
+          },
+          "source": "https://go.dev/cl/862185"
+        }
+      ]
+    },
+    {
+      "image": "nodeaccess-tls-agent:security-local",
+      "findings": [
+        {
+          "package": "python3",
+          "version": "3.14.10-r1",
+          "id": "CVE-2026-119170",
+          "severity": "High",
+          "fix": {
+            "versions": [],
+            "state": "unknown"
+          },
+          "source": "https://nvd.nist.gov/vuln/detail/CVE-2026-119170"
+        }
+      ]
+    },
+    {
+      "image": "nodeaccess-mysql:8.4.12-1",
+      "findings": [
+        {
+          "package": "openssl-libs",
+          "version": "1:3.5.8-2.0.1.el9_8",
+          "id": "ELSA-2026-50075",
+          "severity": "High",
+          "fix": {
+            "versions": [
+              "10:3.5.1-7.0.1.el9_7_fips"
+            ],
+            "state": "fixed",
+            "available": [
+              {
+                "version": "10:3.5.1-7.0.1.el9_7_fips",
+                "date": "2026-01-29",
+                "kind": "advisory"
+              }
+            ]
+          },
+          "source": "https://linux.oracle.com/errata/ELSA-2026-50075.html"
+        },
+        {
+          "package": "gnutls",
+          "version": "3.8.10-9.el9_8",
+          "id": "ELSA-2026-50346",
+          "severity": "High",
+          "fix": {
+            "versions": [
+              "10:3.8.10-4.el9_8_fips"
+            ],
+            "state": "fixed",
+            "available": [
+              {
+                "version": "10:3.8.10-4.el9_8_fips",
+                "date": "2026-06-24",
+                "kind": "advisory"
+              }
+            ]
+          },
+          "source": "https://linux.oracle.com/errata/ELSA-2026-50346.html"
+        },
+        {
+          "package": "openssl-libs",
+          "version": "1:3.5.8-2.0.1.el9_8",
+          "id": "ELSA-2026-500448",
+          "severity": "High",
+          "fix": {
+            "versions": [
+              "10:3.5.8-2.0.1.el9_8_fips"
+            ],
+            "state": "fixed",
+            "available": [
+              {
+                "version": "10:3.5.8-2.0.1.el9_8_fips",
+                "date": "2026-10-20",
+                "kind": "advisory"
+              }
+            ]
+          },
+          "source": "https://linux.oracle.com/errata/ELSA-2026-500448.html"
+        }
+      ]
+    },
+    {
+      "image": "nodeaccess-guacd:1.6.0-1",
+      "findings": [
+        {
+          "package": "cups-libs",
+          "version": "2.4.19-r1",
+          "id": "CVE-2018-6553",
+          "severity": "High",
+          "fix": {
+            "versions": [],
+            "state": ""
+          },
+          "source": "https://nvd.nist.gov/vuln/detail/CVE-2018-6553"
+        },
+        {
+          "package": "zlib",
+          "version": "1.3.2-r1",
+          "id": "CVE-2026-4738",
+          "severity": "Critical",
+          "fix": {
+            "versions": [
+              "1.4-r0"
+            ],
+            "state": "fixed",
+            "available": [
+              {
+                "version": "1.4-r0",
+                "date": "2026-11-07",
+                "kind": "first-observed"
+              }
+            ]
+          },
+          "source": "https://security.alpinelinux.org/vuln/CVE-2026-4738"
+        },
+        {
+          "package": "libssh2",
+          "version": "1.11.1-r4",
+          "id": "CVE-2026-59850",
+          "severity": "High",
+          "fix": {
+            "versions": [],
+            "state": ""
+          },
+          "source": "https://nvd.nist.gov/vuln/detail/CVE-2026-59850"
+        }
+      ]
+    }
+  ],
+  "expired_policies": [
+    "security/image-triage.json",
+    "security/guacd-image-triage.json"
+  ],
+  "expiry": "2026-11-08",
+  "policy_changed": false,
+  "limitations": "Scanner findings, not demonstrated exploitation. Five exact prior triages expired; three findings not covered. Revalidation and fixes remain pending."
+}

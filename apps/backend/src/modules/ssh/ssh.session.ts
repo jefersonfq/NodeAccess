@@ -1,6 +1,7 @@
 import { sendBoundedWebSocket } from '../../shared/bounded-websocket.js'
 import { SessionFiles } from './session-files.js'
-import { createHash } from 'node:crypto'
+import { createHostKeyVerifier, HostKeyVerificationError, type SshHostKeyStep } from '../../shared/ssh-host-key.js'
+export { HostKeyVerificationError } from '../../shared/ssh-host-key.js'
 import { Client, type ClientChannel, type ConnectConfig, type SFTPWrapper } from 'ssh2'
 import type { Duplex } from 'node:stream'
 import type { WebSocket } from 'ws'
@@ -68,16 +69,6 @@ class WebSocketSshTransport implements SshSessionTransport {
   }
 }
 
-export class HostKeyVerificationError extends Error {
-  constructor(
-    public readonly reason: 'unknown' | 'changed',
-    public readonly presentedFingerprint: string,
-    public readonly trustedFingerprint: string | null,
-  ) {
-    super(reason === 'changed' ? 'Host key changed' : 'Host key not trusted yet')
-    this.name = 'HostKeyVerificationError'
-  }
-}
 
 function classifyCause(step: 'bastion' | 'target', cause: unknown): string {
   const nodeCode = (cause as NodeJS.ErrnoException).code
@@ -163,7 +154,7 @@ export class SshSession {
   }
 
   private connectViaBastionion(targetConfig: ConnectConfig, cols: number, rows: number): Promise<void> {
-    const bastionConfig = this.buildConnectConfig(this.bastion!)
+    const bastionConfig = this.buildConnectConfig(this.bastion!, 'bastion')
     this.bastionConn = new Client()
 
     return new Promise((resolve, reject) => {
@@ -182,7 +173,7 @@ export class SshSession {
             },
           )
         })
-        .on('error', (error) => reject(new SshConnectionStepError('bastion', error)))
+        .on('error', (error) => reject(this.lastHostKeyError ?? new SshConnectionStepError('bastion', error)))
         .connect(bastionConfig)
     })
   }
@@ -290,7 +281,7 @@ export class SshSession {
   // Helpers
   // ---------------------------------------------------------------------------
 
-  private buildConnectConfig(creds: SshCredentials): ConnectConfig {
+  private buildConnectConfig(creds: SshCredentials, step: SshHostKeyStep = 'target'): ConnectConfig {
     const config: ConnectConfig = {
       host:              creds.host,
       port:              creds.port,
@@ -299,24 +290,7 @@ export class SshSession {
       keepaliveInterval: 10_000,
     }
 
-    if ('trustedHostKeyFingerprint' in creds) {
-      config.hostVerifier = (key: Buffer): boolean => {
-        const fingerprint = `SHA256:${createHash('sha256').update(key).digest('base64')}`
-
-        if (!creds.trustedHostKeyFingerprint) {
-          this.lastHostKeyError = new HostKeyVerificationError('unknown', fingerprint, null)
-          return false
-        }
-
-        if (creds.trustedHostKeyFingerprint !== fingerprint) {
-          this.lastHostKeyError = new HostKeyVerificationError('changed', fingerprint, creds.trustedHostKeyFingerprint)
-          return false
-        }
-
-        this.lastHostKeyError = null
-        return true
-      }
-    }
+    config.hostVerifier = createHostKeyVerifier(creds.trustedHostKeyFingerprint, step, (error) => { this.lastHostKeyError = error })
 
     if ((creds.authType === 'PASSWORD' || creds.authType === 'PEM_PASSWORD') && creds.passwordEncrypted) {
       const payload = JSON.parse(creds.passwordEncrypted) as EncryptedPayload

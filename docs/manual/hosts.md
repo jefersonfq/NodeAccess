@@ -86,3 +86,14 @@ Você iniciou uma manutenção, voltou a Hosts para consultar outro equipamento 
 O host escolhido corresponde ao destino desejado e a conexão é iniciada ou retomada conforme a ação selecionada. Não há necessidade de duplicar uma sessão para voltar a ela.
 
 Ao cadastrar ou editar, os dados são salvos no destino e na pasta corporativa selecionados. O resultado do teste de conexão não substitui a confirmação de salvamento.
+
+
+### Chave do servidor e bastion
+Antes de aceitar uma chave SSH nova ou alterada, confirme a fingerprint com o responsável
+pelo servidor por um canal confiável. A senha correta não substitui essa verificação.
+
+Se a conexão usar um bastion, confira também o Host que lhe deu origem. Abra esse Host pelo
+fluxo normal e valide sua chave antes de conectar ao destino. Uma falha de identidade do
+bastion não deve ser resolvida aceitando sua chave no cadastro do destino. Bastions antigos
+sem Host de origem precisam ser regularizados por um administrador, vinculando a rota a
+um Host com chave verificada; a conexão permanece bloqueada até essa correção.

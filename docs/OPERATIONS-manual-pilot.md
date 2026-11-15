@@ -285,3 +285,19 @@ Entrada Central de Segurança adicionada junto ao Manual sem alterar seus proced
 
 ### NA-0172 — revalidação após ajuste de âncoras
 Em 06/11/2026, o layout passou a preservar a instância da Central em mudanças de fragmento. O procedimento de Hosts permaneceu igual. Ran: cinco capturas demonstrativas revisadas, 2 testes Node +18 Vitest e cinco capítulos com revisão atual aprovados; apenas hash editorial de Hosts atualizado por depender de AppLayout. Capturas preservam marcas e contagens de fixtures, não são dados de uso real. Não houve mudança de área útil/resize/transporte do terminal; regressão completa integra a validação Sonar da frente.
+
+
+## NA-0174 — identidade SSH e revogação (15/11/2026)
+
+Hosts e SFTP passam a explicar confiança do bastion, regularização do Host de origem e
+transferências interrompidas sem rollback automático do arquivo parcial. Adicionadas fontes
+backend relevantes ao manifesto para detectar mudanças futuras nesses contratos.
+Ran: manual:capture com VITE_APP_VERSION/MANUAL_EXPECTED_VERSION=NA-0174-candidate,
+Chromium1248 e frontend isolado. Cinco capturas revisadas visualmente, legíveis e com dados
+sintéticos; preservam marcas/contagens das fixtures. Compartilhamento60 estados e retorno
+de tenant2ciclos PASS, sem reconexão. Primeira tentativa falhou por shared não compilado;
+outra falhou aguardando o controle de configurações; diagnóstico seguinte encontrou versão esperada
+não configurada. Builds/configuração corrigidos, asserções preservadas. Não houve alteração
+de interface ou procedimento dos demais três capítulos. Hash/data Hosts/SFTP atualizados
+após captura/revisão. PTY real da aplicação/SSH descartáveis também PASS top/htop; evidência
+da frente NA-0174. Não representa homologação humana nem execução em produção.

@@ -57,7 +57,7 @@ export async function runCoverage({ root = projectRoot, base, execute = command,
     if (version[0] !== 24 || version[1] < 21) throw new Error('Coverage requires Node 24.21+')
     if (base) result.resolvedBase = execFileSync('/usr/bin/git', ['rev-parse', '--verify', `${base}^{commit}`], { cwd: root, encoding: 'utf8' }).trim()
     const vitestExit = execute(root, [join(root, 'node_modules/vitest/vitest.mjs'), 'run', '--coverage', '--reporter=json', '--outputFile=coverage/vitest-tests.json'],
-      { ...childEnv, NODEACCESS_COVERAGE_COLLECT: '1' }, join(output, 'vitest.log'))
+      { ...childEnv, NODEACCESS_COVERAGE_COLLECT: '1', RUN_TUNNEL_REAL: 'true' }, join(output, 'vitest.log'))
     result.collectors.vitest = { exitCode: vitestExit }
     if (vitestExit !== 0) result.failures.push('VITEST_TESTS_FAILED')
     const nodeTests = nodeTestFiles(root)

@@ -1,0 +1,164 @@
+{
+  "at": "2026-11-15T17:20:54.757474+00:00",
+  "base": "28685c5b2c3fbf9739a05629260c95e42e0d62d0",
+  "checkout": "isolated dirty candidate; concurrent implementation by other agents",
+  "suites": {
+    "baseline": {
+      "success": false,
+      "numPassedTests": 86,
+      "numFailedTests": 2,
+      "numPendingTests": 4
+    },
+    "controls": {
+      "success": true,
+      "numPassedTests": 96,
+      "numFailedTests": 0,
+      "numPendingTests": 0
+    },
+    "new-contracts": {
+      "success": true,
+      "numPassedTests": 7,
+      "numFailedTests": 0,
+      "numPendingTests": 0
+    },
+    "mysql-tests": {
+      "success": true,
+      "numPassedTests": 2,
+      "numFailedTests": 0,
+      "numPendingTests": 0
+    },
+    "graphical-telnet": {
+      "success": false,
+      "numPassedTests": 10,
+      "numFailedTests": 8,
+      "numPendingTests": 0
+    },
+    "graphical-telnet-corrected": {
+      "success": true,
+      "numPassedTests": 22,
+      "numFailedTests": 0,
+      "numPendingTests": 0
+    },
+    "reviewer-current": {
+      "success": true,
+      "numPassedTests": 16,
+      "numFailedTests": 0,
+      "numPendingTests": 0
+    },
+    "gateway-races": {
+      "success": true,
+      "numPassedTests": 22,
+      "numFailedTests": 0,
+      "numPendingTests": 0
+    }
+  },
+  "source_sha256": {
+    "apps/backend/src/modules/secrets/secret.service.ts": {
+      "algorithm": "SHA256",
+      "digest": "58fea991a04e46d1b03673ce4d57608366d48730f198be40c726a085dda8a765"
+    },
+    "apps/backend/src/modules/secrets/secret.repository.ts": {
+      "algorithm": "SHA256",
+      "digest": "5451c168bed34ec6cfe329ffcb734a189196bbc0201dbc48cd2b98d847ad4fbc"
+    },
+    "apps/backend/src/modules/trials/trial-outbound.ts": "47c9f98c913c13ae9c64238943d26dbdc8d81fa2f45f52be35d9720cf449f34b",
+    "apps/backend/src/modules/webhooks/webhook-dispatcher.service.ts": "8459cc46d1aabc474463d23b777b1b5f435f303aa3901d17de986379450e9a88",
+    "apps/backend/src/shared/ssrf-guard.ts": "22c6c8daea047732e4e0a4859780e4f80d103ad07bd38e7c2da4473ef5abe09a",
+    "apps/backend/src/shared/webhook-http.ts": "9bdc6c1d7c81a620584fe2ea655e6d9d3125bba2dfb2cb241c843aac26ebdfa4",
+    "apps/backend/src/modules/secrets/secret-controls.review.test.ts": {
+      "algorithm": "SHA256",
+      "digest": "f2a424dcd1cfa1b15f1f7e96ee59ce281ddec1dde4118c4ad63927c5154f16ea"
+    },
+    "apps/backend/src/modules/webhooks/webhook-trial-controls.review.test.ts": "d8cc0d6dc6f03e60443872267f91b5f8509147f2148d6defb17d6d180f5d05b1"
+  },
+  "limitations": [
+    "Initial baseline failed two repository tests because Prisma client was not generated; raw report preserved. Generated client and reran all successfully.",
+    "controls includes four new Cofre tests; new-contracts repeats these four and adds three webhook tests, so counts must not be summed blindly.",
+    "Secret SSH opt-in enabled in controls: disposable loopback SSH; repository authorization stubbed.",
+    "Cofre tests verify service behavior, not real SQL tenant isolation or every consumer.",
+    "Webhook dispatcher tests use real destination guards but stub fetch; existing lookup suites simulate DNS.",
+    "D11 SFTP runtime and real active-transfer revocation assigned to e2e_diagnosis; no runtime edit by this reviewer.",
+    "D10 RDP/VNC gateway+registry tests use injected transport; TELNET session tests use injected socket; no real graphical RDP session or universal security audit claimed.",
+    "Real MySQL ACL/Cofre transactions include cross-tenant denial, membership changes, rotation/revocation and rollback; licensing stubbed in Cofre service fixture.",
+    "Real D06/D12 laboratory uses actual SSH/Redis with synthetic repositories and current identity reader; two bus instances share one process.",
+    "Initial graphical regression failed8 when current-session reader fixture absent; fixture corrected explicitly without bypassing guard.",
+    "D11 SFTP active-transfer evidence belongs to e2e_diagnosis.",
+    "Late user-revocation events may conservatively close newly admitted resource handles without per-handle versions; reviewer raised availability limitation to auth owner."
+  ],
+  "runtime": {
+    "baseSha": "28685c5b2c3fbf9739a05629260c95e42e0d62d0",
+    "candidate": "dirty working tree; hashes recorded separately",
+    "at": "2026-11-15T17:34:45.011Z",
+    "boundary": "real product service to real loopback SSH/SFTP; synthetic repository and tenant; not REST/UI E2E",
+    "cases": [
+      {
+        "case": "native_acl_revocation",
+        "fullNativeSshLogin": true,
+        "realTargetShell": true,
+        "realRedisEvent": true,
+        "syntheticRepository": true,
+        "registeredRuntimeBefore": true,
+        "registeredRuntimeAfter": false,
+        "channelClosed": true,
+        "endedReason": "acl_revoked",
+        "revocationAudit": {
+          "tenantId": 1,
+          "inventoryNodeId": 1,
+          "hostId": 1,
+          "userId": 1,
+          "principalType": "USER",
+          "principalId": 1,
+          "aclAction": "delete",
+          "closed": true,
+          "handledByRuntime": true
+        },
+        "postRevocationCommandAccepted": false,
+        "newChannelDenied": true,
+        "sessionEndedBeforeCleanup": true,
+        "regressionCorrected": true
+      },
+      {
+        "case": "distributed_non_owner_first",
+        "iterations": 10,
+        "falseReturns": 0,
+        "physicalSshConnectionsClosed": 10,
+        "realRedis": true,
+        "realSsh": true,
+        "ownerAndNonOwnerActualBuses": true,
+        "negativeResponses": 10,
+        "positiveResponses": 10,
+        "regressionCorrected": true,
+        "limitation": "same-process bus instances over real Redis, natural response scheduling; no multi-host deployment"
+      }
+    ],
+    "cleanup": {
+      "serversClosed": true,
+      "socketCount": 0
+    }
+  },
+  "runtime_source_stable": true,
+  "mysql_execution": {
+    "source_sha": "28685c5b2c3fbf9739a05629260c95e42e0d62d0",
+    "started_at": "2026-11-15T17:25:51Z",
+    "cleanup": true,
+    "mysql_image_id": "sha256:cafe2c0faa2915ec9978f98fdf196e799541f1a1d2d5780798b311e0a4378949",
+    "exit_code": 0,
+    "finished_at": "2026-11-15T17:26:39Z"
+  },
+  "lint_all_owned_tests": "PASS",
+  "updated_at": "2026-11-15T17:35:19.078840+00:00",
+  "owned_test_sha256": {
+    "modules/secrets/secret-controls.review.test.ts": {
+      "algorithm": "SHA256",
+      "digest": "f2a424dcd1cfa1b15f1f7e96ee59ce281ddec1dde4118c4ad63927c5154f16ea"
+    },
+    "modules/secrets/secret-controls.mysql.test.ts": {
+      "algorithm": "SHA256",
+      "digest": "a6513c11829bbce1a7e387456d7bbc40ee760354c1ec27e6748c8836bc0c7cd1"
+    },
+    "modules/webhooks/webhook-trial-controls.review.test.ts": "b1ded25def28d3edc1abcf83729e5c9248f2e63f95c12c445b48b7937cfb62bd",
+    "modules/graphical/graphical.gateway.test.ts": "9dc66c5824ba11e3f2f6de94057a29c41061d74c59c60a59c3ff87c20419c18f",
+    "modules/ssh/ssh-gateway-revocation.review.test.ts": "0ddfcf750f69b55f8a1626269d6965f23d93787b40f154f3f68e6b49733c3106"
+  },
+  "digestRepresentationNote": "Hashes de arquivos com nomes de controles de credenciais representados como algorithm/digest; valores originais preservados."
+}

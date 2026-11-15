@@ -8,7 +8,7 @@ import { SshSession, type SshCredentials, type SshSessionTransport } from './ssh
 import type { HostCredentials, SshRepository } from './ssh.repository.js'
 import { AllowAllSshInputPolicy, type SshInputPolicy, type SshInputPolicyDecision } from './ssh-input-policy.js'
 
-type ManagedSessionEndedReason = 'socket_closed' | 'ssh_connect_failed'
+type ManagedSessionEndedReason = 'socket_closed' | 'ssh_connect_failed' | 'acl_revoked' | 'admin_closed' | 'session_revoked'
 type ManagedSessionConnectionMethod = 'direct' | 'user_agent' | 'tenant_agent' | 'native_ssh_gateway'
 
 interface ManagedSessionUser {
@@ -165,6 +165,7 @@ export class ManagedSshSessionService {
       return {
         sessionId,
         write: (data: Buffer): void => {
+          if (ended) return
           this.evaluateInput(input.inputPolicy, data, {
             sessionId,
             tenantId: input.user.tenantId,
@@ -172,6 +173,7 @@ export class ManagedSshSessionService {
             hostId: input.host.id,
             source,
           }).then((decision) => {
+            if (ended) return
             if (!decision.allow) {
               if (decision.data?.length) activeSshSession.write(decision.data)
               input.onInputRejected?.(decision.message ?? 'Entrada bloqueada por política')
@@ -189,13 +191,16 @@ export class ManagedSshSessionService {
           })
         },
         resize: (cols: number, rows: number): void => {
+          if (ended) return
           activeSshSession.resize(cols, rows)
           publishAudit('resize', { cols, rows }).catch(() => {})
         },
         close: async (reason: ManagedSessionEndedReason = 'socket_closed'): Promise<void> => {
           stopTrial()
+          // Mark the terminal reason before dispose invokes synchronous close hooks.
+          const finished = endSession(reason)
           activeSshSession.dispose()
-          await endSession(reason)
+          await finished
         },
       }
     } catch (err) {
@@ -312,9 +317,7 @@ function toSshCredentials(
     port: host.port,
     username: host.sshUser,
     authType: host.authType,
-    ...(host.trustedHostKeyFingerprint !== undefined && {
-      trustedHostKeyFingerprint: host.trustedHostKeyFingerprint,
-    }),
+    trustedHostKeyFingerprint: host.trustedHostKeyFingerprint ?? null,
     passwordEncrypted,
     pemKey,
   }

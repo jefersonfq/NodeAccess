@@ -3,7 +3,7 @@
     "id": "hosts",
     "title": "Hosts e sessões abertas",
     "summary": "Encontre o equipamento certo e retome seu trabalho com segurança.",
-    "reviewedAt": "2026-11-06",
+    "reviewedAt": "2026-11-15",
     "sourceFiles": [
       "apps/frontend/src/views/HostsView.vue",
       "apps/frontend/src/components/TrialResourcesPanel.vue",
@@ -25,14 +25,16 @@
       "apps/frontend/src/views/HostDashboardView.vue",
       "apps/frontend/src/components/HostAccessIndicator.vue",
       "apps/frontend/src/services/host-agent-availability.ts",
-      "apps/frontend/src/services/host-dashboard-navigation.ts"
+      "apps/frontend/src/services/host-dashboard-navigation.ts",
+      "apps/backend/src/shared/ssh-host-key.ts",
+      "apps/backend/src/modules/ssh/ssh.repository.ts"
     ],
     "journey": [
       "Localizar o host",
       "Conferir o destino",
       "Conectar ou retomar"
     ],
-    "reviewedSourceHash": "8bf07bc8609893f00824bd513076d9316c914d4e0314b492bb176a76818ddbe0"
+    "reviewedSourceHash": "88e7197a5beaadeeeed6f6522abfec0a48f0229c55bf3ab57b78e6c43e8dc2bc"
   },
   {
     "id": "terminal",
@@ -104,7 +106,7 @@
     "id": "sftp",
     "title": "Arquivos e SFTP",
     "summary": "Navegue, transfira e edite arquivos respeitando as permissões do destino.",
-    "reviewedAt": "2026-10-10",
+    "reviewedAt": "2026-11-15",
     "sourceFiles": [
       "apps/frontend/src/components/FileManager.vue",
       "apps/frontend/src/components/FileEditorModal.vue",
@@ -114,14 +116,15 @@
       "apps/backend/src/modules/ssh/session-files.ts",
       "apps/agent/src/desktop-edit.js",
       "apps/frontend/src/services/sftp.service.ts",
-      "apps/frontend/src/services/transfer-deadline.ts"
+      "apps/frontend/src/services/transfer-deadline.ts",
+      "apps/backend/src/modules/sftp/sftp.service.ts"
     ],
     "journey": [
       "Conferir a sessão",
       "Abrir o arquivo",
       "Revisar e salvar"
     ],
-    "reviewedSourceHash": "5edf66f9c350fcfc66520976c010158669b9a30799e9768e0bb72cc9e317faaf"
+    "reviewedSourceHash": "e628df96b3c72140281bff2fab67343fc3bf9109512537b86370b826e4634f28"
   },
   {
     "id": "tenants",

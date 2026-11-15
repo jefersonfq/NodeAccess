@@ -1,3 +1,4 @@
+import { configureCurrentSessionReader } from '../auth/current-session.js'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { assertNotTrial, assertTrialAccess, assertTrialHostAccess, assertTrialHttpAccess, configureTrialPolicy, configureTrialProtectedAddresses, configureTrialUserReader, assertTrialUserAccess, assertTrialResource, ipv4InCidr, monitorTrialAccess, type TrialAccess } from './trial-policy.js'
 import { requireAuth } from '../../shared/guards.js'
@@ -6,8 +7,8 @@ const now = new Date('2026-10-24T12:00:00Z')
 const active = (seconds = 60): TrialAccess => ({ status: 'ACTIVE', expiresAt: new Date(now.getTime() + seconds * 1000), profileJson: { resources: ['ssh', 'sftp', 'sharing', 'audit'], networkCidr: '10.90.0.0/24', hostAddresses: ['10.90.0.5'] } })
 const host = { ip: '10.90.0.5', accessProtocol: 'SSH', connectionMode: 'DIRECT', bastion: null }
 
-beforeEach(() => { vi.useFakeTimers(); vi.setSystemTime(now); configureTrialPolicy(() => Promise.resolve(null)) })
-afterEach(() => { configureTrialProtectedAddresses([]); configureTrialPolicy(() => Promise.resolve(null)); configureTrialUserReader(() => Promise.resolve(true)); vi.useRealTimers() })
+beforeEach(() => { configureCurrentSessionReader( (id, tenant) => Promise.resolve(id === 1 && tenant === 2 ? ({ tenantId: 2, active: true, deletedAt: null, tenantActive: true, targetTenantActive: true, sessionVersion: 0, role: 'ADMIN', isPlatformAdmin: true, canManageHosts: true, canViewLiveSessions: true }) : null)); vi.useFakeTimers(); vi.setSystemTime(now); configureTrialPolicy(() => Promise.resolve(null)) })
+afterEach(() => { configureCurrentSessionReader(undefined); configureTrialProtectedAddresses([]); configureTrialPolicy(() => Promise.resolve(null)); configureTrialUserReader(() => Promise.resolve(true)); vi.useRealTimers() })
 
 describe('trial tenant access', () => {
   it('leaves ordinary tenants unaffected by trial restrictions and timers', async () => {
@@ -36,7 +37,7 @@ describe('trial tenant access', () => {
   })
   it('checks HTTP tenant expiry after JWT verification', async () => {
     configureTrialPolicy(() => Promise.resolve(active(0)))
-    const req = { jwtVerify: () => Promise.resolve(({ stage: 'authenticated', tenantId: 2 })), method: 'GET', url: '/api/v1/hosts' }
+    const req = { jwtVerify: () => Promise.resolve(({ stage: 'authenticated', tenantId: 2, sub: '1', role: 'admin', isPlatformAdmin: true, canManageHosts: true, canViewLiveSessions: true, sessionVersion: 0 })), method: 'GET', url: '/api/v1/hosts' }
     await expect(requireAuth(req as never, {} as never)).rejects.toMatchObject({ code: 'TRIAL_EXPIRED', statusCode: 403 })
   })
 })
@@ -131,7 +132,8 @@ describe('trial participant revocation and optional resources', () => {
 describe('trial authentication cleanup', () => {
   it('permits logout after trial expiry and admin exit without bypassing resource authorization', async () => {
     configureTrialPolicy(() => Promise.resolve(active(0)))
-    const req = { jwtVerify: () => Promise.resolve({ stage: 'authenticated', tenantId: 2, sub: '1', isPlatformAdmin: true }), method: 'POST', url: '/api/v1/auth/platform/exit-tenant' }
+    configureCurrentSessionReader( (id, target) => Promise.resolve(id === 1 && target === 2 ? ({ tenantId: 1, active: true, deletedAt: null, tenantActive: true, targetTenantActive: true, sessionVersion: 0, role: 'ADMIN', isPlatformAdmin: true, canManageHosts: true, canViewLiveSessions: true }) : null))
+    const req = { jwtVerify: () => Promise.resolve({ stage: 'authenticated', tenantId: 2, platformTenantId: 1, actingTenantId: 2, impersonatedByUserId: 1, sub: '1', role: 'admin', isPlatformAdmin: true, canManageHosts: true, canViewLiveSessions: true, sessionVersion: 0 }), method: 'POST', url: '/api/v1/auth/platform/exit-tenant' }
     await expect(requireAuth(req as never, {} as never)).resolves.toBeUndefined()
     req.url = '/api/v1/auth/logout'
     await expect(requireAuth(req as never, {} as never)).resolves.toBeUndefined()

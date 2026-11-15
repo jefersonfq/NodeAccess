@@ -1,3 +1,4 @@
+import { assertCurrentUserSession } from '../auth/current-session.js'
 import { assertTrialCapability, assertTrialUserAccess, assertTrialHostAccess, monitorTrialAccess } from '../trials/trial-policy.js'
 import jwt from 'jsonwebtoken'
 import type { WebSocket } from 'ws'
@@ -81,10 +82,13 @@ export class GraphicalGateway {
   async handleConnection(ws: WebSocket, token: string | undefined, hostId: number, meta: GraphicalGatewayMeta = {}): Promise<void> {
     if (!token) return closeWithError(ws, 'Token obrigatório')
 
+    let authPayload: JwtPayload
     let principal: GraphicalConnectionPrincipal
     try {
       const payload = jwt.verify(token, env.JWT_SECRET) as JwtPayload
       if (payload.stage !== 'authenticated') throw new Error('Invalid stage')
+      await assertCurrentUserSession(payload)
+      authPayload = payload
       principal = {
         userId: Number(payload.sub),
         tenantId: payload.tenantId,
@@ -250,8 +254,24 @@ export class GraphicalGateway {
       code: adapterResult.code,
     }, 'graphical gateway adapter result')
 
+
+
+    if (adapterResult.status === 'connected' && ws.readyState !== WS_OPEN) {
+      adapterResult.transport.close()
+      await this.sshRepo.endSession(sessionId, { endedReason: 'socket_closed' })
+      return
+    }
+    if (adapterResult.status === 'connected') {
+      const admitted = await this.bridgeGraphicalTransport(ws, adapterResult.transport, authPayload, {
+        sessionId,
+        hostId: host.id,
+        protocol: accessProtocol,
+        auditEnabledForSession,
+        publishAudit,
+      })
+      if (admitted) {
     send(ws, {
-      type: adapterResult.status === 'connected' ? 'graphical_gateway_connected' : 'graphical_gateway_pending',
+      type: 'graphical_gateway_connected',
       code: adapterResult.code,
       sessionId,
       connectionMethod,
@@ -260,22 +280,20 @@ export class GraphicalGateway {
       hostName: host.name,
       message: adapterResult.message,
     })
+      }
+      return
+    }
 
-    if (adapterResult.status === 'connected' && ws.readyState !== WS_OPEN) {
-      adapterResult.transport.close()
-      await this.sshRepo.endSession(sessionId, { endedReason: 'socket_closed' })
-      return
-    }
-    if (adapterResult.status === 'connected') {
-      this.bridgeGraphicalTransport(ws, adapterResult.transport, {
-        sessionId,
-        hostId: host.id,
-        protocol: accessProtocol,
-        auditEnabledForSession,
-        publishAudit,
-      })
-      return
-    }
+    send(ws, {
+      type: 'graphical_gateway_pending',
+      code: adapterResult.code,
+      sessionId,
+      connectionMethod,
+      protocol: accessProtocol,
+      hostId: host.id,
+      hostName: host.name,
+      message: adapterResult.message,
+    })
 
     await this.sshRepo.endSession(sessionId, { endedReason: 'graphical_gateway_pending' }).catch(() => { /* best-effort */ })
     await publishAudit('session_ended', {
@@ -286,9 +304,10 @@ export class GraphicalGateway {
     ws.close(1000)
   }
 
-  private bridgeGraphicalTransport(
+  private async bridgeGraphicalTransport(
     ws: WebSocket,
     transport: GraphicalSessionTransport,
+    authPayload: JwtPayload,
     context: {
       sessionId: number
       hostId: number
@@ -296,7 +315,7 @@ export class GraphicalGateway {
       auditEnabledForSession: boolean
       publishAudit: (type: 'session_started' | 'session_ended', payload: Record<string, unknown>) => Promise<unknown>
     },
-  ): void {
+  ): Promise<boolean> {
     let closed = false
     let clientMessageCount = 0
     let clientInputForwardedCount = 0
@@ -324,7 +343,7 @@ export class GraphicalGateway {
       touchSession(true)
     }, GRAPHICAL_SESSION_HEARTBEAT_MS)
     heartbeatTimer.unref?.()
-    const finish = async (reason: 'socket_closed' | 'remote_closed' | 'user_closed' | 'admin_closed' | 'acl_revoked', gatewayStatus: 'closed' | 'failed', errorMessage?: string): Promise<void> => {
+    const finish = async (reason: 'socket_closed' | 'remote_closed' | 'user_closed' | 'admin_closed' | 'acl_revoked' | 'session_revoked', gatewayStatus: 'closed' | 'failed', errorMessage?: string): Promise<void> => {
       if (closed) return
       closed = true
       clearInterval(heartbeatTimer)
@@ -385,6 +404,25 @@ export class GraphicalGateway {
         void finish(reason, 'closed')
       },
     })
+
+    try { await assertCurrentUserSession(authPayload) } catch {
+      await finish('session_revoked', 'closed')
+      return false
+    }
+    try {
+      if (!await this.sshRepo.hasEffectiveHostPermission(context.hostId, authPayload.tenantId,
+        Number(authPayload.sub), 'connect', authPayload.role.toUpperCase() as 'ADMIN' | 'USER')) {
+        await finish('acl_revoked', 'closed')
+        return false
+      }
+    } catch {
+      await finish('acl_revoked', 'closed')
+      return false
+    }
+    if (closed || ws.readyState !== WS_OPEN) {
+      await finish('socket_closed', 'closed')
+      return false
+    }
 
     transport.onData((data) => {
       if (closed) return
@@ -551,6 +589,7 @@ export class GraphicalGateway {
       }, 'graphical websocket closed')
       void finish('socket_closed', 'closed')
     })
+    return true
   }
 }
 

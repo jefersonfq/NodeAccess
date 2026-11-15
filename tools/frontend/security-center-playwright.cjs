@@ -160,7 +160,7 @@ async function main() {
       assert.ok(new URL(page.url()).hash)
       const profile = main.getByRole('link', { name: 'Revisar meu perfil' })
       assert.equal(await profile.getAttribute('href'), '/profile')
-      assert.equal(await main.locator('[data-security-review] time').getAttribute('datetime'), '2026-11-06')
+      assert.equal(await main.locator('[data-security-review] time').getAttribute('datetime'), publicCatalog.reviewedAt)
       assert.equal(await main.locator('input, select, textarea').count(), 0, 'Informational center must not expose settings')
       const requestCount = requests.length
       await page.waitForTimeout(700)

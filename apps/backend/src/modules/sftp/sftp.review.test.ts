@@ -1,19 +1,33 @@
+import { configureCurrentSessionReader } from '../auth/current-session.js'
+import { EventEmitter } from 'node:events'
 import Fastify, { type FastifyRequest, type FastifyReply, type FastifyError } from 'fastify'
 import { DEFAULT_SFTP_POLICY_SETTINGS } from '../settings/settings.repository.js'
 import type { LogRepository } from '../logs/log.repository.js'
 import { Readable } from 'node:stream'
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { sftpRoutes } from './sftp.routes.js'
 import { SftpController } from './sftp.controller.js'
 import { SftpService } from './sftp.service.js'
 import { settingsRoutes } from '../settings/settings.routes.js'
 import { ForbiddenError } from '../../shared/errors.js'
 
+afterEach(() => configureCurrentSessionReader(undefined))
+function principal(tenantId: number, role = 'user') {
+  const claims = { sub: '20', tenantId, role, stage: 'authenticated', sessionVersion: 3,
+    isPlatformAdmin: false, canManageHosts: role === 'admin', canViewLiveSessions: false }
+  configureCurrentSessionReader((userId, targetTenantId) => Promise.resolve(userId === 20 && targetTenantId === tenantId ? {
+    tenantId, active: true, deletedAt: null, tenantActive: true, targetTenantActive: true,
+    sessionVersion: 3, role: role === 'admin' ? 'ADMIN' : 'USER', isPlatformAdmin: false,
+    canManageHosts: role === 'admin', canViewLiveSessions: false,
+  } : null))
+  return claims
+}
+
 // Regression tests for defects confirmed during the SFTP review.
 describe('SFTP review: HTTP contract', () => {
   async function mkdirRequest(body: object, query = '') {
     const app = Fastify()
-    app.decorateRequest('jwtVerify', () => Promise.resolve({ sub: '20', tenantId: 1, role: 'user', stage: 'authenticated' }))
+    app.decorateRequest('jwtVerify', () => Promise.resolve(principal(1)))
     const mkdir = vi.fn().mockResolvedValue(undefined)
     await sftpRoutes(app, new SftpController({ mkdir } as never))
     try {
@@ -36,7 +50,7 @@ describe('SFTP review: HTTP contract', () => {
 describe('SFTP review: editor byte boundaries', () => {
   async function read(chunks: Buffer[], statSize = chunks.reduce((n, c) => n + c.length, 0)) {
     const service = new SftpService({} as never, {} as never)
-    const conn = { end: vi.fn() }
+    const conn = Object.assign(new EventEmitter(), { end: vi.fn() })
     vi.spyOn(service as unknown as { openSftp: SftpService['openSftp'] }, 'openSftp').mockResolvedValue({
       conn, bastionConn: null,
       sftp: {
@@ -107,7 +121,7 @@ describe('SFTP review: policy route', () => {
   const policy = { blockOnModePreservationFailure: true, blockOnOwnershipPreservationFailure: false, blockOnTimestampPreservationFailure: true, diffMaxBytes: 4096, diffMaxLines: 20 }
   async function update(role: string, payload: object) {
     const app = Fastify()
-    app.decorateRequest('jwtVerify', () => Promise.resolve({ sub: '20', tenantId: 7, role, stage: 'authenticated' }))
+    app.decorateRequest('jwtVerify', () => Promise.resolve(principal(7, role)))
     app.setErrorHandler((error: FastifyError, _, reply) => reply.status(error.statusCode ?? 500).send({ message: error.message }))
     const saved = vi.fn((req: FastifyRequest, reply: FastifyReply) => reply.send({ tenantId: req.jwtUser!.tenantId, policy: req.body }))
     const controller = new Proxy({}, { get: (_, key) => key === 'updateSftpPolicySettings' ? saved : () => Promise.resolve({}) })
@@ -143,7 +157,7 @@ describe('SFTP review: failure feedback and audit', () => {
     ['ECONNRESET', 'Connection reset', 503, 'SFTP_CONNECTION_LOST'],
   ])('maps %s/%s to %s/%s and audits the failed operation', async (code, message, status, expectedCode) => {
     const app = Fastify()
-    app.decorateRequest('jwtVerify', () => Promise.resolve({ sub: '20', tenantId: 7, role: 'user', stage: 'authenticated' }))
+    app.decorateRequest('jwtVerify', () => Promise.resolve(principal(7)))
     const logs = { logAdminEvent: vi.fn<LogRepository['logAdminEvent']>().mockResolvedValue(undefined) }
     const service = { delete: vi.fn().mockRejectedValue(Object.assign(new Error(String(message)), { code })) }
     await sftpRoutes(app, new SftpController(service as never, logs as never))
@@ -158,7 +172,7 @@ describe('SFTP review: failure feedback and audit', () => {
 
 it('blocks restoration and removes the temporary file when strict metadata preservation fails', async () => {
   const app = Fastify()
-  app.decorateRequest('jwtVerify', () => Promise.resolve({ sub: '20', tenantId: 7, role: 'user', stage: 'authenticated' }))
+  app.decorateRequest('jwtVerify', () => Promise.resolve(principal(7)))
   const data = Buffer.from('original=true\n')
   const service = {
     statFile: vi.fn().mockResolvedValue({ mode: 0o600 }),
