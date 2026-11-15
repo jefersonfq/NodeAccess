@@ -36,3 +36,9 @@ Revisão independente estática identificou risco de contexto nas rotas legadas 
 ## Não executado — Skipped
 
 PTY real: não houve mudança de resize/SSH/WebSocket. Testes usam dados/API sintéticos; não afirmam conexão real SSH/RDP, pentest ou eliminação física de memória. Excel visual não disponível. Plugin, reveal, WebAuthn/Hello, agente, HPKE/E2EE não pertencem à fase1A e não foram implementados/testados.
+
+## Gate integral do candidato01f348977 — FAIL
+
+Executado após autorização de commit. Vitest3799PASS/124pendentes; Node700PASS/1falha timeout do bootstrap/11skips; TLS laboratórioPASS/cleanuptrue;10/10jornadas browserPASS. Cobertura nova36,9179%, abaixo80%. Scanner bloqueado por cache antigo root0700, sem análise aprovada. Relatório privado: .sonar-reports/validation-1794782660588-6222f0c6-9919-4c06-9d94-9bb5a099b071/validation.json. Correção de propriedade restrita a4entradas de cache Grype, sem ampliar permissões ou excluir dados.
+
+Remediação:50testesfocaisPASS (14catálogo,30editores,6telas), lintPASS, bootstrapV8PASS mantendo10000ms e44/10fixtures comassertleituraúnica. Diagnósticos focais de cobertura não aprovam o agregado. Browser continua obrigatório: mocksNaive/SSR não demonstram foco, eventos/visibilidade reais. Nova análise e gate em SHA congelado pendentes; não reusar evidência do primeirocandidato comoaprovação.

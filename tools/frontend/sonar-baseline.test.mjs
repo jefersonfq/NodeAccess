@@ -20,8 +20,16 @@ test('all DOM fixtures bootstrap in an independent clone without local review br
   const source = readFileSync(harness, 'utf8')
   const boundary = source.indexOf('async function main()')
   assert.ok(boundary > 0)
+  const require = createRequire(harness)
+  const snapshots = []
+  const trackedRequire = name => name === 'node:child_process' ? { ...require(name), execFileSync: (command, args, options) => {
+    if (command === '/usr/bin/git' && args[0] === 'show') snapshots.push(args[1])
+    return execFileSync(command, args, options)
+  } } : require(name)
   const result = vm.runInNewContext(source.slice(0, boundary) + '\nJSON.stringify({labels:fixtures.length,native:nativeFixtures.length})', {
-    require: createRequire(harness), __dirname: join(clone, 'tools/frontend'), process: { env: {} },
+    require: trackedRequire, __dirname: join(clone, 'tools/frontend'), process: { env: {} },
   }, { timeout: 10000 })
   assert.deepEqual(JSON.parse(result), { labels: 44, native: 10 })
+  assert.ok(snapshots.length > 0)
+  assert.equal(snapshots.length, new Set(snapshots).size, 'Each reviewed file must read its historical snapshot only once')
 })

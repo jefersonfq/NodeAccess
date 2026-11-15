@@ -43,11 +43,19 @@ function spec(node) {
  const tag = ['input','select','option','label','span','div','p','section','NSelect','NInputNumber','NInput','NCheckbox','NSwitch'].includes(node.tag) ? node.tag : 'span'
  return {tag,props:attrs(node),children:(node.children || []).map(spec).filter(x=>x!==null)}
 }
+// Each reviewed file can contain several findings. Parse each immutable snapshot once.
+const reviewedTrees = new Map()
+function treesFor(file) {
+ if (!reviewedTrees.has(file)) reviewedTrees.set(file, {
+  before: tree(execFileSync(gitExecutable,['show',`${reviewBaseline}:${file}`],{cwd:root,encoding:'utf8'})),
+  after: tree(fs.readFileSync(path.join(root,file),'utf8')),
+ })
+ return reviewedTrees.get(file)
+}
 const fixtures = []
 for (const issue of issues.filter(i => i.rule === 'Web:S6853')) {
  const file = issue.component.split(':').slice(1).join(':')
- const before = tree(execFileSync(gitExecutable,['show',`${reviewBaseline}:${file}`],{cwd:root,encoding:'utf8'}))
- const after = tree(fs.readFileSync(path.join(root,file),'utf8'))
+ const { before, after } = treesFor(file)
  const oldLabel = before.all.find(n => n.tag === 'label' && n.loc.start.line + before.offset === issue.line)
  assert(oldLabel, `baseline label ${file}:${issue.line}`)
  let oldControl = nodes(oldLabel,[]).find(n => /^N(Input|Select|Checkbox|Switch)/.test(n.tag))
@@ -69,11 +77,10 @@ for (const issue of issues.filter(i => i.rule === 'Web:S6853')) {
 const nativeFixtures = []
 for (const issue of issues.filter(i => ['Web:InputWithoutLabelCheck', 'Web:S6840'].includes(i.rule))) {
  const file = issue.component.split(':').slice(1).join(':')
- const before = tree(execFileSync(gitExecutable,['show',`${reviewBaseline}:${file}`],{cwd:root,encoding:'utf8'}))
+ const { before, after } = treesFor(file)
  const old = before.all.find(n => n.loc.start.line + before.offset === issue.line)
  assert(old, `native baseline ${file}:${issue.line}`)
  if(value(prop(old,'class'))?.split(' ').includes('hidden') || value(prop(old,'style'))?.includes('display: none')) continue
- const after = tree(fs.readFileSync(path.join(root,file),'utf8'))
  const matches = n => n.tag === old.tag && identity(n) === identity(old)
  const current = after.all.filter(matches)[before.all.filter(matches).indexOf(old)]
  assert(current, `native current ${file}:${issue.line}`)

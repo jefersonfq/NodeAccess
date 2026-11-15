@@ -68,3 +68,6 @@ Reverter somente UI/menu/rota e extração de editores; sem migração de dados,
 
 ## Estado local em 2026-11-15
 Itens1/2 implementados e validação focal do item3 executada; resultados em phase1a-evidence.md. Sonar completo pendente de execução no candidato autorizado; revisão estática PASS_WITH_WARNINGS, sem homologação/PR/merge desta frente. Critério de qualidade global permanece aberto.
+
+## Correção necessária do gate
+Primeiro candidato01f348977 falhou em timeout do bootstrap de fixtures, cobertura nova e cache local inacessível ao scanner. Ampliar testes comportamentais/SSR e reutilizar parsing porarquivo no harness é NECESSARY_CORRECTION da validação. Preservar timeout,44/10fixtures, denominador e threshold80%; produto permanece inalterado nesta remediação. Repetir gate integral em novo SHA; ver implementation.md.

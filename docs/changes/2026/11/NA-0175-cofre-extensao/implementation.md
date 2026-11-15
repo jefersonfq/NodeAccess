@@ -8,9 +8,9 @@ Fase1A autorizada fim a fim: base consolidada PR65 `ae188983d061a7bb5e6aaf855fd9
 
 Ran: baseline54; catálogo/editores17; snippets66; typecheck e lint focal sem avisos; build; jornadas nova e legada em Chromium; terminal-experience; manual:capture, revisão das cinco imagens, test:manual (2 Node +18 Vitest), manual:check-reviewed. Revisão independente estática PASS_WITH_WARNINGS; achados de isolamento corrigidos. Detalhes/limites em phase1a-evidence.md. Roadmap META-005/META-017 atualizado uma vez, Original2027 preservado.
 
-Planned: `npm run validate:sonar` integral sobre candidato commitado/checkout limpo; ainda não executado nesta frente. Commit e continuidade autorizados pelo usuário; candidato será congelado para o gate integral. Não herdar Sonar/CI de PR65. Manual: homologação humana pendente. Skipped: PTY real (sem resize/transporte), pentest/E2EE/agente/Windows Hello (fora da fase1A), Excel visual (ZIP/XML/células validados).
+Ran: primeira execução integral de `npm run validate:sonar` reprovada; detalhes no diário. Planned: nova execução integral após correções e novo candidato congelado. Commit e continuidade autorizados pelo usuário; candidato será congelado para o gate integral. Não herdar Sonar/CI de PR65. Manual: homologação humana pendente. Skipped: PTY real (sem resize/transporte), pentest/E2EE/agente/Windows Hello (fora da fase1A), Excel visual (ZIP/XML/células validados).
 
-Estado: LOCAL_WIP; COMMITTED/PUSHED/PR_OPEN/MERGED/MASTER_SYNCED não atingidos para NA0175. Não publicada nem pronta para merge. SHA final será registrado somente após commit autorizado; não inventar associação de evidência dirty a um SHA final.
+Estado: COMMITTED no candidato inicial01f348977, com LOCAL_WIP de correções de validação. PUSHED/PR_OPEN/MERGED/MASTER_SYNCED não atingidos para NA0175. Não publicada nem pronta para merge. SHA final será registrado somente após commit autorizado; não inventar associação de evidência dirty a um SHA final.
 
 ## Recuperação e próximo passo
 
@@ -54,3 +54,15 @@ Servidor Vite temporário5199 encerrado após validação; código permanece no 
 ### 2026-11-15T19:44:02-03:00 — Commit e continuidade autorizados
 
 Usuário autorizou seguir após solicitação explícita de commit/Sonar/PR. Preparação do candidato único, gate integral e abertura de PR condicionada aos checks; merge/homologação não autorizados implicitamente. Atualização do roadmap agrupada nesta interação; resultados finais de SHA/checks serão anexados à PR/evidência externa para evitar commits recursivos. Sem nova alteração funcional nesta retomada.
+
+### 2026-11-15T20:10:40-03:00 — Primeiro gate reprovado e correções necessárias
+
+Candidato01f348977: validate:sonar executado e reprovado. Vitest3799PASS/124pendentes, Node700PASS/1timeout/11skips, TLS isolado com cleanuptrue,10/10jornadasChromiumPASS; cobertura nova36,9179%<80%. Scanner falhou ao percorrer cache público Grype de outra frente em .tmp (root0700). Propriedade das4entradas desse cache restaurada parajeferson, sem exclusão/alteração de permissões. Análise diagnóstica iniciada para triagem, não aprova entrega.
+
+Testes Vue ampliados sem alterar produto, mocks/SSR com assertivas de payload/ACL/erros/concorrência e renderização;50testesPASS e lintPASS. Medições focais: telas85,57%linhas/83,01%branches; editores80,34%linhas/87,54%branches, não substituem agregado. Bootstrap repetia gitshow/parsing porachado: cache porarquivo evita repetição, mantendo cloneindependente,44/10fixtures,timeout10000ms e instrumentaçãoV8. Novo assert exige leitura única; ensaio passou. Classificação NECESSARY_CORRECTION da validação, sem relaxar regras/thresholds. Revisão independente do delta sembloqueio, identificou assertivasentinela vazia a corrigir. Novo SHA e gate integral obrigatórios após correções; não publicar comoaprovado o primeirocandidato.
+
+Análise diagnóstica após correção do cache encontrou nove tsconfig.json (três atuais e seis de backups) e encerrou por heap4288MB. NECESSARY_CORRECTION: explicitar os três projetos atuais em sonar.typescript.tsconfigPaths conforme documentação oficial, sem mudar fontes/exclusões/regras/thresholds. Revisão independente e reanálise exigidas.
+
+### 2026-11-15T20:14:02-03:00 — Correções revisadas para novo candidato
+
+Testes dos editores:30 PASS e lint PASS após substituir asserção vazia por registro de edição com valor sintético extra e verificação exata de metadados/valor vazio. Testes das telas:6 PASS; conjunto com catálogo:50 PASS. Revisão independente do delta e tsconfigPaths: PASS_WITH_WARNINGS; mantém escopo de fontes, regras, thresholds e tratamento de arquivos órfãos. Confirmar descoberta de três projetos, análise de agente/scripts/tools e ausência de OOM na nova execução integral. Próximo commit contém somente testes, correção do bootstrap e configuração/documentação do gate; sem novo comportamento de produto. Resultado final e SHA serão vinculados à PR após execução, sem presumir aprovação.
