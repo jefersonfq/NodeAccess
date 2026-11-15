@@ -66,3 +66,11 @@ Análise diagnóstica após correção do cache encontrou nove tsconfig.json (tr
 ### 2026-11-15T20:14:02-03:00 — Correções revisadas para novo candidato
 
 Testes dos editores:30 PASS e lint PASS após substituir asserção vazia por registro de edição com valor sintético extra e verificação exata de metadados/valor vazio. Testes das telas:6 PASS; conjunto com catálogo:50 PASS. Revisão independente do delta e tsconfigPaths: PASS_WITH_WARNINGS; mantém escopo de fontes, regras, thresholds e tratamento de arquivos órfãos. Confirmar descoberta de três projetos, análise de agente/scripts/tools e ausência de OOM na nova execução integral. Próximo commit contém somente testes, correção do bootstrap e configuração/documentação do gate; sem novo comportamento de produto. Resultado final e SHA serão vinculados à PR após execução, sem presumir aprovação.
+
+### 2026-11-15T20:37:57-03:00 — Segundo gate e correções revisadas
+
+Candidato 4eb6e4cb3: gate reprovado. Vitest 3832 PASS/124 pendentes; Node 700 PASS/1 falha de contrato/11 skips; TLS e dez jornadas PASS. Scanner concluiu sem OOM com os três projetos atuais; cobertura Sonar 81,9%, diff 87,12%. Seis achados e cinco autorizações obsoletas impedem aprovação. Correções: contrato CI aceita e verifica tsconfigPaths; cinco inputs auxiliares recebem nomes acessíveis; helper Chromium separado do CLI. Retirada das cinco exceções revisada independentemente; histórico preservado e accepted-findings intocado. Tabela/evidência individual em docs/sonarqube/validation-NA-0175.md.
+
+Após correção: 50 testes focais PASS, ferramentas Sonar 231 PASS/1 skip e jornada Chromium PASS. Manual Hosts revalidado: somente atributos de inputs ocultos mudaram, sem alteração de procedimento, layout ou capturas; jornada desktop/mobile confirma fluxos. Hash editorial atualizado após revisão. Próximo: revisão final, commit autorizado e gate integral no SHA congelado; sem push/PR ou merge até aqui. Roadmap já atualizado uma vez nesta interação.
+
+Revisão independente do diff final: PASS_WITH_WARNINGS, sem bloqueadores; comparação literal da jornada/fixtures, 206→201 exceções com somente as cinco previstas removidas, nenhum baseline aceito alterado. Lint, typecheck/build, check-reviewed e dois testes do manual PASS. Avisos Rollup já conhecidos; nenhuma supressão adicionada. Gate integral ainda pendente no novo SHA.

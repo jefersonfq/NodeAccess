@@ -382,6 +382,7 @@ defineExpose({ openCreate, openEdit, openRotate, openConsumers, revoke, remove }
       <input
         type="text"
         name="fake-secret-username"
+        :aria-label="$t('secrets.modal.alias')"
         autocomplete="username"
         class="hidden"
         tabindex="-1"
@@ -389,6 +390,7 @@ defineExpose({ openCreate, openEdit, openRotate, openConsumers, revoke, remove }
       <input
         type="password"
         name="fake-secret-password"
+        :aria-label="$t('secrets.modal.value')"
         autocomplete="current-password"
         class="hidden"
         tabindex="-1"
@@ -484,6 +486,7 @@ defineExpose({ openCreate, openEdit, openRotate, openConsumers, revoke, remove }
       <input
         type="text"
         name="fake-rotate-username"
+        :aria-label="$t('secrets.modal.alias')"
         autocomplete="username"
         class="hidden"
         tabindex="-1"
@@ -491,6 +494,7 @@ defineExpose({ openCreate, openEdit, openRotate, openConsumers, revoke, remove }
       <input
         type="password"
         name="fake-rotate-password"
+        :aria-label="$t('secrets.modal.value')"
         autocomplete="current-password"
         class="hidden"
         tabindex="-1"

@@ -175,6 +175,7 @@ defineExpose({ openCreate, openPassphrase, remove })
           />
           <input
             ref="pemKeyFileInput"
+            :aria-label="$t('pemKeys.modal.contentLabel')"
             type="file"
             accept=".pem,.key,.ppk,.txt,text/plain"
             class="hidden"
