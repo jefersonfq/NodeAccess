@@ -177,7 +177,8 @@
     "postinstall": "node scripts/dependency-patches/typedoc-minimatch.mjs",
     "test:dependency-compatibility": "node --test scripts/dependency-patches/dependency-compatibility.test.cjs scripts/dependency-patches/typedoc-minimatch.test.mjs",
     "quality:context": "node tools/quality/context.mjs",
-    "pretest:network-access:soak": "npm run build -w packages/shared && npm run build -w apps/backend"
+    "pretest:network-access:soak": "npm run build -w packages/shared && npm run build -w apps/backend",
+    "test:security-center:web": "node tools/frontend/security-center-playwright.cjs"
   },
   "devDependencies": {
     "@bcoe/v8-coverage": "1.0.2",

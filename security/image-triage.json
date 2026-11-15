@@ -1,7 +1,7 @@
 {
-  "reviewedAt": "2026-10-24",
-  "expiresAt": "2026-11-08",
-  "evidence": "docs/changes/2026/10/NA-0069-release-integration/image-triage.md",
+  "reviewedAt": "2026-11-15",
+  "expiresAt": "2026-11-29",
+  "evidence": "docs/changes/2026/11/NA-0172-security-center/image-gate-review.md",
   "image": "nodeaccess-mysql:8.4.12-1",
   "distro": {
     "name": "oraclelinux",

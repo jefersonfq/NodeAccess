@@ -1,0 +1,69 @@
+{
+  "runtimeUser": "jeferson",
+  "node": "24.22.1",
+  "results": [
+    {
+      "url": "http://127.0.0.1:3000/health/ready",
+      "status": 200,
+      "health": "ok",
+      "checks": [
+        {
+          "name": "process",
+          "status": "ok"
+        },
+        {
+          "name": "mysql",
+          "status": "ok"
+        },
+        {
+          "name": "redis",
+          "status": "ok"
+        },
+        {
+          "name": "session_audit_storage",
+          "status": "ok"
+        },
+        {
+          "name": "migrations",
+          "status": "ok"
+        }
+      ]
+    },
+    {
+      "url": "http://127.0.0.1:3001/health/ready",
+      "status": 200,
+      "health": "ok",
+      "checks": [
+        {
+          "name": "process",
+          "status": "ok"
+        },
+        {
+          "name": "mysql",
+          "status": "ok"
+        },
+        {
+          "name": "redis",
+          "status": "ok"
+        },
+        {
+          "name": "session_audit_storage",
+          "status": "ok"
+        },
+        {
+          "name": "migrations",
+          "status": "ok"
+        }
+      ]
+    },
+    {
+      "url": "http://127.0.0.1:5173/security",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:5173/src/views/SecurityCenterView.vue",
+      "status": 200,
+      "newViewServed": true
+    }
+  ]
+}

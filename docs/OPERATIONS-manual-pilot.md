@@ -278,3 +278,10 @@ manual:check-reviewed final passou nos cinco capítulos após a atualização ed
 ### 2026-11-04T11:22:45-03:00 — NA0093 integração final dos destaques
 
 Ran: nova captura conjunta após rótulo visível de pausa NA0147 (53d136fbb), cinco imagens abertas/revisadas pela raiz; 2 contratos Node e18 Vitest manual PASS, check-reviewed cinco capítulos PASS. Apenas hash editorial do terminal atualizado após validação. API/SSH simulados; prints são demonstrações, não homologação humana nem teste de produção.
+
+## Revalidação NA-0172 — 06/11/2026
+
+Entrada Central de Segurança adicionada junto ao Manual sem alterar seus procedimentos. Captura em /tmp/nodeaccess-NA-0172 com frontendlocal:cinco fluxos/capturas aprovados e imagens revisadas. Primeira tentativa usou versãoesperada diferente do servidor; repetição com MANUAL_EXPECTED_VERSION=dev PASS, sem mudar asserção. test:manual2Node+18Vitest e manual:check-reviewed5capítulosPASS. Somente Hosts referenciaAppLayout e recebeu novo hash/data após revisão; texto mantido. Evidência do candidato, não execução na pasta principal nem homologação humana.
+
+### NA-0172 — revalidação após ajuste de âncoras
+Em 06/11/2026, o layout passou a preservar a instância da Central em mudanças de fragmento. O procedimento de Hosts permaneceu igual. Ran: cinco capturas demonstrativas revisadas, 2 testes Node +18 Vitest e cinco capítulos com revisão atual aprovados; apenas hash editorial de Hosts atualizado por depender de AppLayout. Capturas preservam marcas e contagens de fixtures, não são dados de uso real. Não houve mudança de área útil/resize/transporte do terminal; regressão completa integra a validação Sonar da frente.

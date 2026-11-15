@@ -1,0 +1,29 @@
+{
+  "sameRoot": false,
+  "connected": false,
+  "effects": [
+    "transition-or-loading",
+    "transition-or-loading",
+    "transient-class",
+    "transition-or-loading",
+    "transition-or-loading",
+    "transient-class",
+    "transition-or-loading",
+    "transient-class",
+    "transient-class",
+    "transient-class",
+    "transient-class",
+    "transition-or-loading",
+    "transition-or-loading",
+    "transition-or-loading",
+    "transition-or-loading",
+    "transition-or-loading",
+    "transient-class",
+    "transition-or-loading",
+    "transient-class",
+    "transient-class",
+    "transient-class"
+  ],
+  "targetVisible": true,
+  "hash": "#security-audit"
+}

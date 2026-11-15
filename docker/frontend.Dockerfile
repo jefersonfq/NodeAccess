@@ -1,4 +1,6 @@
 FROM node:24.22.1-alpine@sha256:06d7adf3e0ef61a13f1d28682726366f97a15aa1888c934d3ecec86c33918b53 AS node-runtime
+# CPython 3.14.10 has a FIPS regression; use the unaffected stable official runtime.
+FROM python:3.15.2-alpine3.24@sha256:0f9552bb28711333da16915ec146f5e6bb44a7fdac9ced15dc17c2e0206346dd AS python-runtime
 FROM node-runtime AS base
 WORKDIR /app
 COPY package*.json ./
@@ -28,7 +30,8 @@ LABEL org.opencontainers.image.version="${APP_VERSION}"
 # Static serving and the Python/Node TLS worker do not use curl or libcurl.
 RUN sed -i 's/dl-cdn.alpinelinux.org/dl-4.alpinelinux.org/g' /etc/apk/repositories \
   && apk --no-network del nginx-module-image-filter curl libcurl \
-  && apk --timeout 30 upgrade --no-cache
+  && apk --timeout 30 upgrade --no-cache \
+  && apk --timeout 30 add --no-cache "zlib>=1.4-r0" "libxslt>=1.1.43-r4"
 COPY --from=builder /app/apps/frontend/dist /usr/share/nginx/html
 COPY docker/nginx.https.conf /etc/nginx/nginx.conf
 EXPOSE 80
@@ -42,7 +45,8 @@ USER root
 # Static serving and the Python/Node TLS worker do not use curl or libcurl.
 RUN sed -i 's/dl-cdn.alpinelinux.org/dl-4.alpinelinux.org/g' /etc/apk/repositories \
   && apk --no-network del nginx-module-image-filter curl libcurl \
-  && apk --timeout 30 upgrade --no-cache
+  && apk --timeout 30 upgrade --no-cache \
+  && apk --timeout 30 add --no-cache "zlib>=1.4-r0" "libxslt>=1.1.43-r4"
 USER 101
 ENV API_UPSTREAM=api:3000
 ENV GATEWAY_UPSTREAM=ssh-gateway:3001
@@ -54,16 +58,17 @@ EXPOSE 8080
 FROM nginx:1.30.6-alpine@sha256:47928bf67eb62a1863cb08d9ecb52d3e704304ba614eaee17884204677702951 AS tls-agent
 ARG APP_VERSION=dev
 LABEL org.opencontainers.image.version="${APP_VERSION}"
+COPY --from=python-runtime /usr/local /usr/local
 COPY docker/tls-requirements.txt /tmp/tls-requirements.txt
 # Static serving and the Python/Node TLS worker do not use curl or libcurl.
 RUN sed -i 's/dl-cdn.alpinelinux.org/dl-4.alpinelinux.org/g' /etc/apk/repositories \
   && apk --no-network del nginx-module-image-filter curl libcurl \
   && apk --timeout 30 upgrade --no-cache \
-  && apk --timeout 30 add --no-cache libstdc++ python3 openssl ca-certificates \
-  && apk --timeout 30 add --no-cache --virtual .certbot-build py3-pip \
+  && apk --timeout 30 add --no-cache "zlib>=1.4-r0" "libxslt>=1.1.43-r4" \
+  && apk --timeout 30 add --no-cache libstdc++ openssl ca-certificates libbz2 libexpat libffi gdbm xz-libs ncurses-libs readline sqlite-libs libuuid \
   && python3 -m venv --without-pip /opt/certbot \
   && python3 -m pip --python /opt/certbot/bin/python install --no-cache-dir --only-binary=:all: -r /tmp/tls-requirements.txt \
-  && apk --no-network del .certbot-build \
+  && python3 -m pip uninstall --yes pip \
   && rm /tmp/tls-requirements.txt
 # SQLite 3.54.1 fixes the reviewed FTS5/session memory errors; pin only this APK.
 ADD --checksum=sha256:5dfd76936e795efd988d6bad4949b8d20c410d6dc9dd256da884111f668f3915 https://dl-4.alpinelinux.org/alpine/edge/main/x86_64/sqlite-libs-3.54.1-r0.apk /tmp/sqlite-libs-3.54.1-r0.apk

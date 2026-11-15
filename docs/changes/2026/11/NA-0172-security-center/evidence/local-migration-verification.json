@@ -1,0 +1,48 @@
+{
+  "verifiedAt": "2026-11-06T14:39:38.938Z",
+  "passed": true,
+  "authorized": true,
+  "migration": "20261104230000_tacacs_tls_identity",
+  "before": {
+    "appliedCount": 150,
+    "pending": [
+      "20261104230000_tacacs_tls_identity"
+    ],
+    "deviceRows": 0,
+    "backupRechecked": true
+  },
+  "after": {
+    "appliedCount": 151,
+    "pending": [],
+    "incomplete": 0,
+    "deviceRows": 0,
+    "columns": [
+      {
+        "COLUMN_NAME": "certificate_fingerprint_sha256",
+        "IS_NULLABLE": "YES",
+        "DATA_TYPE": "char",
+        "CHARACTER_MAXIMUM_LENGTH": 64
+      },
+      {
+        "COLUMN_NAME": "secret_cipher",
+        "IS_NULLABLE": "YES",
+        "DATA_TYPE": "text",
+        "CHARACTER_MAXIMUM_LENGTH": 65535
+      }
+    ],
+    "indexes": [
+      {
+        "INDEX_NAME": "network_device_certificate",
+        "COLUMN_NAME": "certificate_fingerprint_sha256",
+        "NON_UNIQUE": 0
+      }
+    ],
+    "checksumMatchesFile": true
+  },
+  "backupSha256": "33b78ff71086f0c95b7448b2dd5ceaec3a14a1ae5d08cf863487e894b351b060",
+  "deploySucceeded": true,
+  "ddlRerun": false,
+  "verificationMode": "read-only SQL after deploy",
+  "reportingNote": "Initial report serialization encountered a BigInt; deployment was not repeated, and this report was rebuilt from read-only verification.",
+  "appStarted": false
+}

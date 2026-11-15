@@ -6756,5 +6756,19 @@
     "cancelCopy": "Cancel transfer",
     "editorOpenFailed": "The editor could not open. Check the selected application and file format in the Windows agent.",
     "checkAgent": "Check agent"
+  },
+  "securityCenter": {
+    "title": "Security Center",
+    "introduction": "Understand NodeAccess controls and the steps that help protect your access.",
+    "scope": "This page is informational. Feature availability depends on your permissions and your organization’s policies and configuration. It is not a diagnosis of active protections in this environment.",
+    "languageNote": "The reviewed content is currently available in Brazilian Portuguese.",
+    "contents": "On this page",
+    "conditions": "Conditions and limits",
+    "practices": "Good practices for you",
+    "profileAction": "Review my profile",
+    "empty": "No reviewed content is available in this version. Contact the person responsible for your organization for guidance.",
+    "reviewedAt": "Editorial review on",
+    "revision": "Content {revision}",
+    "reviewScope": "This date identifies the content review, not an audit of your organization or a guarantee that vulnerabilities are absent."
   }
 }

@@ -3,9 +3,10 @@ import vue from '@vitejs/plugin-vue'
 import { resolve } from 'node:path'
 import { createRequire } from 'node:module'
 const { manualPlugin } = createRequire(import.meta.url)('../../tools/manual/build.cjs')
+const { securityCenterPlugin } = createRequire(import.meta.url)('../../tools/security-center/build.cjs')
 
 export default defineConfig({
-  plugins: [vue(), manualPlugin()],
+  plugins: [vue(), manualPlugin(), securityCenterPlugin()],
   resolve: {
     alias: { '@': resolve(__dirname, 'src') },
   },

@@ -1,0 +1,177 @@
+{
+  "reviewedAt": "2026-11-06T11:20:55.965112-03:00",
+  "scope": "19 documentary occurrences; no secret values copied; no scanner run or broad exclusions",
+  "entries": [
+    {
+      "path": "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/candidate-9a47efdba/validation.json",
+      "rule": "generic-api-key",
+      "line": 25,
+      "fileSha256": "106c37642293f3e921069dc303af9033a7395a3c24b770dd24b62a8f6cbeff1e",
+      "reason": "Identificador UUID de achado Sonar em comparison.unexpected; associado a regra, arquivo e linha; não é token de API. Revisão independente NA-0172: documento histórico idêntico byte a byte ao backup NA0081 preservado; exceção limitada a esta ocorrência e hash integral.",
+      "backupPath": "/home/jeferson/projects/NodeAccess-current-backup-NA0081-20261106/docs/changes/2026/11/NA-0093-sonar-delivery/evidence/candidate-9a47efdba/validation.json",
+      "backupByteIdentical": true
+    },
+    {
+      "path": "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/candidate-9a47efdba/validation.json",
+      "rule": "generic-api-key",
+      "line": 31,
+      "fileSha256": "106c37642293f3e921069dc303af9033a7395a3c24b770dd24b62a8f6cbeff1e",
+      "reason": "Identificador UUID de achado Sonar em comparison.unexpected; associado a regra, arquivo e linha; não é token de API. Revisão independente NA-0172: documento histórico idêntico byte a byte ao backup NA0081 preservado; exceção limitada a esta ocorrência e hash integral.",
+      "backupPath": "/home/jeferson/projects/NodeAccess-current-backup-NA0081-20261106/docs/changes/2026/11/NA-0093-sonar-delivery/evidence/candidate-9a47efdba/validation.json",
+      "backupByteIdentical": true
+    },
+    {
+      "path": "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/candidate-9a47efdba/validation.json",
+      "rule": "generic-api-key",
+      "line": 37,
+      "fileSha256": "106c37642293f3e921069dc303af9033a7395a3c24b770dd24b62a8f6cbeff1e",
+      "reason": "Identificador UUID de achado Sonar em comparison.unexpected; associado a regra, arquivo e linha; não é token de API. Revisão independente NA-0172: documento histórico idêntico byte a byte ao backup NA0081 preservado; exceção limitada a esta ocorrência e hash integral.",
+      "backupPath": "/home/jeferson/projects/NodeAccess-current-backup-NA0081-20261106/docs/changes/2026/11/NA-0093-sonar-delivery/evidence/candidate-9a47efdba/validation.json",
+      "backupByteIdentical": true
+    },
+    {
+      "path": "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/candidate-9a47efdba/validation.json",
+      "rule": "generic-api-key",
+      "line": 43,
+      "fileSha256": "106c37642293f3e921069dc303af9033a7395a3c24b770dd24b62a8f6cbeff1e",
+      "reason": "Identificador UUID de achado Sonar em comparison.unexpected; associado a regra, arquivo e linha; não é token de API. Revisão independente NA-0172: documento histórico idêntico byte a byte ao backup NA0081 preservado; exceção limitada a esta ocorrência e hash integral.",
+      "backupPath": "/home/jeferson/projects/NodeAccess-current-backup-NA0081-20261106/docs/changes/2026/11/NA-0093-sonar-delivery/evidence/candidate-9a47efdba/validation.json",
+      "backupByteIdentical": true
+    },
+    {
+      "path": "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/candidate-9a47efdba/validation.json",
+      "rule": "generic-api-key",
+      "line": 49,
+      "fileSha256": "106c37642293f3e921069dc303af9033a7395a3c24b770dd24b62a8f6cbeff1e",
+      "reason": "Identificador UUID de achado Sonar em comparison.unexpected; associado a regra, arquivo e linha; não é token de API. Revisão independente NA-0172: documento histórico idêntico byte a byte ao backup NA0081 preservado; exceção limitada a esta ocorrência e hash integral.",
+      "backupPath": "/home/jeferson/projects/NodeAccess-current-backup-NA0081-20261106/docs/changes/2026/11/NA-0093-sonar-delivery/evidence/candidate-9a47efdba/validation.json",
+      "backupByteIdentical": true
+    },
+    {
+      "path": "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/candidate-9a47efdba/validation.json",
+      "rule": "generic-api-key",
+      "line": 55,
+      "fileSha256": "106c37642293f3e921069dc303af9033a7395a3c24b770dd24b62a8f6cbeff1e",
+      "reason": "Identificador UUID de achado Sonar em comparison.unexpected; associado a regra, arquivo e linha; não é token de API. Revisão independente NA-0172: documento histórico idêntico byte a byte ao backup NA0081 preservado; exceção limitada a esta ocorrência e hash integral.",
+      "backupPath": "/home/jeferson/projects/NodeAccess-current-backup-NA0081-20261106/docs/changes/2026/11/NA-0093-sonar-delivery/evidence/candidate-9a47efdba/validation.json",
+      "backupByteIdentical": true
+    },
+    {
+      "path": "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/candidate-9a47efdba/validation.json",
+      "rule": "generic-api-key",
+      "line": 61,
+      "fileSha256": "106c37642293f3e921069dc303af9033a7395a3c24b770dd24b62a8f6cbeff1e",
+      "reason": "Identificador UUID de achado Sonar em comparison.unexpected; associado a regra, arquivo e linha; não é token de API. Revisão independente NA-0172: documento histórico idêntico byte a byte ao backup NA0081 preservado; exceção limitada a esta ocorrência e hash integral.",
+      "backupPath": "/home/jeferson/projects/NodeAccess-current-backup-NA0081-20261106/docs/changes/2026/11/NA-0093-sonar-delivery/evidence/candidate-9a47efdba/validation.json",
+      "backupByteIdentical": true
+    },
+    {
+      "path": "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/candidate-9a47efdba/validation.json",
+      "rule": "generic-api-key",
+      "line": 67,
+      "fileSha256": "106c37642293f3e921069dc303af9033a7395a3c24b770dd24b62a8f6cbeff1e",
+      "reason": "Identificador UUID de achado Sonar em comparison.unexpected; associado a regra, arquivo e linha; não é token de API. Revisão independente NA-0172: documento histórico idêntico byte a byte ao backup NA0081 preservado; exceção limitada a esta ocorrência e hash integral.",
+      "backupPath": "/home/jeferson/projects/NodeAccess-current-backup-NA0081-20261106/docs/changes/2026/11/NA-0093-sonar-delivery/evidence/candidate-9a47efdba/validation.json",
+      "backupByteIdentical": true
+    },
+    {
+      "path": "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/candidate-9a47efdba/validation.json",
+      "rule": "generic-api-key",
+      "line": 73,
+      "fileSha256": "106c37642293f3e921069dc303af9033a7395a3c24b770dd24b62a8f6cbeff1e",
+      "reason": "Identificador UUID de achado Sonar em comparison.unexpected; associado a regra, arquivo e linha; não é token de API. Revisão independente NA-0172: documento histórico idêntico byte a byte ao backup NA0081 preservado; exceção limitada a esta ocorrência e hash integral.",
+      "backupPath": "/home/jeferson/projects/NodeAccess-current-backup-NA0081-20261106/docs/changes/2026/11/NA-0093-sonar-delivery/evidence/candidate-9a47efdba/validation.json",
+      "backupByteIdentical": true
+    },
+    {
+      "path": "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/quality-panel-audit.json",
+      "rule": "generic-api-key",
+      "line": 3,
+      "fileSha256": "00925118ec1525c3c10ea8c906b9062087027c3497f6f24a1559133fbb56acad",
+      "reason": "Identificador UUID de análise Sonar. Revisão independente NA-0172: documento histórico idêntico byte a byte ao backup NA0081 preservado; exceção limitada a esta ocorrência e hash integral.",
+      "backupPath": "/home/jeferson/projects/NodeAccess-current-backup-NA0081-20261106/docs/changes/2026/11/NA-0093-sonar-delivery/evidence/quality-panel-audit.json",
+      "backupByteIdentical": true
+    },
+    {
+      "path": "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/quality-panel-audit.json",
+      "rule": "generic-api-key",
+      "line": 7,
+      "fileSha256": "00925118ec1525c3c10ea8c906b9062087027c3497f6f24a1559133fbb56acad",
+      "reason": "Identificador UUID de evento de análise Sonar. Revisão independente NA-0172: documento histórico idêntico byte a byte ao backup NA0081 preservado; exceção limitada a esta ocorrência e hash integral.",
+      "backupPath": "/home/jeferson/projects/NodeAccess-current-backup-NA0081-20261106/docs/changes/2026/11/NA-0093-sonar-delivery/evidence/quality-panel-audit.json",
+      "backupByteIdentical": true
+    },
+    {
+      "path": "docs/changes/2026/11/NA-0169-tacacs-tls/evidence/final-sonar.json",
+      "rule": "generic-api-key",
+      "line": 4,
+      "fileSha256": "b944c4319d0f60ea3af3dd8f6180cbd1048b66c791b95701e38546735327a47d",
+      "reason": "Identificador UUID de análise Sonar. Revisão independente NA-0172: documento histórico idêntico byte a byte ao backup NA0081 preservado; exceção limitada a esta ocorrência e hash integral.",
+      "backupPath": "/home/jeferson/projects/NodeAccess-current-backup-NA0081-20261106/docs/changes/2026/11/NA-0169-tacacs-tls/evidence/final-sonar.json",
+      "backupByteIdentical": true
+    },
+    {
+      "path": "docs/changes/2026/11/NA-0169-tacacs-tls/evidence/final-sonar.json",
+      "rule": "generic-api-key",
+      "line": 8,
+      "fileSha256": "b944c4319d0f60ea3af3dd8f6180cbd1048b66c791b95701e38546735327a47d",
+      "reason": "Identificador UUID de evento de análise Sonar. Revisão independente NA-0172: documento histórico idêntico byte a byte ao backup NA0081 preservado; exceção limitada a esta ocorrência e hash integral.",
+      "backupPath": "/home/jeferson/projects/NodeAccess-current-backup-NA0081-20261106/docs/changes/2026/11/NA-0169-tacacs-tls/evidence/final-sonar.json",
+      "backupByteIdentical": true
+    },
+    {
+      "path": "docs/changes/2026/11/NA-0169-tacacs-tls/evidence/initial-final-sonar.json",
+      "rule": "generic-api-key",
+      "line": 4,
+      "fileSha256": "839f1d3ef27693a084ac6cc1ae2a8b6daa86626612e24fa4b3c3b5bb659156ba",
+      "reason": "Identificador UUID de análise Sonar. Revisão independente NA-0172: documento histórico idêntico byte a byte ao backup NA0081 preservado; exceção limitada a esta ocorrência e hash integral.",
+      "backupPath": "/home/jeferson/projects/NodeAccess-current-backup-NA0081-20261106/docs/changes/2026/11/NA-0169-tacacs-tls/evidence/initial-final-sonar.json",
+      "backupByteIdentical": true
+    },
+    {
+      "path": "docs/changes/2026/11/NA-0169-tacacs-tls/evidence/initial-final-sonar.json",
+      "rule": "generic-api-key",
+      "line": 8,
+      "fileSha256": "839f1d3ef27693a084ac6cc1ae2a8b6daa86626612e24fa4b3c3b5bb659156ba",
+      "reason": "Identificador UUID de evento de análise Sonar. Revisão independente NA-0172: documento histórico idêntico byte a byte ao backup NA0081 preservado; exceção limitada a esta ocorrência e hash integral.",
+      "backupPath": "/home/jeferson/projects/NodeAccess-current-backup-NA0081-20261106/docs/changes/2026/11/NA-0169-tacacs-tls/evidence/initial-final-sonar.json",
+      "backupByteIdentical": true
+    },
+    {
+      "path": "docs/changes/2026/11/NA-0169-tacacs-tls/evidence/second-local-final-sonar.json",
+      "rule": "generic-api-key",
+      "line": 4,
+      "fileSha256": "7b7deaee68394f929be4f26b7d78cbe9c702e67e64cb9f996108e0434f491903",
+      "reason": "Identificador UUID de análise Sonar. Revisão independente NA-0172: documento histórico idêntico byte a byte ao backup NA0081 preservado; exceção limitada a esta ocorrência e hash integral.",
+      "backupPath": "/home/jeferson/projects/NodeAccess-current-backup-NA0081-20261106/docs/changes/2026/11/NA-0169-tacacs-tls/evidence/second-local-final-sonar.json",
+      "backupByteIdentical": true
+    },
+    {
+      "path": "docs/changes/2026/11/NA-0169-tacacs-tls/evidence/second-local-final-sonar.json",
+      "rule": "generic-api-key",
+      "line": 8,
+      "fileSha256": "7b7deaee68394f929be4f26b7d78cbe9c702e67e64cb9f996108e0434f491903",
+      "reason": "Identificador UUID de evento de análise Sonar. Revisão independente NA-0172: documento histórico idêntico byte a byte ao backup NA0081 preservado; exceção limitada a esta ocorrência e hash integral.",
+      "backupPath": "/home/jeferson/projects/NodeAccess-current-backup-NA0081-20261106/docs/changes/2026/11/NA-0169-tacacs-tls/evidence/second-local-final-sonar.json",
+      "backupByteIdentical": true
+    },
+    {
+      "path": "docs/changes/2026/11/NA-0172-security-center/workspace-preserved/docs/changes/2026/11/NA-0151-linear-backend-trims/evidence/source-fingerprints.json",
+      "rule": "generic-api-key",
+      "line": 3,
+      "fileSha256": "0042d6e30eeb4eb9a20a19398bb92045cdd7ecdc9f234d935c1d6104c8f29c42",
+      "reason": "SHA256 documental de arquivo-fonte; digest recalculado e confirmado no código atual, sem material de autenticação. Revisão independente NA-0172: documento histórico idêntico byte a byte ao backup NA0081 preservado; exceção limitada a esta ocorrência e hash integral.",
+      "backupPath": "/home/jeferson/projects/NodeAccess-current-backup-NA0081-20261106/docs/changes/2026/11/NA-0151-linear-backend-trims/evidence/source-fingerprints.json",
+      "backupByteIdentical": true
+    },
+    {
+      "path": "docs/changes/2026/11/NA-0172-security-center/workspace-preserved/docs/changes/2026/11/NA-0153-harness-regex-restore/evidence/source-sha256.json",
+      "rule": "generic-api-key",
+      "line": 4,
+      "fileSha256": "8ea11c6dacce73ddd0adacaa07306f0921b609226f314ae2f898454cc7c9cbef",
+      "reason": "SHA256 documental de arquivo-fonte; digest recalculado e confirmado no código atual, sem material de autenticação. Revisão independente NA-0172: documento histórico idêntico byte a byte ao backup NA0081 preservado; exceção limitada a esta ocorrência e hash integral.",
+      "backupPath": "/home/jeferson/projects/NodeAccess-current-backup-NA0081-20261106/docs/changes/2026/11/NA-0153-harness-regex-restore/evidence/source-sha256.json",
+      "backupByteIdentical": true
+    }
+  ]
+}

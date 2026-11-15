@@ -17,7 +17,10 @@ if (process.env.RUN_CONTAINER_STACK_REAL !== 'true') throw Error('Set RUN_CONTAI
 const root = resolve(import.meta.dirname, '../..')
 const output = resolve(process.env.CONTAINER_TEST_OUTPUT || artifactPath('nodeaccess-container-stack'))
 mkdirSync(output, { recursive: true })
-const images = { ...JSON.parse(readFileSync(resolve(root, 'docker/stack-images.json'))),
+const stateImages = JSON.parse(readFileSync(resolve(root, 'docker/stack-images.json')))
+const images = { ...stateImages,
+  mysql: process.env.STACK_MYSQL_IMAGE || stateImages.mysql,
+  redis: process.env.STACK_REDIS_IMAGE || stateImages.redis,
   sshLab: 'lscr.io/linuxserver/openssh-server@sha256:39ba37d50fdd6be1bf70644c871e5dcb9234ee79ac56424ea03ca08cadf1e7b0',
   backend: process.env.STACK_BACKEND_IMAGE || 'nodeaccess-backend:security-local',
   frontend: process.env.STACK_FRONTEND_IMAGE || 'nodeaccess-frontend:security-local',

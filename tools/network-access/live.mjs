@@ -3,6 +3,7 @@ import { artifactPath } from '../shared/private-artifacts.cjs'
 import assert from 'node:assert/strict'
 import { randomUUID, X509Certificate } from 'node:crypto'
 import { spawn } from 'node:child_process'
+import { collectProbeResponse } from './probe-response.mjs'
 import { readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { createTacacsTestPki } from '../../apps/backend/dist/modules/network-access/tacacs-tls.test-pki.js'
@@ -31,7 +32,12 @@ const tlsClient={...clientIdentity('client'),ca:join(pkiDirectory,'root/ca.crt')
 let tenant,user,host,node,acl,foreignTenant,foreignUser,foreignHost
 const checks=[]
 function checked(name){checks.push(name);console.log('PASS '+name)}
-async function probe(action,extra={}){return new Promise((resolve,reject)=>{const child=spawn(process.env.PYTHON??'python3',['tools/network-access/tacacs-client.py'],{env:process.env});let output='',error='';const deadline=setTimeout(()=>child.kill('SIGKILL'),10000);child.once('close',()=>clearTimeout(deadline));child.stdout.on('data',b=>output+=b);child.stderr.on('data',b=>error+=b);child.on('error',reject);child.on('exit',code=>{try{if(code)throw Error(error);resolve(JSON.parse(output))}catch(e){reject(e)}});child.stdin.end(JSON.stringify({port:Number(process.env.NETWORK_TACACS_EXTERNAL_PORT)||runtime.server.address().port,...tlsClient,action,...extra}))})}
+async function probe(action,extra={}) {
+  const child=spawn(process.env.PYTHON??'python3',['tools/network-access/tacacs-client.py'],{env:process.env})
+  const response=collectProbeResponse(child)
+  child.stdin.end(JSON.stringify({port:Number(process.env.NETWORK_TACACS_EXTERNAL_PORT)||runtime.server.address().port,...tlsClient,action,...extra}))
+  return response
+}
 try{
  tenant=await db.tenant.create({data:{name:'Disposable network AAA',slug:'network-aaa-'+randomUUID()}})
  user=await db.user.create({data:{tenantId:tenant.id,name:'Alice network pilot',email:randomUUID()+'@example.test'}})
