@@ -1,3 +1,4 @@
+import { configureCurrentSessionReader } from '../auth/current-session.js'
 import Fastify, { type FastifyInstance } from 'fastify'
 import fastifyJwt from '@fastify/jwt'
 import { afterEach, describe, expect, it, vi } from 'vitest'
@@ -7,8 +8,9 @@ import { SnippetService } from '../snippets/snippet.service.js'
 import { snippetRoutes } from '../snippets/snippet.routes.js'
 
 let app: FastifyInstance | undefined
-afterEach(async () => { await app?.close();configureTrialPolicy(() => Promise.resolve(null)) })
+afterEach(async () => { configureCurrentSessionReader(undefined); await app?.close();configureTrialPolicy(() => Promise.resolve(null)) })
 async function fixture(trial: boolean, expired = false) {
+  configureCurrentSessionReader( (id, tenant) => Promise.resolve(id === 17 && tenant === 3 ? ({ tenantId: 3, active: true, deletedAt: null, tenantActive: true, targetTenantActive: true, sessionVersion: 0, role: 'USER', isPlatformAdmin: false, canManageHosts: false, canViewLiveSessions: false }) : null))
   configureTrialPolicy(() => Promise.resolve(trial ? { status: 'ACTIVE', expiresAt: new Date(Date.now()+(expired?-1000:60000)), profileJson: { resources: ['ssh'] } } : null))
   const db = { $executeRaw: vi.fn(() => Promise.resolve(1)) }
   const entitlements = { requireFeature: vi.fn(() => Promise.resolve()) }
@@ -17,7 +19,7 @@ async function fixture(trial: boolean, expired = false) {
   app.setErrorHandler((error,_req,reply)=>reply.code((error as {statusCode?:number}).statusCode??500).send({code:(error as {code?:string}).code}))
   await app.register(scope=>snippetRoutes(scope,new SnippetController(new SnippetService(db as never,entitlements as never))),{prefix:'/api/v1/snippets'})
   await app.ready()
-  const token=app.jwt.sign({sub:'17',tenantId:3,email:'fixture@example.test',role:'user',stage:'authenticated',sessionVersion:0})
+  const token=app.jwt.sign({sub:'17',tenantId:3,email:'fixture@example.test',role:'user',isPlatformAdmin:false,canManageHosts:false,canViewLiveSessions:false,stage:'authenticated',sessionVersion:0})
   return { app,db,entitlements,headers:{authorization:`Bearer ${token}`} }
 }
 describe('integrated macro outcomes with real JWT guard, route, controller and service',()=>{

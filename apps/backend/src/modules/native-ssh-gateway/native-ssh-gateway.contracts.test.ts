@@ -1,11 +1,14 @@
+import { assertCurrentUserVersion } from '../auth/current-session.js'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { EventEmitter } from 'node:events'
+import { SshSessionRuntimeRegistry } from '../ssh/ssh-session-runtime.registry.js'
 import { NativeSshGatewayService } from './native-ssh-gateway.service.js'
 import bcrypt from 'bcrypt'
 import type { ManagedSshSessionService } from '../ssh/managed-ssh-session.service.js'
 import type { LogRepository } from '../logs/log.repository.js'
 import { assertTrialCapability } from '../trials/trial-policy.js'
 
+vi.mock('../auth/current-session.js', () => ({ assertCurrentUserVersion: vi.fn().mockResolvedValue({ role: 'USER' }) }))
 vi.mock('../../config/logger.js', () => ({ logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn() } }))
 vi.mock('../trials/trial-policy.js', () => ({ assertTrialCapability: vi.fn().mockResolvedValue(undefined) }))
 vi.mock('bcrypt', () => ({ default: { compare: vi.fn().mockResolvedValue(true) } }))
@@ -26,13 +29,14 @@ function fixture(provider?: () => Promise<typeof config | null>) {
   const totp = { verify: vi.fn().mockReturnValue(false) }
   const emailConfig = { getTransportConfig: vi.fn().mockResolvedValue(null) }
   const email = { send: vi.fn().mockResolvedValue(undefined) }
-  const session = { write: vi.fn(), close: vi.fn().mockResolvedValue(undefined) }
+  const session = { sessionId: 41, write: vi.fn(), close: vi.fn().mockResolvedValue(undefined) }
   const managed = { open: vi.fn<(options: Parameters<ManagedSshSessionService['open']>[0]) => Promise<typeof session>>().mockResolvedValue(session) }
   const logs = { logAuthEvent: vi.fn<LogRepository['logAuthEvent']>().mockResolvedValue(undefined), logAdminEvent: vi.fn<LogRepository['logAdminEvent']>().mockResolvedValue(undefined) }
   type Args = ConstructorParameters<typeof NativeSshGatewayService>
+  const registry = new SshSessionRuntimeRegistry()
   const service = new NativeSshGatewayService(config, repo as unknown as Args[1], totp as unknown as Args[2],
-    redis as unknown as Args[3], emailConfig as unknown as Args[4], email as unknown as Args[5], managed as unknown as Args[6], logs as unknown as Args[7], provider)
-  return { service, user, repo, redis, totp, emailConfig, email, managed, logs, session }
+    redis as unknown as Args[3], emailConfig as unknown as Args[4], email as unknown as Args[5], managed as unknown as Args[6], logs as unknown as Args[7], provider, registry)
+  return { service, user, repo, redis, totp, emailConfig, email, managed, logs, session, registry }
 }
 class Channel extends EventEmitter {
   write = vi.fn()
@@ -44,7 +48,7 @@ const authenticated = (user = makeUser()) => ({ user, parsedLogin: { nodeAccessL
 const passwordContext = () => ({ method: 'password', username: 'fixture', password: 'fixture-password' })
 async function settleDelay<T>(pending: Promise<T>): Promise<T> { await vi.advanceTimersByTimeAsync(700); return pending }
 
-beforeEach(() => { vi.useFakeTimers(); vi.clearAllMocks(); vi.mocked(bcrypt.compare).mockResolvedValue(true as never); vi.mocked(assertTrialCapability).mockResolvedValue(undefined) })
+beforeEach(() => { vi.useFakeTimers(); vi.clearAllMocks(); vi.mocked(assertCurrentUserVersion).mockResolvedValue({ role: 'USER' } as never); vi.mocked(bcrypt.compare).mockResolvedValue(true as never); vi.mocked(assertTrialCapability).mockResolvedValue(undefined) })
 afterEach(() => { vi.clearAllTimers(); vi.useRealTimers() })
 
 describe('native gateway lifecycle and operational heartbeat', () => {
@@ -427,4 +431,60 @@ describe('native gateway interactive host selector', () => {
     expect(channel.write.mock.calls.length).toBe(afterClose)
     expect(f.managed.open).not.toHaveBeenCalled()
   })
+})
+
+
+describe('native session revocation ownership', () => {
+  const targetAuth = () => ({ ...authenticated(), parsedLogin: { nodeAccessLogin: 'fixture', target: '#19' } })
+  const targetHost = { id: 19, name: 'Fixture', ip: '192.0.2.19', port: 22, sshUser: 'fixture' }
+  it('registers the owner, closes on ACL revocation and never forwards later input', async () => {
+    const f = fixture(), channel = new Channel()
+    f.repo.resolveAccessibleHost.mockResolvedValue(targetHost)
+    await invoke(f.service, 'connectToTarget', channel, targetAuth(), info, { cols: 80, rows: 24 })
+    expect(f.registry.has(41)).toBe(true)
+    channel.emit('data', Buffer.from('before'))
+    expect(f.session.write).toHaveBeenCalledWith(Buffer.from('before'))
+    expect(f.registry.close(41, 'acl_revoked')).toBe(true)
+    expect(f.session.close).toHaveBeenCalledWith('acl_revoked')
+    channel.emit('data', Buffer.from('after'))
+    expect(f.session.write).toHaveBeenCalledTimes(1)
+    expect(f.registry.has(41)).toBe(false)
+  })
+  it('closes without forwarding the initial command when access is revoked during open', async () => {
+    const f = fixture(), channel = new Channel()
+    f.repo.resolveAccessibleHost.mockResolvedValueOnce(targetHost).mockResolvedValueOnce(null)
+    await invoke(f.service, 'connectToTarget', channel, targetAuth(), info, { cols: 80, rows: 24 }, 'forbidden')
+    expect(f.session.close).toHaveBeenCalledWith('acl_revoked')
+    expect(f.session.write).not.toHaveBeenCalled()
+    expect(f.registry.activeCount()).toBe(0)
+  })
+  it('does not leave a runtime when the client closes during the outbound handshake', async () => {
+    const f = fixture(), channel = new Channel()
+    f.repo.resolveAccessibleHost.mockResolvedValue(targetHost)
+    f.managed.open.mockImplementation(() => { channel.emit('close'); return Promise.resolve(f.session) })
+    await invoke(f.service, 'connectToTarget', channel, targetAuth(), info, { cols: 80, rows: 24 }, 'forbidden')
+    expect(f.session.close).toHaveBeenCalledOnce()
+    expect(f.session.write).not.toHaveBeenCalled()
+    expect(f.registry.activeCount()).toBe(0)
+  })
+  it('cleans up a newly registered runtime if the ACL recheck fails', async () => {
+    const f = fixture(), channel = new Channel()
+    f.repo.resolveAccessibleHost.mockResolvedValueOnce(targetHost).mockRejectedValueOnce(new Error('db unavailable'))
+    await invoke(f.service, 'connectToTarget', channel, targetAuth(), info, { cols: 80, rows: 24 })
+    expect(f.session.close).toHaveBeenCalledOnce()
+    expect(f.registry.activeCount()).toBe(0)
+    expect(f.session.write).not.toHaveBeenCalled()
+  })
+})
+
+
+it('records session revocation when the user version changes while opening a native channel', async () => {
+  const f = fixture(), channel = new Channel()
+  f.repo.resolveAccessibleHost.mockResolvedValue({ id: 19, name: 'Fixture', ip: '192.0.2.19', port: 22, sshUser: 'fixture' })
+  vi.mocked(assertCurrentUserVersion).mockResolvedValueOnce({ role: 'USER' } as never).mockRejectedValueOnce(new Error('revoked'))
+  const auth = { ...authenticated(), parsedLogin: { nodeAccessLogin: 'fixture', target: '#19' } }
+  await invoke(f.service, 'connectToTarget', channel, auth, info, { cols: 80, rows: 24 }, 'forbidden')
+  expect(f.session.close).toHaveBeenCalledWith('session_revoked')
+  expect(f.session.write).not.toHaveBeenCalled()
+  expect(f.registry.activeCount()).toBe(0)
 })

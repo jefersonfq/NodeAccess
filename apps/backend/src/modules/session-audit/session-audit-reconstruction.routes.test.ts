@@ -1,4 +1,5 @@
-import {beforeAll,describe,it,expect,vi} from 'vitest'
+import {afterEach,beforeAll,describe,it,expect,vi} from 'vitest'
+import {configureCurrentSessionReader} from '../auth/current-session.js'
 import Fastify from 'fastify'
 import jwt from '@fastify/jwt'
 import {sessionAuditRoutes} from './session-audit.routes.js'
@@ -7,6 +8,10 @@ import {SessionAuditService} from './session-audit.service.js'
 import type {SessionAuditRepository,SessionAuditRow} from './session-audit.repository.js'
 import type {SessionAuditStorage} from './session-audit.storage.js'
 async function fixture(){
+ configureCurrentSessionReader((userId,tenantId)=>{
+  const principal=userId===1?{tenantId:1,role:'ADMIN' as const}:userId===2?{tenantId:1,role:'USER' as const}:userId===3?{tenantId:2,role:'ADMIN' as const}:null
+  return Promise.resolve(principal&&principal.tenantId===tenantId?{...principal,active:true,deletedAt:null,tenantActive:true,targetTenantActive:true,sessionVersion:0,isPlatformAdmin:false,canManageHosts:false,canViewLiveSessions:false}:null)
+ })
  const app=Fastify();await app.register(jwt,{secret:'audit-test-only-disposable-signing-secret'})
  app.setErrorHandler((error: Error & { statusCode?: number },_req,reply)=>reply.code(error.statusCode??500).send({message:error.message}))
  const row={tenantId:1,sessionId:42,status:'COMPLETED',chunkCount:1,bytesIn:5,bytesOut:5} as SessionAuditRow
@@ -14,8 +19,9 @@ async function fixture(){
  const content=[{seq:1,type:'session_started'},{seq:2,type:'stdin',data:'echo ok\r'},{seq:3,type:'stdout',data:'ok\r\n'},{seq:4,type:'session_ended'}].map(e=>JSON.stringify({seq:e.seq,ts:'2026-09-29T12:00:00Z',type:e.type,payload:{data:e.data??'',actorUserId:9}})).join('\n')
  const service=new SessionAuditService(repo as unknown as SessionAuditRepository,{readChunk:()=>Promise.resolve(content)} as SessionAuditStorage)
  await app.register(async instance=>sessionAuditRoutes(instance,new SessionAuditController(service)),{prefix:'/session-audit'})
- return {app,repo,row,token:(extra:Record<string,unknown>={})=>app.jwt.sign({sub:'1',tenantId:1,role:'admin',stage:'authenticated',...extra})}
+ return {app,repo,row,token:(extra:Record<string,unknown>={})=>app.jwt.sign({sub:extra.tenantId===2?'3':extra.role==='user'?'2':'1',tenantId:1,role:'admin',stage:'authenticated',sessionVersion:0,isPlatformAdmin:false,canManageHosts:false,canViewLiveSessions:false,...extra})}
 }
+afterEach(()=>configureCurrentSessionReader(undefined))
 describe('reconstruction API access and downloads',()=>{
  // Fastify/AJV lazily loads its compilers on first boot. Keep that one-time
  // infrastructure setup outside individual request/retention test deadlines.

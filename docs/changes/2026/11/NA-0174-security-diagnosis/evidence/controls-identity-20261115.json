@@ -1,0 +1,46 @@
+{
+  "at": "2026-11-15T17:33:51.672937+00:00",
+  "sourceSHA": "28685c5b2c3fbf9739a05629260c95e42e0d62d0",
+  "workingTree": "/home/jeferson/NodeAccess-NA-0174",
+  "baseline": {
+    "initial": "baseline.log: Prisma.sql missing; preserved",
+    "afterGeneration": {
+      "files": 8,
+      "tests": 177,
+      "exit": 0
+    }
+  },
+  "finalFocused": {
+    "files": 10,
+    "tests": 207,
+    "exit": 0,
+    "log": "regression-final.log",
+    "RUN_TUNNEL_REAL": true
+  },
+  "typecheck": {
+    "exit": 0,
+    "log": "typecheck-latest.log"
+  },
+  "boundary": "Real SSH/SFTP servers on disposable loopback; synthetic repository/ACL/event dispatch. Not full REST/UI E2E. Parent running real PTY and Sonar separately.",
+  "cleanup": "Real test servers closed and sockets ended in afterAll; no external targets or credentials.",
+  "scope": [
+    "D07 target identity",
+    "D08 bastion source identity",
+    "D09 absent trust failclosed",
+    "D11 active/pending SFTP revocation",
+    "global pending/active tunnel revocation",
+    "SSH handshake revalidation and cleanup"
+  ],
+  "limits": [
+    "Gateway race harness independent reviewer pending",
+    "Full Sonar owned by root; PTY full application reported PASS by root at .tmp/NA-0174-controls/pty-result.json",
+    "Session-files real fixture updated, external OpenSSH suite not rerun here"
+  ],
+  "sftpEditorFollowup": {
+    "files": 3,
+    "tests": 66,
+    "exit": 0,
+    "log": "sftp-editor-revocation.log",
+    "realScenarios": 19
+  }
+}

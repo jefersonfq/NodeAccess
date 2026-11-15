@@ -1,3 +1,6 @@
+import { configureCurrentSessionReader } from '../auth/current-session.js'
+import { afterEach } from 'vitest'
+afterEach(() => configureCurrentSessionReader(undefined))
 import Fastify from 'fastify'
 import { describe, expect, it, vi } from 'vitest'
 import { SettingsController } from './settings.controller.js'
@@ -12,6 +15,7 @@ const payload = {
 }
 
 async function appFor(isPlatformAdmin: boolean) {
+  configureCurrentSessionReader((id, target) => Promise.resolve(id === 11 && target === 7 ? { tenantId: 7, active: true, deletedAt: null, tenantActive: true, targetTenantActive: true, sessionVersion: 0, role: 'ADMIN', isPlatformAdmin, canManageHosts: true, canViewLiveSessions: true } : null))
   const license = { ...payload, activeUsers: 4, registeredHosts: 3, hasKey: false }
   const service = {
     get: vi.fn().mockResolvedValue({ tenant: { id: 7 }, environment: { features: {} }, license }),

@@ -1,3 +1,4 @@
+import { configureCurrentSessionReader } from '../auth/current-session.js'
 import { afterEach, describe, expect, it } from 'vitest'
 import type { FastifyReply, FastifyRequest } from 'fastify'
 import { requireAuditRead } from '../session-audit/session-audit.routes.js'
@@ -5,9 +6,10 @@ import { configureTrialPolicy, configureTrialUserReader } from './trial-policy.j
 
 const reply = {} as FastifyReply
 function request(role: 'user' | 'admin', method = 'GET'): FastifyRequest {
-  return { method, url: '/api/v1/session-audit/1', jwtVerify: () => Promise.resolve({ sub: '1', tenantId: 1, role, stage: 'authenticated', sessionVersion: 0 }) } as unknown as FastifyRequest
+  configureCurrentSessionReader( (id, tenant) => Promise.resolve(id === 1 && tenant === 1 ? ({ tenantId: 1, active: true, deletedAt: null, tenantActive: true, targetTenantActive: true, sessionVersion: 0, role: role === 'admin' ? 'ADMIN' : 'USER', isPlatformAdmin: false, canManageHosts: false, canViewLiveSessions: false }) : null))
+  return { method, url: '/api/v1/session-audit/1', jwtVerify: () => Promise.resolve({ sub: '1', tenantId: 1, role, isPlatformAdmin: false, canManageHosts: false, canViewLiveSessions: false, stage: 'authenticated', sessionVersion: 0 }) } as unknown as FastifyRequest
 }
-afterEach(() => { configureTrialPolicy(() => Promise.resolve(null)); configureTrialUserReader(() => Promise.resolve(false)) })
+afterEach(() => { configureCurrentSessionReader(undefined); configureTrialPolicy(() => Promise.resolve(null)); configureTrialUserReader(() => Promise.resolve(false)) })
 describe('trial audit read admission', () => {
   it('preserves normal admin access and denies normal non-admin users', async () => {
     configureTrialPolicy(() => Promise.resolve(null))

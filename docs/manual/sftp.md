@@ -63,3 +63,14 @@ A operação apresenta confirmação ou erro compreensível. Abrir o editor e co
 **Temporários após queda:** uma interrupção pode impedir remover temporários privados no servidor. Confira a operação e remova somente artefatos reconhecidos do utilitário. Os backups do editor local não são apagados automaticamente: o envio pausa ao atingir 20 backups desse arquivo ou 64 MiB de backups reconhecidos na pasta. Preserve os arquivos necessários e revise `.nodeaccess-backups` antes de usar **Tentar envio novamente**. Uma pasta com mais de 1.024 entradas também bloqueia o envio para limitar o custo da conferência. A verificação não é uma quota atômica contra edições concorrentes. Os drafts locais permanecem para recuperação e devem ser removidos manualmente quando não forem mais necessários.
 
 **Transferência sem progresso:** uploads e downloads HTTP usam um prazo de cinco minutos sem progresso, em vez de um limite fixo de duração. Uma transferência ativa pode durar mais. Em uma interrupção, confira o destino antes de repetir; o resultado remoto pode ser desconhecido.
+
+
+**Chave SSH desconhecida ou alterada:** confirme a identidade do servidor no Host antes de
+repetir a operação. Em rotas com bastion, valide também a chave do Host de origem do salto;
+não aceite a chave do bastion como se fosse a do destino.
+
+**Acesso revogado durante a transferência:** o canal é encerrado quando a revogação é
+processada. Novas operações exigem acesso válido. Bytes já gravados não são desfeitos
+automaticamente: preserve a cópia local e peça ao responsável autorizado para conferir o
+arquivo remoto antes de repetir ou remover um arquivo parcial. Sair de todas as sessões ou
+ter a conta desativada também impede continuar usando os acessos anteriores.

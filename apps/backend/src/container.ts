@@ -1,3 +1,5 @@
+import { UserSessionRevocationService } from './modules/auth/user-session-revocation.service.js'
+import { configureCurrentSessionReader } from './modules/auth/current-session.js'
 import { SessionAuditReconstructionRepository } from './modules/session-audit/session-audit-reconstruction.repository.js'
 import { TacacsHealthStore } from './modules/network-access/tacacs-health.js'
 import { NetworkAccessService } from './modules/network-access/network-access.service.js'
@@ -237,6 +239,7 @@ import { env } from './config/env.js'
 // Repositórios
 // ---------------------------------------------------------------------------
 const userRepository         = new UserRepository(prisma)
+configureCurrentSessionReader((userId, tenantId) => userRepository.findCurrentSessionState(userId, tenantId))
 const groupRepository        = new GroupRepository(prisma)
 const settingsRepository     = new SettingsRepository(prisma)
 const sessionsRepository     = new SessionsRepository(prisma)
@@ -319,11 +322,12 @@ const sshTunnelEventService = new SshTunnelEventService(prisma)
 const tunnelService          = new TunnelService(sshRepository, onePasswordService, logRepository, sshTunnelEventService)
 const tunnelRuntimeRegistry = new TunnelRuntimeRegistry(redis, () => tunnelService.runtimeSnapshot(), (id, userId, tenantId) => tunnelService.closeForUser(id, userId, tenantId))
 tunnelService.runtimeRegistry = tunnelRuntimeRegistry
+const userSessionRevocationService = new UserSessionRevocationService(appEventBus, sessionsRepository, sessionRuntimeControlBus, tunnelService)
 const inventoryAclSessionRevocationService = new InventoryAclSessionRevocationService(appEventBus, sessionsRepository, sshRepository, sessionRuntimeControlBus, logRepository, tunnelService)
 const googleService      = new GoogleService(integrationRepository, userRepository)
 const localIdentityProvider = new LocalIdentityProvider(userRepository)
 const ldapIdentityProvider = new LdapIdentityProvider(integrationRepository, ldapIntegrationService, userRepository)
-const authService        = new AuthService(userRepository, totpService, redis, googleService, emailConfigService, emailService, localIdentityProvider, ldapIdentityProvider, tenantAuthPolicyService)
+const authService        = new AuthService(userRepository, totpService, redis, googleService, emailConfigService, emailService, localIdentityProvider, ldapIdentityProvider, tenantAuthPolicyService, appEventBus)
 const authRateLimitService = new AuthRateLimitService(redis, {
   windowSeconds: env.AUTH_RATE_LIMIT_WINDOW_SECONDS,
   ip: env.AUTH_RATE_LIMIT_IP_MAX_REQUESTS,
@@ -489,8 +493,8 @@ const nativeSshGateway       = new NativeSshGatewayService({
   port: env.NATIVE_SSH_GATEWAY_PORT,
   host: env.NATIVE_SSH_GATEWAY_HOST,
   hostKeyPath: env.NATIVE_SSH_GATEWAY_HOST_KEY_PATH,
-}, sshRepository, totpService, redis, emailConfigService, emailService, managedSshSessionService, logRepository, loadNativeSshGatewayRuntimeConfig)
-const sftpService            = new SftpService(sshRepository, onePasswordService)
+}, sshRepository, totpService, redis, emailConfigService, emailService, managedSshSessionService, logRepository, loadNativeSshGatewayRuntimeConfig, sshSessionRuntimeRegistry)
+const sftpService            = new SftpService(sshRepository, onePasswordService, appEventBus)
 const snippetService         = new SnippetService(prisma, licenseEntitlementService)
 const snippetGroupService    = new SnippetGroupService(prisma, licenseEntitlementService)
 const aiSshActionPolicyService = new AiSshActionPolicyService(licenseEntitlementService)
@@ -599,6 +603,7 @@ export const container = {
   tunnelRuntimeRegistry,
   sshSessionRuntimeRegistry,
   inventoryAclSessionRevocationService,
+  userSessionRevocationService,
   appEventBus,
   terminalHighlightService,
   googleService,

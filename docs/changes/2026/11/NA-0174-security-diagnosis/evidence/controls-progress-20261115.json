@@ -1,0 +1,81 @@
+{
+  "at": "2026-11-15T14:42:30-03:00",
+  "base": "28685c5b2c3fbf9739a05629260c95e42e0d62d0",
+  "workingTreeDirty": true,
+  "finalGate": "pending",
+  "baseline": {
+    "files": 8,
+    "passed": 93
+  },
+  "runtime": {
+    "baseSha": "28685c5b2c3fbf9739a05629260c95e42e0d62d0",
+    "candidate": "dirty working tree; hashes recorded separately",
+    "at": "2026-11-15T17:34:45.011Z",
+    "boundary": "real product service to real loopback SSH/SFTP; synthetic repository and tenant; not REST/UI E2E",
+    "cases": [
+      {
+        "case": "native_acl_revocation",
+        "fullNativeSshLogin": true,
+        "realTargetShell": true,
+        "realRedisEvent": true,
+        "syntheticRepository": true,
+        "registeredRuntimeBefore": true,
+        "registeredRuntimeAfter": false,
+        "channelClosed": true,
+        "endedReason": "acl_revoked",
+        "revocationAudit": {
+          "tenantId": 1,
+          "inventoryNodeId": 1,
+          "hostId": 1,
+          "userId": 1,
+          "principalType": "USER",
+          "principalId": 1,
+          "aclAction": "delete",
+          "closed": true,
+          "handledByRuntime": true
+        },
+        "postRevocationCommandAccepted": false,
+        "newChannelDenied": true,
+        "sessionEndedBeforeCleanup": true,
+        "regressionCorrected": true
+      },
+      {
+        "case": "distributed_non_owner_first",
+        "iterations": 10,
+        "falseReturns": 0,
+        "physicalSshConnectionsClosed": 10,
+        "realRedis": true,
+        "realSsh": true,
+        "ownerAndNonOwnerActualBuses": true,
+        "negativeResponses": 10,
+        "positiveResponses": 10,
+        "regressionCorrected": true,
+        "limitation": "same-process bus instances over real Redis, natural response scheduling; no multi-host deployment"
+      }
+    ],
+    "cleanup": {
+      "serversClosed": true,
+      "socketCount": 0
+    }
+  },
+  "pty": {
+    "passed": true,
+    "boundary": "full API/gateway/frontend, disposable MySQL/Redis/OpenSSH, real Chromium/top/htop; loopback binding override only",
+    "exit_code": 0,
+    "process_cleanup": true,
+    "target_cleanup": true
+  },
+  "initialFullVitest": {
+    "passed": 3637,
+    "failed": 93,
+    "pending": 145,
+    "status": "failed",
+    "rawJsonUnavailable": "Arquivo sobrescrito por resultado focal; log inicial preservado, contagens registradas da execução. Nova rodada completa obrigatória."
+  },
+  "limitations": [
+    "RDP/VNC usam contratos e transportes injetados; sem wire gráfico real nesta rodada.",
+    "Redis pubsub não é fila durável; confirmação de publicação não comprova encerramento físico em todas as instâncias.",
+    "Evento de revogação atrasado pode encerrar reconexão válida do mesmo principal; efeito conservador de disponibilidade.",
+    "Sem implantação ou homologação humana presumida."
+  ]
+}

@@ -1,3 +1,6 @@
+import { isSessionRevocationCurrent } from '../auth/current-session.js'
+import { createHostKeyVerifier, type HostKeyVerificationError, type SshHostKeyStep } from '../../shared/ssh-host-key.js'
+import type { AppEvent, AppEventBus } from '../app-events/app-event.bus.js'
 import { trialDenied, assertTrialResource, assertTrialUserAccess, assertTrialHostAccess, monitorTrialAccess } from '../trials/trial-policy.js'
 import { deviceCapabilities } from '@nodeaccess/shared'
 import { Client, type ConnectConfig } from 'ssh2'
@@ -50,6 +53,16 @@ export interface SftpMetadataPreservationResult {
   errors: string[]
 }
 
+interface ActiveSftpConnection {
+  hostId: number
+  userId: number
+  tenantId: number
+  role: string
+  revoked: boolean
+  conn?: Client
+  bastionConn?: Client
+}
+
 interface OpenSftpResult {
   sftp:        SFTPWrapper
   conn:        Client
@@ -76,8 +89,12 @@ function buildConnectConfig(
   authType: 'PEM' | 'PASSWORD' | 'PEM_PASSWORD',
   passwordEncrypted: string | null,
   pemKey: { encryptedKey: string; iv: string; encryptedPassphrase?: string | null; passphraseIv?: string | null } | null,
+  fingerprint: string | null | undefined,
+  step: SshHostKeyStep,
+  onVerification: (error: HostKeyVerificationError | null) => void,
 ): ConnectConfig {
   const config: ConnectConfig = {
+    hostVerifier: createHostKeyVerifier(fingerprint, step, onVerification),
     host,
     port,
     username,
@@ -114,18 +131,78 @@ function openSftpOnConn(conn: Client): Promise<SFTPWrapper> {
 // ---------------------------------------------------------------------------
 
 export class SftpService {
+  private readonly connections = new Set<ActiveSftpConnection>()
+  private readonly connectionState = new WeakMap<Client, ActiveSftpConnection>()
   constructor(
     private readonly sshRepo:     SshRepository,
     private readonly onePassword: OnePasswordService,
-  ) {}
+    appEventBus?: AppEventBus,
+  ) { appEventBus?.onEvent((event) => this.handleAccessEvent(event)) }
+
+  private revoke(connection: ActiveSftpConnection): void {
+    if (connection.revoked) return
+    connection.revoked = true
+    connection.conn?.destroy()
+    connection.bastionConn?.destroy()
+  }
+
+  private async canConnect(connection: ActiveSftpConnection): Promise<boolean> {
+    return this.sshRepo.hasEffectiveHostPermission(connection.hostId, connection.tenantId,
+      connection.userId, 'connect', connection.role.toLowerCase() === 'admin' ? 'ADMIN' : 'USER')
+  }
+
+  private async handleAccessEvent(event: AppEvent): Promise<void> {
+    if (event.type !== 'inventory_acl_changed' && event.type !== 'user_acl_membership_changed'
+      && event.type !== 'user_sessions_revoked') return
+    if (event.type === 'user_sessions_revoked') {
+      if (!await isSessionRevocationCurrent(event.tenantId, event.userId, event.sessionVersion)) return
+      for (const connection of this.connections) if (connection.userId === event.userId) this.revoke(connection)
+      return
+    }
+    await Promise.all([...this.connections].map(async (connection) => {
+      if (connection.tenantId !== event.tenantId) return
+      if (event.type !== 'inventory_acl_changed' && connection.userId !== event.userId) return
+      try { if (!await this.canConnect(connection)) this.revoke(connection) }
+      catch { this.revoke(connection) }
+    }))
+  }
+
+  private async openSftp(hostId: number, userId: number, tenantId: number, role: string): Promise<OpenSftpResult> {
+    const connection: ActiveSftpConnection = { hostId, userId, tenantId, role, revoked: false }
+    this.connections.add(connection)
+    try {
+      const result = await this.openSftpConnection(hostId, userId, tenantId, role, connection)
+      if (connection.revoked || !await this.canConnect(connection) || connection.revoked) {
+        throw new ForbiddenError('Acesso SFTP revogado')
+      }
+      return result
+    } catch (error) {
+      this.revoke(connection)
+      this.connections.delete(connection)
+      throw error
+    }
+  }
+
+  private track(connection: ActiveSftpConnection, client: Client, bastion = false): boolean {
+    if (bastion) connection.bastionConn = client
+    else { connection.conn = client; this.connectionState.set(client, connection) }
+    client.once('close', () => this.connections.delete(connection))
+    if (connection.revoked) { client.destroy(); return false }
+    return true
+  }
+
+  private assertTransferActive(conn: Client): void {
+    if (this.connectionState.get(conn)?.revoked) throw new ForbiddenError('Acesso SFTP revogado')
+  }
 
   // ── Access check + SSH/SFTP connection ────────────────────────────────────
 
-  private async openSftp(
+  private async openSftpConnection(
     hostId:   number,
     userId:   number,
     tenantId: number,
     role:    string,
+    connection: ActiveSftpConnection,
   ): Promise<OpenSftpResult> {
     // 1. Fetch host
     const host = await this.sshRepo.findHostWithCredentials(hostId, tenantId)
@@ -160,8 +237,11 @@ export class SftpService {
     }
 
     // 4. Build target connect config
+    let verificationError: HostKeyVerificationError | null = null
+    const rememberVerification = (error: HostKeyVerificationError | null): void => { verificationError = error }
     const targetConfig = buildConnectConfig(
       host.ip, host.port, host.sshUser, host.authType, passwordEncrypted, pemKey,
+      host.trustedHostKeyFingerprint, 'target', rememberVerification,
     )
 
     const protect = async (result: OpenSftpResult): Promise<OpenSftpResult> => {
@@ -174,7 +254,7 @@ export class SftpService {
         result.conn.once('error', stop)
         return result
       } catch (error) {
-        result.conn.destroy(); result.bastionConn?.destroy(); throw error
+        throw error
       }
     }
 
@@ -187,10 +267,13 @@ export class SftpService {
         host.bastion.authType,
         host.bastion.passwordEncrypted,
         host.bastion.pemKey,
+        host.bastion.trustedHostKeyFingerprint, 'bastion', rememberVerification,
       )
 
       return new Promise<OpenSftpResult>((resolve, reject) => {
         const bastionConn = new Client()
+        if (!this.track(connection, bastionConn, true)) { reject(new ForbiddenError('Acesso SFTP revogado')); return }
+        bastionConn.once('close', () => { if (connection.revoked) reject(new ForbiddenError('Acesso SFTP revogado')) })
         bastionConn
           .on('ready', () => {
             bastionConn.forwardOut(
@@ -200,18 +283,20 @@ export class SftpService {
                 if (err) { bastionConn.end(); reject(err); return }
 
                 const conn = new Client()
+                if (!this.track(connection, conn)) { reject(new ForbiddenError('Acesso SFTP revogado')); return }
+                conn.once('close', () => { if (connection.revoked) reject(new ForbiddenError('Acesso SFTP revogado')) })
                 conn
                   .on('ready', () => {
                     openSftpOnConn(conn)
                       .then((sftp) => protect({ sftp, conn, bastionConn })).then(resolve)
                       .catch(reject)
                   })
-                  .on('error', (e) => { bastionConn.end(); reject(e) })
+                  .on('error', (e) => { bastionConn.end(); reject(verificationError ?? e) })
                   .connect({ ...targetConfig, sock: stream })
               },
             )
           })
-          .on('error', reject)
+          .on('error', (error) => reject(verificationError ?? error))
           .connect(bastionConfig)
       })
     }
@@ -219,18 +304,22 @@ export class SftpService {
     // Direct connection
     return new Promise<OpenSftpResult>((resolve, reject) => {
       const conn = new Client()
+      if (!this.track(connection, conn)) { reject(new ForbiddenError('Acesso SFTP revogado')); return }
+      conn.once('close', () => { if (connection.revoked) reject(new ForbiddenError('Acesso SFTP revogado')) })
       conn
         .on('ready', () => {
           openSftpOnConn(conn)
             .then((sftp) => protect({ sftp, conn, bastionConn: null })).then(resolve)
             .catch(reject)
         })
-        .on('error', reject)
+        .on('error', (error) => reject(verificationError ?? error))
         .connect(targetConfig)
     })
   }
 
   private closeAll({ conn, bastionConn }: OpenSftpResult): void {
+    const connection = this.connectionState.get(conn)
+    if (connection) this.connections.delete(connection)
     try { conn.end() }         catch { /* ignore */ }
     try { bastionConn?.end() } catch { /* ignore */ }
   }
@@ -295,10 +384,13 @@ export class SftpService {
     const result = await this.openSftp(hostId, userId, tenantId, role)
     try {
       return await new Promise<Buffer>((resolve, reject) => {
+        result.conn.once('close', () => reject(new ForbiddenError('Conexão SFTP encerrada')))
         const chunks: Buffer[] = []
         result.sftp.createReadStream(path)
           .on('data', (chunk: Buffer) => chunks.push(chunk))
-          .on('end', () => resolve(Buffer.concat(chunks)))
+          .on('end', () => {
+            try { this.assertTransferActive(result.conn); resolve(Buffer.concat(chunks)) } catch (error) { reject(error instanceof Error ? error : new Error(String(error))) }
+          })
           .on('error', reject)
       })
     } finally {
@@ -313,8 +405,11 @@ export class SftpService {
     const result = await this.openSftp(hostId, userId, tenantId, role)
     try {
       await new Promise<void>((resolve, reject) => {
+        result.conn.once('close', () => reject(new ForbiddenError('Conexão SFTP encerrada')))
         const stream = result.sftp.createWriteStream(path, options)
-        stream.on('close', resolve)
+        stream.on('close', () => {
+          try { this.assertTransferActive(result.conn); resolve() } catch (error) { reject(error instanceof Error ? error : new Error(String(error))) }
+        })
         stream.on('error', reject)
         stream.end(data)
       })
@@ -517,11 +612,13 @@ export class SftpService {
         result.sftp.stat(path, (err, statAttrs) => resolve(err ? null : statAttrs))
       })
       return await new Promise<SftpTextFileRead>((resolve, reject) => {
+        result.conn.once('close', () => reject(new ForbiddenError('Conexão SFTP encerrada')))
         const chunks: Buffer[] = []
         let size      = 0
         let truncated = (attrs?.size ?? 0) > MAX_BYTES
         const stream  = result.sftp.createReadStream(path)
         const resolveRead = (): void => {
+          try { this.assertTransferActive(result.conn) } catch (error) { reject(error instanceof Error ? error : new Error(String(error))); return }
           const buffer = Buffer.concat(chunks)
           const content = buffer.toString('utf-8')
           resolve({

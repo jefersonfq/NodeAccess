@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "revision": "1",
-  "reviewedAt": "2026-11-06",
+  "revision": "2",
+  "reviewedAt": "2026-11-15",
   "internalClassification": "Repositório interno: evidência de implementação, não atestado operacional.",
   "controls": [
     {
@@ -9,25 +9,27 @@
       "state": "verified",
       "category": "Login e verificação de identidade",
       "owner": "Revisão de conteúdo em PR",
-      "internalDescription": "Leitura de beginMfaForUser e verifyTotp, token temporário e emissão após verificação; não afirma cobertura de todos os providers externos.",
+      "internalDescription": "Releitura NA-0174: ingressos validam estado atual do usuário, tenant, versão e privilégios; logout-all incrementa versão por comparação atômica. Delegação de plataforma exige origem e ator válidos. Não afirma cobertura de todos os providers externos.",
       "restrictions": [
         "Os métodos disponíveis variam conforme a política da organização e o fluxo de acesso. Esta página não verifica a configuração atual da sua conta."
       ],
       "review": {
         "method": "source-review",
-        "reviewedAt": "2026-11-06",
-        "sourceRevision": "745253d1edb522db79aaa44fd96608ce434a2774",
+        "reviewedAt": "2026-11-15",
+        "sourceRevision": "28685c5b2c3fbf9739a05629260c95e42e0d62d0",
         "sourceFiles": [
           "apps/backend/src/modules/auth/auth.service.ts",
-          "apps/backend/src/modules/auth/auth-policy.ts"
+          "apps/backend/src/modules/auth/auth-policy.ts",
+          "apps/backend/src/modules/auth/current-session.ts",
+          "apps/backend/src/shared/guards.ts"
         ],
-        "sourceHash": "305505b07e0cbe0a588901354a15e3bccd101bce701401eeffb0d3f22efa50ca",
+        "sourceHash": "66e000658c5ec015e0719d973a54d10fa58b35eaa6e1a6c7f71ac65e9aba2f14",
         "testFiles": [
           "apps/backend/src/modules/auth/auth.service.temp-token.test.ts",
           "apps/backend/src/modules/auth/auth-policy.test.ts"
         ],
         "testsExecuted": false,
-        "scope": "Leitura de beginMfaForUser e verifyTotp, token temporário e emissão após verificação; não afirma cobertura de todos os providers externos."
+        "scope": "Releitura NA-0174: ingressos validam estado atual do usuário, tenant, versão e privilégios; logout-all incrementa versão por comparação atômica. Delegação de plataforma exige origem e ator válidos. Não afirma cobertura de todos os providers externos. Base integrada informada em sourceRevision; hashes identificam o candidato NA-0174. Execuções e SHA final constam no registro da frente, separados desta revisão editorial."
       },
       "public": {
         "title": "Login e verificação de identidade",
@@ -46,25 +48,27 @@
       "state": "partial",
       "category": "Hosts e permissões",
       "owner": "Revisão de conteúdo em PR",
-      "internalDescription": "Leitura da consulta ACL por tenant e eventos de revalidação/fechamento; não comprova isolamento de todos os protocolos apenas por inspeção. Diagnóstico NA-0174 reproduziu limite no fechamento de sessão SSH nativa após revogação; não afirmar revogação universal de sessões existentes.",
+      "internalDescription": "Releitura NA-0174: registro nativo, rechecagem de ACL após abertura e confirmação distribuída corrigidos. Revogação depende do processamento de eventos; não promete término universal imediato nem entrega durável do Redis.",
       "restrictions": [
         "A disponibilidade de um recurso na interface não substitui a autorização para utilizá-lo. Alterações de acesso devem ser acompanhadas pelo administrador."
       ],
       "review": {
         "method": "source-review",
-        "reviewedAt": "2026-11-06",
-        "sourceRevision": "745253d1edb522db79aaa44fd96608ce434a2774",
+        "reviewedAt": "2026-11-15",
+        "sourceRevision": "28685c5b2c3fbf9739a05629260c95e42e0d62d0",
         "sourceFiles": [
           "apps/backend/src/modules/ssh/ssh.repository.ts",
-          "apps/backend/src/modules/inventory/inventory-acl-session-revocation.service.ts"
+          "apps/backend/src/modules/inventory/inventory-acl-session-revocation.service.ts",
+          "apps/backend/src/modules/native-ssh-gateway/native-ssh-gateway.service.ts",
+          "apps/backend/src/modules/sessions/session-runtime-control.bus.ts"
         ],
-        "sourceHash": "eeafc47d246ee1a44beb448b8b05731fcd3b45dc365401fea699211a39c78528",
+        "sourceHash": "98252b8db5592f02776f26983233546a75ac1dd7b0f43f8bd86da467c09475d5",
         "testFiles": [
           "apps/backend/src/modules/ssh/ssh.repository-acl.test.ts",
           "apps/backend/src/modules/inventory/inventory-acl-session-revocation.service.test.ts"
         ],
         "testsExecuted": false,
-        "scope": "Leitura da consulta ACL por tenant e eventos de revalidação/fechamento; não comprova isolamento de todos os protocolos apenas por inspeção. Complemento NA-0174: revogação de sessão nativa reproduzida com limite, ver docs canônicas da frente."
+        "scope": "Releitura NA-0174: registro nativo, rechecagem de ACL após abertura e confirmação distribuída corrigidos. Revogação depende do processamento de eventos; não promete término universal imediato nem entrega durável do Redis. Base integrada informada em sourceRevision; hashes identificam o candidato NA-0174. Execuções e SHA final constam no registro da frente, separados desta revisão editorial."
       },
       "public": {
         "title": "Hosts e permissões",
@@ -120,25 +124,28 @@
       "state": "partial",
       "category": "Conexões e identidade dos hosts",
       "owner": "Revisão de conteúdo em PR",
-      "internalDescription": "HostVerifier só é configurado quando trustedHostKeyFingerprint existe nas credenciais. Cobertura de todos os chamadores permanece fora deste inventário focal; conteúdo público limita-se à orientação ao usuário.",
+      "internalDescription": "Releitura NA-0174: verificação obrigatória da chave confiada no alvo e no bastion em SSH/SFTP/túneis examinados; bastion sem Host de origem confiável é bloqueado. Não generaliza para todos os protocolos, agentes ou versões futuras.",
       "restrictions": [
         "As verificações e os recursos disponíveis variam conforme o protocolo e a modalidade de acesso. Esta Central não testa a conexão nem o equipamento de destino."
       ],
       "review": {
         "method": "source-review",
-        "reviewedAt": "2026-11-06",
-        "sourceRevision": "745253d1edb522db79aaa44fd96608ce434a2774",
+        "reviewedAt": "2026-11-15",
+        "sourceRevision": "28685c5b2c3fbf9739a05629260c95e42e0d62d0",
         "sourceFiles": [
           "apps/backend/src/modules/ssh/ssh.session.ts",
-          "apps/backend/src/modules/hosts/host.service.ts"
+          "apps/backend/src/modules/hosts/host.service.ts",
+          "apps/backend/src/shared/ssh-host-key.ts",
+          "apps/backend/src/modules/sftp/sftp.service.ts",
+          "apps/backend/src/modules/tunnels/tunnel-ssh-connection.ts"
         ],
-        "sourceHash": "02fdaf22003aaf0f7dce4e60ef4262e1789385766d84cfc150998a9d1546aea7",
+        "sourceHash": "17c3da0d6175f2a16f9a10fd10e5ad0103af7c6218fa69f31cfbf8b2fd73ca5a",
         "testFiles": [
           "apps/backend/src/modules/hosts/host.service.test.ts",
           "apps/backend/src/modules/ssh/managed-ssh-session.service.test.ts"
         ],
         "testsExecuted": false,
-        "scope": "HostVerifier só é configurado quando trustedHostKeyFingerprint existe nas credenciais. Cobertura de todos os chamadores permanece fora deste inventário focal; conteúdo público limita-se à orientação ao usuário."
+        "scope": "Releitura NA-0174: verificação obrigatória da chave confiada no alvo e no bastion em SSH/SFTP/túneis examinados; bastion sem Host de origem confiável é bloqueado. Não generaliza para todos os protocolos, agentes ou versões futuras. Base integrada informada em sourceRevision; hashes identificam o candidato NA-0174. Execuções e SHA final constam no registro da frente, separados desta revisão editorial."
       },
       "public": {
         "title": "Conexões e identidade dos hosts",
@@ -163,19 +170,19 @@
       ],
       "review": {
         "method": "source-review",
-        "reviewedAt": "2026-11-06",
-        "sourceRevision": "745253d1edb522db79aaa44fd96608ce434a2774",
+        "reviewedAt": "2026-11-15",
+        "sourceRevision": "28685c5b2c3fbf9739a05629260c95e42e0d62d0",
         "sourceFiles": [
           "apps/backend/src/modules/session-audit/session-audit-policy.service.ts",
           "apps/backend/src/modules/ssh/managed-ssh-session.service.ts"
         ],
-        "sourceHash": "3dee462f9bbba0f104eeb08370ca7ad3d608de3b00fd8311ec39c0d10e69623d",
+        "sourceHash": "c6a28f3a8323c851de72ef8704d36930bdb82fa775c31ea13b729e8f53f6ece2",
         "testFiles": [
           "apps/backend/src/modules/session-audit/session-audit-policy.repository.test.ts",
           "apps/backend/src/modules/session-audit/session-audit-operational.test.ts"
         ],
         "testsExecuted": false,
-        "scope": "Leitura de shouldAuditSession: feature/licença/política/escopo; managed session condiciona publicação. Não afirma imutabilidade nem gravação universal."
+        "scope": "Leitura de shouldAuditSession: feature/licença/política/escopo; managed session condiciona publicação. Não afirma imutabilidade nem gravação universal. Base integrada informada em sourceRevision; hashes identificam o candidato NA-0174. Execuções e SHA final constam no registro da frente, separados desta revisão editorial."
       },
       "public": {
         "title": "Auditoria e privacidade",

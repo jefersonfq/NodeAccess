@@ -1,0 +1,51 @@
+{
+  "started_at": "2026-11-15T00:55:17.522528+00:00",
+  "finished_at": "2026-11-15T00:55:18.742015+00:00",
+  "exit_code": 0,
+  "head": "0b68abaf301e72b2fd4820b47876457a5b8915d3",
+  "command": [
+    "/home/jeferson/NodeAccess-NA-0172/node_modules/.bin/vitest",
+    "run",
+    "--config",
+    "/home/jeferson/projects/NodeAccess-current/.tmp/NA-0174-diagnosis/vitest.config.mjs"
+  ],
+  "limitation": "Real guards and signed JWT on disposable in-memory route; current-user state supplied via trial-policy reader. No real logout/deactivation or full application hooks tested.",
+  "passed": 4,
+  "failed": 0,
+  "source_sha256": {
+    "apps/backend/src/shared/guards.ts": "ee8ca8eede6c6564089fcdee05932eb3ee35a76c0be8ba75d9f116667ceca7a6",
+    "apps/backend/src/modules/trials/trial-policy.ts": "8fd3cf8a4a539f4ae01c658e7b3b2d3fdc67f77a32f8eccef4d6b968a4acef8f"
+  },
+  "harness_sha256": "0f51efe00f40be208b63a6f9f136e367b4117b95635eb47f77cc3878765e6370",
+  "observations": [
+    {
+      "scenario": "Normal tenant, signed admin JWT, current-user reader configured to reject",
+      "http_status": 200,
+      "reader_calls": 0
+    },
+    {
+      "scenario": "Trial control, same rejection state",
+      "http_status": 403,
+      "reader_calls": 1
+    },
+    {
+      "scenario": "Expired JWT",
+      "http_status": 401,
+      "reader_calls": 0
+    },
+    {
+      "scenario": "MFA-pending token",
+      "http_status": 401,
+      "reader_calls": 0
+    }
+  ],
+  "initial_attempt": "Wrong plugin entry path; failed before any test; fixed harness import and preserved separate log. Not a product failure.",
+  "scope": "Guard-only reproduction with in-memory route. Does not execute real logout, tenant administration, application-wide hooks or production.",
+  "independent_review": {
+    "result": "PASS_WITH_WARNINGS",
+    "reviewer": "review_isolation",
+    "conclusion": "Inference restricted to synthetic route and real guards; no full application bypass demonstrated.",
+    "control_difference": "Normal case uses requireAdmin (calls requireAuth); trial control uses requireAuth. Not identical routes.",
+    "source_equality": "Hashes/equality checked by executor and preserved in this evidence; reviewer did not independently recompute."
+  }
+}

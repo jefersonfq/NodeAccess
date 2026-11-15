@@ -1,0 +1,20 @@
+{
+  "command": [
+    "node_modules/.bin/vitest",
+    "run",
+    "apps/backend/src/modules/auth/auth.service.refresh.test.ts",
+    "apps/backend/src/modules/auth/auth.controller.security.test.ts",
+    "apps/backend/src/modules/secrets/secret.service.test.ts",
+    "apps/backend/src/shared/ssrf-guard.test.ts",
+    "apps/backend/src/shared/webhook-http.test.ts"
+  ],
+  "cwd": "/home/jeferson/NodeAccess-NA-0172",
+  "head": "e83fdc5bac00c3ef72b19b18169941d2d3f67fc8",
+  "started_at": "2026-11-15T00:33:20.580055+00:00",
+  "finished_at": "2026-11-15T00:33:22.517711+00:00",
+  "exit_code": 0,
+  "limitation": "Existing tests only; not reproduction of newly identified hypotheses.",
+  "suites": 5,
+  "passed": 50,
+  "failed": 0
+}

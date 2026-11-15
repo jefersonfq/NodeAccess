@@ -1,9 +1,12 @@
+import { configureCurrentSessionReader } from './current-session.js'
+afterEach(() => configureCurrentSessionReader(undefined))
 import Fastify from 'fastify'
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { ExternalIdentityAdminController } from './external-identity-admin.controller.js'
 import { externalIdentityAdminRoutes } from './external-identity-admin.routes.js'
 
 async function appFor(role: 'admin' | 'user' = 'admin') {
+  configureCurrentSessionReader( (userId, tenantId) => Promise.resolve(userId === 11 && tenantId === 7 ? ({ tenantId: 7, active: true, deletedAt: null, tenantActive: true, targetTenantActive: true, sessionVersion: 0, role: role === 'admin' ? 'ADMIN' : 'USER', isPlatformAdmin: false, canManageHosts: true, canViewLiveSessions: true }) : null))
   const service = {
     list: vi.fn().mockResolvedValue([]),
     revoke: vi.fn().mockResolvedValue({ changed: true }),

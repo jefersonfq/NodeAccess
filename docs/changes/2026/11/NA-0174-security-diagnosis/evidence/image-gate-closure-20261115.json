@@ -1,0 +1,11 @@
+{
+  "at": "2026-11-15T13:24:26-03:00",
+  "finding": "D-13",
+  "status": "TREATED_AND_VALIDATED",
+  "head": "8d668889a77708166154113a239034c97e268da6",
+  "merge": "28685c5b2c3fbf9739a05629260c95e42e0d62d0",
+  "pr": "https://github.com/jefersonfq/NodeAccess/pull/63",
+  "evidence": "../NA-0172-security-center/evidence/gate-final-20261115.json",
+  "control_findings_fixed": false,
+  "production_deployed": false
+}

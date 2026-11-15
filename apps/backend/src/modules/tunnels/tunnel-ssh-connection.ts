@@ -1,4 +1,4 @@
-import { createHash } from 'node:crypto'
+import { createHostKeyVerifier, type HostKeyVerificationError } from '../../shared/ssh-host-key.js'
 import { Client, type ConnectConfig } from 'ssh2'
 import { AppError } from '../../shared/errors.js'
 
@@ -7,24 +7,15 @@ export async function connectTunnelSsh(
   config: ConnectConfig,
   trustedFingerprint: string | null | undefined,
   bastionConfig?: ConnectConfig,
+  bastionTrustedFingerprint?: string | null,
 ): Promise<Client> {
   const ssh = new Client()
   let bastion: Client | undefined
-  let verificationError: AppError | undefined
+  let verificationError: HostKeyVerificationError | null = null
   config = { ...config, keepaliveInterval: 10000, keepaliveCountMax: 3,
-    hostVerifier: (key: Buffer) => {
-      const fingerprint = `SHA256:${createHash('sha256').update(key).digest('base64')}`
-      if (trustedFingerprint === fingerprint) return true
-      verificationError = new AppError(
-        trustedFingerprint
-          ? 'A chave SSH do host mudou. Valide a identidade pelo terminal antes de abrir o túnel.'
-          : 'Chave SSH ainda não confiável. Valide a identidade pelo terminal antes de abrir o túnel.',
-        409, trustedFingerprint ? 'HOST_KEY_CHANGED' : 'HOST_KEY_VERIFICATION_REQUIRED',
-      )
-      return false
-    },
+    hostVerifier: createHostKeyVerifier(trustedFingerprint, 'target', (error) => { verificationError = error }),
   }
-  const cleanup = () => { bastion?.end(); config.sock?.destroy() }
+  const cleanup = (): void => { bastion?.end(); config.sock?.destroy() }
   ssh.on('close', cleanup)
   // Keep an error listener after startup; the runtime service owns further cleanup.
   ssh.on('error', () => {})
@@ -33,7 +24,7 @@ export async function connectTunnelSsh(
       bastion = new Client()
       bastion.on('error', () => ssh.end())
       bastion.on('close', () => ssh.end())
-      await ready(bastion, bastionConfig)
+      await ready(bastion, { ...bastionConfig, hostVerifier: createHostKeyVerifier(bastionTrustedFingerprint, 'bastion', (error) => { verificationError = error }) })
       config.sock = await new Promise((resolve, reject) => {
         bastion!.forwardOut('127.0.0.1', 0, config.host!, config.port!, (err, stream) => err ? reject(err) : resolve(stream))
       })
@@ -49,8 +40,8 @@ export async function connectTunnelSsh(
 
 function ready(client: Client, config: ConnectConfig): Promise<void> {
   return new Promise((resolve, reject) => {
-    const closed = () => reject(new AppError('Conexão SSH encerrada durante a abertura do túnel', 502, 'TUNNEL_SSH_CLOSED'))
-    const failed = (error: Error) => reject(error)
+    const closed = (): void => reject(new AppError('Conexão SSH encerrada durante a abertura do túnel', 502, 'TUNNEL_SSH_CLOSED'))
+    const failed = (error: Error): void => reject(error)
     client.once('close', closed)
     client.once('error', failed)
     client.once('ready', () => {

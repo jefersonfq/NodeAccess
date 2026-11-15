@@ -1,3 +1,4 @@
+import { assertCurrentUserSession } from '../auth/current-session.js'
 import type { Redis } from 'ioredis'
 import type { WebSocket } from 'ws'
 import jwt from 'jsonwebtoken'
@@ -29,6 +30,15 @@ export interface UserAclMembershipChangedEvent {
   changedAt: string
 }
 
+export interface UserSessionsRevokedEvent {
+  type: 'user_sessions_revoked'
+  tenantId: number
+  userId: number
+  sessionVersion: number
+  reason: 'logout_all' | 'user_deactivated' | 'permissions_changed'
+  changedAt: string
+}
+
 export interface SessionPresenceChangedEvent {
   type: 'session_presence_changed'
   tenantId: number
@@ -47,13 +57,15 @@ export interface TerminalHighlightsChangedEvent {
   changedAt: string
 }
 
-export type AppEvent = InventoryAclChangedEvent | UserAclMembershipChangedEvent | SessionPresenceChangedEvent | TerminalHighlightsChangedEvent
+export type AppEvent = UserSessionsRevokedEvent | InventoryAclChangedEvent | UserAclMembershipChangedEvent | SessionPresenceChangedEvent | TerminalHighlightsChangedEvent
 type AppEventHandler = (event: AppEvent) => void | Promise<void>
 
 interface Client {
   ws: WebSocket
   tenantId: number
   userId: number
+  authTenantId: number
+  sessionVersion: number
 }
 
 function sendJson(ws: WebSocket, message: object): boolean {
@@ -67,18 +79,20 @@ function sendJson(ws: WebSocket, message: object): boolean {
   }
 }
 
-function parseAuthenticatedToken(token: string | undefined): { tenantId: number; userId: number } | null {
+async function parseAuthenticatedToken(token: string | undefined): Promise<JwtPayload | null> {
   if (!token) return null
   try {
     const payload = jwt.verify(token, env.JWT_SECRET) as JwtPayload
     if (payload.stage !== 'authenticated') return null
-    return { tenantId: payload.tenantId, userId: Number(payload.sub) }
+    await assertCurrentUserSession(payload)
+    return payload
   } catch {
     return null
   }
 }
 
 function shouldSendToClient(client: Client, event: AppEvent): boolean {
+  if (event.type === 'user_sessions_revoked') return client.authTenantId === event.tenantId && client.userId === event.userId && client.sessionVersion < event.sessionVersion
   if (client.tenantId !== event.tenantId) return false
   if (event.type === 'user_acl_membership_changed') return client.userId === event.userId
   if (event.type === 'terminal_highlights_changed') return event.userIds.length === 0 || event.userIds.includes(client.userId)
@@ -92,6 +106,12 @@ function isIntegerArray(value: unknown): value is number[] {
 function isValidAppEvent(event: Partial<AppEvent>): event is AppEvent {
   if (!Number.isInteger(event.tenantId) || typeof event.changedAt !== 'string') {
     return false
+  }
+
+  if (event.type === 'user_sessions_revoked') {
+    return Number.isSafeInteger(event.userId) && event.userId! > 0
+      && Number.isSafeInteger(event.sessionVersion) && event.sessionVersion! >= 0
+      && ['logout_all', 'user_deactivated', 'permissions_changed'].includes(String(event.reason))
   }
 
   if (event.type === 'inventory_acl_changed') {
@@ -142,20 +162,28 @@ export class AppEventBus {
     }
   }
 
-  subscribe(ws: WebSocket, token: string | undefined): void {
-    const principal = parseAuthenticatedToken(token)
+  async subscribe(ws: WebSocket, token: string | undefined): Promise<void> {
+    const principal = await parseAuthenticatedToken(token)
     if (!principal) {
       sendJson(ws, { type: 'error', message: 'Token inválido' })
       ws.close(1008)
       return
     }
 
-    const client: Client = { ws, tenantId: principal.tenantId, userId: principal.userId }
+    if (ws.readyState !== 1) return
+    const client: Client = { ws, tenantId: principal.tenantId, userId: Number(principal.sub),
+      authTenantId: principal.platformTenantId ?? principal.tenantId, sessionVersion: principal.sessionVersion ?? 0 }
     this.clients.add(client)
-    sendJson(ws, { type: 'connected' })
     ws.once('close', () => {
       this.clients.delete(client)
     })
+    try { await assertCurrentUserSession(principal) } catch {
+      this.clients.delete(client)
+      ws.close(1008, 'Sessão revogada')
+      return
+    }
+    if (!this.clients.has(client) || ws.readyState !== 1) return
+    sendJson(ws, { type: 'connected' })
   }
 
   async start(): Promise<void> {
@@ -187,7 +215,9 @@ export class AppEventBus {
 
       for (const client of this.clients) {
         if (!shouldSendToClient(client, event)) continue
-        if (!sendJson(client.ws, event)) {
+        if (!sendJson(client.ws, event)) this.clients.delete(client)
+        if (event.type === 'user_sessions_revoked') {
+          client.ws.close(1008, 'Sessão revogada')
           this.clients.delete(client)
         }
       }

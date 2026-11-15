@@ -1,0 +1,25 @@
+{
+  "lint": {
+    "exit": 0,
+    "files": [
+      "apps/backend/src/modules/sftp/sftp-security-real.test.ts",
+      "apps/backend/src/modules/sftp/sftp.service.ts",
+      "apps/backend/src/modules/ssh/session-files.real.test.ts",
+      "apps/backend/src/modules/ssh/ssh.gateway.ts",
+      "apps/backend/src/modules/tunnels/tunnel-contracts.service.test.ts",
+      "apps/backend/src/modules/tunnels/tunnel-real.test.ts",
+      "apps/backend/src/modules/tunnels/tunnel-ssh-connection.ts",
+      "apps/backend/src/modules/tunnels/tunnel.service.ts"
+    ],
+    "log": "lint-owned-final-r2.log"
+  },
+  "tests": {
+    "exit": 0,
+    "files": 12,
+    "tests": 249,
+    "realSSH": true,
+    "log": "regression-lint-final.log"
+  },
+  "runtimeEffect": "No authorization/trust relaxation; unknown Promise rejection values normalized to Error; existing Error/AppError retained with code. Callback return types explicit.",
+  "lastChange": "Test-only unexpected-error diagnostic preserves cause instead of String(object)."
+}

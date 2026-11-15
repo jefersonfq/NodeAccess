@@ -1,3 +1,6 @@
+import { configureCurrentSessionReader } from '../auth/current-session.js'
+import { afterEach } from 'vitest'
+afterEach(() => configureCurrentSessionReader(undefined))
 import Fastify from 'fastify'
 import { expect, it, vi } from 'vitest'
 import { settingsRoutes } from './settings.routes.js'
@@ -7,6 +10,7 @@ import type { SettingsRepository } from './settings.repository.js'
 import type { LogRepository } from '../logs/log.repository.js'
 
 async function fixture(role:'admin'|'user'='admin', tenantId=7, authenticated=true) {
+  configureCurrentSessionReader((id, target) => Promise.resolve(id === 11 && target === tenantId ? { tenantId, active: true, deletedAt: null, tenantActive: true, targetTenantActive: true, sessionVersion: 0, role: role === 'admin' ? 'ADMIN' : 'USER', isPlatformAdmin: false, canManageHosts: false, canViewLiveSessions: false } : null))
   const values = new Map<number,boolean>()
   const repo = {getManualEnabled:vi.fn(async (id:number)=>await Promise.resolve(values.get(id))??false),updateManualEnabled:vi.fn((id:number,enabled:boolean)=>{values.set(id,enabled)
   return Promise.resolve()
@@ -14,7 +18,7 @@ async function fixture(role:'admin'|'user'='admin', tenantId=7, authenticated=tr
   const audit={logAdminEvent:vi.fn().mockResolvedValue(undefined)}
   const service=new SettingsService(repo as unknown as SettingsRepository,audit as unknown as LogRepository)
   const app=Fastify()
-  app.decorateRequest('jwtVerify',async()=>{if(!authenticated)throw new Error('unauthorized');return await Promise.resolve({sub:'11',tenantId,role,stage:'authenticated'})})
+  app.decorateRequest('jwtVerify',async()=>{if(!authenticated)throw new Error('unauthorized');return await Promise.resolve({sub:'11',tenantId,role,stage:'authenticated',sessionVersion:0,isPlatformAdmin:false,canManageHosts:false,canViewLiveSessions:false})})
   await settingsRoutes(app,new SettingsController(service))
   return {app,repo,audit,values}
 }

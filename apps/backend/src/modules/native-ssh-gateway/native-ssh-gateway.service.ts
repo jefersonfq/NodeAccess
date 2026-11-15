@@ -1,3 +1,5 @@
+import { assertCurrentUserVersion } from '../auth/current-session.js'
+import { SshSessionRuntimeRegistry } from '../ssh/ssh-session-runtime.registry.js'
 import { assertTrialCapability } from '../trials/trial-policy.js'
 import bcrypt from 'bcrypt'
 import type { AuthEventType } from '@prisma/client'
@@ -92,6 +94,7 @@ export class NativeSshGatewayService {
     private readonly managedSshSessionService: ManagedSshSessionService,
     private readonly logRepository?: LogRepository,
     private readonly configProvider?: NativeSshGatewayConfigProvider,
+    private readonly runtimeRegistry = new SshSessionRuntimeRegistry(),
   ) {}
 
   async start(): Promise<void> {
@@ -816,6 +819,15 @@ export class NativeSshGatewayService {
       return
     }
 
+    try {
+      const current = await assertCurrentUserVersion(authenticated.user.id, authenticated.user.tenantId, authenticated.user.sessionVersion)
+      if (current.role !== authenticated.user.role) throw new Error('Session privileges changed')
+    } catch {
+      channel.write('Sessão revogada ou validação indisponível. Autentique novamente.\r\n')
+      channel.end()
+      return
+    }
+
     this.auditGatewayEvent(authenticated.user.id, 'NATIVE_SSH_GATEWAY_HOST_REQUESTED', {
       clientIp: info.ip,
       target,
@@ -852,8 +864,16 @@ export class NativeSshGatewayService {
 
     channel.write(`Conectando em ${effectiveHost.sshUser}@${host.name} (${host.ip})...\r\n`)
     let channelClosed = false
+    let targetClosed = false
+    let registeredSessionId: number | undefined
+    let closeTarget: (() => void) | undefined
+    const unregister = (): void => {
+      if (registeredSessionId !== undefined) this.runtimeRegistry.unregister(registeredSessionId)
+    }
     const handleChannelClose = (): void => {
       channelClosed = true
+      unregister()
+      closeTarget?.()
     }
     channel.once('close', handleChannelClose)
     let connectionClosedAudited = false
@@ -889,6 +909,8 @@ export class NativeSshGatewayService {
           channel.write(`\r\n${message}\r\n`)
         },
         onClose: () => {
+          targetClosed = true
+          unregister()
           auditConnectionClosed()
           channel.off('close', handleChannelClose)
           if (channelClosed) return
@@ -902,6 +924,39 @@ export class NativeSshGatewayService {
         },
       })
 
+      closeTarget = (): void => {
+        auditConnectionClosed()
+        void managedSession.close().catch(() => {})
+      }
+      if (channelClosed || targetClosed) {
+        await managedSession.close()
+        return
+      }
+      registeredSessionId = managedSession.sessionId
+      this.runtimeRegistry.register(managedSession.sessionId, {
+        close: (reason) => {
+          targetClosed = true
+          unregister()
+          void managedSession.close(reason === 'acl_revoked' ? 'acl_revoked' : reason === 'session_revoked' ? 'session_revoked' : 'admin_closed').catch(() => {})
+        },
+      })
+      try {
+        await assertCurrentUserVersion(authenticated.user.id, authenticated.user.tenantId, authenticated.user.sessionVersion)
+      } catch {
+        unregister()
+        await managedSession.close('session_revoked')
+        return
+      }
+      // Cover ACL changes published while the outbound handshake was still in flight.
+      const stillAllowed = await this.sshRepo.resolveAccessibleHost(
+        target, authenticated.user.id, authenticated.user.tenantId, authenticated.user.role,
+      )
+      if (!stillAllowed || stillAllowed.id !== host.id || channelClosed || targetClosed) {
+        unregister()
+        await managedSession.close(channelClosed ? 'socket_closed' : 'acl_revoked')
+        return
+      }
+
       this.auditGatewayEvent(authenticated.user.id, 'NATIVE_SSH_GATEWAY_CONNECTION_OPENED', {
         clientIp: info.ip,
         hostId: host.id,
@@ -913,19 +968,17 @@ export class NativeSshGatewayService {
       }, host.id)
 
       channel.removeAllListeners('data')
-      const handleTargetData = (data: Buffer): void => managedSession.write(data)
-      const closeManagedSession = (): void => {
-        channelClosed = true
-        auditConnectionClosed()
-        managedSession.close().catch(() => {})
+      const handleTargetData = (data: Buffer): void => {
+        if (!channelClosed && !targetClosed) managedSession.write(data)
       }
       channel.on('data', handleTargetData)
-      channel.once('close', closeManagedSession)
 
       if (execCommand) {
         managedSession.write(Buffer.from(`${execCommand}\n`, 'utf8'))
       }
     } catch (err) {
+      unregister()
+      closeTarget?.()
       channel.off('close', handleChannelClose)
       const failure = classifyNativeSshGatewayFailure(err)
       logger.error({ err, hostId: host.id }, 'Falha ao abrir sessão Native SSH Gateway')

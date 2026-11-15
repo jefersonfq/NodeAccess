@@ -1,12 +1,29 @@
+import { configureCurrentSessionReader, type CurrentSessionState } from '../auth/current-session.js'
 import Fastify from 'fastify'
 import jwt from '@fastify/jwt'
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { inventoryAclRoutes } from './inventory-acl.routes.js'
 import { InventoryAclController } from './inventory-acl.controller.js'
 import type { EffectiveAclSourceRow } from './inventory-acl.repository.js'
 import { InventoryAclService } from './inventory-acl.service.js'
 
+afterEach(() => configureCurrentSessionReader(undefined))
+
 async function fixture() {
+  const users = new Map<number, CurrentSessionState>([
+    [10, { tenantId: 7, role: 'ADMIN', canManageHosts: true }],
+    [20, { tenantId: 7, role: 'USER', canManageHosts: false }],
+    [30, { tenantId: 7, role: 'USER', canManageHosts: true }],
+    [40, { tenantId: 8, role: 'ADMIN', canManageHosts: true }],
+  ].map(([id, identity]) => [id as number, {
+    ...(identity as Pick<CurrentSessionState, 'tenantId' | 'role' | 'canManageHosts'>),
+    active: true, deletedAt: null, tenantActive: true, targetTenantActive: true,
+    sessionVersion: 3, isPlatformAdmin: false, canViewLiveSessions: false,
+  }]))
+  configureCurrentSessionReader((userId, tenantId) => {
+    const state = users.get(userId)
+    return Promise.resolve(state?.tenantId === tenantId ? state : null)
+  })
   const repo = {
     searchUsers: vi.fn(() => Promise.resolve({ data: [{ id: 20, name: 'User', email: 'user@test.invalid' }], total: 1, page: 1, limit: 30 })),
     nodeExists: vi.fn((id: number, tenantId: number) => Promise.resolve(id === 27 && tenantId === 7)),
@@ -21,7 +38,13 @@ async function fixture() {
   await app.register(jwt, { secret: 'acl-route-fixture-secret-not-for-production' })
   const inventoryRepo = { findByHostId: vi.fn((id: number, tenantId: number) => Promise.resolve(id === 5 && tenantId === 7 ? { id: 27 } : null)) }
   await inventoryAclRoutes(app, new InventoryAclController(new InventoryAclService(repo as never, undefined, undefined, inventoryRepo as never)))
-  const token = (overrides: Record<string, unknown> = {}) => app.jwt.sign({ sub: '10', tenantId: 7, role: 'admin', canManageHosts: true, stage: 'authenticated', ...overrides })
+  const token = (overrides: Record<string, unknown> = {}) => {
+    const userId = overrides.tenantId === 8 ? 40 : overrides.role === 'user' ? overrides.canManageHosts === false ? 20 : 30 : 10
+    const state = users.get(userId)!
+    return app.jwt.sign({ sub: String(userId), tenantId: state.tenantId, role: state.role.toLowerCase(),
+      canManageHosts: state.canManageHosts, isPlatformAdmin: false, canViewLiveSessions: false,
+      sessionVersion: 3, stage: 'authenticated', ...overrides })
+  }
   return { app, repo, token }
 }
 
@@ -87,7 +110,7 @@ describe('ACL UX HTTP privacy', () => {
       const result = await app.inject({ url: '/hosts/5/my-access?userId=999', headers: { authorization: `Bearer ${token({ role: 'user', canManageHosts: false })}` } })
       expect(result.statusCode).toBe(200)
       expect(result.json()).toMatchObject({ view: true, edit: true, connect: false })
-      expect(repo.findEffectiveSources).toHaveBeenCalledWith(27, 7, 10)
+      expect(repo.findEffectiveSources).toHaveBeenCalledWith(27, 7, 20)
       expect(repo.findApplicableEntries).not.toHaveBeenCalled()
       expect(repo.searchUsers).not.toHaveBeenCalled()
     } finally { await app.close() }

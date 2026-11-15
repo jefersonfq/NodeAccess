@@ -149,3 +149,19 @@ describe('managed SSH input policy and resolved sessions', () => {
     await expect(s.service.openResolved(input)).rejects.toThrow('connection refused'); expect(io.stop).toHaveBeenCalled()
   })
 })
+
+
+describe('revocation closes managed input and preserves the terminal reason', () => {
+  it('persists revocation before synchronous dispose callbacks and emits one end event', async () => {
+    const s = setup(), handle = await s.service.open(s.input)
+    io.dispose.mockImplementation(() => { io.instances[0]!.hooks.onClose?.() })
+    await handle.close('acl_revoked')
+    await handle.close('admin_closed')
+    handle.write(Buffer.from('forbidden')); handle.resize(1, 1)
+    await flush()
+    expect(s.repo.endSession).toHaveBeenCalledTimes(1)
+    expect(s.repo.endSession).toHaveBeenCalledWith(41, { endedReason: 'acl_revoked' })
+    expect(s.audit.publish.mock.calls.filter(([type]) => type === 'session_ended')).toHaveLength(1)
+    expect(io.write).not.toHaveBeenCalled(); expect(io.resize).not.toHaveBeenCalled()
+  })
+})

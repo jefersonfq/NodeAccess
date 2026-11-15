@@ -269,6 +269,10 @@ async function main() {
     tenantId: TENANT_ID,
     role: 'admin',
     email: ADMIN_EMAIL,
+    sessionVersion: Number(process.env.SESSION_VERSION || '0'),
+    isPlatformAdmin: process.env.IS_PLATFORM_ADMIN === '1',
+    canManageHosts: process.env.CAN_MANAGE_HOSTS === '1',
+    canViewLiveSessions: process.env.CAN_VIEW_LIVE_SESSIONS === '1',
   }, readJwtSecret())
 
   await navigate(cdp, `${FRONTEND}/hosts?cdp=${Date.now()}`)

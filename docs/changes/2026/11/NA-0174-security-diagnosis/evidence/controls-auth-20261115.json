@@ -1,0 +1,67 @@
+{
+  "sourceSHA": "28685c5b2c3fbf9739a05629260c95e42e0d62d0",
+  "workingTreeDirty": true,
+  "at": "2026-11-15T17:38:39.468901+00:00",
+  "httpEvidence": "regression-result.json",
+  "casEvidence": "cas-result.json",
+  "cleanupEvidence": "lab-cleanup.json",
+  "limitations": [
+    "HTTP harness uses actual routes/guards/services/MySQL/Redis, not full app bootstrap/browser",
+    "Runtime closure validated by service/registry tests; parent owns real PTY evidence",
+    "Late revocation events conservatively close all principal runtimes, potentially interrupting a valid reconnection; event sockets filter admitted version",
+    "Redis publication failure happens after persisted revocation and is returned as failure; no durable event retry model added"
+  ],
+  "tests": {
+    "focused-tests-final": {
+      "passed": 285,
+      "failed": 1
+    },
+    "cas-tests-corrected": {
+      "passed": 13,
+      "failed": 0
+    },
+    "user-event-tests": {
+      "passed": 23,
+      "failed": 0
+    },
+    "bus-race-tests": {
+      "passed": 9,
+      "failed": 0
+    },
+    "trial-fixtures-tests": {
+      "passed": 82,
+      "failed": 0
+    },
+    "freeze-tests": {
+      "passed": 84,
+      "failed": 0
+    }
+  },
+  "updatedAt": "2026-11-15T17:43:21.630668+00:00",
+  "delegatedLogoutAll": "Controller selects validated platformTenantId or tenantId; positive normal/delegated and forged origin/actor/stale negatives passed",
+  "strictDelegatedClaims": "isPlatformAdmin/canManageHosts/canViewLiveSessions require boolean true; strings, number1 and null rejected",
+  "finalValidation": {
+    "tests": {
+      "evidence": "owned-final-tests.json",
+      "passed": 359,
+      "failed": 0
+    },
+    "typecheck": "owned-typecheck.log (PASS)",
+    "lint": "owned-lint.log: one unnecessary cast only; removed and owned-lint-corrected.log PASS; remaining owned files clean"
+  },
+  "malformedSessionVersion": {
+    "acceptedLegacy": "undefined with persisted version0",
+    "rejectedBeforeStorage": [
+      null,
+      "0",
+      false,
+      1.5,
+      -1
+    ],
+    "passed": 27,
+    "failed": 0,
+    "testEvidence": "malformed-version-tests.json",
+    "lintEvidence": "malformed-version-lint.log (PASS)",
+    "catalogSourceHash": "parent updating with official generator"
+  }
+}

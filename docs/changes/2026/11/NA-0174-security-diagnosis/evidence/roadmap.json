@@ -1,0 +1,29 @@
+{
+  "at": "2026-11-14T22:23:42-03:00",
+  "workbook": "/home/jeferson/projects/NodeAccess-current/docs/planejamento/METAS e OBJETVIVOS Nodeaccess 2027.xlsx",
+  "before_sha256": "8183613e52b223acbc7c5aaaa8835574679719dbbc35ef4224283a88290cc602",
+  "after_sha256": "d4db2d47af21c1ff343003fda6dd981b8695791346e3039c36f5af38600e2f15",
+  "updated": "META-051",
+  "created": "META-054",
+  "preserved": "Other existing rows and ZIP entries including Original 2027 verified unchanged.",
+  "diagnosis_row": {
+    "A55": "META-054",
+    "B55": "Diagnóstico aprofundado de segurança",
+    "C55": "Fronteiras de confiança, tenant/ACL, credenciais, identidade SSH e revogação; hipóteses rastreáveis antes de corrigir controles.",
+    "D55": "Iniciado; leitura e ensaio de guard isolado; reproduções integradas pendentes",
+    "E55": "A definir",
+    "F55": "Segurança / Diagnóstico",
+    "G55": "Resolver D-13 imagens; reproduzir host keys SFTP/bastion, revogação nativa/distribuída e invalidação de access token em laboratório descartável.",
+    "H55": "docs/changes/2026/11/NA-0174-security-diagnosis/plan.md; docs/changes/2026/11/NA-0174-security-diagnosis/diagnosis.md",
+    "I55": "12 observações de controles + D-13 gate de imagens; 50 contratos existentes e 4 cenários isolados PASS. Não prova bypass integrado, auditoria completa ou condição de produção.",
+    "J55": "LOCAL_WIP documental; sem commit/publicação própria ou mudança de runtime.",
+    "K55": "2026-11-14"
+  },
+  "revision": {
+    "A18": "2026-11-14",
+    "B18": "META-051 / META-054",
+    "C18": "NA-0172 bloqueada no gate de imagens; NA-0174 iniciada",
+    "D18": "Usuário autorizou fechamento da Central e diagnóstico. PR63 draft: local e Sonar remoto PASS, imagens FAIL (oito achados em quatro imagens). Diagnóstico com 12 observações de controles, D-13 imagens e ensaio limitado do guard; sem exploração integrada demonstrada.",
+    "E18": "PR63; docs/changes/2026/11/NA-0174-security-diagnosis/implementation.md"
+  }
+}

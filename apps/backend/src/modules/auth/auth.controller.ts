@@ -4,7 +4,7 @@ import type { AuthService } from './auth.service.js'
 import type { AuthRateLimitService } from './auth-rate-limit.service.js'
 import { env } from '../../config/env.js'
 
-function meta(request: FastifyRequest) {
+function meta(request: FastifyRequest): { ip: string; userAgent?: string } {
   const userAgent = request.headers['user-agent']
   return {
     ip:        request.ip,
@@ -57,13 +57,13 @@ export class AuthController {
     private readonly rateLimit: AuthRateLimitService,
   ) {}
 
-  async lookupTenant(request: FastifyRequest<{ Body: { email: string } }>, reply: FastifyReply) {
+  async lookupTenant(request: FastifyRequest<{ Body: { email: string } }>, reply: FastifyReply): Promise<FastifyReply> {
     await this.rateLimit.check({ action: 'lookup', ip: request.ip, identity: request.body.email })
     const tenants = await this.authService.lookupTenantsByEmail(request.body.email)
     return reply.send({ tenants })
   }
 
-  async login(request: FastifyRequest<{ Body: LoginDto }>, reply: FastifyReply) {
+  async login(request: FastifyRequest<{ Body: LoginDto }>, reply: FastifyReply): Promise<FastifyReply> {
     const { email, password } = request.body
     const slug = tenantSlug(request)
     await this.rateLimit.check({ action: 'login', ip: request.ip, tenant: slug, identity: email })
@@ -74,7 +74,7 @@ export class AuthController {
   async setupTotp(
     request: FastifyRequest<{ Body: { setupToken: string } }>,
     reply: FastifyReply,
-  ) {
+  ): Promise<FastifyReply> {
     await this.rateLimit.check({ action: 'mfa', ip: request.ip, identity: request.body.setupToken })
     const result = await this.authService.setupTotp(request.body.setupToken)
     return reply.send(result)
@@ -83,7 +83,7 @@ export class AuthController {
   async confirmTotp(
     request: FastifyRequest<{ Body: VerifyTotpDto }>,
     reply: FastifyReply,
-  ) {
+  ): Promise<FastifyReply> {
     const { token, setupToken } = request.body
     if (!setupToken) {
       return reply.status(400).send({ code: 'MISSING_SETUP_TOKEN', message: 'setupToken obrigatório' })
@@ -96,7 +96,7 @@ export class AuthController {
   async verifyTotp(
     request: FastifyRequest<{ Body: VerifyTotpDto & { tempToken: string } }>,
     reply: FastifyReply,
-  ) {
+  ): Promise<FastifyReply> {
     const { token, setupToken: tempToken } = request.body
     if (!tempToken) {
       return reply.status(400).send({ code: 'MISSING_TEMP_TOKEN', message: 'tempToken obrigatório' })
@@ -109,7 +109,7 @@ export class AuthController {
   async refresh(
     request: FastifyRequest<{ Body: { refreshToken: string } }>,
     reply: FastifyReply,
-  ) {
+  ): Promise<FastifyReply> {
     await this.rateLimit.check({ action: 'refresh', ip: request.ip, identity: request.body.refreshToken })
     const result = await this.authService.refresh(request.body.refreshToken)
     return reply.send(result)
@@ -118,19 +118,19 @@ export class AuthController {
   async logout(
     request: FastifyRequest<{ Body: { refreshToken: string } }>,
     reply: FastifyReply,
-  ) {
+  ): Promise<FastifyReply> {
     await this.rateLimit.check({ action: 'logout', ip: request.ip, identity: request.body.refreshToken })
     await this.authService.logout(request.body.refreshToken)
     return reply.status(204).send()
   }
 
-  async logoutAll(request: FastifyRequest, reply: FastifyReply) {
+  async logoutAll(request: FastifyRequest, reply: FastifyReply): Promise<FastifyReply> {
     const user = request.jwtUser!
-    await this.authService.logoutAll(Number(user.sub), user.tenantId, user.sessionVersion ?? 0)
+    await this.authService.logoutAll(Number(user.sub), user.platformTenantId ?? user.tenantId, user.sessionVersion ?? 0)
     return reply.status(204).send()
   }
 
-  async requestEmailOtp(request: FastifyRequest<{ Body: { tempToken: string } }>, reply: FastifyReply) {
+  async requestEmailOtp(request: FastifyRequest<{ Body: { tempToken: string } }>, reply: FastifyReply): Promise<FastifyReply> {
     await this.rateLimit.check({ action: 'email_otp', ip: request.ip, identity: request.body.tempToken })
     await this.authService.requestEmailOtp(request.body.tempToken)
     return reply.status(204).send()
@@ -139,13 +139,13 @@ export class AuthController {
   async verifyEmailOtp(
     request: FastifyRequest<{ Body: { code: string; tempToken: string } }>,
     reply: FastifyReply,
-  ) {
+  ): Promise<FastifyReply> {
     await this.rateLimit.check({ action: 'email_otp', ip: request.ip, identity: request.body.tempToken })
     const result = await this.authService.verifyEmailOtp(request.body.code, request.body.tempToken, meta(request))
     return reply.send(result)
   }
 
-  async googleConfig(request: FastifyRequest, reply: FastifyReply) {
+  async googleConfig(request: FastifyRequest, reply: FastifyReply): Promise<FastifyReply> {
     const querySlug = (request.query as { tenantSlug?: unknown } | undefined)?.tenantSlug
     const slug = typeof querySlug === 'string' && querySlug.trim()
       ? normalizeSlug(querySlug)
@@ -154,7 +154,7 @@ export class AuthController {
     return reply.send(result)
   }
 
-  async googleLogin(request: FastifyRequest<{ Body: GoogleLoginDto }>, reply: FastifyReply) {
+  async googleLogin(request: FastifyRequest<{ Body: GoogleLoginDto }>, reply: FastifyReply): Promise<FastifyReply> {
     const slug = tenantSlug(request)
     await this.rateLimit.check({
       action: 'google', ip: request.ip, tenant: slug, identity: request.body.credential,
@@ -170,7 +170,7 @@ export class AuthController {
   async enterTenant(
     request: FastifyRequest<{ Body: { tenantId: number } }>,
     reply: FastifyReply,
-  ) {
+  ): Promise<FastifyReply> {
     const user = request.jwtUser!
     const result = await this.authService.enterTenantAsPlatformAdmin(
       Number(user.sub),
@@ -183,7 +183,7 @@ export class AuthController {
   async exitTenant(
     request: FastifyRequest<{ Body: { tenantId: number } }>,
     reply: FastifyReply,
-  ) {
+  ): Promise<FastifyReply> {
     await this.authService.exitTenantAsPlatformAdmin(Number(request.jwtUser!.sub), request.body.tenantId)
     return reply.status(204).send()
   }

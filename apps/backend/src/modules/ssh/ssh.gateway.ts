@@ -1,3 +1,4 @@
+import { assertCurrentUserSession } from '../auth/current-session.js'
 import { isFullTrialProfile } from '../trials/trial-capabilities.js'
 import { assertTrialUserAccess, trialResourceEnabled, assertTrialHostAccess, monitorTrialAccess, trialDenied, type TrialAccess } from '../trials/trial-policy.js'
 import { sendBoundedWebSocket } from '../../shared/bounded-websocket.js'
@@ -224,11 +225,14 @@ export class SshGateway {
     // 1. Autenticação via JWT (passado como query param — único modo suportado pelo browser WebSocket)
     if (!token) return closeWithError(ws, 'Token obrigatório')
 
+    let authenticatedPayload: JwtPayload | undefined
     let principal: SshConnectionPrincipal
     let jitExpiresAtMs: number | null = null
     try {
       const payload = jwt.verify(token, env.JWT_SECRET) as JwtPayload | JitHostAccessPayload
       if (payload.stage === 'authenticated') {
+        await assertCurrentUserSession(payload)
+        authenticatedPayload = payload
         principal = {
           userId: Number(payload.sub),
           tenantId: payload.tenantId,
@@ -331,7 +335,7 @@ export class SshGateway {
     }
     const jiraGrantPayload = meta.jiraGrant ? readJiraSessionGrant(meta.jiraGrant, { tenantId: principal.tenantId, userId: principal.userId, hostId }) : null
     if (jiraGrantPayload) await this.jiraInteractionRepo?.attachSession(jiraGrantPayload.interactionId, sessionId)
-    let forcedEndedReason: 'jit_link_revoked' | 'jit_link_expired' | 'remote_closed' | 'admin_closed' | 'acl_revoked' | null = null
+    let forcedEndedReason: 'jit_link_revoked' | 'jit_link_expired' | 'remote_closed' | 'admin_closed' | 'acl_revoked' | 'session_revoked' | null = null
     let jitExpiryTimer: ReturnType<typeof setTimeout> | null = null
     let lastHeartbeatPersistedAt = Date.now()
     const userSnapshot = await this.sshRepo.findUserSnapshot(principal.userId, principal.tenantId)
@@ -629,7 +633,7 @@ export class SshGateway {
       }
       const handleRemoteClose = (): void => {
         terminalStats.closeSource = terminalStats.closeSource ?? 'remote'
-        forcedEndedReason = 'remote_closed'
+        forcedEndedReason ??= 'remote_closed'
         logger.info({
           event: host.accessProtocol === 'TELNET' ? 'terminal.telnet.remote.close' : 'terminal.ssh.remote.close',
           sessionId,
@@ -720,6 +724,7 @@ export class SshGateway {
               port:              host.bastion.port,
               username:          host.bastion.sshUser,
               authType:          host.bastion.authType,
+              trustedHostKeyFingerprint: host.bastion.trustedHostKeyFingerprint,
               passwordEncrypted: bastionPasswordEncrypted,
               pemKey:            host.bastion.pemKey,
             }
@@ -796,6 +801,146 @@ export class SshGateway {
         return true
       }
 
+    let cleanedUp = false
+    const cleanup = async (websocketCode?: unknown): Promise<void> => {
+      if (cleanedUp) return
+      cleanedUp = true
+      stopTrialMonitor()
+      terminalStats.closeSource = terminalStats.closeSource ?? (forcedEndedReason === 'remote_closed' ? 'remote' : 'client')
+      const endedReason = forcedEndedReason ?? 'socket_closed'
+      const closeDetails = {
+        reason: endedReason, closeSource: terminalStats.closeSource,
+        websocketCode: typeof websocketCode === 'number' ? websocketCode : null,
+        tenantId: principal.tenantId, hostId: host.id, sessionId,
+        remoteBytes: terminalStats.remoteBytes, clientBytes: terminalStats.clientBytes,
+        resizeCount: terminalStats.resizeCount,
+        lastRemoteEvent: terminalStats.lastRemoteEvent, lastClientEvent: terminalStats.lastClientEvent,
+      }
+      void this.logRepo?.logAdminEvent({
+        adminId: principal.userId, action: 'SSH_SESSION_ENDED', targetType: 'Session', targetId: sessionId,
+        details: JSON.stringify(closeDetails),
+      }).catch(() => { /* best-effort diagnostic, never delay terminal teardown */ })
+      logger.info({
+        event: host.accessProtocol === 'TELNET' ? 'terminal.telnet.session.cleanup' : 'terminal.ssh.session.cleanup',
+        sessionId,
+        hostId: host.id,
+        protocol: host.accessProtocol.toLowerCase(),
+        reason: endedReason,
+        closeSource: terminalStats.closeSource,
+        remoteBytes: terminalStats.remoteBytes,
+        remoteMessageCount: terminalStats.remoteMessageCount,
+        clientBytes: terminalStats.clientBytes,
+        clientMessageCount: terminalStats.clientMessageCount,
+        resizeCount: terminalStats.resizeCount,
+        lastRemoteEvent: terminalStats.lastRemoteEvent,
+        lastClientEvent: terminalStats.lastClientEvent,
+      }, host.accessProtocol === 'TELNET' ? 'cleaning up Telnet terminal session' : 'cleaning up SSH terminal session')
+      this.runtimeRegistry?.unregister(sessionId)
+      if (jitExpiryTimer) {
+        clearTimeout(jitExpiryTimer)
+        jitExpiryTimer = null
+      }
+      await session.close()
+      this.sharedSessionBroker.unregisterSessionTransport(sessionId)
+      secretRedactor.clear()
+      this.sharedSessionBroker.publishEnded(sessionId)
+      await this.sshRepo.endSession(sessionId, {
+        endedReason,
+      }).catch(() => { /* best-effort */ })
+      if (principal.isJit) {
+        void this.logRepo?.logAdminEvent({
+          adminId: principal.userId,
+          action: 'JIT_SESSION_TERMINATED',
+          targetType: 'Session',
+          targetId: sessionId,
+          details: JSON.stringify({
+            hostId: host.id,
+            hostName: host.name,
+            jitLinkId: principal.jitLinkId ?? null,
+            guestName: principal.guestName ?? null,
+            reason: endedReason,
+          }),
+        }).catch(() => {})
+      }
+      void this.webhookService.publishEvent({
+        tenantId:     principal.tenantId,
+        eventType:    'ssh_session.ended',
+        eventVersion: 1,
+        resourceType: 'ssh_session',
+        resourceId:   String(sessionId),
+        occurredAt:   new Date(),
+        data: {
+          sessionId,
+          userId,
+          hostId:   host.id,
+          hostName: host.name,
+        },
+      }).catch(() => {})
+      this.publishSessionPresenceChanged({
+        tenantId: principal.tenantId,
+        hostId: host.id,
+        sessionId,
+        userId,
+        action: 'ended',
+      })
+      await this.tunnelService.closeForSession(String(sessionId)).catch(() => { /* best-effort */ })
+      await publishAudit('session_ended', closeDetails).catch(() => { /* ignore */ })
+      if (auditEnabledForSession) this.sessionAuditPublisher.clearSession(sessionId)
+    }
+
+    if (ws.readyState !== 1) { await cleanup(); return }
+    ws.on('close', () => { void cleanup() })
+    ws.on('error', () => {
+      terminalStats.closeSource = 'error'
+      void cleanup()
+    })
+      this.runtimeRegistry?.register(sessionId, {
+        ...(principal.jitLinkId !== undefined && { jitLinkId: principal.jitLinkId }),
+        close: (reason) => {
+          if (reason === 'jit_link_revoked') forcedEndedReason = 'jit_link_revoked'
+          if (reason === 'jit_link_expired') forcedEndedReason = 'jit_link_expired'
+          if (reason === 'admin_closed') forcedEndedReason = 'admin_closed'
+          if (reason === 'acl_revoked') forcedEndedReason = 'acl_revoked'
+          if (reason === 'session_revoked') forcedEndedReason = 'session_revoked'
+          const sessionRevoked = reason === 'session_revoked'
+          const expired = reason === 'jit_link_expired'
+          const adminClosed = reason === 'admin_closed'
+          const aclRevoked = reason === 'acl_revoked'
+          send(ws, {
+            type: 'error',
+            message: sessionRevoked ? 'Sessão revogada; autentique-se novamente' : aclRevoked
+              ? 'Sessão encerrada porque a permissão de conectar foi removida'
+              : adminClosed ? 'Sessão encerrada pelo administrador' : expired ? 'Acesso JIT expirado' : 'Acesso JIT revogado pelo administrador',
+            code: sessionRevoked ? 'SESSION_REVOKED' : aclRevoked
+              ? 'SESSION_ACL_REVOKED'
+              : adminClosed ? 'SESSION_ADMIN_CLOSED' : expired ? 'JIT_LINK_EXPIRED' : 'JIT_LINK_REVOKED',
+            reason,
+          })
+          void cleanup()
+          ws.close(1008)
+        },
+      })
+      if (authenticatedPayload) {
+        try { await assertCurrentUserSession(authenticatedPayload) }
+        catch {
+          forcedEndedReason = 'session_revoked'
+          await cleanup()
+          closeWithError(ws, 'Sessão revogada; autentique-se novamente', 1008, 'SESSION_REVOKED')
+          return
+        }
+      }
+      if (!principal.isJit) {
+        try {
+          if (!await this.sshRepo.hasEffectiveHostPermission(host.id, principal.tenantId, principal.userId,
+            'connect', principal.role.toUpperCase() as 'ADMIN' | 'USER')) throw new Error('Access revoked')
+        } catch {
+          forcedEndedReason = 'acl_revoked'
+          await cleanup()
+          closeWithError(ws, 'Permissão de conectar removida', 1008, 'SESSION_ACL_REVOKED')
+          return
+        }
+      }
+      if (ws.readyState !== 1 || forcedEndedReason) { await cleanup(); return }
       ws.on('message', (raw: Buffer | ArrayBuffer | Buffer[], isBinary: boolean) => {
         const data = toBuffer(raw)
         if (isBinary) {
@@ -1046,29 +1191,6 @@ export class SshGateway {
           }),
         }).catch(() => {})
       }
-      this.runtimeRegistry?.register(sessionId, {
-        ...(principal.jitLinkId !== undefined && { jitLinkId: principal.jitLinkId }),
-        close: (reason) => {
-          if (reason === 'jit_link_revoked') forcedEndedReason = 'jit_link_revoked'
-          if (reason === 'jit_link_expired') forcedEndedReason = 'jit_link_expired'
-          if (reason === 'admin_closed') forcedEndedReason = 'admin_closed'
-          if (reason === 'acl_revoked') forcedEndedReason = 'acl_revoked'
-          const expired = reason === 'jit_link_expired'
-          const adminClosed = reason === 'admin_closed'
-          const aclRevoked = reason === 'acl_revoked'
-          send(ws, {
-            type: 'error',
-            message: aclRevoked
-              ? 'Sessão encerrada porque a permissão de conectar foi removida'
-              : adminClosed ? 'Sessão encerrada pelo administrador' : expired ? 'Acesso JIT expirado' : 'Acesso JIT revogado pelo administrador',
-            code: aclRevoked
-              ? 'SESSION_ACL_REVOKED'
-              : adminClosed ? 'SESSION_ADMIN_CLOSED' : expired ? 'JIT_LINK_EXPIRED' : 'JIT_LINK_REVOKED',
-            reason,
-          })
-          ws.close(1008)
-        },
-      })
       if (principal.isJit && jitExpiresAtMs) {
         const delayMs = jitExpiresAtMs - Date.now()
         const expireJitSession = (): void => {
@@ -1191,6 +1313,13 @@ export class SshGateway {
       }
 
       if (err instanceof HostKeyVerificationError) {
+        if (err.step === 'bastion') {
+          send(ws, { type: 'error', code: err.code, message: err.message })
+          ws.close(1008)
+          await this.sshRepo.endSession(sessionId, { endedReason: 'host_key_verification_required', errorCode: err.code, errorMessage: err.message }).catch(() => {})
+          if (auditEnabledForSession) this.sessionAuditPublisher.clearSession(sessionId)
+          return
+        }
         send(ws, {
           type: 'host_key_verification_required',
           reason: err.reason,
@@ -1244,99 +1373,7 @@ export class SshGateway {
       return
     }
 
-    let cleanedUp = false
-    const cleanup = async (websocketCode?: unknown): Promise<void> => {
-      if (cleanedUp) return
-      cleanedUp = true
-      stopTrialMonitor()
-      terminalStats.closeSource = terminalStats.closeSource ?? (forcedEndedReason === 'remote_closed' ? 'remote' : 'client')
-      const endedReason = forcedEndedReason ?? 'socket_closed'
-      const closeDetails = {
-        reason: endedReason, closeSource: terminalStats.closeSource,
-        websocketCode: typeof websocketCode === 'number' ? websocketCode : null,
-        tenantId: principal.tenantId, hostId: host.id, sessionId,
-        remoteBytes: terminalStats.remoteBytes, clientBytes: terminalStats.clientBytes,
-        resizeCount: terminalStats.resizeCount,
-        lastRemoteEvent: terminalStats.lastRemoteEvent, lastClientEvent: terminalStats.lastClientEvent,
-      }
-      void this.logRepo?.logAdminEvent({
-        adminId: principal.userId, action: 'SSH_SESSION_ENDED', targetType: 'Session', targetId: sessionId,
-        details: JSON.stringify(closeDetails),
-      }).catch(() => { /* best-effort diagnostic, never delay terminal teardown */ })
-      logger.info({
-        event: host.accessProtocol === 'TELNET' ? 'terminal.telnet.session.cleanup' : 'terminal.ssh.session.cleanup',
-        sessionId,
-        hostId: host.id,
-        protocol: host.accessProtocol.toLowerCase(),
-        reason: endedReason,
-        closeSource: terminalStats.closeSource,
-        remoteBytes: terminalStats.remoteBytes,
-        remoteMessageCount: terminalStats.remoteMessageCount,
-        clientBytes: terminalStats.clientBytes,
-        clientMessageCount: terminalStats.clientMessageCount,
-        resizeCount: terminalStats.resizeCount,
-        lastRemoteEvent: terminalStats.lastRemoteEvent,
-        lastClientEvent: terminalStats.lastClientEvent,
-      }, host.accessProtocol === 'TELNET' ? 'cleaning up Telnet terminal session' : 'cleaning up SSH terminal session')
-      this.runtimeRegistry?.unregister(sessionId)
-      if (jitExpiryTimer) {
-        clearTimeout(jitExpiryTimer)
-        jitExpiryTimer = null
-      }
-      await session.close()
-      this.sharedSessionBroker.unregisterSessionTransport(sessionId)
-      secretRedactor.clear()
-      this.sharedSessionBroker.publishEnded(sessionId)
-      await this.sshRepo.endSession(sessionId, {
-        endedReason,
-      }).catch(() => { /* best-effort */ })
-      if (principal.isJit) {
-        void this.logRepo?.logAdminEvent({
-          adminId: principal.userId,
-          action: 'JIT_SESSION_TERMINATED',
-          targetType: 'Session',
-          targetId: sessionId,
-          details: JSON.stringify({
-            hostId: host.id,
-            hostName: host.name,
-            jitLinkId: principal.jitLinkId ?? null,
-            guestName: principal.guestName ?? null,
-            reason: endedReason,
-          }),
-        }).catch(() => {})
-      }
-      void this.webhookService.publishEvent({
-        tenantId:     principal.tenantId,
-        eventType:    'ssh_session.ended',
-        eventVersion: 1,
-        resourceType: 'ssh_session',
-        resourceId:   String(sessionId),
-        occurredAt:   new Date(),
-        data: {
-          sessionId,
-          userId,
-          hostId:   host.id,
-          hostName: host.name,
-        },
-      }).catch(() => {})
-      this.publishSessionPresenceChanged({
-        tenantId: principal.tenantId,
-        hostId: host.id,
-        sessionId,
-        userId,
-        action: 'ended',
-      })
-      await this.tunnelService.closeForSession(String(sessionId)).catch(() => { /* best-effort */ })
-      await publishAudit('session_ended', closeDetails).catch(() => { /* ignore */ })
-      if (auditEnabledForSession) this.sessionAuditPublisher.clearSession(sessionId)
-    }
 
-    if (trial && ws.readyState !== 1) { await cleanup(); return }
-    ws.on('close', () => { void cleanup() })
-    ws.on('error', () => {
-      terminalStats.closeSource = 'error'
-      void cleanup()
-    })
   }
 
   private async isJiraSessionAuthorized(principal: SshConnectionPrincipal, hostId: number, rawGrant?: string): Promise<boolean> {

@@ -34,6 +34,7 @@ vi.mock('node:net', async () => {
   return { default: { createServer: (accept: (socket: unknown) => void) => new FakeServer(accept) } }
 })
 class Ssh extends EventEmitter {
+  destroy = vi.fn(() => this.emit('close'))
   end = vi.fn(() => this.emit('end'))
   stream = Object.assign(new PassThrough(), { close: vi.fn() })
   forwardOut = vi.fn((_a: string, _b: number, _c: string, _d: number, callback: (error: Error | null, stream: typeof this.stream) => void) => callback(null, this.stream))
@@ -73,7 +74,7 @@ describe('tunnel target and connection route contracts', () => {
     const f = fixture()
     expect(await f.testTarget()).toMatchObject({ success: true, connectionMethod: 'direct' })
     expect(f.repo.hasEffectiveHostPermission).toHaveBeenCalledWith(42, 3, 7, 'connect', 'USER')
-    expect(io.connect).toHaveBeenCalledWith(expect.objectContaining({ host: hostAddress(), password: 'fixture-password' }), 'fixture-fingerprint', undefined)
+    expect(io.connect).toHaveBeenCalledWith(expect.objectContaining({ host: hostAddress(), password: 'fixture-password' }), 'fixture-fingerprint', undefined, undefined)
     expect(f.ssh.forwardOut).toHaveBeenCalledWith('127.0.0.1', 0, '127.0.0.1', 8080, expect.any(Function))
     expect(f.ssh.stream.close).toHaveBeenCalledOnce(); expect(f.ssh.end).toHaveBeenCalledOnce()
   })
@@ -103,7 +104,7 @@ describe('tunnel target and connection route contracts', () => {
     registry.createAuthorizedConnection.mockResolvedValue(socket)
     expect(await f.testTarget()).toMatchObject({ success: true, connectionMethod })
     expect(registry.createAuthorizedConnection).toHaveBeenCalledWith(agent, expect.any(String), hostAddress(), 22, { userId: 7, tenantId: 3, hostId: 42, purpose: 'connect' })
-    expect(io.connect).toHaveBeenCalledWith(expect.objectContaining({ sock: socket }), 'fixture-fingerprint', undefined)
+    expect(io.connect).toHaveBeenCalledWith(expect.objectContaining({ sock: socket }), 'fixture-fingerprint', undefined, undefined)
     expect(destroy).toHaveBeenCalled()
     registry.createAuthorizedConnection.mockResolvedValue(new PassThrough())
     expect(await f.create()).toMatchObject({ connectionMethod })
@@ -126,7 +127,7 @@ describe('tunnel target and connection route contracts', () => {
     const f = fixture(); f.host.authType = authType; f.host.onePasswordRef = 'op://fixture'
     expect((await f.testTarget()).success).toBe(true)
     expect(f.secrets.resolve).toHaveBeenCalledWith(3, 'op://fixture')
-    expect(io.connect).toHaveBeenCalledWith(expect.objectContaining({ [authType === 'PEM' ? 'privateKey' : 'password']: 'resolved-fixture-secret' }), 'fixture-fingerprint', undefined)
+    expect(io.connect).toHaveBeenCalledWith(expect.objectContaining({ [authType === 'PEM' ? 'privateKey' : 'password']: 'resolved-fixture-secret' }), 'fixture-fingerprint', undefined, undefined)
     await f.create()
   })
   it('decrypts PEM passphrase/bastion config and sanitizes secret provider startup failure', async () => {
@@ -134,7 +135,7 @@ describe('tunnel target and connection route contracts', () => {
     f.host.authType = 'PEM'; f.host.pemKey = { encryptedKey: pem.encrypted, iv: pem.iv, encryptedPassphrase: pass.encrypted, passphraseIv: pass.iv }
     f.host.bastion = { ...f.host, ip: '192.0.2.1' }
     expect((await f.testTarget()).success).toBe(true)
-    expect(io.connect).toHaveBeenCalledWith(expect.objectContaining({ privateKey: 'fixture-key', passphrase: 'fixture-passphrase' }), 'fixture-fingerprint', expect.objectContaining({ host: '192.0.2.1' }))
+    expect(io.connect).toHaveBeenCalledWith(expect.objectContaining({ privateKey: 'fixture-key', passphrase: 'fixture-passphrase' }), 'fixture-fingerprint', expect.objectContaining({ host: '192.0.2.1' }), 'fixture-fingerprint')
     f.host.onePasswordRef = 'op://fixture'; f.secrets.resolve.mockRejectedValue(new Error('private provider detail'))
     await expect(f.create()).rejects.toMatchObject({ code: 'CREDENTIAL_ERROR', message: 'Falha ao buscar credencial no 1Password' })
   })
@@ -279,5 +280,37 @@ describe('tunnel stream cleanup and best-effort boundaries', () => {
     io.connect.mockRejectedValue(new Error('original SSH failure'))
     await expect(f.create()).rejects.toThrow('original SSH failure')
     expect(f.repo.endSession).toHaveBeenCalledWith(71)
+  })
+})
+
+
+describe('global principal tunnel revocation', () => {
+  it('closes delegated destinations for a validated principal and preserves unrelated users', async () => {
+    const f = fixture()
+    const first = await f.create()
+    io.connect.mockResolvedValue(new Ssh())
+    const delegated = await f.service.create(7, 8, 'admin', 42, 0, '127.0.0.1', 8080)
+    // Each actual connection needs a distinct transport, as in production.
+    io.connect.mockResolvedValue(new Ssh())
+    const other = await f.service.create(9, 3, 'user', 42, 0, '127.0.0.1', 8080)
+    expect(await f.service.closeRevokedByUser(1, 7)).toBe(2)
+    expect(f.service.listForUser(7)).toEqual([])
+    expect(f.service.listForUser(9).map(item => item.id)).toEqual([other.id])
+    expect(f.logs.logAdminEvent.mock.calls.some(([event]) => event.action === 'USER_TUNNEL_CLOSED' && event.details?.includes('session_revoked'))).toBe(true)
+    expect(first.id).not.toBe(delegated.id)
+  })
+  it('does not publish a tunnel revoked while SSH is connecting', async () => {
+    const f = fixture()
+    let release!: () => void
+    io.connect.mockImplementationOnce(() => new Promise(resolve => { release = () => resolve(f.ssh) }))
+    const pending = f.create()
+    const outcome = pending.then(() => null, (error: unknown) => error)
+    await vi.waitFor(() => expect(io.connect).toHaveBeenCalled())
+    await f.service.closeRevokedByUser(1, 7)
+    release()
+    expect(await outcome).toMatchObject({ code: 'SESSION_REVOKED' })
+    expect(f.ssh.destroy).toHaveBeenCalledOnce()
+    expect(f.service.listForUser(7)).toEqual([])
+    expect(io.servers).toHaveLength(0)
   })
 })

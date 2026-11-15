@@ -1,17 +1,25 @@
 import Fastify from 'fastify'
 import jwt from '@fastify/jwt'
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import { configureCurrentSessionReader } from '../auth/current-session.js'
 import { terminalHighlightRoutes } from './terminal-highlight.routes.js'
 import type { TerminalHighlightService } from './terminal-highlight.service.js'
 
 async function fixture(role: 'admin' | 'user' = 'user') {
+  configureCurrentSessionReader((userId, tenantId) => Promise.resolve(userId === 12 && tenantId === 7 ? {
+    tenantId: 7, role: role === 'admin' ? 'ADMIN' : 'USER', active: true, deletedAt: null,
+    tenantActive: true, targetTenantActive: true, sessionVersion: 0, isPlatformAdmin: false,
+    canManageHosts: false, canViewLiveSessions: false,
+  } : null))
   const app = Fastify()
   await app.register(jwt, { secret: 'disposable-highlight-route-tests-only' })
   const service = Object.fromEntries(['effective', 'getPreference', 'savePreference', 'recordTelemetry', 'effectiveForUser', 'listTemplates', 'saveTemplate', 'removeTemplate', 'duplicateTemplate', 'listTemplateVersions', 'restoreTemplateVersion', 'telemetrySummary', 'adoptionSummary', 'cacheStatus', 'clearTenantCache'].map(name => [name, vi.fn().mockResolvedValue({})]))
   await terminalHighlightRoutes(app, service as unknown as TerminalHighlightService)
-  const token = app.jwt.sign({ sub: '12', tenantId: 7, role, stage: 'authenticated' })
+  const token = app.jwt.sign({ sub: '12', tenantId: 7, role, stage: 'authenticated', sessionVersion: 0,
+    isPlatformAdmin: false, canManageHosts: false, canViewLiveSessions: false })
   return { app, service, headers: { authorization: `Bearer ${token}` } }
 }
+afterEach(() => configureCurrentSessionReader(undefined))
 
 describe('terminal highlights HTTP authorization', () => {
   it.each([

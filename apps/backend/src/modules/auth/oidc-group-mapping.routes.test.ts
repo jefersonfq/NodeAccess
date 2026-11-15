@@ -1,15 +1,18 @@
+import { configureCurrentSessionReader } from './current-session.js'
+afterEach(() => configureCurrentSessionReader(undefined))
 import Fastify from 'fastify'
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { OidcGroupMappingController } from './oidc-group-mapping.controller.js'
 import { oidcGroupMappingRoutes } from './oidc-group-mapping.routes.js'
 
 async function appFor(role: 'admin' | 'user' = 'admin') {
+  configureCurrentSessionReader( (userId, tenantId) => Promise.resolve(userId === 11 && tenantId === 7 ? ({ tenantId: 7, active: true, deletedAt: null, tenantActive: true, targetTenantActive: true, sessionVersion: 0, role: role === 'admin' ? 'ADMIN' : 'USER', isPlatformAdmin: false, canManageHosts: true, canViewLiveSessions: true }) : null))
   const service = { list: vi.fn().mockResolvedValue([]), create: vi.fn().mockResolvedValue({ id: 4 }), delete: vi.fn().mockResolvedValue(undefined) }
   const app = Fastify()
   app.decorateRequest('jwtVerify', function () {
     return Promise.resolve({ sub: '11', email: 'admin@example.test', role, isPlatformAdmin: false, tenantId: 7, canManageHosts: true, canViewLiveSessions: true, forcePasswordChange: false, sessionVersion: 0, stage: 'authenticated' })
   })
-  await app.register(async (instance) => oidcGroupMappingRoutes(instance, new OidcGroupMappingController(service as never)))
+  await app.register( (instance) => Promise.resolve(oidcGroupMappingRoutes(instance, new OidcGroupMappingController(service as never))))
   return { app, service }
 }
 

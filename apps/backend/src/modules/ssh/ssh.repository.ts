@@ -1,3 +1,4 @@
+import { AppError } from '../../shared/errors.js'
 import { trialDenied } from '../trials/trial-policy.js'
 import { Prisma, type PrismaClient } from '@prisma/client'
 import { logger } from '../../config/logger.js'
@@ -23,7 +24,7 @@ type SessionEndedReason =
   | 'graphical_gateway_pending'
   | 'user_closed'
   | 'admin_closed'
-  | 'acl_revoked'
+  | 'acl_revoked' | 'session_revoked'
   | 'automation_completed'
 
 interface SessionOriginMetadata {
@@ -58,6 +59,8 @@ export interface HostCredentials {
   pemKey:            { encryptedKey: string; iv: string; encryptedPassphrase?: string | null; passphraseIv?: string | null } | null
   bastion: {
     id:                number
+    sourceHostId: number
+    trustedHostKeyFingerprint: string | null
     ip:                string
     port:              number
     sshUser:           string
@@ -92,6 +95,7 @@ export interface RouteSnapshot {
 }
 
 export interface NativeSshUser {
+  sessionVersion: number
   id: number
   email: string
   name: string
@@ -402,6 +406,9 @@ export class SshRepository {
     const sourceHostBastion = effectiveBastion
       ? await this.findBastionSourceCredentials(effectiveBastion.id, tenantId)
       : null
+    if (effectiveBastion && !sourceHostBastion) {
+      throw new AppError('Bastion sem Host de origem confiável. Cadastre o bastion a partir de um Host do tenant e valide a chave SSH desse Host pelo terminal.', 409, 'BASTION_HOST_KEY_SOURCE_REQUIRED')
+    }
     const registeredBastionPemKey = effectiveBastion
       ? await this.findBastionSystemPemKey(effectiveBastion.id)
       : null
@@ -429,6 +436,8 @@ export class SshRepository {
       bastion: effectiveBastion
         ? {
             id:                effectiveBastion.id,
+            sourceHostId: sourceHostBastion!.id,
+            trustedHostKeyFingerprint: sourceHostBastion!.trustedHostKeyFingerprint,
             ip:                sourceHostBastion?.ip ?? effectiveBastion.ip,
             port:              sourceHostBastion?.port ?? effectiveBastion.port,
             sshUser:           sourceHostBastion?.sshUser ?? effectiveBastion.sshUser,
@@ -454,6 +463,7 @@ export class SshRepository {
       take: 2,
       select: {
         id: true,
+        sessionVersion: true,
         email: true,
         name: true,
         role: true,
@@ -609,6 +619,8 @@ export class SshRepository {
     bastionId: number,
     tenantId: number,
   ): Promise<{
+    id: number
+    trustedHostKeyFingerprint: string | null
     ip: string
     port: number
     sshUser: string
@@ -618,11 +630,12 @@ export class SshRepository {
     pemKey: { encryptedKey: string; iv: string; encryptedPassphrase: string | null; passphraseIv: string | null } | null
   } | null> {
     const rows = await this.db.$queryRaw<Array<{
+      id: number; trustedHostKeyFingerprint: string | null
       ip: string; port: number; sshUser: string; authType: 'PEM' | 'PASSWORD' | 'PEM_PASSWORD'
       passwordEncrypted: string | null; passwordSecretId: number | null; encryptedKey: string | null; iv: string | null
       encryptedPassphrase: string | null; passphraseIv: string | null
     }>>(Prisma.sql`
-      SELECT host.ip, host.port, host.ssh_user AS sshUser, host.auth_type AS authType,
+      SELECT host.id, host.trusted_host_key_fingerprint AS trustedHostKeyFingerprint, host.ip, host.port, host.ssh_user AS sshUser, host.auth_type AS authType,
              host.password_encrypted AS passwordEncrypted, host.password_secret_id AS passwordSecretId,
              pem.encrypted_key AS encryptedKey, pem.iv,
              pem.encrypted_passphrase AS encryptedPassphrase,
@@ -639,6 +652,7 @@ export class SshRepository {
     const row = rows[0]
     if (!row) return null
     return {
+      id: row.id, trustedHostKeyFingerprint: row.trustedHostKeyFingerprint,
       ip: row.ip, port: row.port, sshUser: row.sshUser, authType: row.authType,
       passwordEncrypted: row.passwordEncrypted,
       passwordSecretId: row.passwordSecretId,

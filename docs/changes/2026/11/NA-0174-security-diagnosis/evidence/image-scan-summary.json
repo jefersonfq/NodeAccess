@@ -1,0 +1,1682 @@
+{
+  "scanner": "anchore/grype@sha256:e4a44ef45d285b829ce6efe2642980329661bd2d18eab5fc539138d4adaebbbe",
+  "at": "2026-11-15T01:14:29.161Z",
+  "policy": "Block unreviewed High/Critical/Unknown. Exact, expiring component and FIPS-channel false positives remain in the raw report.",
+  "images": [
+    {
+      "ref": "nodeaccess-backend:security-local",
+      "id": "sha256:6358c4ebd2e3750d4e0a7d0d4ea0351d93b826efc68c642670899927c7fcfc05",
+      "counts": {
+        "Medium": 3,
+        "Unknown": 1
+      },
+      "findings": [
+        {
+          "package": "busybox",
+          "version": "1.37.0-r31",
+          "id": "CVE-2025-60876",
+          "severity": "Medium",
+          "fix": {
+            "versions": [],
+            "state": ""
+          },
+          "source": "https://nvd.nist.gov/vuln/detail/CVE-2025-60876"
+        },
+        {
+          "package": "busybox-binsh",
+          "version": "1.37.0-r31",
+          "id": "CVE-2025-60876",
+          "severity": "Medium",
+          "fix": {
+            "versions": [],
+            "state": ""
+          },
+          "source": "https://nvd.nist.gov/vuln/detail/CVE-2025-60876"
+        },
+        {
+          "package": "ssl_client",
+          "version": "1.37.0-r31",
+          "id": "CVE-2025-60876",
+          "severity": "Medium",
+          "fix": {
+            "versions": [],
+            "state": ""
+          },
+          "source": "https://nvd.nist.gov/vuln/detail/CVE-2025-60876"
+        },
+        {
+          "package": "stdlib",
+          "version": "go1.26.10",
+          "id": "GO-2026-6859",
+          "severity": "Unknown",
+          "fix": {
+            "versions": [
+              "1.26.11",
+              "1.27.4"
+            ],
+            "state": "fixed",
+            "available": [
+              {
+                "version": "1.26.11",
+                "date": "2026-11-10",
+                "kind": "release"
+              },
+              {
+                "version": "1.27.4",
+                "date": "2026-11-10",
+                "kind": "release"
+              }
+            ]
+          },
+          "source": "https://go.dev/cl/862185"
+        }
+      ],
+      "database": {
+        "status": {
+          "schemaVersion": "v6.1.10",
+          "from": "https://grype.anchore.io/databases/v6/vulnerability-db_v6.1.10_2026-11-14T00:20:33Z_1794637165.tar.zst?checksum=sha256%3A762b01ba9c79e6a250bd73f11ef62fbf44539ee8e08e043d80df4aaad3afc2aa",
+          "built": "2026-11-14T06:19:25Z",
+          "path": "/cache/6/vulnerability.db",
+          "valid": true
+        },
+        "providers": {
+          "alma": {
+            "captured": "2026-11-14T00:21:54Z",
+            "input": "xxh64:38d2b2f79ee3cc47"
+          },
+          "alpine": {
+            "captured": "2026-11-14T00:20:37Z",
+            "input": "xxh64:38d86e5b2b43badc"
+          },
+          "amazon": {
+            "captured": "2026-11-14T00:20:38Z",
+            "input": "xxh64:5adfdbe496fe1339"
+          },
+          "arch": {
+            "captured": "2026-11-14T00:23:15Z",
+            "input": "xxh64:26c037ddaa6a55eb"
+          },
+          "bitnami": {
+            "captured": "2026-11-14T00:20:38Z",
+            "input": "xxh64:9c151427b662ef6c"
+          },
+          "chainguard": {
+            "captured": "2026-11-14T00:20:49Z",
+            "input": "xxh64:52a5193f9b77d279"
+          },
+          "chainguard-libraries": {
+            "captured": "2026-11-14T00:20:44Z",
+            "input": "xxh64:53ef7be0ac554dea"
+          },
+          "debian": {
+            "captured": "2026-11-14T00:20:44Z",
+            "input": "xxh64:99dc67dc19403527"
+          },
+          "echo": {
+            "captured": "2026-11-14T00:21:06Z",
+            "input": "xxh64:cbbfce7c7f6ab898"
+          },
+          "eol": {
+            "captured": "2026-11-14T00:21:30Z",
+            "input": "xxh64:ffde365b89c82e35"
+          },
+          "epss": {
+            "captured": "2026-11-14T00:21:17Z",
+            "input": "xxh64:87da1053039ef4e1"
+          },
+          "fedora": {
+            "captured": "2026-11-14T00:21:03Z",
+            "input": "xxh64:76294693cf12164a"
+          },
+          "github": {
+            "captured": "2026-11-14T00:21:30Z",
+            "input": "xxh64:1a744f357a2e25b0"
+          },
+          "govulndb": {
+            "captured": "2026-11-14T00:21:10Z",
+            "input": "xxh64:657df8c877a14193"
+          },
+          "hummingbird": {
+            "captured": "2026-11-14T00:22:56Z",
+            "input": "xxh64:001e94419c6e1f26"
+          },
+          "kev": {
+            "captured": "2026-11-14T00:20:57Z",
+            "input": "xxh64:4568728f33b4c2af"
+          },
+          "mariner": {
+            "captured": "2026-11-14T00:21:25Z",
+            "input": "xxh64:80fb2dc93cdb9d89"
+          },
+          "minimos": {
+            "captured": "2026-11-14T00:20:43Z",
+            "input": "xxh64:869e703849ba8479"
+          },
+          "nvd": {
+            "captured": "2026-11-14T00:21:35Z",
+            "input": "xxh64:92104e06c6cbc268"
+          },
+          "oracle": {
+            "captured": "2026-11-14T00:20:33Z",
+            "input": "xxh64:0719d876023dad58"
+          },
+          "photon": {
+            "captured": "2026-11-14T00:20:40Z",
+            "input": "xxh64:80e8b35f361eb0ca"
+          },
+          "rhel": {
+            "captured": "2026-11-14T00:22:02Z",
+            "input": "xxh64:37da11065e771859"
+          },
+          "secureos": {
+            "captured": "2026-11-14T00:20:41Z",
+            "input": "xxh64:0b63d7fb9a7c9254"
+          },
+          "sles": {
+            "captured": "2026-11-14T00:22:30Z",
+            "input": "xxh64:705a4a5d17a8b510"
+          },
+          "ubuntu": {
+            "captured": "2026-11-14T00:21:31Z",
+            "input": "xxh64:228874c27267483f"
+          },
+          "wolfi": {
+            "captured": "2026-11-14T00:20:37Z",
+            "input": "xxh64:b9b5b6e4366c5a78"
+          }
+        }
+      },
+      "passed": false
+    },
+    {
+      "ref": "nodeaccess-frontend:security-local",
+      "id": "sha256:7cfaddc1c1247a7f095fa20365f22c1c06debf1b03102b64c654106e6a4bbe8c",
+      "counts": {
+        "Medium": 3
+      },
+      "findings": [
+        {
+          "package": "busybox",
+          "version": "1.37.0-r31",
+          "id": "CVE-2025-60876",
+          "severity": "Medium",
+          "fix": {
+            "versions": [],
+            "state": ""
+          },
+          "source": "https://nvd.nist.gov/vuln/detail/CVE-2025-60876"
+        },
+        {
+          "package": "busybox-binsh",
+          "version": "1.37.0-r31",
+          "id": "CVE-2025-60876",
+          "severity": "Medium",
+          "fix": {
+            "versions": [],
+            "state": ""
+          },
+          "source": "https://nvd.nist.gov/vuln/detail/CVE-2025-60876"
+        },
+        {
+          "package": "ssl_client",
+          "version": "1.37.0-r31",
+          "id": "CVE-2025-60876",
+          "severity": "Medium",
+          "fix": {
+            "versions": [],
+            "state": ""
+          },
+          "source": "https://nvd.nist.gov/vuln/detail/CVE-2025-60876"
+        }
+      ],
+      "database": {
+        "status": {
+          "schemaVersion": "v6.1.10",
+          "from": "https://grype.anchore.io/databases/v6/vulnerability-db_v6.1.10_2026-11-14T00:20:33Z_1794637165.tar.zst?checksum=sha256%3A762b01ba9c79e6a250bd73f11ef62fbf44539ee8e08e043d80df4aaad3afc2aa",
+          "built": "2026-11-14T06:19:25Z",
+          "path": "/cache/6/vulnerability.db",
+          "valid": true
+        },
+        "providers": {
+          "alma": {
+            "captured": "2026-11-14T00:21:54Z",
+            "input": "xxh64:38d2b2f79ee3cc47"
+          },
+          "alpine": {
+            "captured": "2026-11-14T00:20:37Z",
+            "input": "xxh64:38d86e5b2b43badc"
+          },
+          "amazon": {
+            "captured": "2026-11-14T00:20:38Z",
+            "input": "xxh64:5adfdbe496fe1339"
+          },
+          "arch": {
+            "captured": "2026-11-14T00:23:15Z",
+            "input": "xxh64:26c037ddaa6a55eb"
+          },
+          "bitnami": {
+            "captured": "2026-11-14T00:20:38Z",
+            "input": "xxh64:9c151427b662ef6c"
+          },
+          "chainguard": {
+            "captured": "2026-11-14T00:20:49Z",
+            "input": "xxh64:52a5193f9b77d279"
+          },
+          "chainguard-libraries": {
+            "captured": "2026-11-14T00:20:44Z",
+            "input": "xxh64:53ef7be0ac554dea"
+          },
+          "debian": {
+            "captured": "2026-11-14T00:20:44Z",
+            "input": "xxh64:99dc67dc19403527"
+          },
+          "echo": {
+            "captured": "2026-11-14T00:21:06Z",
+            "input": "xxh64:cbbfce7c7f6ab898"
+          },
+          "eol": {
+            "captured": "2026-11-14T00:21:30Z",
+            "input": "xxh64:ffde365b89c82e35"
+          },
+          "epss": {
+            "captured": "2026-11-14T00:21:17Z",
+            "input": "xxh64:87da1053039ef4e1"
+          },
+          "fedora": {
+            "captured": "2026-11-14T00:21:03Z",
+            "input": "xxh64:76294693cf12164a"
+          },
+          "github": {
+            "captured": "2026-11-14T00:21:30Z",
+            "input": "xxh64:1a744f357a2e25b0"
+          },
+          "govulndb": {
+            "captured": "2026-11-14T00:21:10Z",
+            "input": "xxh64:657df8c877a14193"
+          },
+          "hummingbird": {
+            "captured": "2026-11-14T00:22:56Z",
+            "input": "xxh64:001e94419c6e1f26"
+          },
+          "kev": {
+            "captured": "2026-11-14T00:20:57Z",
+            "input": "xxh64:4568728f33b4c2af"
+          },
+          "mariner": {
+            "captured": "2026-11-14T00:21:25Z",
+            "input": "xxh64:80fb2dc93cdb9d89"
+          },
+          "minimos": {
+            "captured": "2026-11-14T00:20:43Z",
+            "input": "xxh64:869e703849ba8479"
+          },
+          "nvd": {
+            "captured": "2026-11-14T00:21:35Z",
+            "input": "xxh64:92104e06c6cbc268"
+          },
+          "oracle": {
+            "captured": "2026-11-14T00:20:33Z",
+            "input": "xxh64:0719d876023dad58"
+          },
+          "photon": {
+            "captured": "2026-11-14T00:20:40Z",
+            "input": "xxh64:80e8b35f361eb0ca"
+          },
+          "rhel": {
+            "captured": "2026-11-14T00:22:02Z",
+            "input": "xxh64:37da11065e771859"
+          },
+          "secureos": {
+            "captured": "2026-11-14T00:20:41Z",
+            "input": "xxh64:0b63d7fb9a7c9254"
+          },
+          "sles": {
+            "captured": "2026-11-14T00:22:30Z",
+            "input": "xxh64:705a4a5d17a8b510"
+          },
+          "ubuntu": {
+            "captured": "2026-11-14T00:21:31Z",
+            "input": "xxh64:228874c27267483f"
+          },
+          "wolfi": {
+            "captured": "2026-11-14T00:20:37Z",
+            "input": "xxh64:b9b5b6e4366c5a78"
+          }
+        }
+      },
+      "passed": true
+    },
+    {
+      "ref": "nodeaccess-frontend-k8s:security-local",
+      "id": "sha256:71fbfdcbe6080f086f6020acec15ab28024fe15f98500878f4353ce55922467b",
+      "counts": {
+        "Medium": 3
+      },
+      "findings": [
+        {
+          "package": "busybox",
+          "version": "1.37.0-r31",
+          "id": "CVE-2025-60876",
+          "severity": "Medium",
+          "fix": {
+            "versions": [],
+            "state": ""
+          },
+          "source": "https://nvd.nist.gov/vuln/detail/CVE-2025-60876"
+        },
+        {
+          "package": "busybox-binsh",
+          "version": "1.37.0-r31",
+          "id": "CVE-2025-60876",
+          "severity": "Medium",
+          "fix": {
+            "versions": [],
+            "state": ""
+          },
+          "source": "https://nvd.nist.gov/vuln/detail/CVE-2025-60876"
+        },
+        {
+          "package": "ssl_client",
+          "version": "1.37.0-r31",
+          "id": "CVE-2025-60876",
+          "severity": "Medium",
+          "fix": {
+            "versions": [],
+            "state": ""
+          },
+          "source": "https://nvd.nist.gov/vuln/detail/CVE-2025-60876"
+        }
+      ],
+      "database": {
+        "status": {
+          "schemaVersion": "v6.1.10",
+          "from": "https://grype.anchore.io/databases/v6/vulnerability-db_v6.1.10_2026-11-14T00:20:33Z_1794637165.tar.zst?checksum=sha256%3A762b01ba9c79e6a250bd73f11ef62fbf44539ee8e08e043d80df4aaad3afc2aa",
+          "built": "2026-11-14T06:19:25Z",
+          "path": "/cache/6/vulnerability.db",
+          "valid": true
+        },
+        "providers": {
+          "alma": {
+            "captured": "2026-11-14T00:21:54Z",
+            "input": "xxh64:38d2b2f79ee3cc47"
+          },
+          "alpine": {
+            "captured": "2026-11-14T00:20:37Z",
+            "input": "xxh64:38d86e5b2b43badc"
+          },
+          "amazon": {
+            "captured": "2026-11-14T00:20:38Z",
+            "input": "xxh64:5adfdbe496fe1339"
+          },
+          "arch": {
+            "captured": "2026-11-14T00:23:15Z",
+            "input": "xxh64:26c037ddaa6a55eb"
+          },
+          "bitnami": {
+            "captured": "2026-11-14T00:20:38Z",
+            "input": "xxh64:9c151427b662ef6c"
+          },
+          "chainguard": {
+            "captured": "2026-11-14T00:20:49Z",
+            "input": "xxh64:52a5193f9b77d279"
+          },
+          "chainguard-libraries": {
+            "captured": "2026-11-14T00:20:44Z",
+            "input": "xxh64:53ef7be0ac554dea"
+          },
+          "debian": {
+            "captured": "2026-11-14T00:20:44Z",
+            "input": "xxh64:99dc67dc19403527"
+          },
+          "echo": {
+            "captured": "2026-11-14T00:21:06Z",
+            "input": "xxh64:cbbfce7c7f6ab898"
+          },
+          "eol": {
+            "captured": "2026-11-14T00:21:30Z",
+            "input": "xxh64:ffde365b89c82e35"
+          },
+          "epss": {
+            "captured": "2026-11-14T00:21:17Z",
+            "input": "xxh64:87da1053039ef4e1"
+          },
+          "fedora": {
+            "captured": "2026-11-14T00:21:03Z",
+            "input": "xxh64:76294693cf12164a"
+          },
+          "github": {
+            "captured": "2026-11-14T00:21:30Z",
+            "input": "xxh64:1a744f357a2e25b0"
+          },
+          "govulndb": {
+            "captured": "2026-11-14T00:21:10Z",
+            "input": "xxh64:657df8c877a14193"
+          },
+          "hummingbird": {
+            "captured": "2026-11-14T00:22:56Z",
+            "input": "xxh64:001e94419c6e1f26"
+          },
+          "kev": {
+            "captured": "2026-11-14T00:20:57Z",
+            "input": "xxh64:4568728f33b4c2af"
+          },
+          "mariner": {
+            "captured": "2026-11-14T00:21:25Z",
+            "input": "xxh64:80fb2dc93cdb9d89"
+          },
+          "minimos": {
+            "captured": "2026-11-14T00:20:43Z",
+            "input": "xxh64:869e703849ba8479"
+          },
+          "nvd": {
+            "captured": "2026-11-14T00:21:35Z",
+            "input": "xxh64:92104e06c6cbc268"
+          },
+          "oracle": {
+            "captured": "2026-11-14T00:20:33Z",
+            "input": "xxh64:0719d876023dad58"
+          },
+          "photon": {
+            "captured": "2026-11-14T00:20:40Z",
+            "input": "xxh64:80e8b35f361eb0ca"
+          },
+          "rhel": {
+            "captured": "2026-11-14T00:22:02Z",
+            "input": "xxh64:37da11065e771859"
+          },
+          "secureos": {
+            "captured": "2026-11-14T00:20:41Z",
+            "input": "xxh64:0b63d7fb9a7c9254"
+          },
+          "sles": {
+            "captured": "2026-11-14T00:22:30Z",
+            "input": "xxh64:705a4a5d17a8b510"
+          },
+          "ubuntu": {
+            "captured": "2026-11-14T00:21:31Z",
+            "input": "xxh64:228874c27267483f"
+          },
+          "wolfi": {
+            "captured": "2026-11-14T00:20:37Z",
+            "input": "xxh64:b9b5b6e4366c5a78"
+          }
+        }
+      },
+      "passed": true
+    },
+    {
+      "ref": "nodeaccess-tls-agent:security-local",
+      "id": "sha256:d7979c34eaa30d4891c865b34974fa60deca7c9d65d30dcab863c8f7e2e70499",
+      "counts": {
+        "High": 2,
+        "Medium": 5,
+        "Low": 1
+      },
+      "findings": [
+        {
+          "package": "sqlite-libs",
+          "version": "3.54.1-r0",
+          "id": "CVE-2026-119586",
+          "severity": "High",
+          "fix": {
+            "versions": [],
+            "state": ""
+          },
+          "source": "https://nvd.nist.gov/vuln/detail/CVE-2026-119586",
+          "triage": {
+            "reason": "Component mismatch: this CVE concerns dot-command processing in the SQLite CLI. The reviewed APK contains shared libraries only; both images verify the CLI is absent. Other SQLite CVEs and the sqlite CLI package remain blocked.",
+            "expiresAt": "2026-11-18",
+            "evidence": "docs/changes/2026/11/NA-0162-sqlite-image-security/sqlite-review.md"
+          }
+        },
+        {
+          "package": "python3",
+          "version": "3.14.10-r1",
+          "id": "CVE-2026-119170",
+          "severity": "High",
+          "fix": {
+            "versions": [],
+            "state": "unknown"
+          },
+          "source": "https://nvd.nist.gov/vuln/detail/CVE-2026-119170"
+        },
+        {
+          "package": "python3",
+          "version": "3.14.10-r1",
+          "id": "CVE-2025-15367",
+          "severity": "Medium",
+          "fix": {
+            "versions": [],
+            "state": "unknown"
+          },
+          "source": "https://nvd.nist.gov/vuln/detail/CVE-2025-15367"
+        },
+        {
+          "package": "busybox",
+          "version": "1.37.0-r31",
+          "id": "CVE-2025-60876",
+          "severity": "Medium",
+          "fix": {
+            "versions": [],
+            "state": ""
+          },
+          "source": "https://nvd.nist.gov/vuln/detail/CVE-2025-60876"
+        },
+        {
+          "package": "busybox-binsh",
+          "version": "1.37.0-r31",
+          "id": "CVE-2025-60876",
+          "severity": "Medium",
+          "fix": {
+            "versions": [],
+            "state": ""
+          },
+          "source": "https://nvd.nist.gov/vuln/detail/CVE-2025-60876"
+        },
+        {
+          "package": "ssl_client",
+          "version": "1.37.0-r31",
+          "id": "CVE-2025-60876",
+          "severity": "Medium",
+          "fix": {
+            "versions": [],
+            "state": ""
+          },
+          "source": "https://nvd.nist.gov/vuln/detail/CVE-2025-60876"
+        },
+        {
+          "package": "python3",
+          "version": "3.14.10-r1",
+          "id": "CVE-2026-116566",
+          "severity": "Medium",
+          "fix": {
+            "versions": [],
+            "state": "unknown"
+          },
+          "source": "https://nvd.nist.gov/vuln/detail/CVE-2026-116566"
+        },
+        {
+          "package": "python3",
+          "version": "3.14.10-r1",
+          "id": "CVE-2026-103995",
+          "severity": "Low",
+          "fix": {
+            "versions": [],
+            "state": "unknown"
+          },
+          "source": "https://nvd.nist.gov/vuln/detail/CVE-2026-103995"
+        }
+      ],
+      "database": {
+        "status": {
+          "schemaVersion": "v6.1.10",
+          "from": "https://grype.anchore.io/databases/v6/vulnerability-db_v6.1.10_2026-11-14T00:20:33Z_1794637165.tar.zst?checksum=sha256%3A762b01ba9c79e6a250bd73f11ef62fbf44539ee8e08e043d80df4aaad3afc2aa",
+          "built": "2026-11-14T06:19:25Z",
+          "path": "/cache/6/vulnerability.db",
+          "valid": true
+        },
+        "providers": {
+          "alma": {
+            "captured": "2026-11-14T00:21:54Z",
+            "input": "xxh64:38d2b2f79ee3cc47"
+          },
+          "alpine": {
+            "captured": "2026-11-14T00:20:37Z",
+            "input": "xxh64:38d86e5b2b43badc"
+          },
+          "amazon": {
+            "captured": "2026-11-14T00:20:38Z",
+            "input": "xxh64:5adfdbe496fe1339"
+          },
+          "arch": {
+            "captured": "2026-11-14T00:23:15Z",
+            "input": "xxh64:26c037ddaa6a55eb"
+          },
+          "bitnami": {
+            "captured": "2026-11-14T00:20:38Z",
+            "input": "xxh64:9c151427b662ef6c"
+          },
+          "chainguard": {
+            "captured": "2026-11-14T00:20:49Z",
+            "input": "xxh64:52a5193f9b77d279"
+          },
+          "chainguard-libraries": {
+            "captured": "2026-11-14T00:20:44Z",
+            "input": "xxh64:53ef7be0ac554dea"
+          },
+          "debian": {
+            "captured": "2026-11-14T00:20:44Z",
+            "input": "xxh64:99dc67dc19403527"
+          },
+          "echo": {
+            "captured": "2026-11-14T00:21:06Z",
+            "input": "xxh64:cbbfce7c7f6ab898"
+          },
+          "eol": {
+            "captured": "2026-11-14T00:21:30Z",
+            "input": "xxh64:ffde365b89c82e35"
+          },
+          "epss": {
+            "captured": "2026-11-14T00:21:17Z",
+            "input": "xxh64:87da1053039ef4e1"
+          },
+          "fedora": {
+            "captured": "2026-11-14T00:21:03Z",
+            "input": "xxh64:76294693cf12164a"
+          },
+          "github": {
+            "captured": "2026-11-14T00:21:30Z",
+            "input": "xxh64:1a744f357a2e25b0"
+          },
+          "govulndb": {
+            "captured": "2026-11-14T00:21:10Z",
+            "input": "xxh64:657df8c877a14193"
+          },
+          "hummingbird": {
+            "captured": "2026-11-14T00:22:56Z",
+            "input": "xxh64:001e94419c6e1f26"
+          },
+          "kev": {
+            "captured": "2026-11-14T00:20:57Z",
+            "input": "xxh64:4568728f33b4c2af"
+          },
+          "mariner": {
+            "captured": "2026-11-14T00:21:25Z",
+            "input": "xxh64:80fb2dc93cdb9d89"
+          },
+          "minimos": {
+            "captured": "2026-11-14T00:20:43Z",
+            "input": "xxh64:869e703849ba8479"
+          },
+          "nvd": {
+            "captured": "2026-11-14T00:21:35Z",
+            "input": "xxh64:92104e06c6cbc268"
+          },
+          "oracle": {
+            "captured": "2026-11-14T00:20:33Z",
+            "input": "xxh64:0719d876023dad58"
+          },
+          "photon": {
+            "captured": "2026-11-14T00:20:40Z",
+            "input": "xxh64:80e8b35f361eb0ca"
+          },
+          "rhel": {
+            "captured": "2026-11-14T00:22:02Z",
+            "input": "xxh64:37da11065e771859"
+          },
+          "secureos": {
+            "captured": "2026-11-14T00:20:41Z",
+            "input": "xxh64:0b63d7fb9a7c9254"
+          },
+          "sles": {
+            "captured": "2026-11-14T00:22:30Z",
+            "input": "xxh64:705a4a5d17a8b510"
+          },
+          "ubuntu": {
+            "captured": "2026-11-14T00:21:31Z",
+            "input": "xxh64:228874c27267483f"
+          },
+          "wolfi": {
+            "captured": "2026-11-14T00:20:37Z",
+            "input": "xxh64:b9b5b6e4366c5a78"
+          }
+        }
+      },
+      "passed": false
+    },
+    {
+      "ref": "nodeaccess-mysql:8.4.12-1",
+      "id": "sha256:0bc83997e9acd75802b2e09f8db648f05fce3a2b3a585b3c5b95043112e3d07c",
+      "counts": {
+        "Medium": 9,
+        "High": 3
+      },
+      "findings": [
+        {
+          "package": "openssl-libs",
+          "version": "1:3.5.8-2.0.1.el9_8",
+          "id": "ELSA-2024-12675",
+          "severity": "Medium",
+          "fix": {
+            "versions": [
+              "10:3.0.7-28.0.1.el9_4_fips"
+            ],
+            "state": "fixed",
+            "available": [
+              {
+                "version": "10:3.0.7-28.0.1.el9_4_fips",
+                "date": "2024-09-19",
+                "kind": "advisory"
+              }
+            ]
+          },
+          "source": "https://linux.oracle.com/errata/ELSA-2024-12675.html"
+        },
+        {
+          "package": "openssl-libs",
+          "version": "1:3.5.8-2.0.1.el9_8",
+          "id": "ELSA-2026-50075",
+          "severity": "High",
+          "fix": {
+            "versions": [
+              "10:3.5.1-7.0.1.el9_7_fips"
+            ],
+            "state": "fixed",
+            "available": [
+              {
+                "version": "10:3.5.1-7.0.1.el9_7_fips",
+                "date": "2026-01-29",
+                "kind": "advisory"
+              }
+            ]
+          },
+          "source": "https://linux.oracle.com/errata/ELSA-2026-50075.html"
+        },
+        {
+          "package": "gnutls",
+          "version": "3.8.10-9.el9_8",
+          "id": "ELSA-2026-50346",
+          "severity": "High",
+          "fix": {
+            "versions": [
+              "10:3.8.10-4.el9_8_fips"
+            ],
+            "state": "fixed",
+            "available": [
+              {
+                "version": "10:3.8.10-4.el9_8_fips",
+                "date": "2026-06-24",
+                "kind": "advisory"
+              }
+            ]
+          },
+          "source": "https://linux.oracle.com/errata/ELSA-2026-50346.html"
+        },
+        {
+          "package": "openssl-libs",
+          "version": "1:3.5.8-2.0.1.el9_8",
+          "id": "ELSA-2025-28011",
+          "severity": "Medium",
+          "fix": {
+            "versions": [
+              "10:3.5.1-4.0.2.el9_7_fips"
+            ],
+            "state": "fixed",
+            "available": [
+              {
+                "version": "10:3.5.1-4.0.2.el9_7_fips",
+                "date": "2025-11-25",
+                "kind": "advisory"
+              }
+            ]
+          },
+          "source": "https://linux.oracle.com/errata/ELSA-2025-28011.html"
+        },
+        {
+          "package": "gnutls",
+          "version": "3.8.10-9.el9_8",
+          "id": "ELSA-2024-12336",
+          "severity": "Medium",
+          "fix": {
+            "versions": [
+              "10:3.7.6-23.el9_3.4_fips"
+            ],
+            "state": "fixed",
+            "available": [
+              {
+                "version": "10:3.7.6-23.el9_3.4_fips",
+                "date": "2024-04-19",
+                "kind": "advisory"
+              }
+            ]
+          },
+          "source": "https://linux.oracle.com/errata/ELSA-2024-12336.html"
+        },
+        {
+          "package": "gnutls",
+          "version": "3.8.10-9.el9_8",
+          "id": "ELSA-2025-20606",
+          "severity": "Medium",
+          "fix": {
+            "versions": [
+              "10:3.8.3-6.el9_6.2_fips"
+            ],
+            "state": "fixed",
+            "available": [
+              {
+                "version": "10:3.8.3-6.el9_6.2_fips",
+                "date": "2025-09-19",
+                "kind": "advisory"
+              }
+            ]
+          },
+          "source": "https://linux.oracle.com/errata/ELSA-2025-20606.html"
+        },
+        {
+          "package": "openssl-libs",
+          "version": "1:3.5.8-2.0.1.el9_8",
+          "id": "ELSA-2026-500448",
+          "severity": "High",
+          "fix": {
+            "versions": [
+              "10:3.5.8-2.0.1.el9_8_fips"
+            ],
+            "state": "fixed",
+            "available": [
+              {
+                "version": "10:3.5.8-2.0.1.el9_8_fips",
+                "date": "2026-10-20",
+                "kind": "advisory"
+              }
+            ]
+          },
+          "source": "https://linux.oracle.com/errata/ELSA-2026-500448.html"
+        },
+        {
+          "package": "openssl-libs",
+          "version": "1:3.5.8-2.0.1.el9_8",
+          "id": "ELSA-2026-50379",
+          "severity": "Medium",
+          "fix": {
+            "versions": [
+              "10:3.5.5-4.0.1.el9_8_fips"
+            ],
+            "state": "fixed",
+            "available": [
+              {
+                "version": "10:3.5.5-4.0.1.el9_8_fips",
+                "date": "2026-07-07",
+                "kind": "advisory"
+              }
+            ]
+          },
+          "source": "https://linux.oracle.com/errata/ELSA-2026-50379.html"
+        },
+        {
+          "package": "openssl-libs",
+          "version": "1:3.5.8-2.0.1.el9_8",
+          "id": "ELSA-2026-50345",
+          "severity": "Medium",
+          "fix": {
+            "versions": [
+              "10:3.5.5-3.0.1.el9_8_fips"
+            ],
+            "state": "fixed",
+            "available": [
+              {
+                "version": "10:3.5.5-3.0.1.el9_8_fips",
+                "date": "2026-06-24",
+                "kind": "advisory"
+              }
+            ]
+          },
+          "source": "https://linux.oracle.com/errata/ELSA-2026-50345.html"
+        },
+        {
+          "package": "gnutls",
+          "version": "3.8.10-9.el9_8",
+          "id": "ELSA-2024-12364",
+          "severity": "Medium",
+          "fix": {
+            "versions": [
+              "10:3.8.3-4.el9_4_fips"
+            ],
+            "state": "fixed",
+            "available": [
+              {
+                "version": "10:3.8.3-4.el9_4_fips",
+                "date": "2024-05-08",
+                "kind": "advisory"
+              }
+            ]
+          },
+          "source": "https://linux.oracle.com/errata/ELSA-2024-12364.html"
+        },
+        {
+          "package": "gnutls",
+          "version": "3.8.10-9.el9_8",
+          "id": "ELSA-2026-50149",
+          "severity": "Medium",
+          "fix": {
+            "versions": [
+              "10:3.8.3-10.el9_7_fips"
+            ],
+            "state": "fixed",
+            "available": [
+              {
+                "version": "10:3.8.3-10.el9_7_fips",
+                "date": "2026-03-12",
+                "kind": "advisory"
+              }
+            ]
+          },
+          "source": "https://linux.oracle.com/errata/ELSA-2026-50149.html"
+        },
+        {
+          "package": "libgcrypt",
+          "version": "1.10.0-13.el9_8",
+          "id": "ELSA-2026-500145",
+          "severity": "Medium",
+          "fix": {
+            "versions": [
+              "10:1.10.0-13.el9_8_fips"
+            ],
+            "state": "fixed",
+            "available": [
+              {
+                "version": "10:1.10.0-13.el9_8_fips",
+                "date": "2026-08-07",
+                "kind": "advisory"
+              }
+            ]
+          },
+          "source": "https://linux.oracle.com/errata/ELSA-2026-500145.html"
+        }
+      ],
+      "database": {
+        "status": {
+          "schemaVersion": "v6.1.10",
+          "from": "https://grype.anchore.io/databases/v6/vulnerability-db_v6.1.10_2026-11-14T00:20:33Z_1794637165.tar.zst?checksum=sha256%3A762b01ba9c79e6a250bd73f11ef62fbf44539ee8e08e043d80df4aaad3afc2aa",
+          "built": "2026-11-14T06:19:25Z",
+          "path": "/cache/6/vulnerability.db",
+          "valid": true
+        },
+        "providers": {
+          "alma": {
+            "captured": "2026-11-14T00:21:54Z",
+            "input": "xxh64:38d2b2f79ee3cc47"
+          },
+          "alpine": {
+            "captured": "2026-11-14T00:20:37Z",
+            "input": "xxh64:38d86e5b2b43badc"
+          },
+          "amazon": {
+            "captured": "2026-11-14T00:20:38Z",
+            "input": "xxh64:5adfdbe496fe1339"
+          },
+          "arch": {
+            "captured": "2026-11-14T00:23:15Z",
+            "input": "xxh64:26c037ddaa6a55eb"
+          },
+          "bitnami": {
+            "captured": "2026-11-14T00:20:38Z",
+            "input": "xxh64:9c151427b662ef6c"
+          },
+          "chainguard": {
+            "captured": "2026-11-14T00:20:49Z",
+            "input": "xxh64:52a5193f9b77d279"
+          },
+          "chainguard-libraries": {
+            "captured": "2026-11-14T00:20:44Z",
+            "input": "xxh64:53ef7be0ac554dea"
+          },
+          "debian": {
+            "captured": "2026-11-14T00:20:44Z",
+            "input": "xxh64:99dc67dc19403527"
+          },
+          "echo": {
+            "captured": "2026-11-14T00:21:06Z",
+            "input": "xxh64:cbbfce7c7f6ab898"
+          },
+          "eol": {
+            "captured": "2026-11-14T00:21:30Z",
+            "input": "xxh64:ffde365b89c82e35"
+          },
+          "epss": {
+            "captured": "2026-11-14T00:21:17Z",
+            "input": "xxh64:87da1053039ef4e1"
+          },
+          "fedora": {
+            "captured": "2026-11-14T00:21:03Z",
+            "input": "xxh64:76294693cf12164a"
+          },
+          "github": {
+            "captured": "2026-11-14T00:21:30Z",
+            "input": "xxh64:1a744f357a2e25b0"
+          },
+          "govulndb": {
+            "captured": "2026-11-14T00:21:10Z",
+            "input": "xxh64:657df8c877a14193"
+          },
+          "hummingbird": {
+            "captured": "2026-11-14T00:22:56Z",
+            "input": "xxh64:001e94419c6e1f26"
+          },
+          "kev": {
+            "captured": "2026-11-14T00:20:57Z",
+            "input": "xxh64:4568728f33b4c2af"
+          },
+          "mariner": {
+            "captured": "2026-11-14T00:21:25Z",
+            "input": "xxh64:80fb2dc93cdb9d89"
+          },
+          "minimos": {
+            "captured": "2026-11-14T00:20:43Z",
+            "input": "xxh64:869e703849ba8479"
+          },
+          "nvd": {
+            "captured": "2026-11-14T00:21:35Z",
+            "input": "xxh64:92104e06c6cbc268"
+          },
+          "oracle": {
+            "captured": "2026-11-14T00:20:33Z",
+            "input": "xxh64:0719d876023dad58"
+          },
+          "photon": {
+            "captured": "2026-11-14T00:20:40Z",
+            "input": "xxh64:80e8b35f361eb0ca"
+          },
+          "rhel": {
+            "captured": "2026-11-14T00:22:02Z",
+            "input": "xxh64:37da11065e771859"
+          },
+          "secureos": {
+            "captured": "2026-11-14T00:20:41Z",
+            "input": "xxh64:0b63d7fb9a7c9254"
+          },
+          "sles": {
+            "captured": "2026-11-14T00:22:30Z",
+            "input": "xxh64:705a4a5d17a8b510"
+          },
+          "ubuntu": {
+            "captured": "2026-11-14T00:21:31Z",
+            "input": "xxh64:228874c27267483f"
+          },
+          "wolfi": {
+            "captured": "2026-11-14T00:20:37Z",
+            "input": "xxh64:b9b5b6e4366c5a78"
+          }
+        }
+      },
+      "passed": false
+    },
+    {
+      "ref": "nodeaccess-redis:8.2.10-1",
+      "id": "sha256:bf9d3e85c021ccde932bb39109ab2988f1741e1ccef55a79bf4c8bb9a5956575",
+      "counts": {
+        "Medium": 3,
+        "Low": 1
+      },
+      "findings": [
+        {
+          "package": "busybox",
+          "version": "1.37.0-r20",
+          "id": "CVE-2025-60876",
+          "severity": "Medium",
+          "fix": {
+            "versions": [],
+            "state": ""
+          },
+          "source": "https://nvd.nist.gov/vuln/detail/CVE-2025-60876"
+        },
+        {
+          "package": "busybox-binsh",
+          "version": "1.37.0-r20",
+          "id": "CVE-2025-60876",
+          "severity": "Medium",
+          "fix": {
+            "versions": [],
+            "state": ""
+          },
+          "source": "https://nvd.nist.gov/vuln/detail/CVE-2025-60876"
+        },
+        {
+          "package": "ssl_client",
+          "version": "1.37.0-r20",
+          "id": "CVE-2025-60876",
+          "severity": "Medium",
+          "fix": {
+            "versions": [],
+            "state": ""
+          },
+          "source": "https://nvd.nist.gov/vuln/detail/CVE-2025-60876"
+        },
+        {
+          "package": "redis",
+          "version": "8.2.10",
+          "id": "CVE-2025-49112",
+          "severity": "Low",
+          "fix": {
+            "versions": [],
+            "state": ""
+          },
+          "source": "https://nvd.nist.gov/vuln/detail/CVE-2025-49112"
+        }
+      ],
+      "database": {
+        "status": {
+          "schemaVersion": "v6.1.10",
+          "from": "https://grype.anchore.io/databases/v6/vulnerability-db_v6.1.10_2026-11-14T00:20:33Z_1794637165.tar.zst?checksum=sha256%3A762b01ba9c79e6a250bd73f11ef62fbf44539ee8e08e043d80df4aaad3afc2aa",
+          "built": "2026-11-14T06:19:25Z",
+          "path": "/cache/6/vulnerability.db",
+          "valid": true
+        },
+        "providers": {
+          "alma": {
+            "captured": "2026-11-14T00:21:54Z",
+            "input": "xxh64:38d2b2f79ee3cc47"
+          },
+          "alpine": {
+            "captured": "2026-11-14T00:20:37Z",
+            "input": "xxh64:38d86e5b2b43badc"
+          },
+          "amazon": {
+            "captured": "2026-11-14T00:20:38Z",
+            "input": "xxh64:5adfdbe496fe1339"
+          },
+          "arch": {
+            "captured": "2026-11-14T00:23:15Z",
+            "input": "xxh64:26c037ddaa6a55eb"
+          },
+          "bitnami": {
+            "captured": "2026-11-14T00:20:38Z",
+            "input": "xxh64:9c151427b662ef6c"
+          },
+          "chainguard": {
+            "captured": "2026-11-14T00:20:49Z",
+            "input": "xxh64:52a5193f9b77d279"
+          },
+          "chainguard-libraries": {
+            "captured": "2026-11-14T00:20:44Z",
+            "input": "xxh64:53ef7be0ac554dea"
+          },
+          "debian": {
+            "captured": "2026-11-14T00:20:44Z",
+            "input": "xxh64:99dc67dc19403527"
+          },
+          "echo": {
+            "captured": "2026-11-14T00:21:06Z",
+            "input": "xxh64:cbbfce7c7f6ab898"
+          },
+          "eol": {
+            "captured": "2026-11-14T00:21:30Z",
+            "input": "xxh64:ffde365b89c82e35"
+          },
+          "epss": {
+            "captured": "2026-11-14T00:21:17Z",
+            "input": "xxh64:87da1053039ef4e1"
+          },
+          "fedora": {
+            "captured": "2026-11-14T00:21:03Z",
+            "input": "xxh64:76294693cf12164a"
+          },
+          "github": {
+            "captured": "2026-11-14T00:21:30Z",
+            "input": "xxh64:1a744f357a2e25b0"
+          },
+          "govulndb": {
+            "captured": "2026-11-14T00:21:10Z",
+            "input": "xxh64:657df8c877a14193"
+          },
+          "hummingbird": {
+            "captured": "2026-11-14T00:22:56Z",
+            "input": "xxh64:001e94419c6e1f26"
+          },
+          "kev": {
+            "captured": "2026-11-14T00:20:57Z",
+            "input": "xxh64:4568728f33b4c2af"
+          },
+          "mariner": {
+            "captured": "2026-11-14T00:21:25Z",
+            "input": "xxh64:80fb2dc93cdb9d89"
+          },
+          "minimos": {
+            "captured": "2026-11-14T00:20:43Z",
+            "input": "xxh64:869e703849ba8479"
+          },
+          "nvd": {
+            "captured": "2026-11-14T00:21:35Z",
+            "input": "xxh64:92104e06c6cbc268"
+          },
+          "oracle": {
+            "captured": "2026-11-14T00:20:33Z",
+            "input": "xxh64:0719d876023dad58"
+          },
+          "photon": {
+            "captured": "2026-11-14T00:20:40Z",
+            "input": "xxh64:80e8b35f361eb0ca"
+          },
+          "rhel": {
+            "captured": "2026-11-14T00:22:02Z",
+            "input": "xxh64:37da11065e771859"
+          },
+          "secureos": {
+            "captured": "2026-11-14T00:20:41Z",
+            "input": "xxh64:0b63d7fb9a7c9254"
+          },
+          "sles": {
+            "captured": "2026-11-14T00:22:30Z",
+            "input": "xxh64:705a4a5d17a8b510"
+          },
+          "ubuntu": {
+            "captured": "2026-11-14T00:21:31Z",
+            "input": "xxh64:228874c27267483f"
+          },
+          "wolfi": {
+            "captured": "2026-11-14T00:20:37Z",
+            "input": "xxh64:b9b5b6e4366c5a78"
+          }
+        }
+      },
+      "passed": true
+    },
+    {
+      "ref": "nodeaccess-guacd:1.6.0-1",
+      "id": "sha256:6870f9d66728d2c5b4dcdc4feda2a45472082e43c8e2433e8e6c041e2a7676c3",
+      "counts": {
+        "High": 3,
+        "Medium": 18,
+        "Critical": 1,
+        "Low": 3
+      },
+      "findings": [
+        {
+          "package": "sqlite-libs",
+          "version": "3.54.1-r0",
+          "id": "CVE-2026-119586",
+          "severity": "High",
+          "fix": {
+            "versions": [],
+            "state": ""
+          },
+          "source": "https://nvd.nist.gov/vuln/detail/CVE-2026-119586",
+          "triage": {
+            "reason": "Component mismatch: this CVE concerns dot-command processing in the SQLite CLI. The reviewed APK contains shared libraries only; both images verify the CLI is absent. Other SQLite CVEs and the sqlite CLI package remain blocked.",
+            "expiresAt": "2026-11-18",
+            "evidence": "docs/changes/2026/11/NA-0162-sqlite-image-security/sqlite-review.md"
+          }
+        },
+        {
+          "package": "pixman",
+          "version": "0.46.4-r0",
+          "id": "CVE-2023-37769",
+          "severity": "Medium",
+          "fix": {
+            "versions": [],
+            "state": ""
+          },
+          "source": "https://nvd.nist.gov/vuln/detail/CVE-2023-37769"
+        },
+        {
+          "package": "libssh2",
+          "version": "1.11.1-r4",
+          "id": "CVE-2026-59844",
+          "severity": "Medium",
+          "fix": {
+            "versions": [],
+            "state": ""
+          },
+          "source": "https://nvd.nist.gov/vuln/detail/CVE-2026-59844"
+        },
+        {
+          "package": "libssh2",
+          "version": "1.11.1-r4",
+          "id": "CVE-2026-59843",
+          "severity": "Medium",
+          "fix": {
+            "versions": [],
+            "state": ""
+          },
+          "source": "https://nvd.nist.gov/vuln/detail/CVE-2026-59843"
+        },
+        {
+          "package": "cups-libs",
+          "version": "2.4.19-r1",
+          "id": "CVE-2018-6553",
+          "severity": "High",
+          "fix": {
+            "versions": [],
+            "state": ""
+          },
+          "source": "https://nvd.nist.gov/vuln/detail/CVE-2018-6553"
+        },
+        {
+          "package": "zlib",
+          "version": "1.3.2-r1",
+          "id": "CVE-2026-4738",
+          "severity": "Critical",
+          "fix": {
+            "versions": [
+              "1.4-r0"
+            ],
+            "state": "fixed",
+            "available": [
+              {
+                "version": "1.4-r0",
+                "date": "2026-11-07",
+                "kind": "first-observed"
+              }
+            ]
+          },
+          "source": "https://security.alpinelinux.org/vuln/CVE-2026-4738"
+        },
+        {
+          "package": "libssh2",
+          "version": "1.11.1-r4",
+          "id": "CVE-2026-59850",
+          "severity": "High",
+          "fix": {
+            "versions": [],
+            "state": ""
+          },
+          "source": "https://nvd.nist.gov/vuln/detail/CVE-2026-59850"
+        },
+        {
+          "package": "cups-libs",
+          "version": "2.4.19-r1",
+          "id": "CVE-2026-61702",
+          "severity": "Medium",
+          "fix": {
+            "versions": [],
+            "state": "unknown"
+          },
+          "source": "https://nvd.nist.gov/vuln/detail/CVE-2026-61702"
+        },
+        {
+          "package": "busybox",
+          "version": "1.37.0-r31",
+          "id": "CVE-2025-60876",
+          "severity": "Medium",
+          "fix": {
+            "versions": [],
+            "state": ""
+          },
+          "source": "https://nvd.nist.gov/vuln/detail/CVE-2025-60876"
+        },
+        {
+          "package": "busybox-binsh",
+          "version": "1.37.0-r31",
+          "id": "CVE-2025-60876",
+          "severity": "Medium",
+          "fix": {
+            "versions": [],
+            "state": ""
+          },
+          "source": "https://nvd.nist.gov/vuln/detail/CVE-2025-60876"
+        },
+        {
+          "package": "ssl_client",
+          "version": "1.37.0-r31",
+          "id": "CVE-2025-60876",
+          "severity": "Medium",
+          "fix": {
+            "versions": [],
+            "state": ""
+          },
+          "source": "https://nvd.nist.gov/vuln/detail/CVE-2025-60876"
+        },
+        {
+          "package": "libssh2",
+          "version": "1.11.1-r4",
+          "id": "CVE-2026-59848",
+          "severity": "Medium",
+          "fix": {
+            "versions": [],
+            "state": ""
+          },
+          "source": "https://nvd.nist.gov/vuln/detail/CVE-2026-59848"
+        },
+        {
+          "package": "ghostscript",
+          "version": "10.08.0-r0",
+          "id": "CVE-2023-38560",
+          "severity": "Medium",
+          "fix": {
+            "versions": [],
+            "state": ""
+          },
+          "source": "https://nvd.nist.gov/vuln/detail/CVE-2023-38560"
+        },
+        {
+          "package": "cups-libs",
+          "version": "2.4.19-r1",
+          "id": "CVE-2026-107886",
+          "severity": "Medium",
+          "fix": {
+            "versions": [],
+            "state": "unknown"
+          },
+          "source": "https://nvd.nist.gov/vuln/detail/CVE-2026-107886"
+        },
+        {
+          "package": "cups-libs",
+          "version": "2.4.19-r1",
+          "id": "CVE-2026-55480",
+          "severity": "Medium",
+          "fix": {
+            "versions": [],
+            "state": "unknown"
+          },
+          "source": "https://nvd.nist.gov/vuln/detail/CVE-2026-55480"
+        },
+        {
+          "package": "alsa-lib",
+          "version": "1.2.16.1-r0",
+          "id": "CVE-2026-90781",
+          "severity": "Medium",
+          "fix": {
+            "versions": [],
+            "state": ""
+          },
+          "source": "https://nvd.nist.gov/vuln/detail/CVE-2026-90781"
+        },
+        {
+          "package": "cups-libs",
+          "version": "2.4.19-r1",
+          "id": "CVE-2026-107890",
+          "severity": "Medium",
+          "fix": {
+            "versions": [],
+            "state": "unknown"
+          },
+          "source": "https://nvd.nist.gov/vuln/detail/CVE-2026-107890"
+        },
+        {
+          "package": "cups-libs",
+          "version": "2.4.19-r1",
+          "id": "CVE-2026-107885",
+          "severity": "Medium",
+          "fix": {
+            "versions": [],
+            "state": "unknown"
+          },
+          "source": "https://nvd.nist.gov/vuln/detail/CVE-2026-107885"
+        },
+        {
+          "package": "cups-libs",
+          "version": "2.4.19-r1",
+          "id": "CVE-2026-107888",
+          "severity": "Medium",
+          "fix": {
+            "versions": [],
+            "state": "unknown"
+          },
+          "source": "https://nvd.nist.gov/vuln/detail/CVE-2026-107888"
+        },
+        {
+          "package": "cups-libs",
+          "version": "2.4.19-r1",
+          "id": "CVE-2026-55453",
+          "severity": "Low",
+          "fix": {
+            "versions": [],
+            "state": "unknown"
+          },
+          "source": "https://nvd.nist.gov/vuln/detail/CVE-2026-55453"
+        },
+        {
+          "package": "alsa-lib",
+          "version": "1.2.16.1-r0",
+          "id": "CVE-2026-96674",
+          "severity": "Medium",
+          "fix": {
+            "versions": [],
+            "state": ""
+          },
+          "source": "https://nvd.nist.gov/vuln/detail/CVE-2026-96674"
+        },
+        {
+          "package": "libssh2",
+          "version": "1.11.1-r4",
+          "id": "CVE-2026-59845",
+          "severity": "Medium",
+          "fix": {
+            "versions": [],
+            "state": ""
+          },
+          "source": "https://nvd.nist.gov/vuln/detail/CVE-2026-59845"
+        },
+        {
+          "package": "alsa-lib",
+          "version": "1.2.16.1-r0",
+          "id": "CVE-2026-96675",
+          "severity": "Medium",
+          "fix": {
+            "versions": [],
+            "state": ""
+          },
+          "source": "https://nvd.nist.gov/vuln/detail/CVE-2026-96675"
+        },
+        {
+          "package": "cups-libs",
+          "version": "2.4.19-r1",
+          "id": "CVE-2026-55467",
+          "severity": "Low",
+          "fix": {
+            "versions": [],
+            "state": "unknown"
+          },
+          "source": "https://nvd.nist.gov/vuln/detail/CVE-2026-55467"
+        },
+        {
+          "package": "libssh2",
+          "version": "1.11.1-r4",
+          "id": "CVE-2026-59846",
+          "severity": "Low",
+          "fix": {
+            "versions": [],
+            "state": ""
+          },
+          "source": "https://nvd.nist.gov/vuln/detail/CVE-2026-59846"
+        }
+      ],
+      "database": {
+        "status": {
+          "schemaVersion": "v6.1.10",
+          "from": "https://grype.anchore.io/databases/v6/vulnerability-db_v6.1.10_2026-11-14T00:20:33Z_1794637165.tar.zst?checksum=sha256%3A762b01ba9c79e6a250bd73f11ef62fbf44539ee8e08e043d80df4aaad3afc2aa",
+          "built": "2026-11-14T06:19:25Z",
+          "path": "/cache/6/vulnerability.db",
+          "valid": true
+        },
+        "providers": {
+          "alma": {
+            "captured": "2026-11-14T00:21:54Z",
+            "input": "xxh64:38d2b2f79ee3cc47"
+          },
+          "alpine": {
+            "captured": "2026-11-14T00:20:37Z",
+            "input": "xxh64:38d86e5b2b43badc"
+          },
+          "amazon": {
+            "captured": "2026-11-14T00:20:38Z",
+            "input": "xxh64:5adfdbe496fe1339"
+          },
+          "arch": {
+            "captured": "2026-11-14T00:23:15Z",
+            "input": "xxh64:26c037ddaa6a55eb"
+          },
+          "bitnami": {
+            "captured": "2026-11-14T00:20:38Z",
+            "input": "xxh64:9c151427b662ef6c"
+          },
+          "chainguard": {
+            "captured": "2026-11-14T00:20:49Z",
+            "input": "xxh64:52a5193f9b77d279"
+          },
+          "chainguard-libraries": {
+            "captured": "2026-11-14T00:20:44Z",
+            "input": "xxh64:53ef7be0ac554dea"
+          },
+          "debian": {
+            "captured": "2026-11-14T00:20:44Z",
+            "input": "xxh64:99dc67dc19403527"
+          },
+          "echo": {
+            "captured": "2026-11-14T00:21:06Z",
+            "input": "xxh64:cbbfce7c7f6ab898"
+          },
+          "eol": {
+            "captured": "2026-11-14T00:21:30Z",
+            "input": "xxh64:ffde365b89c82e35"
+          },
+          "epss": {
+            "captured": "2026-11-14T00:21:17Z",
+            "input": "xxh64:87da1053039ef4e1"
+          },
+          "fedora": {
+            "captured": "2026-11-14T00:21:03Z",
+            "input": "xxh64:76294693cf12164a"
+          },
+          "github": {
+            "captured": "2026-11-14T00:21:30Z",
+            "input": "xxh64:1a744f357a2e25b0"
+          },
+          "govulndb": {
+            "captured": "2026-11-14T00:21:10Z",
+            "input": "xxh64:657df8c877a14193"
+          },
+          "hummingbird": {
+            "captured": "2026-11-14T00:22:56Z",
+            "input": "xxh64:001e94419c6e1f26"
+          },
+          "kev": {
+            "captured": "2026-11-14T00:20:57Z",
+            "input": "xxh64:4568728f33b4c2af"
+          },
+          "mariner": {
+            "captured": "2026-11-14T00:21:25Z",
+            "input": "xxh64:80fb2dc93cdb9d89"
+          },
+          "minimos": {
+            "captured": "2026-11-14T00:20:43Z",
+            "input": "xxh64:869e703849ba8479"
+          },
+          "nvd": {
+            "captured": "2026-11-14T00:21:35Z",
+            "input": "xxh64:92104e06c6cbc268"
+          },
+          "oracle": {
+            "captured": "2026-11-14T00:20:33Z",
+            "input": "xxh64:0719d876023dad58"
+          },
+          "photon": {
+            "captured": "2026-11-14T00:20:40Z",
+            "input": "xxh64:80e8b35f361eb0ca"
+          },
+          "rhel": {
+            "captured": "2026-11-14T00:22:02Z",
+            "input": "xxh64:37da11065e771859"
+          },
+          "secureos": {
+            "captured": "2026-11-14T00:20:41Z",
+            "input": "xxh64:0b63d7fb9a7c9254"
+          },
+          "sles": {
+            "captured": "2026-11-14T00:22:30Z",
+            "input": "xxh64:705a4a5d17a8b510"
+          },
+          "ubuntu": {
+            "captured": "2026-11-14T00:21:31Z",
+            "input": "xxh64:228874c27267483f"
+          },
+          "wolfi": {
+            "captured": "2026-11-14T00:20:37Z",
+            "input": "xxh64:b9b5b6e4366c5a78"
+          }
+        }
+      },
+      "passed": false
+    }
+  ],
+  "passed": false
+}

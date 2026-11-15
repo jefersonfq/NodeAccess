@@ -111,7 +111,8 @@ describe('MCP interactive authorization and credentials', () => {
         s.host.pemKey = { encryptedKey: pem.encrypted, iv: pem.iv, encryptedPassphrase: phrase.encrypted, passphraseIv: phrase.iv };
         s.host.bastion = { ...s.host, ip: 'bastion.fixture', port: 2200, bastion: null };
         const opened = await s.open(), [bastion, target] = clients();
-        expect(bastion!.config.hostVerifier).toBeUndefined();
+        expect(bastion!.config.hostVerifier).toEqual(expect.any(Function));
+        expect((bastion!.config.hostVerifier as (key: Buffer) => boolean)(Buffer.from('untrusted-bastion'))).toBe(false);
         expect(bastion!.forwardOut).toHaveBeenCalledWith('127.0.0.1', 0, 'fixture.internal', 2222, expect.any(Function));
         expect(target!.config).toMatchObject({ password: 'fixture-password', privateKey: 'fixture-pem', passphrase: 'fixture-passphrase', sock: expect.any(PassThrough) as unknown });
         await s.service.close(user, { sessionId: opened.sessionId }, audit);

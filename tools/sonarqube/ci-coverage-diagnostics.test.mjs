@@ -121,3 +121,15 @@ test('TLS and Python verification diagnostics retain booleans and known failures
   f.write({ collectors: { node: { tlsLaboratoryVerified: 'PRIVATE', pythonCoverageVerified: 1 } } })
   assert.deepEqual(coverageDiagnostics(f.root).collectors.node, {})
 })
+
+
+test('security-center diagnostics preserve outcome and sanitize free text', t => {
+  const f = fixture(t)
+  f.write({ collectors: { browser: { error: 'Browser coverage harness failed: security-center', harnesses: [
+    { name: 'security-center', exitCode: 1, timedOut: false, error: 'PRIVATE', command: 'PRIVATE' },
+  ] } } })
+  assert.deepEqual(coverageDiagnostics(f.root).collectors.browser, {
+    errorCategory: 'BROWSER_HARNESS_FAILED',
+    harnesses: [{ name: 'security-center', exitCode: 1, timedOut: false }],
+  })
+})

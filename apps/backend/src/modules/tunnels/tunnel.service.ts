@@ -96,6 +96,7 @@ function toTunnelInfo(tunnel: LiveTunnel): TunnelInfo {
 }
 
 export class TunnelService {
+  private readonly pendingUsers = new Map<number, Set<{ revoked: boolean; close?: () => void }>>()
   runtimeRegistry?: TunnelRuntimeRegistry
   runtimeSnapshot(): TunnelInfo[] { return [...tunnels.values()].map(toTunnelInfo) }
   async listAcrossRuntimes(userId: number, tenantId: number): Promise<TunnelInfo[]> {
@@ -162,6 +163,36 @@ export class TunnelService {
     localPort: number,
     remoteHost: string,
     remotePort: number,
+    opts?: { sessionId?: string; portForwardingId?: number; description?: string; bindAddress?: string; recordSshTunnel?: boolean },
+  ): Promise<TunnelInfo> {
+    const pending = { revoked: false } as { revoked: boolean; close?: () => void }
+    const starts = this.pendingUsers.get(userId) ?? new Set<typeof pending>()
+    starts.add(pending)
+    this.pendingUsers.set(userId, starts)
+    try { return await this.createAuthorized(userId, tenantId, role, hostId, localPort, remoteHost, remotePort, pending, opts) }
+    finally {
+      starts.delete(pending)
+      if (!starts.size) this.pendingUsers.delete(userId)
+    }
+  }
+
+  /** Caller validates the persisted authentication tenant before closing this global user id. */
+  async closeRevokedByUser(_authTenantId: number, userId: number): Promise<number> {
+    for (const pending of this.pendingUsers.get(userId) ?? []) { pending.revoked = true; pending.close?.() }
+    const active = [...tunnels.values()].filter(tunnel => tunnel.userId === userId)
+    await Promise.all(active.map(tunnel => this.close(tunnel.id, 'session_revoked')))
+    return active.length
+  }
+
+  private async createAuthorized(
+    userId: number,
+    tenantId: number,
+    role: 'admin' | 'user',
+    hostId: number,
+    localPort: number,
+    remoteHost: string,
+    remotePort: number,
+    revocation: { revoked: boolean; close?: () => void },
     opts?: { sessionId?: string; portForwardingId?: number; description?: string; bindAddress?: string; recordSshTunnel?: boolean },
   ): Promise<TunnelInfo> {
     const trial = await assertTrialCapability(tenantId, 'portForwarding')
@@ -241,10 +272,13 @@ export class TunnelService {
       }
     }
 
+    if (revocation.revoked) { agentSock?.destroy(); throw new AppError('Sessão revogada', 401, 'SESSION_REVOKED') }
     // 5. Conectar ao SSH
     const bastionConfig = host.bastion && !sshConfig.sock ? this.buildConnectConfig(host.bastion.ip, host.bastion.port,
       host.bastion.sshUser, host.bastion.authType, host.bastion.passwordEncrypted, host.bastion.pemKey) : undefined
-    const ssh = await connectTunnelSsh(sshConfig, host.trustedHostKeyFingerprint, bastionConfig)
+    const ssh = await connectTunnelSsh(sshConfig, host.trustedHostKeyFingerprint, bastionConfig, host.bastion?.trustedHostKeyFingerprint)
+    revocation.close = (): void => { ssh.destroy(); agentSock?.destroy() }
+    if (revocation.revoked) { revocation.close(); throw new AppError('Sessão revogada', 401, 'SESSION_REVOKED') }
 
     // 6. Criar servidor TCP local
     const tunnelId = randomUUID()
@@ -334,7 +368,11 @@ export class TunnelService {
         : localPort
 
     // Permissions may have changed while SSH and the local listener were opening.
-    try { await this.assertCanAccessHost(host, userId, role); if (trial) await assertTrialUserAccess(tenantId, userId) }
+    try {
+      await this.assertCanAccessHost(host, userId, role)
+      if (trial) await assertTrialUserAccess(tenantId, userId)
+      if (revocation.revoked) throw new AppError('Sessão revogada', 401, 'SESSION_REVOKED')
+    }
     catch (error) {
       try { server.close() } catch { /* ignore */ }
       try { ssh.end() } catch { /* ignore */ }
@@ -500,7 +538,7 @@ export class TunnelService {
 
       const bastionConfig = host.bastion && !sshConfig.sock ? this.buildConnectConfig(host.bastion.ip, host.bastion.port,
         host.bastion.sshUser, host.bastion.authType, host.bastion.passwordEncrypted, host.bastion.pemKey) : undefined
-      ssh = await connectTunnelSsh(sshConfig, host.trustedHostKeyFingerprint, bastionConfig)
+      ssh = await connectTunnelSsh(sshConfig, host.trustedHostKeyFingerprint, bastionConfig, host.bastion?.trustedHostKeyFingerprint)
 
       await new Promise<void>((resolve, reject) => {
         const timeout = setTimeout(() => reject(new AppError('Tempo limite ao testar o destino interno', 504, 'TUNNEL_TARGET_TIMEOUT')), 5000)
@@ -536,7 +574,7 @@ export class TunnelService {
 
   // ── Fechar túnel ────────────────────────────────────────────────────────────
 
-  async close(tunnelId: string, reason: 'user_closed' | 'acl_revoked' = 'user_closed'): Promise<void> {
+  async close(tunnelId: string, reason: 'user_closed' | 'acl_revoked' | 'session_revoked' = 'user_closed'): Promise<void> {
     const tunnel = tunnels.get(tunnelId)
     if (!tunnel) return
     tunnels.delete(tunnelId)
@@ -735,7 +773,7 @@ function normalizeBindAddress(bindAddress?: string): string {
   throw new AppError('Bind address inválido', 422, 'INVALID_BIND_ADDRESS')
 }
 
-function tunnelLogDetails(tunnel: TunnelInfo, reason?: 'user_closed' | 'acl_revoked'): string {
+function tunnelLogDetails(tunnel: TunnelInfo, reason?: 'user_closed' | 'acl_revoked' | 'session_revoked'): string {
   return JSON.stringify({
     tunnelId: tunnel.id,
     hostId: tunnel.hostId,
