@@ -1,0 +1,16 @@
+{
+  "beforeSha256": "4ef76cf2eeee1b5fff4d2c80436aa50da939be8ecd875f70dae89b7d355136a5",
+  "afterSha256": "bd2c4b2cda4984389bcd2219bfcb0049d9cab25ebdf73bab487034325f57f406",
+  "changedCells": [
+    "D6",
+    "G6",
+    "I6",
+    "K6",
+    "D18",
+    "G18",
+    "I18",
+    "K18"
+  ],
+  "revisionRow": 27,
+  "validation": "ZIP/XML; Original2027 and other entries/cells/history preserved; no Excel rendering"
+}

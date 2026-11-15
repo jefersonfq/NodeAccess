@@ -2,9 +2,13 @@
 
 ## Resumo atual — 2026-11-11
 
-Commit local autorizado pelo usuário em 11/11, após o checkpoint abaixo. A revalidação deve
-identificar o novo SHA; resultados posteriores ao commit ficam em
-`evidence/post-commit-20261111.json`, sem reaproveitar a aprovação do candidato sem commit.
+Commit local concluído; estado COMMITTED no worktree isolado, preservado limpo.
+Revalidação do SHA commitado: PASS integral. SHA e resultados efetivos em
+`evidence/post-commit-20261111.json`. Push/merge/sincronização não executados; PR não consultado.
+Registro pós-commit atualizado no canônico; documentação versionada permanece como checkpoint
+pré-commit, evitando modificar o checkout validado ou criar commits recursivos de evidências.
+
+### Checkpoint anterior ao commit
 
 Cópia isolada em `/home/jeferson/NodeAccess-NA-0173`, branch prevista, base original preservada;
 originais canônicos mantidos. Estado LOCAL_WIP, sem commit/publicação. Somente no isolado,
@@ -29,7 +33,7 @@ sem perder regras obrigatórias.
 ## Implementação
 
 Base SHA 745253d1edb522db79aaa44fd96608ce434a2774 (branch NA-0172 com alterações não commitadas;
-nada desta frente foi commitado).
+naquele checkpoint inicial ainda não havia commit desta frente).
 - Backup + `ROLLBACK.md` (hashes SHA-256) em `ai/backup/codex-config-2026-11-08/`; backup das
   regras e do `config.toml` em `/root/.codex/rules-backup/` (fora do repo: contém senhas de exemplo).
 - `AGENTS.md` 13,1 KB → 5,6 KB; checklists de domínio/frontend/UX movidos sem alteração para
@@ -149,3 +153,11 @@ Até lá, o relatório continua útil como total dos históricos selecionados po
 alegação de economia medida. A configuração de .env.example requer ajuste específico que
 preserve segredos. Integração/sincronização dos originais canônicos depende de entrega futura.
 Não houve mudança de escopo/estado de entrega do roadmap do produto nesta avaliação.
+
+### 2026-11-11T20:40:26-03:00 — Commit realizado e revalidação pós-commit
+
+Ran: commit local autorizado de 21 arquivos, Gitleaks dos bytes staged sem achados; status:change confirmou COMMITTED e checkout limpo. Ran: validate:sonar no novo SHA: PASS integral.
+Resultados detalhados e SHA na evidência pós-commit. Os originais do canônico foram preservados.
+Pendências avaliadas: candidato exclusivo da Central; recorte por eventos no medidor; exceção
+mínima para .env.example; integração/publicação futura. Nenhuma dessas correções foi inferida
+da autorização de commit local. Sem mudança de escopo do roadmap do produto.

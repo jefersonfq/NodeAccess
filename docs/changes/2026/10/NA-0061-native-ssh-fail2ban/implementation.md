@@ -14,7 +14,7 @@ Arquivos remotos criados:
 
 - `/usr/local/sbin/nodeaccess-f2b-collect`: consulta somente eventos malsucedidos do gateway, exporta data UTC e IP público IPv4, sem nomes ou credenciais; cursor persistente por ID e limite superior capturado antes da consulta. Lote máximo de 10000 eventos. Primeira execução considera somente os últimos 10 minutos.
 - `/etc/systemd/system/nodeaccess-f2b-collect.{service,timer}`: coleta aproximadamente a cada 15 segundos após concluir a execução anterior, usando as credenciais já disponíveis no container API, sem copiá-las.
-- `/etc/fail2ban/filter.d/nodeaccess-native-ssh.conf` e `/etc/fail2ban/jail.d/nodeaccess-native-ssh.local`: 5 eventos/10 minutos, banimento de 7 dias (inicialmente 24 horas; ampliado a pedido), DROP apenas TCP 2222 na cadeia DOCKER-USER.
+- `/etc/fail2ban/filter.d/nodeaccess-native-ssh.conf` e `/etc/fail2ban/jail.d/nodeaccess-native-ssh.local`: 1 evento desde 2026-11-04 (antes 3/1 hora e 5/10 minutos), banimento de 7 dias (inicialmente 24 horas; ampliado a pedido), DROP apenas TCP 2222 na cadeia DOCKER-USER.
 - `/etc/logrotate.d/nodeaccess-fail2ban`: rotação diária, 7 arquivos, compressão retardada.
 - Estado em `/var/lib/nodeaccess-fail2ban/cursor`; log protegido em `/var/log/nodeaccess-fail2ban/auth.log`.
 
@@ -69,3 +69,31 @@ Ran: teste de configuração e reload exclusivo da jail; leitura de bantime efet
 
 ### 2026-10-23T09:07:36-03:00 — Avaliação da origem no histórico
 Pedido: avaliar a ambiguidade entre entrada pelo site e gateway e a proposta de Origem do acesso. Inspeção estática local confirmou: native-ssh-gateway.service.ts grava marcador fixo e IP do cliente; log.service.ts entrega ambos; LogsView.vue exibe IP, mas esconde userAgent no tooltip do usuário. auth.controller.ts recebe User-Agent do cliente HTTP, portanto inferência histórica não é prova definitiva do canal. Recomendada coluna independente do resultado, com Gateway SSH, Interface web quando identificável e Não identificada, mantendo IP e detalhe técnico; para novos registros, campo explícito preenchido pelo servidor é mais confiável. Base local 66444a9dd4c167453004bb6089278548bdd2c0d9. Ran: leitura de código e registro anterior NA-0061; nenhum teste de execução, acesso remoto ou consulta atual ao banco. Sem alteração de produto, autenticação ou bloqueios nesta interação. Próximo passo: implementar classificação/apresentação se solicitado, com testes de registros legados e ambíguos.
+
+
+### 2026-11-04T20:19:12-03:00 — Endurecimento contra tentativas lentas
+
+Pedido: inspecionar falhas do Gateway SSH em produção e endurecer o Fail2ban. Base SHA do worktree: `f4a44b4b7ae87a8f688b1246d9e52a31f9a104bc`. Acesso administrativo realizado usando o arquivo indicado, sem registrar credenciais.
+
+Diagnóstico: jail e coletor saudáveis, 34 IPs bloqueados na inspeção inicial e contadores DROP positivos. Consulta agregada ao AuthLog encontrou 319 falhas em 24 horas, de 28 origens. Uma origem concentrou 205 falhas, mas no máximo duas em qualquer janela de 10 minutos: o limite anterior de cinco não detectava esse padrão lento. As contagens são fotografias da inspeção, não métricas de eficácia posteriores.
+
+Implementação: alterado somente `/etc/fail2ban/jail.d/nodeaccess-native-ssh.local`, para `maxretry = 3`, `findtime = 3600`, preservando `bantime = 604800`, filtro, coletor e DROP TCP 2222 em DOCKER-USER. Reload restrito à jail. Origem com 205 falhas bloqueada imediatamente com base na auditoria; não houve bloqueio em massa do histórico. Nenhuma alteração no produto, banco, Nginx ou jail administrativa.
+
+Ran: `fail2ban-client -t` aprovado; leitura efetiva confirmou 3/3600/604800; `fail2ban-regex` reconheceu 231 de 231 linhas e datas, sem perdas. Três eventos sintéticos de IP reservado, espaçados em 40 minutos, geraram ban automático e regra DROP; desbloqueio e remoção da regra de teste confirmados. Fail2ban, timer e Nginx ativos; coletor Result=success/ExecMainStatus=0; HTTPS local com SNI/certificado do app retornou 200; acesso SSH administrativo permaneceu funcional. Cadeia DOCKER-USER segue limitada à porta 2222.
+
+Skipped: novo ensaio externo de pacotes bloqueados, reinício de infraestrutura, testes de aplicação e PTY; não houve alteração de código, resize ou transporte. O teste atual comprova detecção e regra de firewall, sem alegar nova medição externa de DROP.
+
+Recuperação: backup em `/root/nodeaccess-fail2ban-backup-20261104/native-ssh-before-hardening.local`. Para restaurar o limite anterior, copiar esse arquivo sobre a jail, executar `fail2ban-client -t` e `fail2ban-client reload nodeaccess-native-ssh`. Bans existentes permanecem; desbloqueio individual usa `fail2ban-client set nodeaccess-native-ssh unbanip IP`.
+
+Limitações: três erros sob IP compartilhado podem bloquear outros usuários por sete dias; coleta mantém latência aproximada de 15 segundos. Origens distribuídas ou abaixo de três falhas por hora ainda podem aparecer nos logs; histórico não é apagado. Próximo passo: acompanhar volume recente e falsos positivos. Documentos desta frente sincronizados com o projeto canônico, sem divergência prévia nos dois documentos; índices atualizados por adição, preservando conteúdos distintos. Sem commit ou publicação.
+
+
+### 2026-11-04T20:23:49-03:00 — Bloqueio na primeira falha, autorizado pelo usuário
+
+Pedido/decisão: usuário informou que ainda não há clientes no host e autorizou endurecer mais, aceitando desbloqueio manual de erros legítimos. Alterado somente `maxretry` de 3 para 1 na jail remota `nodeaccess-native-ssh`; mantidos `findtime = 3600`, `bantime = 604800` e escopo TCP 2222 em DOCKER-USER. Base SHA do worktree permanece `f4a44b4b7ae87a8f688b1246d9e52a31f9a104bc`. Sem alteração de aplicação ou coletor.
+
+Ran: inspeção prévia confirmou limite 3; backup criado em `/root/nodeaccess-fail2ban-backup-20261104/native-ssh-before-single-failure.local`; teste de configuração aprovado e reload exclusivo da jail. Leitura efetiva confirmou maxretry=1 e bantime=604800. Um evento sintético com IP reservado gerou ban automático e regra DROP; desbloqueio e remoção da regra confirmados. Fail2ban, timer e Nginx ativos; coletor com Result=success/ExecMainStatus=0; HTTPS local com SNI retornou 200; SSH administrativo permaneceu acessível; regra DOCKER-USER limitada à porta 2222.
+
+Recuperação: restaurar o backup `native-ssh-before-single-failure.local` sobre `/etc/fail2ban/jail.d/nodeaccess-native-ssh.local`, testar com `fail2ban-client -t` e executar `fail2ban-client reload nodeaccess-native-ssh` para retornar a três falhas/hora. Desbloqueio individual: `fail2ban-client set nodeaccess-native-ssh unbanip IP`. Restaurar o limite não remove bans existentes automaticamente.
+
+Limitações aceitas: uma falha legítima pode bloquear o IP compartilhado por sete dias; coleta mantém aproximadamente 15 segundos de latência mais processamento, permitindo várias tentativas antes de aplicar o ban. Skipped: ensaio externo de pacotes, reinício de infraestrutura e testes de aplicação/PTY, sem mudanças nesses fluxos. Próximo passo: acompanhar bloqueios e liberar IPs legítimos conforme necessário. Documentos e índices atualizados nos dois checkouts, sem divergência prévia dos documentos da frente. Sem commit/publicação.

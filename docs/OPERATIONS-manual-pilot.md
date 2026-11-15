@@ -283,6 +283,25 @@ Ran: nova captura conjunta após rótulo visível de pausa NA0147 (53d136fbb), c
 
 Entrada Central de Segurança adicionada junto ao Manual sem alterar seus procedimentos. Captura em /tmp/nodeaccess-NA-0172 com frontendlocal:cinco fluxos/capturas aprovados e imagens revisadas. Primeira tentativa usou versãoesperada diferente do servidor; repetição com MANUAL_EXPECTED_VERSION=dev PASS, sem mudar asserção. test:manual2Node+18Vitest e manual:check-reviewed5capítulosPASS. Somente Hosts referenciaAppLayout e recebeu novo hash/data após revisão; texto mantido. Evidência do candidato, não execução na pasta principal nem homologação humana.
 
+## NA-0084 — Histórico de frente não integrada: revalidação local em 2026-10-30T12:07:20-03:00
+
+Novo capítulo integrado de passagem de pendências e notificações; Hosts referencia o procedimento. Seis capítulos revisados, testes do manual (2 Node + 18 Vitest), manual:capture e manual:check-reviewed passaram. Capturas desktop/mobile, navegação de teclado, erro/retry, retorno sem reconexão e regressão completa terminal validados no checkout NA-0084. [Evidências](changes/2026/10/NA-0084-shift-handover/test-results.md). Não equivale a homologação humana.
+
+## NA-0084 — Histórico de frente não integrada: evolução do quadro (2026-10-30T14:35:29-03:00)
+
+Capítulos Hosts e Plantão revalidados, com prazos, filtros, concessões de leitura, quadro, CSV, lembretes e resumos dos dashboards. Manual:capture, test:manual e regressão terminal passaram; seis capítulos com hash editorial vigente. Capturas demonstrativas revisadas e vinte capturas do fluxo disponíveis no [roteiro](changes/2026/10/NA-0084-shift-handover/evolution-ux.md). Validação visual técnica não é homologação humana.
+
+## 2026-10-30 — NA-0084: consulta de plantão no terminal (frente não integrada)
+
+Atualizados capítulos terminal/handover e mapeamento de fontes; captura demonstrativa executada, cinco imagens revisadas, test:manual (2Node+18Vitest) e regressão terminal PASS. Revisão editorial dos dois capítulos com hash calculado por loadManual; manual:check-reviewed PASS. Revisão visual independente: PASS_WITH_WARNINGS. Novos12prints sem bloqueios funcionais; pequena faixa de texto junto ao cabeçalho sticky é cosmética. Capturas gerais do manual têm ressalvas preexistentes de fixture: hosts mostra1no cabeçalho e237na paginação; sharing contém textos técnicos do harness. Capítulos terminal/handover revisados; gate editorial PASS não representa eliminação dessas ressalvas nem homologação humana. [Evidências](changes/2026/10/NA-0084-shift-handover/terminal-indicator-test-results.md).
+
+## NA-0171 — Histórico da PR62 não integrada — 2026-11-05T11:24:32.375586-03:00
+
+Revalidado o capítulo SFTP após mudança do carregamento Monaco para assets locais com CSP de nonce. Procedimento mantido: abrir, revisar, salvar e recuperar falhas. Ran: manual:capture contra Nginx real127.0.0.1:18171/builddev, cinco capturas abertas e revisadas (Hosts, Terminal, SFTP, Tenants, Compartilhamento); legibilidade e enquadramento preservados. test:manual aprovado (2 contratosNode e18Vitest); manual:check-reviewed aprovado nos cinco capítulos após atualizar apenas hash/data editorial SFTP. Lifecycle com Monaco real validou erros503/502/403, conflito409, transporte indisponível e escrita atrasada sem perda de rascunho/SSH. Terminal completo sob CSP aprovado. Dados/API/SSH simulados; sem homologação humana, produção ou validação formal com leitor de tela. Primeira captura reprovou versão esperada padrão; repetida com MANUAL_EXPECTED_VERSION=dev conferido no build, sem alterar asserção. Evidências privadas /tmp/NA0171-manual-*.log. Fonte validada no worktree /tmp/nodeaccess-NA-0171, base745253d1e com alterações de trabalho; gates no SHA final ainda pendentes.
+
+### 2026-11-05T12:16:02.601801-03:00 — NA-0171 revalidação final
+Após ajuste de tipagem do modal e carregamento efetivamente sob demanda, manual:capture repetido contra build final: aprovado. Tenants manteve PNG idêntico; demais quatro capturas reabertas e revisadas, sem regressão visual. Hash/data SFTP recalculados somente após essa validação; manual:check-reviewed cinco capítulos aprovado.
+
 ### NA-0172 — revalidação após ajuste de âncoras
 Em 06/11/2026, o layout passou a preservar a instância da Central em mudanças de fragmento. O procedimento de Hosts permaneceu igual. Ran: cinco capturas demonstrativas revisadas, 2 testes Node +18 Vitest e cinco capítulos com revisão atual aprovados; apenas hash editorial de Hosts atualizado por depender de AppLayout. Capturas preservam marcas e contagens de fixtures, não são dados de uso real. Não houve mudança de área útil/resize/transporte do terminal; regressão completa integra a validação Sonar da frente.
 

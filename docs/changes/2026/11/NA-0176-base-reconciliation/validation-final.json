@@ -1,0 +1,45 @@
+{
+  "startedAt": "2026-11-15T20:47:09.326Z",
+  "finishedAt": "2026-11-15T21:03:22.955Z",
+  "head": "afdc9ebc53925ad7b00a4abcc80915e797d6daec",
+  "base": "be4daff2e5a6d2a2ff7603df2ec676ec03f4156a",
+  "passed": true,
+  "analysisId": "72863b6f-9c7b-414a-9b4d-a44bf03f4f9c",
+  "analysisVerified": true,
+  "reviewsVerified": true,
+  "gate": {
+    "status": "OK",
+    "conditions": [
+      {
+        "status": "OK",
+        "metricKey": "new_coverage",
+        "comparator": "LT",
+        "errorThreshold": "80",
+        "actualValue": "81.4"
+      },
+      {
+        "status": "OK",
+        "metricKey": "new_duplicated_lines_density",
+        "comparator": "GT",
+        "errorThreshold": "3",
+        "actualValue": "0.0582"
+      },
+      {
+        "status": "OK",
+        "metricKey": "new_violations",
+        "comparator": "GT",
+        "errorThreshold": "0",
+        "actualValue": "0"
+      }
+    ],
+    "ignoredConditions": false,
+    "period": {
+      "mode": "PREVIOUS_VERSION",
+      "date": "2026-11-03T16:48:47+0000"
+    },
+    "caycStatus": "compliant"
+  },
+  "warnings": [],
+  "failures": [],
+  "scope": "Local exact-SHA validation; not CI, merge or deployment"
+}

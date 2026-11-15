@@ -58,3 +58,6 @@ PR64 entregue antes desta integração; PR61/62 mantidas separadas como trabalho
 - Decisão: GO_WITH_RISKS
 - Aprovado por: usuário, pedido de unificação antes de codificar e continuação; aprovação técnica final pendente dos gates.
 - Aprovado em: 2026-11-15, conforme conversa; não representa homologação funcional inventada.
+
+## Consolidação documental final
+Após gate integral do código em afdc9ebc5, concluir a intenção original de árvore limpa com um commit exclusivamente de documentação: registros/planilhas preservados, seis textos reconciliados e213artefatos históricos gerados arquivados localmente com manifesto e cópia Git verificável. Mantidos todos os Markdown e arquivos de planejamento; sem publicar relatórios/capturas brutos como evidência atual. Não alterar fontes, dependências, catálogo de segurança ou regras gitleaks. Artefatos recuperáveis conforme recovery.md; não apagar checkpoint/arquivo. Verificar diff só docs/README, scanner redigido, hashes, planilhas e governança; checks remotos completos obrigatórios no novo SHA. A execução local afdc é evidência daquele SHA e do conteúdo de código idêntico, não uma nova execução local no commit documental.

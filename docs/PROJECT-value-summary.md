@@ -249,3 +249,11 @@ O cadastro oferece telefone opcional para contato solicitado sobre a avaliação
 O cadastro informa a preparação do ambiente e o prazo de uso, com comunicação visual por e-mail e ciência explícita do encerramento. O usuário pode avaliar o produto sabendo o que acontecerá com o laboratório e com seus dados. Preferências de marketing continuam opcionais e separadas.
 
 A navegação de Hosts apresenta a disponibilidade da rota de conexão e permite acessar o equipamento pelo seu dashboard. Motivos de atenção levam às evidências correspondentes, e a auditoria mantém sinalização de incerteza na reconstrução de interações do terminal. São facilidades de operação e transparência; não representam certificação de compliance ou capacidade adicional de infraestrutura.
+
+## Saúde dos recursos — NA-0082
+
+Registro histórico de implementação/validação local da frente, cujo código não está recuperado nem integrado nesta base: diagnóstico administrativo diferencia habilitação, configuração e evidência operacional dos seis recursos; auditoria indisponível alerta sem bloquear sessões. Comparativo Termy, prioridades e critérios: [PRD](PRD-resource-health-and-comparison.md). Não implica deploy nem homologação em produção.
+
+## Jornada de IA — NA-0083
+
+Registro histórico da frente não integrada nesta base: configuração salva e testes vinculados à revisão, homologação explícita e monitoramento opt-in com cota e sem reparos automáticos. Preparação assistida de Ollama por pacote revisável; cópia/execução SSH automática apenas especificada. O registro da frente inclui laboratório descartável WSL/DinD com Ollama/modelo CPU; servidor definitivo não provisionado e publicação pendente. Escopo e limites no [PRD](PRD-ai-journey-lite.md).

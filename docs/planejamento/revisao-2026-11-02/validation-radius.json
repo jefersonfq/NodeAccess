@@ -1,0 +1,14 @@
+{
+  "date": "2026-11-02T19:03:08-03:00",
+  "initiative": "META-049",
+  "total": 49,
+  "result": "PASS",
+  "checks": [
+    "ZIP/XML",
+    "unique IDs",
+    "previous rows preserved",
+    "original worksheet unchanged",
+    "49 local links resolve"
+  ],
+  "sha256": "602c1d4e857c67cef9c3ce88a962ec3e642c8e9f96655d331169c0648ea2ce10"
+}

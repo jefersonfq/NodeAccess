@@ -4,19 +4,24 @@ Base SHA: 28685c5b2c3fbf9739a05629260c95e42e0d62d0 (diagnóstico original e83fdc
 
 ## Resumo atual
 
-Candidato ce7a31fda publicado no PR64 (draft); base master28685c5b2. Controles
-D01/D02/D06/D07/D08/D09/D11/D12 corrigidos; D03/D04/D05/D10 validados nos limites registrados.
-HTTP/MySQL/SSH/SFTP/Redis reais, CAS concorrente e PTY fullapp/top/htop PASS.
-Revisão independente PASS_WITH_WARNINGS. Manual/capturas/catálogo revalidados.
-CI de upgrade/restore/runtime/imagens PASS (7/7); estática/segredos e governança PASS.
-Sonar local ce7a31fda FAIL: zero violações novas/hotspots, cobertura76,2% (<80%),
-coleta Node afetada por PATH e teste browser com data antiga. Não considerar entregue.
-Correções focais validadas: PATH limpo, data derivada do catálogo, laboratórios loopback SSH/SFTP
-incluídos na coleta Vitest local/CI e testes observáveis do repositório de usuários.
+Central NA-0172 integrada na PR63/master28685c5b2. Derivados NA-0174 implementados e
+tecnicamente validados no SHA `15938ada5b1a62e54870bfe50411bbce9f0a4f41`, PR64 pronto para revisão.
+LOCAL_WIP=false, COMMITTED=true, PUSHED=true, PR_OPEN=true; MERGED=false e
+MASTER_SYNCED=false para esta frente. Sem implantação. Homologação funcional humana pendente.
 
-Guacd1.6.0 e imagens de produto preservados; sem migração/dependência nova. Limites: Redis
-pubsub não durável, evento tardio pode encerrar reconexão válida, RDP/VNC sem wire real.
-Nenhuma implantação ou homologação humana presumida. Evidência: evidence/controls-validation-20261115.json.
+D01/D02/D06/D07/D08/D09/D11/D12 corrigidos; matriz focal D03/D04/D05/D10 validada
+nos limites do plano. Sonar local integral e remoto PASS; cobertura do diff85,65%,
+Sonar remoto85,4% (métricas distintas); zero novas violações/hotspots. Vitest3782PASS,
+Node694PASS e10/10 harnesses browser PASS. HTTP/MySQL/SSH/SFTP/Redis reais, CAS
+concorrente e PTY fullapp/top/htop validados. CI de upgrade/restore/runtime e imagens7/7
+PASS, além de governança, qualidade/segredos, dependências, ACL, CSP, manual e build.
+Manual/catálogo/capturas revalidados. Revisão independente funcional PASS_WITH_WARNINGS.
+
+Guacd1.6.0 preservado; sem migração/dependência nova nesta frente. Limites: Redis Pub/Sub
+não durável; evento tardio pode encerrar reconexão válida; arquivo SFTP parcial não é revertido;
+RDP/VNC cobertos por contratos com transporte injetado, sem wire real nesta rodada.
+Não é auditoria/pentest completo nem aprovação de produção. Próximo: [homologação humana](homologation.md),
+depois merge e sincronização da master. Evidência final: evidence/controls-final-20261115.json.
 
 ## Pedido e objetivo
 
@@ -32,10 +37,11 @@ Host de origem exige regularização. Arquivo SFTP parcial não tem rollback aut
 
 ## Validação
 
-Ran: baseline, focais e laboratórios descritos no resumo/evidência; falhas iniciais preservadas.
-Planned: repetir cobertura/Sonar e CI no SHA corrigido; preservar resultados anteriores.
-Skipped: produção e sessões RDP/VNC reais; testes de contrato não substituem esses ensaios.
-Manual: homologação funcional do usuário ainda não executada nesta frente.
+Ran: testes e gates no resumo, com SHA final e links CI na evidência. Falhas iniciais
+preservadas, inclusive fixture TLS, data editorial, coleta e metadados de governança.
+Planned: homologação humana, integração e sincronização da master após aceite.
+Skipped: produção, sessão RDP/VNC wire real e fixture externa fixa de session-files.
+Manual: roteiro preparado; nenhum aceite funcional humano desta frente presumido.
 
 ## Recuperação
 
@@ -44,8 +50,11 @@ nos laboratórios são descartáveis; cleanup registrado. Preservar demais frent
 
 ## Pendências
 
-Concluir correções do gate, validate:sonar integral no SHA final e checks/revisão remotos antes
-de entrega pelos gates. Roadmap será atualizado em uma única escrita ao fechar a rodada.
+Obter homologação funcional explícita do candidato; integrar PR64 e sincronizar master
+após aceite. Manter os limites de protocolo/distribuição documentados. Operação acompanha
+as triagens de imagens já autorizadas nos vencimentos (SQLite18/11 e demais29/11).
+Roadmap atualizado em uma escrita agrupada, distinguindo entrega da Central de candidato
+validado dos derivados. Sem prazos ou prioridades novos.
 
 ## Diário de interações
 
@@ -193,3 +202,15 @@ Restaurado o título e acrescentados Plan/Change-Date/Tests/Evidence ao último 
 da própria branch. Sem mudança de runtime/testes ou regras. Lease exige head remoto
 f53c175, impedindo sobrescrever avanço alheio. Sonar desse SHA: True;
 resultado preservado. Novo SHA exigirá Sonar/CI completos; homologação pendente.
+
+### 2026-11-15T16:05:54-03:00 — Gates finais aprovados; homologação pendente
+
+Pedido: concluir pendências da Central e derivados. Correções integradas no candidato
+15938ada; commit/push/PR_OPEN concluídos, PR64 fora de draft. Ran: validate:sonar local
+PASS integral870,6s, sem avisos; CI Sonar43748219541 PASS e upgrade/imagens43748219588
+PASS. Fontes congeladas e árvores head/merge equivalentes; todas falhas anteriores
+preservadas. Documentação/evidências finais atualizadas no projeto canônico, sem alterar
+o checkout validado. Próximo: aceite funcional conforme homologation.md, merge/master.
+
+### 2026-11-15T17:35:40-03:00 — Merge autorizado e master sincronizada
+Usuário autorizou explicitamente o merge da PR64. Conferidos head15938ada5 e 16 checks SUCCESS antes de `gh pr merge --merge --match-head-commit`. PR64 MERGED em be4daff2e5a6d2a2ff7603df2ec676ec03f4156a; master local em /home/jeferson/NodeAccess-master sincronizada por fast-forward e igual a origin/master. Sem deploy. Ran: consultas GitHub, ancestry/SHAs e status:change (primeira tentativa EACCES por PATH; repetição com PATH corrigido aprovada). LOCAL_WIP clear; COMMITTED/PUSHED/MERGED/MASTER_SYNCED complete; PR_OPEN encerrada por merge confirmado via API. Alterações ainda não visíveis no checkout principal NA-0172, preservado por conter trabalho local. Aprovação de merge registrada; não inventada execução manual de roteiro funcional. Branch/worktree mantidas.

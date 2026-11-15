@@ -195,3 +195,10 @@ Limites: RDP/VNC cobertos por contratos/injeção de transporte, sem wire real n
 Redis pubsub não durável; revogação tardia pode alcançar reconexão válida. Não é pentest
 completo nem aprovação de produção. Gate Sonar ce7a31fda FAIL (cobertura76,2% e coleta),
 correções em andamento; PR64 draft, sem homologação humana/merge/deploy.
+
+## Resultado final da matriz focal — 2026-11-15T16:05:54-03:00
+
+PR64, SHA `15938ada5b1a62e54870bfe50411bbce9f0a4f41`: correções e gates técnicos PASS.
+Sonar local/remoto e imagens7/7 aprovados; gate antigo ce7a31fda reprovado permanece
+histórico. Sem merge/deploy; homologação humana pendente. Os limites RDP/VNC wire real,
+Redis não durável e arquivos parciais permanecem explícitos; não declarar auditoria universal.

@@ -2,7 +2,7 @@
 change_id: NA-0174
 title: Corrigir controles reproduzidos e concluir matriz focal de segurança
 type: security
-status: ready-for-tests
+status: in-homologation
 created_at: 2026-11-14T21:31:28-03:00
 base_branch: master
 base_sha: 28685c5b2c3fbf9739a05629260c95e42e0d62d0
@@ -143,3 +143,11 @@ gráfico real, auditoria universal, transporte de todos os agentes e produção 
 certificados por este incremento. Preservar essa distinção em entrega e homologação.
 Redis indisponível ou evento perdido pode deixar encerramento físico sem confirmação,
 mesmo com token revogado; evento tardio pode fechar recurso novo. Não há fila durável nova.
+
+## Resultado técnico final — 2026-11-15T16:05:54-03:00
+
+Candidato `15938ada5b1a62e54870bfe50411bbce9f0a4f41`, PR64 pronto para revisão; Sonar local/remoto,
+CI de controles, upgrade/restore e imagens7/7 PASS. A matriz focal foi implementada e
+validada nos limites definidos neste plano. Homologação humana e integração pendentes;
+cenários RDP/VNC wire real e garantia durável de eventos continuam fora da comprovação.
+Ver implementation.md, homologation.md e evidence/controls-final-20261115.json.

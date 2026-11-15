@@ -512,3 +512,11 @@ O cadastro oferece telefone opcional para contato solicitado sobre a avaliação
 A página de teste comunica o andamento real do provisionamento e o encerramento, com ciência explícita na ativação de novos cadastros. E-mails operacionais têm HTML e texto equivalente; marketing e pesquisa permanecem escolhas separadas. Eventos de ciência registram o aviso e o prazo aceitos, sem impor bloqueio retroativo a contas ativas. Detalhes de retenção e atualização estão no guia de operação do teste.
 
 Hosts reutiliza os ícones de protocolo e apresenta o estado da rota de Agent. Conexões que exigem uma rota indisponível têm motivo indicado, preservando acesso direto e fallback permitido. O dashboard conecta ao host selecionado e reúne a auditoria nas ações superiores; os motivos de atenção oferecem contexto e navegação para investigação. O relatório de auditoria preserva os controles por papel e apresenta reconstrução após o conteúdo principal. A reconstrução de buscas Ctrl+R usa a saída observada, preservando a gravação original e indicando incerteza quando não há evidência suficiente.
+
+## Saúde dos recursos — NA-0082
+
+Registro histórico de implementação/validação local da frente, cujo código não está recuperado nem integrado nesta base: diagnóstico administrativo diferencia habilitação, configuração e evidência operacional dos seis recursos; auditoria indisponível alerta sem bloquear sessões. Comparativo Termy, prioridades e critérios: [PRD](PRD-resource-health-and-comparison.md). Não implica deploy nem homologação em produção.
+
+## Jornada de IA — NA-0083
+
+Registro histórico da frente não integrada nesta base: configuração salva e testes vinculados à revisão, homologação explícita e monitoramento opt-in com cota e sem reparos automáticos. Preparação assistida de Ollama por pacote revisável; cópia/execução SSH automática apenas especificada. O registro da frente inclui laboratório descartável WSL/DinD com Ollama/modelo CPU; servidor definitivo não provisionado e publicação pendente. Escopo e limites no [PRD](PRD-ai-journey-lite.md).
