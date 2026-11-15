@@ -1,0 +1,58 @@
+{
+  "startedAt": "2026-11-15T20:10:35.360Z",
+  "finishedAt": "2026-11-15T20:23:36.602Z",
+  "passed": false,
+  "failures": [
+    "TESTS_OR_COVERAGE_FAILED",
+    "SCANNER_OR_GATE_FAILED",
+    "REVIEWED_FINDINGS_NOT_VERIFIED",
+    "QUALITY_GATE_NOT_OK"
+  ],
+  "base": "28685c5b2c3fbf9739a05629260c95e42e0d62d0",
+  "head": "28685c5b2c3fbf9739a05629260c95e42e0d62d0",
+  "toolingExit": 0,
+  "coverageExit": 1,
+  "scannerExit": 1,
+  "analysisId": "146e7ef3-ac71-46ca-8549-e469f85a2bda",
+  "analysisVerified": true,
+  "gate": {
+    "status": "ERROR",
+    "conditions": [
+      {
+        "status": "ERROR",
+        "metricKey": "new_coverage",
+        "comparator": "LT",
+        "errorThreshold": "80",
+        "actualValue": "78.6"
+      },
+      {
+        "status": "OK",
+        "metricKey": "new_duplicated_lines_density",
+        "comparator": "GT",
+        "errorThreshold": "3",
+        "actualValue": "0.06353"
+      },
+      {
+        "status": "OK",
+        "metricKey": "new_violations",
+        "comparator": "GT",
+        "errorThreshold": "0",
+        "actualValue": "0"
+      }
+    ],
+    "ignoredConditions": false,
+    "period": {
+      "mode": "PREVIOUS_VERSION",
+      "date": "2026-11-03T16:48:47+0000"
+    },
+    "caycStatus": "compliant"
+  },
+  "error": "REVIEW_CHECKOUT_CHANGED",
+  "reviewsVerified": false,
+  "candidate": "Uncommitted merge of b35de6dccc17a8aedb844bc0d97655c535789c58 into base",
+  "focalTlsRetry": {
+    "passed": true,
+    "tests": 3,
+    "cleanupVerified": true
+  }
+}

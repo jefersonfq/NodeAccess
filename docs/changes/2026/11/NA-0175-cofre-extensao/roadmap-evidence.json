@@ -1,0 +1,24 @@
+{
+  "at": "2026-11-15T16:31:19-03:00",
+  "updated": [
+    "META-005",
+    "META-017"
+  ],
+  "cells": [
+    "D6",
+    "G6",
+    "H6",
+    "I6",
+    "K6",
+    "D18",
+    "G18",
+    "H18",
+    "I18",
+    "K18"
+  ],
+  "revision_row": 22,
+  "before_sha256": "ff3a83da242b1746ad5541b7ce66d6945515e483a374592d6add87ef72e8bd88",
+  "after_sha256": "83b8796b5ccab032479ce9a3108d65b983797515d292505800d76f9813c18b46",
+  "writes_this_interaction": 1,
+  "validation": "ZIP/XML íntegros; demais entradas ZIP incluindo Original 2027 idênticas; células e revisões anteriores preservadas. Sem renderização Excel/LibreOffice."
+}

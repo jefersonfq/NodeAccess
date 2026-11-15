@@ -477,3 +477,11 @@ Observacao:
 # Terminal
 
 - `docs/PRD-terminal-highlights-lite.md`: realce visual configurável, templates, governança e desempenho.
+
+- Frente não integrada — Saúde dos recursos e comparativo Termy: `docs/PRD-resource-health-and-comparison.md` (NA-0082, validado localmente; homologação/publicação pendentes).
+
+- Guia operacional — Continuidade de flags no deploy: `docs/OPERATIONS-feature-health-guard.md`.
+
+- Frente não integrada — Jornada IA e preparação de servidor dedicado: `docs/PRD-ai-journey-lite.md` (NA-0083, validado localmente; publicação/homologação pendentes).
+
+- Operação — Pacote assistido Ollama: `docs/OPERATIONS-ai-installation-assisted.md`.

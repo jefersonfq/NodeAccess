@@ -17,6 +17,8 @@ removido, atualizar tambem:
 - `docs/PRD-map-lite.md`, quando criar, mover ou arquivar PRDs
 - PRD ou guia operacional do dominio afetado
 
+- `docs/planejamento/METAS e OBJETVIVOS Nodeaccess 2027.xlsx`: registrar também ideias e decisões antes de implementar; atualizar a iniciativa por ID, evidência, próximo passo, status e histórico, conforme AGENTS.md.
+
 Essa regra faz parte do Definition of Done de features relevantes.
 
 ## Produto
@@ -586,3 +588,11 @@ até conversão explícita. O padrão começa com um host demo automático; outr
 o cadastro normal. Preparação mostra estado real e atualiza automaticamente; prazo e
 limites são discretos, com destaque no último dia. Integrações exigem configuração e
 credenciais próprias; privilégios da plataforma permanecem separados.
+
+## Saúde dos recursos — NA-0082
+
+Registro histórico de implementação/validação local da frente, cujo código não está recuperado nem integrado nesta base: diagnóstico administrativo diferencia habilitação, configuração e evidência operacional dos seis recursos; auditoria indisponível alerta sem bloquear sessões. Comparativo Termy, prioridades e critérios: [PRD](PRD-resource-health-and-comparison.md). Não implica deploy nem homologação em produção.
+
+## Jornada de IA — NA-0083
+
+Registro histórico da frente não integrada nesta base: configuração salva e testes vinculados à revisão, homologação explícita e monitoramento opt-in com cota e sem reparos automáticos. Preparação assistida de Ollama por pacote revisável; cópia/execução SSH automática apenas especificada. O registro da frente inclui laboratório descartável WSL/DinD com Ollama/modelo CPU; servidor definitivo não provisionado e publicação pendente. Escopo e limites no [PRD](PRD-ai-journey-lite.md).

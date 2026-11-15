@@ -2,7 +2,7 @@
 change_id: NA-0172
 title: Central de Segurança informativa com catálogo verificado
 type: feature
-status: in-development
+status: closed
 created_at: 2026-11-06T09:09:20-03:00
 base_branch: master
 base_sha: 745253d1edb522db79aaa44fd96608ce434a2774
@@ -14,6 +14,14 @@ issue: null
 ---
 
 # NA-0172 — Central de Segurança
+
+## Entrega confirmada — 2026-11-15T13:24:26-03:00
+
+Outcome: Delivered. PR63 merged; master sincronizada no checkout limpo NodeAccess-master.
+Head testado `8d668889a77708166154113a239034c97e268da6`; merge `28685c5b2c3fbf9739a05629260c95e42e0d62d0`, trees idênticas.
+Todos os checks aplicáveis e revisão independente aprovados; Windowsrelease skipped pelo
+workflow. Nenhuma implantação. Evidência: evidence/gate-final-20261115.json. Histórico abaixo
+preserva estados anteriores; controles NA-0174 e manutenção do exportador são próximos trabalhos.
 
 ## Retomada de 2026-11-11
 
@@ -47,7 +55,7 @@ Fora: mudanças de autenticação/ACL/SSH/Redis; configurações administrativas
 - [x] Rota herda guard autenticado sem modificar sua lógica; menu disponível a usuário comum e admin, independente do piloto manual.
 - [x] Conteúdo explica condições e responsabilidades sem prometer certificação, proteção absoluta, auditoria sempre ativa ou E2EE.
 - [x] Interface responsiva, temas claro/escuro, foco/teclado e sem poluição visual; links existentes e sem contato inventado.
-- [ ] Testes focados, build/typecheck/lint, browser/manual/terminal aplicáveis e validate:sonar registrados; revisão independente.
+- [x] Testes focados, build/typecheck/lint, browser/manual/terminal aplicáveis e validate:sonar registrados; revisão independente.
 
 ## Estratégia técnica
 Catálogo interno versionado fora de assets públicos; plugin de build gera módulo virtual selecionando campos permitidos explicitamente. View lazy apresenta textos estáticos e boas práticas; ausência de fetch/polling elimina loading/retry artificiais. Sem importar dados privados no módulo cliente. Preferir componentes/layout atuais e navegação existente.

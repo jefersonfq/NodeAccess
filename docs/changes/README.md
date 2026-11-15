@@ -4,8 +4,14 @@ Planos e registros versionados por implementação. PRs e checkpoints identifica
 
 | Mudança | Plano | Registro IA |
 |---|---|---|
-| NA-0174-security-diagnosis (correções de controles em desenvolvimento) | [plano](2026/11/NA-0174-security-diagnosis/plan.md) | [registro](2026/11/NA-0174-security-diagnosis/implementation.md) |
-| NA-0172-security-center (imagens/runtime PASS; reconciliação do commit pendente; PR63 draft) | [plano](2026/11/NA-0172-security-center/plan.md) | [registro](2026/11/NA-0172-security-center/implementation.md) |
+| NA-0176-base-reconciliation (PR65; gate local PASS; CI/merge pendentes) | [plano](2026/11/NA-0176-base-reconciliation/plan.md) | [registro](2026/11/NA-0176-base-reconciliation/implementation.md) |
+| NA-0175-cofre-extensao (planned; aguarda consolidação NA-0176) | [plano](2026/11/NA-0175-cofre-extensao/plan.md) | [registro](2026/11/NA-0175-cofre-extensao/implementation.md) |
+| NA-0174-security-diagnosis (merged; PR64; master sincronizada be4daff2e) | [plano](2026/11/NA-0174-security-diagnosis/plan.md) | [registro](2026/11/NA-0174-security-diagnosis/implementation.md) |
+| NA-0173-codex-token-efficiency (COMMITTED; validação pós-commit aprovada) | [plano](2026/11/NA-0173-codex-token-efficiency/plan.md) | [registro](2026/11/NA-0173-codex-token-efficiency/implementation.md) |
+| NA-0172-security-center (MERGED + MASTER_SYNCED; PR63; gate concluído) | [plano](2026/11/NA-0172-security-center/plan.md) | [registro](2026/11/NA-0172-security-center/implementation.md) |
+| NA-0084-shift-handover (3A LOCAL_WIP) | [plano](2026/10/NA-0084-shift-handover/plan.md) | [registro](2026/10/NA-0084-shift-handover/implementation.md) |
+| NA-0083-ai-journey | [plano](2026/10/NA-0083-ai-journey/plan.md) | [registro](2026/10/NA-0083-ai-journey/implementation.md) |
+| NA-0082-resource-health | [plano](2026/10/NA-0082-resource-health/plan.md) | [registro](2026/10/NA-0082-resource-health/implementation.md) |
 | NA-0080-terminal-mouse | [plano](2026/10/NA-0080-terminal-mouse/plan.md) | [registro](2026/10/NA-0080-terminal-mouse/implementation.md) |
 | NA-0069-release-integration | [plano](2026/10/NA-0069-release-integration/plan.md) | [registro](2026/10/NA-0069-release-integration/implementation.md) |
 | NA-0068-trial-review | [plano](2026/10/NA-0068-trial-review/plan.md) | [registro](2026/10/NA-0068-trial-review/implementation.md) |
@@ -76,3 +82,14 @@ Planos e registros versionados por implementação. PRs e checkpoints identifica
 | NA-0001-change-lifecycle-governance | [plano](2026/08/NA-0001-change-lifecycle-governance/plan.md) | Anterior à obrigatoriedade |
 
 - NA-0085 — SonarQube local, scanner e exportação supervisionada: [plano](2026/11/NA-0085-sonarqube/plan.md). LOCAL_WIP; código em worktree isolado.
+
+- [NA-0061 — Fail2ban do Gateway SSH](2026/10/NA-0061-native-ssh-fail2ban/plan.md): endurecido em 2026-11-04 para bloqueio na primeira falha e ban de 7 dias; [validação e recuperação](2026/10/NA-0061-native-ssh-fail2ban/implementation.md).
+
+- [NA-0170 — ZAP e StrykerJS](2026/11/NA-0170-zap-stryker/plan.md): integração e execuções em laboratório, em validação; [diário](2026/11/NA-0170-zap-stryker/implementation.md) e [operação](../OPERATIONS-zap-stryker.md).
+
+- [NA-0171 — CSP de estilos](2026/11/NA-0171-csp-styles/plan.md): correção autorizada, implementação e validação de interface em andamento.
+
+- Avaliação de planejamento (06/11/2026): [plano de segurança v2 — parecer e sequência proposta](2026/11/NA-0170-zap-stryker/security-plan-v2-review.md), sem autorização de implementação das novas etapas.
+
+### Preservação histórica — NA-0176
+Planos e registros de frentes não integradas permanecem como histórico, sem comprovar disponibilidade atual. Capturas e relatórios gerados antigos foram preservados localmente com [manifesto e recuperação](2026/11/NA-0176-base-reconciliation/recovery.md); links históricos para esses arquivos podem exigir restauração do caminho original. O checkpoint não deve ser apagado antes de outra cópia verificada.

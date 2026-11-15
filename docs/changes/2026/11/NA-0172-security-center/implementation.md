@@ -2,19 +2,18 @@
 
 Base SHA:745253d1edb522db79aaa44fd96608ce434a2774
 
-## Resumo atual — 2026-11-15T12:21:57-03:00
+## Resumo atual — 2026-11-15T13:24:26-03:00
 
-Candidato sobre head `0b68abaf301e72b2fd4820b47876457a5b8915d3`; PR63 permanece draft.
-Gate de imagens7/7 PASS (DB15/11), stack real e upgrade/restore MySQL/Redis PASS.
-MySQL libbrotli corrigido por RPM oficial HTTP/1.1, assinatura/checksum; fullupdate preservado
-com camada cacheada, escopo amd64. Guacd permanece1.6.0, bibliotecas corrigidas autorizadas.
-Cinco triagens exatas autorizadas até29/11; SQLite mantém18/11;50contratos PASS.
-Repetição integral:3662Vitest/693Node/230tooling e10harnessesbrowser PASS; cobertura83,37%,
-Quality Gate OK. validate:sonar ainda FAIL apenas REVIEW_CHECKOUT_CHANGED: exige commit
-limpo para reconciliação. Timeout HA da primeira rodada preservado, causa não reproduzida;
-nenhuma assertion/timeout alterado. Commit autorizado será seguido de validação integral
-no SHA limpo e checks remotos; entrega/merge/deploy ainda não aprovados.
-Evidência: evidence/gate-authorized-20261115.json; SHA final/checks serão vinculados à PR.
+DELIVERED: PR63 MERGED e MASTER_SYNCED no merge `28685c5b2c3fbf9739a05629260c95e42e0d62d0`.
+Candidato final `8d668889a77708166154113a239034c97e268da6`; árvore do merge idêntica à validada.
+Master limpa em `/home/jeferson/NodeAccess-master`; projeto atual preserva outras frentes.
+Ran: Sonar local integral no commit de código25bac473 PASS; delta final só documental,
+3181entradas restantes idênticas; scanner/governança local e CI completo no SHA final PASS.
+CI: Sonar83,4%, zero novas issues/hotspots;7/7 imagens, build novo MySQL, stack/TLS e
+upgrade/restore PASS. Guacd permanece1.6.0, bibliotecas corrigidas autorizadas.
+Cinco triagens exatas até29/11; SQLite até18/11. Nenhuma implantação em produção.
+Evidência: evidence/gate-final-20261115.json e PR63. Registros finais canônicos preservam
+os checkouts validados limpos, sem commit recursivo de relatório.
 
 ## Pedido e objetivo
 
@@ -29,11 +28,16 @@ Base SHA: 745253d1edb522db79aaa44fd96608ce434a2774. Plano e evidências ficam ne
 
 ## Validação
 
-Ran: testes focados, build/typecheck, manual, lint explícito, scanners e validação pré-commit
-registrados em evidence/isolation-20261112.json. Gate OK, reconciliação pré-commit bloqueada.
-Ran após correção do lock: npm ci, Prisma/shared, 28 contratos de importação, auditoria sem vulnerabilidades conhecidas e build/typecheck frontend PASS. Ran: build Docker e validação integral no SHA final PASS; Sonar remoto PASS. Bloqueado: scanner de imagens no upgrade/restore.
-Manual: homologação informada da Central em 06/11; ajuste posterior de âncoras tem testes próprios.
-Skipped: nova homologação humana e PTY real nesta consolidação, sem mudança de resize/transporte.
+Ran: build/typecheck, contratos, lint, JSON e scanner de segurança;50contratos de triagem
+PASS. Local25bac473:3662Vitest/693Node/230tooling e10harnessesbrowser PASS; diff83,37%,
+Sonar80,8%, analysisVerified/reviewsVerified=true e206classificações preservadas.
+Final8d668889: scanner/governança após sanitização documental PASS; CI integral PASS,
+Sonar83,4%, zeroissues/hotspots e tree do merge sintético igual ao head. Imagens7/7,
+MySQLfreshbuild, stack/TLS, restore8.4 e rollback lógico8.0, Redis persistência PASS.
+Falha HA prévia preservada: causa não reproduzida, sem alterar assertions/timeouts.
+Manual: homologação da Central informada em06/11; não inferido novo ensaio humano.
+Skipped: produção, RDP e arm64; publicaçãoWindows não aplicável foi skipped pelo workflow.
+Status:change Ran: COMMITTED/PUSHED/MERGED/MASTER_SYNCED complete; PR encerrada via API.
 
 ## Recuperação
 
@@ -43,33 +47,28 @@ Não sobrescrever documentos ou código de outras frentes durante sincronizaçã
 
 ## Pendências
 
-Aprovação integral no SHA definitivo, checks remotos e merge/sincronização ainda condicionam
-entrega. A Central não comprova proteção ativa no tenant. Diagnóstico NA-0174 tem escopo próprio.
+Entrega da Central concluída, sem deploy. Manutenção: revisar triagens nos vencimentos e
+acompanhar controles pendentes da NA-0174. Exportador sanitizado Sonar deve passar a listar
+security-center; o coletor já exige sua execução, portanto não houve exclusão do teste.
+RDP/arm64 não homologados nesta frente. Branch/worktrees retidos para recuperação.
 
 ## Diário de interações
 
-### 2026-11-15T12:21:57-03:00 — Candidato pronto para reconciliação no commit autorizado
+### 2026-11-15T13:24:26-03:00 — Gate concluído, Central integrada e diagnóstico preservado
 
-Ran:7/7scans reais,50contratos,lint,governança,stack,upgrade/restore,integridadeRPM,
-catálogo nos bundles e repetição integral Sonar. Apenas checkoutdirty bloqueia reconciliação;
-Quality Gate OK. Primeira rodada FAILHA preservada; dois ensaios focados e nova integral
-PASS sem enfraquecer assertions/timeouts. Alterações: DockerGo/Python/zlib/libxslt/libbrotli,
-triagens exatas, catálogo permissõespartial e overrides de imagens do harness.
-Não foram alterados auth/ACL/SSH. Versão guacd1.6.0 mantida. Limites: amd64, fullupdate
-MySQL cacheado, RDP/producão não validados. Cópia duplicada de backups de outras frentes
-no worktree foi arquivada em.tmp após hashes iguais ao canônico; original preservado.
-Decisão: consolidar commit já autorizado, repetir gate no SHA limpo e atualizar PR apenas
-com evidência real. Sem novos commits de relatórios após declarar o SHA validado.
-
-
-### 2026-11-15T11:39:57-03:00 — Triagens autorizadas e guacd preservado
-
-Usuário autorizou as cinco triagens até29/11 e correção MySQL. Aplicado patch exato,
-retirada59851 e testes de expiração alinhados ao prazo da política. Esclarecimento posterior:
-manter versão guacd1.6.0 e permitir correções de bibliotecas; ajuste zlib mantido, sem troca
-de versão do guacd.
-Nenhuma imagem em uso substituída. Rebuild MySQL e revisão independente em andamento.
-
+Usuário autorizou cinco triagens exatas até29/11, correção MySQL e manter versão guacd com
+correções de bibliotecas. Dockerfiles corrigem Go/Python/zlib/libxslt/libbrotli; MySQL usa
+RPM oficial com TLS/checksum/assinatura/HTTP1.1, sem remover fullupdate ou permitir downgrade.
+Guacd1.6.0 mantido. Catálogo de permissõespartial acompanha diagnóstico, sem patch auth/SSH.
+Ran: scans7/7, contratos, stack, TLS, upgrade/restore, Sonar local/CI, governança e revisão
+independente. Timeouts Oracle/HA e tentativas anteriores preservados; fullupdate fresco
+comprovado no CI final. CI encontrou falso positivo numa tag Docker histórica: apenas JSON
+sanitizado explicitamente, nenhum segredo ou exceção nova de scanner. Commit de código
+25bac473 e documental8d668889 publicados; CI final aprovou o novo SHA com fontes equivalentes.
+PR63 merged `28685c5b2c3fbf9739a05629260c95e42e0d62d0`; master sincronizada por fast-forward em checkout limpo.
+Projeto atual e outras frentes preservados. Roadmap META-051/META-054 atualizado uma vez,
+Original2027 intacto. Sem deploy, sem homologação RDP/arm64. Próximo: contratos/planos de
+identidade SSH e invalidação/revogação na NA-0174; manter triagens e exportador diagnóstico.
 
 ### 2026-11-14T23:23:51-03:00 — Gate e cenários fim a fim consolidados
 

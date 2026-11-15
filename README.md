@@ -835,17 +835,35 @@ Escopo e evidências: [NA-0068](docs/changes/2026/10/NA-0068-trial-review/plan.m
 
 O cadastro de degustação também oferece telefone opcional para contato solicitado sobre a avaliação, visível apenas ao administrador da plataforma. A coleta não autoriza marketing por telefone; o dado é cifrado e segue a retenção do ambiente de teste. A página usa a identidade visual do NodeAccess e o site orienta a confirmação de e-mail antes da preparação do laboratório (NA-0072).
 
+### Saúde dos recursos (NA-0082)
+
+Registros históricos descrevem diagnóstico administrativo e proteção contra desativação silenciosa no deploy validados localmente; o código dessa frente ainda não está recuperado/integrado nesta base. Homologação/publicação pendentes. Escopo, comparativo e plano em [PRD](docs/PRD-resource-health-and-comparison.md). A saúde informada não altera a política de admissão SSH.
+
+### Jornada de IA e servidor dedicado (NA-0083)
+
+Registros históricos descrevem configuração, validação, homologação e monitoramento opt-in testados localmente; essa frente não está integrada nesta base. Preparação assistida de Ollama com script/manifesto revisáveis e laboratório descartável WSL/DinD; servidor definitivo não provisionado. [PRD](docs/PRD-ai-journey-lite.md) e [guia operacional](docs/OPERATIONS-ai-installation-assisted.md). Publicação e homologação operacional pendentes.
+
 ## Segurança e qualidade de software
+
+**Disponibilidade nesta branch:** ZAP/Stryker (PR #61), CSP (PR #62), saúde dos recursos, jornada de IA e plantão possuem frentes próprias, ainda não integradas nesta base. Os registros abaixo preservam seu planejamento e suas validações locais. A Central de Segurança apresenta somente controles revisados da versão em execução.
 
 A **Central de Segurança** (`/security`, após login) explica controles, condições e boas práticas. É uma página informativa, sem diagnóstico de ativação no tenant. O [catálogo e a manutenção do conteúdo](docs/security/README.md) vinculam as afirmações às evidências internas; esses metadados não são enviados ao navegador.
 
-O NodeAccess usa **SonarQube** na validação local e no CI. O check obrigatório
+O desenvolvimento do NodeAccess utiliza **SonarQube** e inclui frentes de validação
+com **OWASP ZAP e StrykerJS**, junto de análise de
+dependências, detecção de segredos e testes automatizados, para reduzir riscos
+de segurança e verificar a qualidade do software durante o desenvolvimento.
+Os controles são complementares: analisam código, aplicação em execução e
+capacidade dos testes de detectar regressões. Eles apoiam a segurança e a
+qualidade; não garantem ausência de vulnerabilidades ou defeitos.
+
+O **SonarQube** integra a validação local e o CI. O check obrigatório
 `sonar-real` executa análises reais da base e do candidato em ambiente descartável,
 confere a configuração efetiva, importa cobertura e exige o Quality Gate.
 As decisões de falso positivo são documentadas e revalidadas; mudanças nas fontes
 ou nas regras podem invalidá-las. Resultados são vinculados ao SHA testado.
 
-| Ferramenta ou controle em uso | Finalidade | Onde conferir |
+| Ferramenta ou controle | Finalidade | Onde conferir |
 |---|---|---|
 | SonarQube | Análise estática de segurança, confiabilidade e manutenção; cobertura de código novo | [Workflow](.github/workflows/sonarqube.yml) e [operação](docs/OPERATIONS-sonarqube.md) |
 | Semgrep | Regras de segurança para JavaScript/TypeScript | `npm run security:scan` |
@@ -854,6 +872,8 @@ ou nas regras podem invalidá-las. Resultados são vinculados ao SHA testado.
 | Grype | Vulnerabilidades nas imagens construídas | `npm run security:images -- <imagens>` e [validação da stack](.github/workflows/stack-compatibility.yml) |
 | ESLint, TypeScript, Vitest e Node test runner | Qualidade estática, tipos e regressões automatizadas | [Quality gate](.github/workflows/quality-gate.yml) |
 | Playwright/Chromium e laboratórios isolados | Fluxos de interface e contratos reais, incluindo TLS, falhas e recuperação | `npm run test:coverage -- --base <SHA>` e [guia de cobertura](docs/OPERATIONS-sonarqube.md) |
+| OWASP ZAP (PR #61) | Análise dinâmica passiva de frontend/API reais em laboratório descartável; gate de achados High/Medium | Na branch da PR #61: `RUN_ZAP_REAL=true npm run security:zap`; [guia](docs/OPERATIONS-zap-stryker.md) |
+| StrykerJS (PR #61) | Mutação dos testes das políticas de autenticação e ações MCP; mínimo de 80% global e por módulo | Na branch da PR #61: `npm run test:mutation`; workflow `security-assurance.yml` (ausente nesta base) |
 
 Os checks publicam evidências no CI. A cobertura de código novo e a cobertura
 global têm escopos diferentes; aprovação do gate não equivale a certificação de
@@ -861,15 +881,26 @@ segurança nem substitui homologação operacional. Consulte os resultados da re
 atual, sem assumir que uma nota histórica continuará válida após novas mudanças.
 Para um resumo local das evidências e de sua atualidade: `npm run quality:context`.
 
-**Complementos em avaliação, ainda não integrados:**
+**Escopo dos controles adicionais:** ZAP observa tráfego sintético, incluindo login
+com MFA, consultas, refresh e logout. Não é uma varredura ativa nem cobertura de
+todas as rotas. Stryker começa por dois módulos críticos, com dois workers e tempo
+limitado; sua nota não representa todo o produto. Os comandos não operam na VPS.
 
-- [OWASP ZAP](https://www.zaproxy.org/docs/automate/automation-framework/): prioridade
-  para análise dinâmica da aplicação em ambiente de homologação descartável,
-  começando por navegação e análise passiva e evoluindo para cenários autenticados.
-  Varreduras ativas precisam de escopo explícito e dados de teste.
-- [StrykerJS](https://stryker-mutator.io/docs/stryker-js/introduction/): testes de
-  mutação em módulos críticos para verificar se os testes detectam alterações
-  deliberadas de comportamento. Adotar por módulo, com orçamento de execução.
+O [guia operacional](docs/OPERATIONS-zap-stryker.md) descreve execução, relatórios,
+limites e triagem. Achados reais permanecem visíveis e podem reprovar o gate;
+instalar uma ferramenta não equivale a resolver todos os alertas encontrados.
+
+### Rotina de validação e acompanhamento
+
+1. Durante o desenvolvimento, executar análise estática e testes proporcionais aos arquivos e fluxos alterados.
+2. Antes da integração, conferir os checks aplicáveis ao SHA atual: SonarQube, dependências, segredos, testes e, nas frentes que os incluem, os controles ZAP/Stryker definidos nos workflows.
+3. Investigar os achados e registrar correções, justificativas e riscos residuais. Falha, timeout ou relatório incompleto não contam como aprovação.
+4. Validar os fluxos afetados em laboratório, com capturas quando houver impacto visual, e registrar a homologação humana separadamente.
+5. Manter evidências na PR/CI e decisões duráveis em `docs/changes/`. Revalidar após mudanças; notas e relatórios históricos não certificam versões futuras.
+
+A adoção de ZAP e Stryker está registrada na [PR #61](https://github.com/jefersonfq/NodeAccess/pull/61);
+a correção de CSP identificada pelo ZAP está na [PR #62](https://github.com/jefersonfq/NodeAccess/pull/62).
+Consulte os checks e o estado dessas PRs para distinguir validação do candidato, integração em `master` e implantação.
 
 Atualize esta seção quando uma ferramenta for adotada, removida ou mudar de escopo,
 incluindo o comando/workflow e distinguindo o que está em uso do que é proposta.

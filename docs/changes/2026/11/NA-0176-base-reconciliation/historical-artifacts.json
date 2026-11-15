@@ -1,0 +1,1286 @@
+{
+  "purpose": "Historical generated artifacts preserved locally; not current product or gate evidence",
+  "checkpoint": "91fcfd81a3e5c26f4cca0cea4791fc49b4abce48",
+  "untrackedTree": "91fcfd81a3e5c26f4cca0cea4791fc49b4abce48^3",
+  "backupBranch": "backup/NA-0176-canonical-20261115T180624",
+  "entries": [
+    {
+      "path": "docs/changes/2026/10/NA-0084-shift-handover/evidence/evolution-independent-report.json",
+      "sha256": "ca50e8143325cd32e2a5ab47600dc1467cd6468b6761b5b5a809ac4b1b3ad87d",
+      "bytes": 2577,
+      "archive": ".tmp/NA-0175/base-reconciliation/historical-artifacts/docs/changes/2026/10/NA-0084-shift-handover/evidence/evolution-independent-report.json"
+    },
+    {
+      "path": "docs/changes/2026/10/NA-0084-shift-handover/evidence/evolution-lab-report.json",
+      "sha256": "fb741b07f29148e9639c5cad92996584fe18696d05736e26b33870a3eeaf269e",
+      "bytes": 2681,
+      "archive": ".tmp/NA-0175/base-reconciliation/historical-artifacts/docs/changes/2026/10/NA-0084-shift-handover/evidence/evolution-lab-report.json"
+    },
+    {
+      "path": "docs/changes/2026/10/NA-0084-shift-handover/evidence/evolution-manual-review.json",
+      "sha256": "77a92733cd8b56fff9791b181dc0fd37c5a5638a53a3a9ad368028b365bdf1d8",
+      "bytes": 345,
+      "archive": ".tmp/NA-0175/base-reconciliation/historical-artifacts/docs/changes/2026/10/NA-0084-shift-handover/evidence/evolution-manual-review.json"
+    },
+    {
+      "path": "docs/changes/2026/10/NA-0084-shift-handover/evidence/evolution-terminal-experience.json",
+      "sha256": "e148dba00daa9b8ffe4810dec9348fd4f39de5965d59646fe66e5171aa0caf9a",
+      "bytes": 5170,
+      "archive": ".tmp/NA-0175/base-reconciliation/historical-artifacts/docs/changes/2026/10/NA-0084-shift-handover/evidence/evolution-terminal-experience.json"
+    },
+    {
+      "path": "docs/changes/2026/10/NA-0084-shift-handover/evidence/independent-report.json",
+      "sha256": "71d26642b1e30206a3d3e3dac62a54fb6a571a32d935bd64e48b2b7609b1f0a7",
+      "bytes": 1645,
+      "archive": ".tmp/NA-0175/base-reconciliation/historical-artifacts/docs/changes/2026/10/NA-0084-shift-handover/evidence/independent-report.json"
+    },
+    {
+      "path": "docs/changes/2026/10/NA-0084-shift-handover/evidence/lab-report.json",
+      "sha256": "5e1267a687cd662993604db98b7bdb16e33ff9080c3fda6d5315b70f9ba9f655",
+      "bytes": 1749,
+      "archive": ".tmp/NA-0175/base-reconciliation/historical-artifacts/docs/changes/2026/10/NA-0084-shift-handover/evidence/lab-report.json"
+    },
+    {
+      "path": "docs/changes/2026/10/NA-0084-shift-handover/evidence/manual-review.json",
+      "sha256": "77a92733cd8b56fff9791b181dc0fd37c5a5638a53a3a9ad368028b365bdf1d8",
+      "bytes": 345,
+      "archive": ".tmp/NA-0175/base-reconciliation/historical-artifacts/docs/changes/2026/10/NA-0084-shift-handover/evidence/manual-review.json"
+    },
+    {
+      "path": "docs/changes/2026/10/NA-0084-shift-handover/evidence/terminal-experience.json",
+      "sha256": "55c0fa21bfdd52948ddd38a5179e548911e51d0cdbfebb44214390773b8c6d89",
+      "bytes": 5171,
+      "archive": ".tmp/NA-0175/base-reconciliation/historical-artifacts/docs/changes/2026/10/NA-0084-shift-handover/evidence/terminal-experience.json"
+    },
+    {
+      "path": "docs/changes/2026/10/NA-0084-shift-handover/screenshots/01-carlos-prepara-pendencia.png",
+      "sha256": "933c0e8136f857aa0935dc139a463a6043b4cce4f47a4629d0b344fdc1326f2e",
+      "bytes": 113142,
+      "archive": ".tmp/NA-0175/base-reconciliation/historical-artifacts/docs/changes/2026/10/NA-0084-shift-handover/screenshots/01-carlos-prepara-pendencia.png"
+    },
+    {
+      "path": "docs/changes/2026/10/NA-0084-shift-handover/screenshots/02-carlos-encaminhou-aguarda-aceite.png",
+      "sha256": "56b5cd7836a49bd182aabc57e19acc5563eadc0b1c80984a1584ac7d92d1b8a4",
+      "bytes": 95825,
+      "archive": ".tmp/NA-0175/base-reconciliation/historical-artifacts/docs/changes/2026/10/NA-0084-shift-handover/screenshots/02-carlos-encaminhou-aguarda-aceite.png"
+    },
+    {
+      "path": "docs/changes/2026/10/NA-0084-shift-handover/screenshots/03-marina-recebe-notificacao.png",
+      "sha256": "6f8ac974e416e1f79510ca4dfb3c264bac24c7449bd2ff30d117b2ec31361c77",
+      "bytes": 68028,
+      "archive": ".tmp/NA-0175/base-reconciliation/historical-artifacts/docs/changes/2026/10/NA-0084-shift-handover/screenshots/03-marina-recebe-notificacao.png"
+    },
+    {
+      "path": "docs/changes/2026/10/NA-0084-shift-handover/screenshots/04-marina-revisa-antes-do-aceite.png",
+      "sha256": "263f9200e26f88719599c4f1282a7f92cd26c0578a22fd2a9d46f19d34fec83c",
+      "bytes": 101251,
+      "archive": ".tmp/NA-0175/base-reconciliation/historical-artifacts/docs/changes/2026/10/NA-0084-shift-handover/screenshots/04-marina-revisa-antes-do-aceite.png"
+    },
+    {
+      "path": "docs/changes/2026/10/NA-0084-shift-handover/screenshots/05-marina-assume-responsabilidade.png",
+      "sha256": "8be67faac845d1926734ce259c63312e677fe7e0d397cca51e7563f0855bdfc5",
+      "bytes": 102878,
+      "archive": ".tmp/NA-0175/base-reconciliation/historical-artifacts/docs/changes/2026/10/NA-0084-shift-handover/screenshots/05-marina-assume-responsabilidade.png"
+    },
+    {
+      "path": "docs/changes/2026/10/NA-0084-shift-handover/screenshots/06-marina-conclui-com-resultado.png",
+      "sha256": "95ffd76c263ef339bf4a045cdb5bb9a735fbccaaeec909129e6865139b4a823b",
+      "bytes": 114082,
+      "archive": ".tmp/NA-0175/base-reconciliation/historical-artifacts/docs/changes/2026/10/NA-0084-shift-handover/screenshots/06-marina-conclui-com-resultado.png"
+    },
+    {
+      "path": "docs/changes/2026/10/NA-0084-shift-handover/screenshots/07-carlos-acompanha-retorno.png",
+      "sha256": "ef6014e614c5ad3c5325d6943f2bf18c5ea27268b97f9f9fa1e35b51aff9a393",
+      "bytes": 87005,
+      "archive": ".tmp/NA-0175/base-reconciliation/historical-artifacts/docs/changes/2026/10/NA-0084-shift-handover/screenshots/07-carlos-acompanha-retorno.png"
+    },
+    {
+      "path": "docs/changes/2026/10/NA-0084-shift-handover/screenshots/08-mobile-historico.png",
+      "sha256": "f823fa1b4c7730ea18c8eea5529f331b55ee71db7b5e3ddda590e54549bcece3",
+      "bytes": 69150,
+      "archive": ".tmp/NA-0175/base-reconciliation/historical-artifacts/docs/changes/2026/10/NA-0084-shift-handover/screenshots/08-mobile-historico.png"
+    },
+    {
+      "path": "docs/changes/2026/10/NA-0084-shift-handover/screenshots/09-gestora-quadro-do-grupo.png",
+      "sha256": "cbf48c59f659de062f52351e28d2ddcd267948770b407e3dc8b157b2752ffa43",
+      "bytes": 110511,
+      "archive": ".tmp/NA-0175/base-reconciliation/historical-artifacts/docs/changes/2026/10/NA-0084-shift-handover/screenshots/09-gestora-quadro-do-grupo.png"
+    },
+    {
+      "path": "docs/changes/2026/10/NA-0084-shift-handover/screenshots/10-gestora-prioridades-e-prazo.png",
+      "sha256": "e80c84201720c40a14072fdd3475a374837d18b5f6895d127c91bf3b2c2649be",
+      "bytes": 82855,
+      "archive": ".tmp/NA-0175/base-reconciliation/historical-artifacts/docs/changes/2026/10/NA-0084-shift-handover/screenshots/10-gestora-prioridades-e-prazo.png"
+    },
+    {
+      "path": "docs/changes/2026/10/NA-0084-shift-handover/screenshots/11-gestora-consulta-sem-assumir.png",
+      "sha256": "774d48cc0477d6414f09a20e5909899d8bf7ecde87de631acafceb1234977758",
+      "bytes": 91634,
+      "archive": ".tmp/NA-0175/base-reconciliation/historical-artifacts/docs/changes/2026/10/NA-0084-shift-handover/screenshots/11-gestora-consulta-sem-assumir.png"
+    },
+    {
+      "path": "docs/changes/2026/10/NA-0084-shift-handover/screenshots/12-admin-visao-do-tenant.png",
+      "sha256": "2248c123c3248f4069df0eb59762299b2e17b756f7655824e55c8cbeb2ff7e18",
+      "bytes": 138858,
+      "archive": ".tmp/NA-0175/base-reconciliation/historical-artifacts/docs/changes/2026/10/NA-0084-shift-handover/screenshots/12-admin-visao-do-tenant.png"
+    },
+    {
+      "path": "docs/changes/2026/10/NA-0084-shift-handover/screenshots/13-admin-delega-leitura-do-grupo.png",
+      "sha256": "80f0c4776050cc92a30a5f9b37e0b37d170e348c84b887f15ff59b0eefb3c23b",
+      "bytes": 121348,
+      "archive": ".tmp/NA-0175/base-reconciliation/historical-artifacts/docs/changes/2026/10/NA-0084-shift-handover/screenshots/13-admin-delega-leitura-do-grupo.png"
+    },
+    {
+      "path": "docs/changes/2026/10/NA-0084-shift-handover/screenshots/14-marina-lembrete-agrupado.png",
+      "sha256": "a12d7de405fcb6301208e92e6d881b9445cf1d7478f643fb59b154beccaac43f",
+      "bytes": 77081,
+      "archive": ".tmp/NA-0175/base-reconciliation/historical-artifacts/docs/changes/2026/10/NA-0084-shift-handover/screenshots/14-marina-lembrete-agrupado.png"
+    },
+    {
+      "path": "docs/changes/2026/10/NA-0084-shift-handover/screenshots/15-dashboard-pessoal-com-plantao.png",
+      "sha256": "8efe1382e901f15ed1a8bef97faa97e58359304febbf63c28271d53b9d7193c7",
+      "bytes": 100722,
+      "archive": ".tmp/NA-0175/base-reconciliation/historical-artifacts/docs/changes/2026/10/NA-0084-shift-handover/screenshots/15-dashboard-pessoal-com-plantao.png"
+    },
+    {
+      "path": "docs/changes/2026/10/NA-0084-shift-handover/screenshots/16-dashboard-host-resumo.png",
+      "sha256": "e989f634b64867eb0b9784c8bf19c74d7ecae42c805d47a22890113325b38778",
+      "bytes": 31424,
+      "archive": ".tmp/NA-0175/base-reconciliation/historical-artifacts/docs/changes/2026/10/NA-0084-shift-handover/screenshots/16-dashboard-host-resumo.png"
+    },
+    {
+      "path": "docs/changes/2026/10/NA-0084-shift-handover/screenshots/17-mobile-quadro-do-grupo.png",
+      "sha256": "0446eb58af5e762a47f76933a28b62c6223c22e4d12950bfc5e1aa56e50a5728",
+      "bytes": 49656,
+      "archive": ".tmp/NA-0175/base-reconciliation/historical-artifacts/docs/changes/2026/10/NA-0084-shift-handover/screenshots/17-mobile-quadro-do-grupo.png"
+    },
+    {
+      "path": "docs/changes/2026/10/NA-0084-shift-handover/screenshots/18-marina-lista-com-filtros.png",
+      "sha256": "9c3b60019682a81fbf92ee73d63264426cb5212f56408b3b69c282d7216fb65b",
+      "bytes": 80676,
+      "archive": ".tmp/NA-0175/base-reconciliation/historical-artifacts/docs/changes/2026/10/NA-0084-shift-handover/screenshots/18-marina-lista-com-filtros.png"
+    },
+    {
+      "path": "docs/changes/2026/10/NA-0084-shift-handover/screenshots/19-quadro-falha-com-recuperacao-local.png",
+      "sha256": "4c26002cf1e2fbd72374a8330a8174086f2e486440af7cd1b6f987b2ef553b5a",
+      "bytes": 37654,
+      "archive": ".tmp/NA-0175/base-reconciliation/historical-artifacts/docs/changes/2026/10/NA-0084-shift-handover/screenshots/19-quadro-falha-com-recuperacao-local.png"
+    },
+    {
+      "path": "docs/changes/2026/10/NA-0084-shift-handover/screenshots/20-quadro-recorte-sem-pendencias.png",
+      "sha256": "68a51fa55dd32d60c35e291be16571b9d76e056fd7a62dbb98264806b0662aad",
+      "bytes": 65952,
+      "archive": ".tmp/NA-0175/base-reconciliation/historical-artifacts/docs/changes/2026/10/NA-0084-shift-handover/screenshots/20-quadro-recorte-sem-pendencias.png"
+    },
+    {
+      "path": "docs/changes/2026/10/NA-0084-shift-handover/terminal-indicator-independent.json",
+      "sha256": "09781aea7094b1eab83b231d711b05449b9e4bc1dc218aaba3f300883c1a5e1e",
+      "bytes": 2941,
+      "archive": ".tmp/NA-0175/base-reconciliation/historical-artifacts/docs/changes/2026/10/NA-0084-shift-handover/terminal-indicator-independent.json"
+    },
+    {
+      "path": "docs/changes/2026/10/NA-0084-shift-handover/terminal-indicator-real-api.json",
+      "sha256": "ed25490cd6f636548f393669f2c07d7d615d8285850d9382433cc7b6dbc96aa2",
+      "bytes": 3071,
+      "archive": ".tmp/NA-0175/base-reconciliation/historical-artifacts/docs/changes/2026/10/NA-0084-shift-handover/terminal-indicator-real-api.json"
+    },
+    {
+      "path": "docs/changes/2026/10/NA-0084-shift-handover/terminal-indicator-real-browser.json",
+      "sha256": "6f93a6ec5d2fbe4163819770128583287f93cfa9baf418dd2f7df27642af49f4",
+      "bytes": 533,
+      "archive": ".tmp/NA-0175/base-reconciliation/historical-artifacts/docs/changes/2026/10/NA-0084-shift-handover/terminal-indicator-real-browser.json"
+    },
+    {
+      "path": "docs/changes/2026/10/NA-0084-shift-handover/terminal-indicator-regression.json",
+      "sha256": "b402aaa60c455581e555ed889f767d9f0b892cc19e2b8bb3db437ac16fb7c220",
+      "bytes": 5171,
+      "archive": ".tmp/NA-0175/base-reconciliation/historical-artifacts/docs/changes/2026/10/NA-0084-shift-handover/terminal-indicator-regression.json"
+    },
+    {
+      "path": "docs/changes/2026/10/NA-0084-shift-handover/terminal-indicator-ui.json",
+      "sha256": "f16ece286e97685143f82334f10fadc6e4d05030195eb36952ef93057ba6a26f",
+      "bytes": 4192,
+      "archive": ".tmp/NA-0175/base-reconciliation/historical-artifacts/docs/changes/2026/10/NA-0084-shift-handover/terminal-indicator-ui.json"
+    },
+    {
+      "path": "docs/changes/2026/10/NA-0084-shift-handover/terminal-screenshots/01-terminal-indicador-discreto.png",
+      "sha256": "e75071ac65df7a5ff86733be18bf53f04a5e5f87542b31681110e030bf0369d4",
+      "bytes": 40573,
+      "archive": ".tmp/NA-0175/base-reconciliation/historical-artifacts/docs/changes/2026/10/NA-0084-shift-handover/terminal-screenshots/01-terminal-indicador-discreto.png"
+    },
+    {
+      "path": "docs/changes/2026/10/NA-0084-shift-handover/terminal-screenshots/02-terminal-pendencias-do-host.png",
+      "sha256": "1477a360eef97e2b4b53eb3d260ce32e8897d8b32d3bfa3ae848dbd4fdd98ccc",
+      "bytes": 83314,
+      "archive": ".tmp/NA-0175/base-reconciliation/historical-artifacts/docs/changes/2026/10/NA-0084-shift-handover/terminal-screenshots/02-terminal-pendencias-do-host.png"
+    },
+    {
+      "path": "docs/changes/2026/10/NA-0084-shift-handover/terminal-screenshots/03-terminal-contexto-expandido.png",
+      "sha256": "a08655e707a112c87d1ef92c6447612adba8448a4a13532c901c5a6e05ed13e6",
+      "bytes": 99868,
+      "archive": ".tmp/NA-0175/base-reconciliation/historical-artifacts/docs/changes/2026/10/NA-0084-shift-handover/terminal-screenshots/03-terminal-contexto-expandido.png"
+    },
+    {
+      "path": "docs/changes/2026/10/NA-0084-shift-handover/terminal-screenshots/04-terminal-plantao-fullscreen.png",
+      "sha256": "756392ee5f37017ff4714e91741ef6e47e79210e2b3e1b62978915487fc32692",
+      "bytes": 85042,
+      "archive": ".tmp/NA-0175/base-reconciliation/historical-artifacts/docs/changes/2026/10/NA-0084-shift-handover/terminal-screenshots/04-terminal-plantao-fullscreen.png"
+    },
+    {
+      "path": "docs/changes/2026/10/NA-0084-shift-handover/terminal-screenshots/05-terminal-falha-local.png",
+      "sha256": "ac119b5f5e9bdcbcbf8b3567f349446c1389c104ad9f8138b6e98c1bc4aab1a0",
+      "bytes": 56834,
+      "archive": ".tmp/NA-0175/base-reconciliation/historical-artifacts/docs/changes/2026/10/NA-0084-shift-handover/terminal-screenshots/05-terminal-falha-local.png"
+    },
+    {
+      "path": "docs/changes/2026/10/NA-0084-shift-handover/terminal-screenshots/06-terminal-sem-pendencias-visiveis.png",
+      "sha256": "e58218bfde0ca7b1594b7ded2494bf115d65d94aa1e02ff5ae9b475505b1b5a7",
+      "bytes": 60812,
+      "archive": ".tmp/NA-0175/base-reconciliation/historical-artifacts/docs/changes/2026/10/NA-0084-shift-handover/terminal-screenshots/06-terminal-sem-pendencias-visiveis.png"
+    },
+    {
+      "path": "docs/changes/2026/10/NA-0084-shift-handover/terminal-screenshots/07-terminal-plantao-mobile.png",
+      "sha256": "72a85c95b7e51e4671e1ebfdc1563b7a08f8f2c70fbf7bf9b30217fd5f98b2d9",
+      "bytes": 59855,
+      "archive": ".tmp/NA-0175/base-reconciliation/historical-artifacts/docs/changes/2026/10/NA-0084-shift-handover/terminal-screenshots/07-terminal-plantao-mobile.png"
+    },
+    {
+      "path": "docs/changes/2026/10/NA-0084-shift-handover/terminal-screenshots/08-terminal-troca-de-host.png",
+      "sha256": "b91ef4586b905ada6eea78ed81c231311cd0f81cfdaa4508b76e3f1e7291e316",
+      "bytes": 63089,
+      "archive": ".tmp/NA-0175/base-reconciliation/historical-artifacts/docs/changes/2026/10/NA-0084-shift-handover/terminal-screenshots/08-terminal-troca-de-host.png"
+    },
+    {
+      "path": "docs/changes/2026/10/NA-0084-shift-handover/terminal-screenshots/09-terminal-api-real.png",
+      "sha256": "e9fe273c2e36efc958334d62cc1f9672f36bded429af87a55afb2b8d649b4fbf",
+      "bytes": 99887,
+      "archive": ".tmp/NA-0175/base-reconciliation/historical-artifacts/docs/changes/2026/10/NA-0084-shift-handover/terminal-screenshots/09-terminal-api-real.png"
+    },
+    {
+      "path": "docs/changes/2026/10/NA-0084-shift-handover/terminal-screenshots/10-terminal-plantao-split.png",
+      "sha256": "9cd4f8ccdaa009b07dca1e2bf9d6d39451d0e624521860dcb855dbcb7678fca0",
+      "bytes": 94426,
+      "archive": ".tmp/NA-0175/base-reconciliation/historical-artifacts/docs/changes/2026/10/NA-0084-shift-handover/terminal-screenshots/10-terminal-plantao-split.png"
+    },
+    {
+      "path": "docs/changes/2026/10/NA-0084-shift-handover/terminal-screenshots/11-terminal-nota-longa-fechamento-visivel.png",
+      "sha256": "cbadc789eae3634d2fd3f158a1c4806465c0d81faecb0dcb0b20263e659825a7",
+      "bytes": 73047,
+      "archive": ".tmp/NA-0175/base-reconciliation/historical-artifacts/docs/changes/2026/10/NA-0084-shift-handover/terminal-screenshots/11-terminal-nota-longa-fechamento-visivel.png"
+    },
+    {
+      "path": "docs/changes/2026/10/NA-0084-shift-handover/terminal-screenshots/12-terminal-barra-a-esquerda.png",
+      "sha256": "1fa5e4642f188d6ca6629ced376834f35ce79dafe4e6102121981cdc7e2516ab",
+      "bytes": 79608,
+      "archive": ".tmp/NA-0175/base-reconciliation/historical-artifacts/docs/changes/2026/10/NA-0084-shift-handover/terminal-screenshots/12-terminal-barra-a-esquerda.png"
+    },
+    {
+      "path": "docs/changes/2026/11/NA-0089-sonar-integration/latest-checkpoint.json",
+      "sha256": "b0fb8e9de4b6c2ec5d2825831a297b1d10d2065f4b4e7f613d738bc32ad52778",
+      "bytes": 3027,
+      "archive": ".tmp/NA-0175/base-reconciliation/historical-artifacts/docs/changes/2026/11/NA-0089-sonar-integration/latest-checkpoint.json"
+    },
+    {
+      "path": "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/28a77996d/coverage-summary.json",
+      "sha256": "1757ef09a579a1f451f704dfd5a1919422339d7d4b36cfafbd1da1ffc95267e2",
+      "bytes": 51018,
+      "archive": ".tmp/NA-0175/base-reconciliation/historical-artifacts/docs/changes/2026/11/NA-0093-sonar-delivery/evidence/28a77996d/coverage-summary.json"
+    },
+    {
+      "path": "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/28a77996d/governance.json",
+      "sha256": "fe16fa0ce125c03c1ecd2df930b04c0fdecb966cff54ea6df3a3b14f9efc0649",
+      "bytes": 554,
+      "archive": ".tmp/NA-0175/base-reconciliation/historical-artifacts/docs/changes/2026/11/NA-0093-sonar-delivery/evidence/28a77996d/governance.json"
+    },
+    {
+      "path": "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/28a77996d/security-summary.json",
+      "sha256": "cb3fa1642704306ec916cb49347fb31bd17b49f4fbd84530179ec2e98f9e5cd0",
+      "bytes": 220,
+      "archive": ".tmp/NA-0175/base-reconciliation/historical-artifacts/docs/changes/2026/11/NA-0093-sonar-delivery/evidence/28a77996d/security-summary.json"
+    },
+    {
+      "path": "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/2902f526d/ci-summary.json",
+      "sha256": "baae2c7987e7f95daaf8d6be8b93628465e5f3e7dc67ffa8d7e1933ef4f2ab9d",
+      "bytes": 3600,
+      "archive": ".tmp/NA-0175/base-reconciliation/historical-artifacts/docs/changes/2026/11/NA-0093-sonar-delivery/evidence/2902f526d/ci-summary.json"
+    },
+    {
+      "path": "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/2902f526d/dashboard-desktop.png",
+      "sha256": "751e1dd01b172ffd4970c2e8479b034727e53dbb3fa170a9a20d00d1cff9ab82",
+      "bytes": 132108,
+      "archive": ".tmp/NA-0175/base-reconciliation/historical-artifacts/docs/changes/2026/11/NA-0093-sonar-delivery/evidence/2902f526d/dashboard-desktop.png"
+    },
+    {
+      "path": "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/2902f526d/dashboard-mobile.png",
+      "sha256": "45399320bb9a53906c6b4ed148b05d9b2a2ec41c3fc930f99ad59d9746441e11",
+      "bytes": 50481,
+      "archive": ".tmp/NA-0175/base-reconciliation/historical-artifacts/docs/changes/2026/11/NA-0093-sonar-delivery/evidence/2902f526d/dashboard-mobile.png"
+    },
+    {
+      "path": "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/2902f526d/diagnostic-desktop.png",
+      "sha256": "34ecc0ece5f07b7f8b4a12c544a71058a92109f10f709eef2353f3342ffd3944",
+      "bytes": 124320,
+      "archive": ".tmp/NA-0175/base-reconciliation/historical-artifacts/docs/changes/2026/11/NA-0093-sonar-delivery/evidence/2902f526d/diagnostic-desktop.png"
+    },
+    {
+      "path": "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/2902f526d/diagnostic-mobile.png",
+      "sha256": "114f28ec0a9c59d93f9e513b51638e67322baea03274a271c1de0235525eb7db",
+      "bytes": 50954,
+      "archive": ".tmp/NA-0175/base-reconciliation/historical-artifacts/docs/changes/2026/11/NA-0093-sonar-delivery/evidence/2902f526d/diagnostic-mobile.png"
+    },
+    {
+      "path": "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/2902f526d/report.json",
+      "sha256": "56167a428784d4593fd01f3fb4b90262def30520f104b7249c9dd06120d856ff",
+      "bytes": 2225,
+      "archive": ".tmp/NA-0175/base-reconciliation/historical-artifacts/docs/changes/2026/11/NA-0093-sonar-delivery/evidence/2902f526d/report.json"
+    },
+    {
+      "path": "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/2ce54c088/dashboard-desktop.png",
+      "sha256": "405e0b796cc615f7bcf2952a6ff09e1c39a2ea25368865703eade77c875cc4e7",
+      "bytes": 134006,
+      "archive": ".tmp/NA-0175/base-reconciliation/historical-artifacts/docs/changes/2026/11/NA-0093-sonar-delivery/evidence/2ce54c088/dashboard-desktop.png"
+    },
+    {
+      "path": "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/2ce54c088/dashboard-mobile.png",
+      "sha256": "c90c0abafa47ac6d07e9ae99b6df77715447f7df7de4973273b4307218c31ede",
+      "bytes": 50565,
+      "archive": ".tmp/NA-0175/base-reconciliation/historical-artifacts/docs/changes/2026/11/NA-0093-sonar-delivery/evidence/2ce54c088/dashboard-mobile.png"
+    },
+    {
+      "path": "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/2ce54c088/diagnostic-desktop.png",
+      "sha256": "e4c0190f363f067344f4bc2b99f7a19c168da841f57407aeb15a5dfb0af166a8",
+      "bytes": 124227,
+      "archive": ".tmp/NA-0175/base-reconciliation/historical-artifacts/docs/changes/2026/11/NA-0093-sonar-delivery/evidence/2ce54c088/diagnostic-desktop.png"
+    },
+    {
+      "path": "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/2ce54c088/diagnostic-mobile.png",
+      "sha256": "07812edb2eb5bb7473b839fd5bd888f0b426114b1cb8f5132856eb75059d5302",
+      "bytes": 50925,
+      "archive": ".tmp/NA-0175/base-reconciliation/historical-artifacts/docs/changes/2026/11/NA-0093-sonar-delivery/evidence/2ce54c088/diagnostic-mobile.png"
+    },
+    {
+      "path": "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/2ce54c088/report.json",
+      "sha256": "56167a428784d4593fd01f3fb4b90262def30520f104b7249c9dd06120d856ff",
+      "bytes": 2225,
+      "archive": ".tmp/NA-0175/base-reconciliation/historical-artifacts/docs/changes/2026/11/NA-0093-sonar-delivery/evidence/2ce54c088/report.json"
+    },
+    {
+      "path": "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/2ce54c088/validation-summary.json",
+      "sha256": "9be411f3969263c0b3fae04dae073c4aad23be197c88ab43b1c16acbc1f32b95",
+      "bytes": 3568,
+      "archive": ".tmp/NA-0175/base-reconciliation/historical-artifacts/docs/changes/2026/11/NA-0093-sonar-delivery/evidence/2ce54c088/validation-summary.json"
+    },
+    {
+      "path": "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/66b72db34/dashboard-desktop.png",
+      "sha256": "3745cadf1d109b0a0ac10c4489d5caf352b6ff89a679817214d138cfa37792ea",
+      "bytes": 130738,
+      "archive": ".tmp/NA-0175/base-reconciliation/historical-artifacts/docs/changes/2026/11/NA-0093-sonar-delivery/evidence/66b72db34/dashboard-desktop.png"
+    },
+    {
+      "path": "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/66b72db34/dashboard-mobile.png",
+      "sha256": "65c5672a062cfbcb539fc4645da5d5f11aa64067c61adfd0de8cd664db648db3",
+      "bytes": 50500,
+      "archive": ".tmp/NA-0175/base-reconciliation/historical-artifacts/docs/changes/2026/11/NA-0093-sonar-delivery/evidence/66b72db34/dashboard-mobile.png"
+    },
+    {
+      "path": "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/66b72db34/diagnostic-desktop.png",
+      "sha256": "1cd270b9c6de73c79a237aae72ef329f146d610a8562dd0fb744d609d1142579",
+      "bytes": 124272,
+      "archive": ".tmp/NA-0175/base-reconciliation/historical-artifacts/docs/changes/2026/11/NA-0093-sonar-delivery/evidence/66b72db34/diagnostic-desktop.png"
+    },
+    {
+      "path": "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/66b72db34/diagnostic-mobile.png",
+      "sha256": "07812edb2eb5bb7473b839fd5bd888f0b426114b1cb8f5132856eb75059d5302",
+      "bytes": 50925,
+      "archive": ".tmp/NA-0175/base-reconciliation/historical-artifacts/docs/changes/2026/11/NA-0093-sonar-delivery/evidence/66b72db34/diagnostic-mobile.png"
+    },
+    {
+      "path": "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/66b72db34/report.json",
+      "sha256": "56167a428784d4593fd01f3fb4b90262def30520f104b7249c9dd06120d856ff",
+      "bytes": 2225,
+      "archive": ".tmp/NA-0175/base-reconciliation/historical-artifacts/docs/changes/2026/11/NA-0093-sonar-delivery/evidence/66b72db34/report.json"
+    },
+    {
+      "path": "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/66b72db34/restore-runtime.json",
+      "sha256": "31fbb9163f1daf392fdd5303b711903f82d907195d611792f8159e5919c781bb",
+      "bytes": 1046,
+      "archive": ".tmp/NA-0175/base-reconciliation/historical-artifacts/docs/changes/2026/11/NA-0093-sonar-delivery/evidence/66b72db34/restore-runtime.json"
+    },
+    {
+      "path": "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/66b72db34/stable-desktop/dashboard-stable.png",
+      "sha256": "569cf00db55865434e5d91d23f8b630edf592ae41ad7e3f21c6ac419bace3e1a",
+      "bytes": 133661,
+      "archive": ".tmp/NA-0175/base-reconciliation/historical-artifacts/docs/changes/2026/11/NA-0093-sonar-delivery/evidence/66b72db34/stable-desktop/dashboard-stable.png"
+    },
+    {
+      "path": "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/66b72db34/stable-desktop/report.json",
+      "sha256": "446f810b62d1ac9e7cf8f687803728ee496a8cfdd51bba9ce4d4727e03f18b4a",
+      "bytes": 1303,
+      "archive": ".tmp/NA-0175/base-reconciliation/historical-artifacts/docs/changes/2026/11/NA-0093-sonar-delivery/evidence/66b72db34/stable-desktop/report.json"
+    },
+    {
+      "path": "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/b568eccf0/dashboard-desktop.png",
+      "sha256": "751e1dd01b172ffd4970c2e8479b034727e53dbb3fa170a9a20d00d1cff9ab82",
+      "bytes": 132108,
+      "archive": ".tmp/NA-0175/base-reconciliation/historical-artifacts/docs/changes/2026/11/NA-0093-sonar-delivery/evidence/b568eccf0/dashboard-desktop.png"
+    },
+    {
+      "path": "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/b568eccf0/dashboard-mobile.png",
+      "sha256": "1a79a36b8b3ccd61e2d0637426ed01e5d6d555d3e8a4660e9328bfc89f912fc8",
+      "bytes": 50463,
+      "archive": ".tmp/NA-0175/base-reconciliation/historical-artifacts/docs/changes/2026/11/NA-0093-sonar-delivery/evidence/b568eccf0/dashboard-mobile.png"
+    },
+    {
+      "path": "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/b568eccf0/diagnostic-desktop.png",
+      "sha256": "5d756f62d55566ae75e65b0ab900631475b99234a1d2a3d6797c5e4a5bdb2acf",
+      "bytes": 124227,
+      "archive": ".tmp/NA-0175/base-reconciliation/historical-artifacts/docs/changes/2026/11/NA-0093-sonar-delivery/evidence/b568eccf0/diagnostic-desktop.png"
+    },
+    {
+      "path": "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/b568eccf0/diagnostic-mobile.png",
+      "sha256": "7c8c7c636f615a2429ad946ae92db83c0b551095eddb27430a7c08bbd7551f8f",
+      "bytes": 50944,
+      "archive": ".tmp/NA-0175/base-reconciliation/historical-artifacts/docs/changes/2026/11/NA-0093-sonar-delivery/evidence/b568eccf0/diagnostic-mobile.png"
+    },
+    {
+      "path": "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/b568eccf0/report.json",
+      "sha256": "56167a428784d4593fd01f3fb4b90262def30520f104b7249c9dd06120d856ff",
+      "bytes": 2225,
+      "archive": ".tmp/NA-0175/base-reconciliation/historical-artifacts/docs/changes/2026/11/NA-0093-sonar-delivery/evidence/b568eccf0/report.json"
+    },
+    {
+      "path": "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/b568eccf0/validation-summary.json",
+      "sha256": "3b21f44b1646c27be8341695d35d411a7e5c501e6c1300f699f521132cb2d980",
+      "bytes": 1693,
+      "archive": ".tmp/NA-0175/base-reconciliation/historical-artifacts/docs/changes/2026/11/NA-0093-sonar-delivery/evidence/b568eccf0/validation-summary.json"
+    },
+    {
+      "path": "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/b76faaec6/dashboard-desktop.png",
+      "sha256": "46ba9330496033c8bd382cf6b1a5531f1033ec4687b25aa635290aa57cb8852f",
+      "bytes": 133443,
+      "archive": ".tmp/NA-0175/base-reconciliation/historical-artifacts/docs/changes/2026/11/NA-0093-sonar-delivery/evidence/b76faaec6/dashboard-desktop.png"
+    },
+    {
+      "path": "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/b76faaec6/dashboard-mobile.png",
+      "sha256": "22a3333033725d5f6859c76068dbff3296110b8d9a47ad2b41f9c0aedd8c31b3",
+      "bytes": 50489,
+      "archive": ".tmp/NA-0175/base-reconciliation/historical-artifacts/docs/changes/2026/11/NA-0093-sonar-delivery/evidence/b76faaec6/dashboard-mobile.png"
+    },
+    {
+      "path": "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/b76faaec6/diagnostic-desktop.png",
+      "sha256": "5d756f62d55566ae75e65b0ab900631475b99234a1d2a3d6797c5e4a5bdb2acf",
+      "bytes": 124227,
+      "archive": ".tmp/NA-0175/base-reconciliation/historical-artifacts/docs/changes/2026/11/NA-0093-sonar-delivery/evidence/b76faaec6/diagnostic-desktop.png"
+    },
+    {
+      "path": "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/b76faaec6/diagnostic-mobile.png",
+      "sha256": "7c8c7c636f615a2429ad946ae92db83c0b551095eddb27430a7c08bbd7551f8f",
+      "bytes": 50944,
+      "archive": ".tmp/NA-0175/base-reconciliation/historical-artifacts/docs/changes/2026/11/NA-0093-sonar-delivery/evidence/b76faaec6/diagnostic-mobile.png"
+    },
+    {
+      "path": "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/b76faaec6/report.json",
+      "sha256": "56167a428784d4593fd01f3fb4b90262def30520f104b7249c9dd06120d856ff",
+      "bytes": 2225,
+      "archive": ".tmp/NA-0175/base-reconciliation/historical-artifacts/docs/changes/2026/11/NA-0093-sonar-delivery/evidence/b76faaec6/report.json"
+    },
+    {
+      "path": "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/candidate-025e82863/01-table-desktop.png",
+      "sha256": "d647e624a872291d2ede2e298ea00bb4e5a73c25683dece94e83edadc95c31d3",
+      "bytes": 167126,
+      "archive": ".tmp/NA-0175/base-reconciliation/historical-artifacts/docs/changes/2026/11/NA-0093-sonar-delivery/evidence/candidate-025e82863/01-table-desktop.png"
+    },
+    {
+      "path": "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/candidate-025e82863/02-table-filtered.png",
+      "sha256": "30651983712f90a33c79520ea1e226cc2e4b2e3fee53ad931463fb24f9bff446",
+      "bytes": 176445,
+      "archive": ".tmp/NA-0175/base-reconciliation/historical-artifacts/docs/changes/2026/11/NA-0093-sonar-delivery/evidence/candidate-025e82863/02-table-filtered.png"
+    },
+    {
+      "path": "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/candidate-025e82863/03-table-mobile.png",
+      "sha256": "b2654fe1504c9399dc049ea1acba3433ab038247e73e64f326185f1bbd7880f1",
+      "bytes": 68924,
+      "archive": ".tmp/NA-0175/base-reconciliation/historical-artifacts/docs/changes/2026/11/NA-0093-sonar-delivery/evidence/candidate-025e82863/03-table-mobile.png"
+    },
+    {
+      "path": "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/candidate-025e82863/browser.json",
+      "sha256": "5ebe2adcd472726ae426797ebff02ec707531b6ff5858c0c3ccbcf291b27a4fc",
+      "bytes": 1341,
+      "archive": ".tmp/NA-0175/base-reconciliation/historical-artifacts/docs/changes/2026/11/NA-0093-sonar-delivery/evidence/candidate-025e82863/browser.json"
+    },
+    {
+      "path": "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/candidate-025e82863/coverage.json",
+      "sha256": "4ed136ec22cc0d3eed0b44cba88f7ff3c67f9d337d3986752230caeebc3ff0e6",
+      "bytes": 54528,
+      "archive": ".tmp/NA-0175/base-reconciliation/historical-artifacts/docs/changes/2026/11/NA-0093-sonar-delivery/evidence/candidate-025e82863/coverage.json"
+    },
+    {
+      "path": "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/candidate-025e82863/github-checks.json",
+      "sha256": "82fd8b1907c89a46ffd0dd0c914d0ecd77b7e2e6a864f6ea8cee1cd61b8f38ab",
+      "bytes": 4200,
+      "archive": ".tmp/NA-0175/base-reconciliation/historical-artifacts/docs/changes/2026/11/NA-0093-sonar-delivery/evidence/candidate-025e82863/github-checks.json"
+    },
+    {
+      "path": "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/candidate-025e82863/mobile-repetitions.json",
+      "sha256": "103bd57e1a2de6618ba5a8f3f4695e4fd952d8aea29518d78c5b48e0124c6748",
+      "bytes": 509,
+      "archive": ".tmp/NA-0175/base-reconciliation/historical-artifacts/docs/changes/2026/11/NA-0093-sonar-delivery/evidence/candidate-025e82863/mobile-repetitions.json"
+    },
+    {
+      "path": "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/candidate-025e82863/tests.json",
+      "sha256": "5ac324b303615ed780d50e7b470bd54fcf195ee9f5d230c11d6f2b320af4db01",
+      "bytes": 283,
+      "archive": ".tmp/NA-0175/base-reconciliation/historical-artifacts/docs/changes/2026/11/NA-0093-sonar-delivery/evidence/candidate-025e82863/tests.json"
+    },
+    {
+      "path": "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/candidate-025e82863/validation.json",
+      "sha256": "7b7fdb2bfd6a0a410bc1fea3b1b21122a9de7bc9a1f788b6f958f9fc49cb51b6",
+      "bytes": 1487,
+      "archive": ".tmp/NA-0175/base-reconciliation/historical-artifacts/docs/changes/2026/11/NA-0093-sonar-delivery/evidence/candidate-025e82863/validation.json"
+    },
+    {
+      "path": "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/candidate-4c291a294/independent-integration-review.json",
+      "sha256": "cd70d7c8d6e79342e985b2f41df317ff839be89041da12225e776e46f18640cd",
+      "bytes": 383,
+      "archive": ".tmp/NA-0175/base-reconciliation/historical-artifacts/docs/changes/2026/11/NA-0093-sonar-delivery/evidence/candidate-4c291a294/independent-integration-review.json"
+    },
+    {
+      "path": "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/candidate-4c291a294/validation.json",
+      "sha256": "565c074ab67ba8b35255423f0826f81b6d41b82d429d2d2b2a4fef6875b05e00",
+      "bytes": 1680,
+      "archive": ".tmp/NA-0175/base-reconciliation/historical-artifacts/docs/changes/2026/11/NA-0093-sonar-delivery/evidence/candidate-4c291a294/validation.json"
+    },
+    {
+      "path": "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/candidate-9a47efdba/browser.json",
+      "sha256": "bc64f6ca60827b2a47ffb14397b034f21dc91d3cfbb029a3083ed0bb7cc8c091",
+      "bytes": 1324,
+      "archive": ".tmp/NA-0175/base-reconciliation/historical-artifacts/docs/changes/2026/11/NA-0093-sonar-delivery/evidence/candidate-9a47efdba/browser.json"
+    },
+    {
+      "path": "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/candidate-9a47efdba/coverage.json",
+      "sha256": "4e14680f39e5c37c9840897a75f962dad42f4ed5c6231c0c6ada0e08f2aa5fdb",
+      "bytes": 54653,
+      "archive": ".tmp/NA-0175/base-reconciliation/historical-artifacts/docs/changes/2026/11/NA-0093-sonar-delivery/evidence/candidate-9a47efdba/coverage.json"
+    },
+    {
+      "path": "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/candidate-9a47efdba/independent-review.json",
+      "sha256": "e7936d528af7d1fb5dccf73a0dc4db9df3911ed7d0ec80f0d77c43545fbea1b0",
+      "bytes": 409,
+      "archive": ".tmp/NA-0175/base-reconciliation/historical-artifacts/docs/changes/2026/11/NA-0093-sonar-delivery/evidence/candidate-9a47efdba/independent-review.json"
+    },
+    {
+      "path": "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/candidate-9a47efdba/review-manifest-confirmation.json",
+      "sha256": "bd7a83c66ddd2be8585cfd4176417e9c3a500b9a38327645cae41859293a497b",
+      "bytes": 262944,
+      "archive": ".tmp/NA-0175/base-reconciliation/historical-artifacts/docs/changes/2026/11/NA-0093-sonar-delivery/evidence/candidate-9a47efdba/review-manifest-confirmation.json"
+    },
+    {
+      "path": "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/candidate-9a47efdba/security.json",
+      "sha256": "c0a7e6fa1998b7ecc42c2df2eaf3e9cf1d93dd447e090fa4c2f505bf453905ce",
+      "bytes": 280,
+      "archive": ".tmp/NA-0175/base-reconciliation/historical-artifacts/docs/changes/2026/11/NA-0093-sonar-delivery/evidence/candidate-9a47efdba/security.json"
+    },
+    {
+      "path": "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/candidate-9a47efdba/validation.json",
+      "sha256": "106c37642293f3e921069dc303af9033a7395a3c24b770dd24b62a8f6cbeff1e",
+      "bytes": 3552,
+      "archive": ".tmp/NA-0175/base-reconciliation/historical-artifacts/docs/changes/2026/11/NA-0093-sonar-delivery/evidence/candidate-9a47efdba/validation.json"
+    },
+    {
+      "path": "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/candidate-ae0624944/github-checks.json",
+      "sha256": "959e9927ec48fd5f9a831e1e670d15fc016aca18bbfcf69c56dfac2b4558183a",
+      "bytes": 4447,
+      "archive": ".tmp/NA-0175/base-reconciliation/historical-artifacts/docs/changes/2026/11/NA-0093-sonar-delivery/evidence/candidate-ae0624944/github-checks.json"
+    },
+    {
+      "path": "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/candidate-ae0624944/validation.json",
+      "sha256": "48373e3bc4ff72d8395a9d26e531ce136727fb5a8cb12e8765bb8bfa41b1903f",
+      "bytes": 1720,
+      "archive": ".tmp/NA-0175/base-reconciliation/historical-artifacts/docs/changes/2026/11/NA-0093-sonar-delivery/evidence/candidate-ae0624944/validation.json"
+    },
+    {
+      "path": "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/candidate-b32a6c9c1/security.json",
+      "sha256": "ad9424101613bc1e3b6a9a2f3733d6980c842574d61890ff175ff990f8703e29",
+      "bytes": 280,
+      "archive": ".tmp/NA-0175/base-reconciliation/historical-artifacts/docs/changes/2026/11/NA-0093-sonar-delivery/evidence/candidate-b32a6c9c1/security.json"
+    },
+    {
+      "path": "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/candidate-df8482674/canvas-local-keyboard-desktop.png",
+      "sha256": "8baf831b8c72ac724adff24ab4b635dcf4167e0128f1785d492c76ab6ecc34a0",
+      "bytes": 64207,
+      "archive": ".tmp/NA-0175/base-reconciliation/historical-artifacts/docs/changes/2026/11/NA-0093-sonar-delivery/evidence/candidate-df8482674/canvas-local-keyboard-desktop.png"
+    },
+    {
+      "path": "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/candidate-df8482674/canvas-local-keyboard-fullscreen.png",
+      "sha256": "ffff7f6216ada9aac604e71ef21cb004cc15fa37d029372c7f972fe4c154f49f",
+      "bytes": 34590,
+      "archive": ".tmp/NA-0175/base-reconciliation/historical-artifacts/docs/changes/2026/11/NA-0093-sonar-delivery/evidence/candidate-df8482674/canvas-local-keyboard-fullscreen.png"
+    },
+    {
+      "path": "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/candidate-df8482674/canvas-mobile.png",
+      "sha256": "cf80c8cbe8eda5f690ad2af0888809a93b7808b08f02e3edcbd5b366f86ecd41",
+      "bytes": 27022,
+      "archive": ".tmp/NA-0175/base-reconciliation/historical-artifacts/docs/changes/2026/11/NA-0093-sonar-delivery/evidence/candidate-df8482674/canvas-mobile.png"
+    },
+    {
+      "path": "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/candidate-df8482674/canvas-remote-desktop.png",
+      "sha256": "ff9862e3595aa9d87e82273844f5ebcfde6b39952988b47a6e597f4ddf8dc40e",
+      "bytes": 66312,
+      "archive": ".tmp/NA-0175/base-reconciliation/historical-artifacts/docs/changes/2026/11/NA-0093-sonar-delivery/evidence/candidate-df8482674/canvas-remote-desktop.png"
+    },
+    {
+      "path": "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/candidate-df8482674/ci-summary.json",
+      "sha256": "cf57548ce22dcaabb5ab8850960ad803f19c33d877090cce10653f7f43461fc9",
+      "bytes": 83891,
+      "archive": ".tmp/NA-0175/base-reconciliation/historical-artifacts/docs/changes/2026/11/NA-0093-sonar-delivery/evidence/candidate-df8482674/ci-summary.json"
+    },
+    {
+      "path": "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/candidate-df8482674/coverage-summary.json",
+      "sha256": "d85aeb9dd6b749cce5fb01d0c2476f8102ff1906426aa746514122286e24a26d",
+      "bytes": 55176,
+      "archive": ".tmp/NA-0175/base-reconciliation/historical-artifacts/docs/changes/2026/11/NA-0093-sonar-delivery/evidence/candidate-df8482674/coverage-summary.json"
+    },
+    {
+      "path": "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/candidate-df8482674/github-checks.json",
+      "sha256": "fa6e0a3464986a22f7085ee1b39c46f1544257459ef5d82d97e8330271f415de",
+      "bytes": 4447,
+      "archive": ".tmp/NA-0175/base-reconciliation/historical-artifacts/docs/changes/2026/11/NA-0093-sonar-delivery/evidence/candidate-df8482674/github-checks.json"
+    },
+    {
+      "path": "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/candidate-df8482674/governance.json",
+      "sha256": "1d6a68cca5dea24d55d0393aad2686b366ec6bed388650d6b3126a9ff3300186",
+      "bytes": 554,
+      "archive": ".tmp/NA-0175/base-reconciliation/historical-artifacts/docs/changes/2026/11/NA-0093-sonar-delivery/evidence/candidate-df8482674/governance.json"
+    },
+    {
+      "path": "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/candidate-df8482674/independent-review.json",
+      "sha256": "8f70953864dee36d46b529e5e8f09b024d5bd8e8b8e6c2021498aa5094eb0844",
+      "bytes": 724,
+      "archive": ".tmp/NA-0175/base-reconciliation/historical-artifacts/docs/changes/2026/11/NA-0093-sonar-delivery/evidence/candidate-df8482674/independent-review.json"
+    },
+    {
+      "path": "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/candidate-df8482674/ipv6-invalid-desktop.png",
+      "sha256": "549760cb8ebfe98df7c5cb23d5704d8de76d23e1f1606fa3a9ef3eeafcb86ebe",
+      "bytes": 115479,
+      "archive": ".tmp/NA-0175/base-reconciliation/historical-artifacts/docs/changes/2026/11/NA-0093-sonar-delivery/evidence/candidate-df8482674/ipv6-invalid-desktop.png"
+    },
+    {
+      "path": "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/candidate-df8482674/playback-desktop.png",
+      "sha256": "ab11c805d885c4d4f8ce0165be79f1a4c83923a456b8e8dbeb3d2cd6e7b6f218",
+      "bytes": 129931,
+      "archive": ".tmp/NA-0175/base-reconciliation/historical-artifacts/docs/changes/2026/11/NA-0093-sonar-delivery/evidence/candidate-df8482674/playback-desktop.png"
+    },
+    {
+      "path": "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/candidate-df8482674/validation.json",
+      "sha256": "c391b0b72f7a7526effbcd7a54fe2fb27906b07f62371739d1206cb15840eb57",
+      "bytes": 1720,
+      "archive": ".tmp/NA-0175/base-reconciliation/historical-artifacts/docs/changes/2026/11/NA-0093-sonar-delivery/evidence/candidate-df8482674/validation.json"
+    },
+    {
+      "path": "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/closure-prechecks/csp-governance.json",
+      "sha256": "09431f47053205b129b60bd9a78466d3c4fcb9ab03d69eea46b377c441a64b5d",
+      "bytes": 554,
+      "archive": ".tmp/NA-0175/base-reconciliation/historical-artifacts/docs/changes/2026/11/NA-0093-sonar-delivery/evidence/closure-prechecks/csp-governance.json"
+    },
+    {
+      "path": "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/closure-prechecks/storage-default-process-restart.json",
+      "sha256": "b72b30323b4129703e47880327e9121786cf5f28e4ca8b084d8b9f1c780e8e21",
+      "bytes": 169,
+      "archive": ".tmp/NA-0175/base-reconciliation/historical-artifacts/docs/changes/2026/11/NA-0093-sonar-delivery/evidence/closure-prechecks/storage-default-process-restart.json"
+    },
+    {
+      "path": "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/de7817938/dashboard-desktop.png",
+      "sha256": "f6fccfebcd051d5b9f9b30f1f7faa29e40a2ac6db3525a86c1128abb9d4cfc9c",
+      "bytes": 133797,
+      "archive": ".tmp/NA-0175/base-reconciliation/historical-artifacts/docs/changes/2026/11/NA-0093-sonar-delivery/evidence/de7817938/dashboard-desktop.png"
+    },
+    {
+      "path": "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/de7817938/dashboard-mobile.png",
+      "sha256": "bcc06564d16ee48c1efc1da9f792532757f76dd0a56f3038752e92b05832d7e0",
+      "bytes": 50494,
+      "archive": ".tmp/NA-0175/base-reconciliation/historical-artifacts/docs/changes/2026/11/NA-0093-sonar-delivery/evidence/de7817938/dashboard-mobile.png"
+    },
+    {
+      "path": "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/de7817938/diagnostic-desktop.png",
+      "sha256": "c29d621cfca985b516c963c6290e187d1540c05b83987528b3237b598d5ff0f8",
+      "bytes": 124210,
+      "archive": ".tmp/NA-0175/base-reconciliation/historical-artifacts/docs/changes/2026/11/NA-0093-sonar-delivery/evidence/de7817938/diagnostic-desktop.png"
+    },
+    {
+      "path": "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/de7817938/diagnostic-mobile.png",
+      "sha256": "7c8c7c636f615a2429ad946ae92db83c0b551095eddb27430a7c08bbd7551f8f",
+      "bytes": 50944,
+      "archive": ".tmp/NA-0175/base-reconciliation/historical-artifacts/docs/changes/2026/11/NA-0093-sonar-delivery/evidence/de7817938/diagnostic-mobile.png"
+    },
+    {
+      "path": "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/de7817938/report.json",
+      "sha256": "56167a428784d4593fd01f3fb4b90262def30520f104b7249c9dd06120d856ff",
+      "bytes": 2225,
+      "archive": ".tmp/NA-0175/base-reconciliation/historical-artifacts/docs/changes/2026/11/NA-0093-sonar-delivery/evidence/de7817938/report.json"
+    },
+    {
+      "path": "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/de7817938/validation-summary.json",
+      "sha256": "77f5fdb1c2ccce8049051315479603eafb093eeac1fb3f19a592085d37a38239",
+      "bytes": 2313,
+      "archive": ".tmp/NA-0175/base-reconciliation/historical-artifacts/docs/changes/2026/11/NA-0093-sonar-delivery/evidence/de7817938/validation-summary.json"
+    },
+    {
+      "path": "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/ee436402d/checks.json",
+      "sha256": "821fbc65ac5d6d506f3205c8fe951bec9f28cabc13aeb5a29bdbb307067f76d2",
+      "bytes": 4670,
+      "archive": ".tmp/NA-0175/base-reconciliation/historical-artifacts/docs/changes/2026/11/NA-0093-sonar-delivery/evidence/ee436402d/checks.json"
+    },
+    {
+      "path": "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/ee436402d/ci-summary.json",
+      "sha256": "edb2870434d946a7c3492a8a1d4d51a88ff7bd11371bc1fce628150c6f131b88",
+      "bytes": 3026,
+      "archive": ".tmp/NA-0175/base-reconciliation/historical-artifacts/docs/changes/2026/11/NA-0093-sonar-delivery/evidence/ee436402d/ci-summary.json"
+    },
+    {
+      "path": "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/ee436402d/dashboard-desktop.png",
+      "sha256": "751e1dd01b172ffd4970c2e8479b034727e53dbb3fa170a9a20d00d1cff9ab82",
+      "bytes": 132108,
+      "archive": ".tmp/NA-0175/base-reconciliation/historical-artifacts/docs/changes/2026/11/NA-0093-sonar-delivery/evidence/ee436402d/dashboard-desktop.png"
+    },
+    {
+      "path": "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/ee436402d/dashboard-mobile.png",
+      "sha256": "c4ce5d464644ef56039a7ef07f92dc2c131394d809371dd8fffb710007651663",
+      "bytes": 50554,
+      "archive": ".tmp/NA-0175/base-reconciliation/historical-artifacts/docs/changes/2026/11/NA-0093-sonar-delivery/evidence/ee436402d/dashboard-mobile.png"
+    },
+    {
+      "path": "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/ee436402d/diagnostic-desktop.png",
+      "sha256": "34ecc0ece5f07b7f8b4a12c544a71058a92109f10f709eef2353f3342ffd3944",
+      "bytes": 124320,
+      "archive": ".tmp/NA-0175/base-reconciliation/historical-artifacts/docs/changes/2026/11/NA-0093-sonar-delivery/evidence/ee436402d/diagnostic-desktop.png"
+    },
+    {
+      "path": "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/ee436402d/diagnostic-mobile.png",
+      "sha256": "07812edb2eb5bb7473b839fd5bd888f0b426114b1cb8f5132856eb75059d5302",
+      "bytes": 50925,
+      "archive": ".tmp/NA-0175/base-reconciliation/historical-artifacts/docs/changes/2026/11/NA-0093-sonar-delivery/evidence/ee436402d/diagnostic-mobile.png"
+    },
+    {
+      "path": "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/ee436402d/report.json",
+      "sha256": "56167a428784d4593fd01f3fb4b90262def30520f104b7249c9dd06120d856ff",
+      "bytes": 2225,
+      "archive": ".tmp/NA-0175/base-reconciliation/historical-artifacts/docs/changes/2026/11/NA-0093-sonar-delivery/evidence/ee436402d/report.json"
+    },
+    {
+      "path": "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/ee436402d/validation-summary.json",
+      "sha256": "8139e5ae4217f88c6688318d5ab4b1bb34385a133b656ac15757c47d7278ff12",
+      "bytes": 1693,
+      "archive": ".tmp/NA-0175/base-reconciliation/historical-artifacts/docs/changes/2026/11/NA-0093-sonar-delivery/evidence/ee436402d/validation-summary.json"
+    },
+    {
+      "path": "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/quality-panel-audit.json",
+      "sha256": "00925118ec1525c3c10ea8c906b9062087027c3497f6f24a1559133fbb56acad",
+      "bytes": 844,
+      "archive": ".tmp/NA-0175/base-reconciliation/historical-artifacts/docs/changes/2026/11/NA-0093-sonar-delivery/evidence/quality-panel-audit.json"
+    },
+    {
+      "path": "docs/changes/2026/11/NA-0145-sonar-open-review/checkpoint-evidence.json",
+      "sha256": "65fd6920827627116a6b0b2de94c3f7830a94908f1ba99b4b0353fa3c4fcbfc8",
+      "bytes": 740,
+      "archive": ".tmp/NA-0175/base-reconciliation/historical-artifacts/docs/changes/2026/11/NA-0145-sonar-open-review/checkpoint-evidence.json"
+    },
+    {
+      "path": "docs/changes/2026/11/NA-0168-fullscreen-keyboard-focus/evidence/fullscreen-after.png",
+      "sha256": "2f89f6e83061f6e7811ba335a4f9793a48101d6a3b07b152575c78811429c9d4",
+      "bytes": 34452,
+      "archive": ".tmp/NA-0175/base-reconciliation/historical-artifacts/docs/changes/2026/11/NA-0168-fullscreen-keyboard-focus/evidence/fullscreen-after.png"
+    },
+    {
+      "path": "docs/changes/2026/11/NA-0168-fullscreen-keyboard-focus/evidence/fullscreen-before.png",
+      "sha256": "d5c4c8719864480ef05cbd4d6ea647b632c0d4cafe83e0f21db90546897205e3",
+      "bytes": 26452,
+      "archive": ".tmp/NA-0175/base-reconciliation/historical-artifacts/docs/changes/2026/11/NA-0168-fullscreen-keyboard-focus/evidence/fullscreen-before.png"
+    },
+    {
+      "path": "docs/changes/2026/11/NA-0168-fullscreen-keyboard-focus/evidence/independent-review.json",
+      "sha256": "a392a3f3037147e4beccb06c92281d69e7eca950bdbc1f3f954fe532e7c3e2c5",
+      "bytes": 749,
+      "archive": ".tmp/NA-0175/base-reconciliation/historical-artifacts/docs/changes/2026/11/NA-0168-fullscreen-keyboard-focus/evidence/independent-review.json"
+    },
+    {
+      "path": "docs/changes/2026/11/NA-0168-fullscreen-keyboard-focus/evidence/mobile-after.png",
+      "sha256": "4f2d7a6d591113a0959250d782a10c0f40846a66d4ca101401193b8210916f98",
+      "bytes": 27527,
+      "archive": ".tmp/NA-0175/base-reconciliation/historical-artifacts/docs/changes/2026/11/NA-0168-fullscreen-keyboard-focus/evidence/mobile-after.png"
+    },
+    {
+      "path": "docs/changes/2026/11/NA-0169-tacacs-tls/evidence/authorized-review.json",
+      "sha256": "60ab7a998a672a42d25cfc32d9faa1d2b78bb7ec56deebe1cc1ca3d3a2dcf64c",
+      "bytes": 1636,
+      "archive": ".tmp/NA-0175/base-reconciliation/historical-artifacts/docs/changes/2026/11/NA-0169-tacacs-tls/evidence/authorized-review.json"
+    },
+    {
+      "path": "docs/changes/2026/11/NA-0169-tacacs-tls/evidence/candidate-coverage.json",
+      "sha256": "6548b35cdf4d5107d4a660f9476cb7aa8e3dc377c94945da73e37a54773bf8cb",
+      "bytes": 5041,
+      "archive": ".tmp/NA-0175/base-reconciliation/historical-artifacts/docs/changes/2026/11/NA-0169-tacacs-tls/evidence/candidate-coverage.json"
+    },
+    {
+      "path": "docs/changes/2026/11/NA-0169-tacacs-tls/evidence/candidate-tls-lab.json",
+      "sha256": "be4fba00622d4f1c66d37e5683107e13f24c189f9ef9ac16dbe7d6684b89c5b5",
+      "bytes": 846,
+      "archive": ".tmp/NA-0175/base-reconciliation/historical-artifacts/docs/changes/2026/11/NA-0169-tacacs-tls/evidence/candidate-tls-lab.json"
+    },
+    {
+      "path": "docs/changes/2026/11/NA-0169-tacacs-tls/evidence/ci-checks.json",
+      "sha256": "264128bf835fab8db8c2fc641a285828c703806fb3ac1813e58dab102a5556c9",
+      "bytes": 4618,
+      "archive": ".tmp/NA-0175/base-reconciliation/historical-artifacts/docs/changes/2026/11/NA-0169-tacacs-tls/evidence/ci-checks.json"
+    },
+    {
+      "path": "docs/changes/2026/11/NA-0169-tacacs-tls/evidence/ci-tree-proof.json",
+      "sha256": "aba735ca5708f96cf1cc7cc2a4768fdc177dc9870c2ef9a6a99ddcebbcbc71a5",
+      "bytes": 454,
+      "archive": ".tmp/NA-0175/base-reconciliation/historical-artifacts/docs/changes/2026/11/NA-0169-tacacs-tls/evidence/ci-tree-proof.json"
+    },
+    {
+      "path": "docs/changes/2026/11/NA-0169-tacacs-tls/evidence/delayed-history-flow.json",
+      "sha256": "1a81cc4205eed1e3e413448edb39925c480a3d8b5cb1253df8de868c9b2c716c",
+      "bytes": 2275,
+      "archive": ".tmp/NA-0175/base-reconciliation/historical-artifacts/docs/changes/2026/11/NA-0169-tacacs-tls/evidence/delayed-history-flow.json"
+    },
+    {
+      "path": "docs/changes/2026/11/NA-0169-tacacs-tls/evidence/final-sonar.json",
+      "sha256": "b944c4319d0f60ea3af3dd8f6180cbd1048b66c791b95701e38546735327a47d",
+      "bytes": 2140,
+      "archive": ".tmp/NA-0175/base-reconciliation/historical-artifacts/docs/changes/2026/11/NA-0169-tacacs-tls/evidence/final-sonar.json"
+    },
+    {
+      "path": "docs/changes/2026/11/NA-0169-tacacs-tls/evidence/final-verification.json",
+      "sha256": "fc7a310e0f7232bf684aa6501d1c9259d74f080ae9be5eb6ff3c34963c250ea9",
+      "bytes": 1720,
+      "archive": ".tmp/NA-0175/base-reconciliation/historical-artifacts/docs/changes/2026/11/NA-0169-tacacs-tls/evidence/final-verification.json"
+    },
+    {
+      "path": "docs/changes/2026/11/NA-0169-tacacs-tls/evidence/first-ci-failure.json",
+      "sha256": "277ccc7258dd88718cefbdb7676c34ef142614a025e5ce9132a1a59c6ecc1d66",
+      "bytes": 5758,
+      "archive": ".tmp/NA-0175/base-reconciliation/historical-artifacts/docs/changes/2026/11/NA-0169-tacacs-tls/evidence/first-ci-failure.json"
+    },
+    {
+      "path": "docs/changes/2026/11/NA-0169-tacacs-tls/evidence/independent-review.json",
+      "sha256": "903d145b0fe6743f8637d63d200b1d55f0abb5b7e6784dd2013e920f950c2515",
+      "bytes": 651,
+      "archive": ".tmp/NA-0175/base-reconciliation/historical-artifacts/docs/changes/2026/11/NA-0169-tacacs-tls/evidence/independent-review.json"
+    },
+    {
+      "path": "docs/changes/2026/11/NA-0169-tacacs-tls/evidence/initial-candidate-coverage.json",
+      "sha256": "9d42537ac872ab3bc07b4413e6b85a209bdd1d65b1f899451cef61eb4945e513",
+      "bytes": 4901,
+      "archive": ".tmp/NA-0175/base-reconciliation/historical-artifacts/docs/changes/2026/11/NA-0169-tacacs-tls/evidence/initial-candidate-coverage.json"
+    },
+    {
+      "path": "docs/changes/2026/11/NA-0169-tacacs-tls/evidence/initial-candidate-tls-lab.json",
+      "sha256": "f7755e4733de23999215d8c2c0cec188b443cf7be8c5614acfced4692d899d84",
+      "bytes": 846,
+      "archive": ".tmp/NA-0175/base-reconciliation/historical-artifacts/docs/changes/2026/11/NA-0169-tacacs-tls/evidence/initial-candidate-tls-lab.json"
+    },
+    {
+      "path": "docs/changes/2026/11/NA-0169-tacacs-tls/evidence/initial-ci-checks.json",
+      "sha256": "6dca70d41298db1b09df156c4eabfe5433fb9fd729dedc1ac8e6c845839883db",
+      "bytes": 3787,
+      "archive": ".tmp/NA-0175/base-reconciliation/historical-artifacts/docs/changes/2026/11/NA-0169-tacacs-tls/evidence/initial-ci-checks.json"
+    },
+    {
+      "path": "docs/changes/2026/11/NA-0169-tacacs-tls/evidence/initial-final-sonar.json",
+      "sha256": "839f1d3ef27693a084ac6cc1ae2a8b6daa86626612e24fa4b3c3b5bb659156ba",
+      "bytes": 2296,
+      "archive": ".tmp/NA-0175/base-reconciliation/historical-artifacts/docs/changes/2026/11/NA-0169-tacacs-tls/evidence/initial-final-sonar.json"
+    },
+    {
+      "path": "docs/changes/2026/11/NA-0169-tacacs-tls/evidence/initial-final-verification.json",
+      "sha256": "23e29f361a3d3c2691fbf84fcb6705ed2460b73ba4cbe14ed02a77aec480cddf",
+      "bytes": 1815,
+      "archive": ".tmp/NA-0175/base-reconciliation/historical-artifacts/docs/changes/2026/11/NA-0169-tacacs-tls/evidence/initial-final-verification.json"
+    },
+    {
+      "path": "docs/changes/2026/11/NA-0169-tacacs-tls/evidence/integration-b0ac11ef/checks.json",
+      "sha256": "905a8051de090b3525e67b0983c6807f0fcd60f42aac5df5ea252b0ccafe7a11",
+      "bytes": 4679,
+      "archive": ".tmp/NA-0175/base-reconciliation/historical-artifacts/docs/changes/2026/11/NA-0169-tacacs-tls/evidence/integration-b0ac11ef/checks.json"
+    },
+    {
+      "path": "docs/changes/2026/11/NA-0169-tacacs-tls/evidence/integration-b0ac11ef/ci-tree-proof.json",
+      "sha256": "9a85506bb92c1488a12e573d4a4f41b6dd61e216ddf302568f71f7631ef1fc7e",
+      "bytes": 849,
+      "archive": ".tmp/NA-0175/base-reconciliation/historical-artifacts/docs/changes/2026/11/NA-0169-tacacs-tls/evidence/integration-b0ac11ef/ci-tree-proof.json"
+    },
+    {
+      "path": "docs/changes/2026/11/NA-0169-tacacs-tls/evidence/integration-b0ac11ef/images-summary.json",
+      "sha256": "75a8c0887342be996682bf213af53506307489b7259efb0e8fc1a7c35a1d699c",
+      "bytes": 52381,
+      "archive": ".tmp/NA-0175/base-reconciliation/historical-artifacts/docs/changes/2026/11/NA-0169-tacacs-tls/evidence/integration-b0ac11ef/images-summary.json"
+    },
+    {
+      "path": "docs/changes/2026/11/NA-0169-tacacs-tls/evidence/integration-b0ac11ef/sonar-ci-summary.json",
+      "sha256": "00bb742abceada0d53af962e7d3c68cd0d8f94ad320218621f4f80c20e7139cb",
+      "bytes": 72607,
+      "archive": ".tmp/NA-0175/base-reconciliation/historical-artifacts/docs/changes/2026/11/NA-0169-tacacs-tls/evidence/integration-b0ac11ef/sonar-ci-summary.json"
+    },
+    {
+      "path": "docs/changes/2026/11/NA-0169-tacacs-tls/evidence/integration-b0ac11ef/sqlite-policy-tests.txt",
+      "sha256": "b79bd0501b509e9191def90f7344afb757ff1f94e8c11d670199e2b32c8d9aba",
+      "bytes": 3019,
+      "archive": ".tmp/NA-0175/base-reconciliation/historical-artifacts/docs/changes/2026/11/NA-0169-tacacs-tls/evidence/integration-b0ac11ef/sqlite-policy-tests.txt"
+    },
+    {
+      "path": "docs/changes/2026/11/NA-0169-tacacs-tls/evidence/integration-b0ac11ef/sqlite-replay.json",
+      "sha256": "7eb1947caec2238bfd4115bc7072b004f4555ef0c4f935a114766f43bc951c62",
+      "bytes": 546,
+      "archive": ".tmp/NA-0175/base-reconciliation/historical-artifacts/docs/changes/2026/11/NA-0169-tacacs-tls/evidence/integration-b0ac11ef/sqlite-replay.json"
+    },
+    {
+      "path": "docs/changes/2026/11/NA-0169-tacacs-tls/evidence/integration-b0ac11ef/tls-image.json",
+      "sha256": "a11d159c1d81976c34a70c8f06a9d780d088552b084f0172a5bf74da5049a6b2",
+      "bytes": 180947,
+      "archive": ".tmp/NA-0175/base-reconciliation/historical-artifacts/docs/changes/2026/11/NA-0169-tacacs-tls/evidence/integration-b0ac11ef/tls-image.json"
+    },
+    {
+      "path": "docs/changes/2026/11/NA-0169-tacacs-tls/evidence/integration/checks.json",
+      "sha256": "59c870726b185438e0f3f9ff4a9e744253770c205b5ee81fdeb2c301f9d0b8c3",
+      "bytes": 3787,
+      "archive": ".tmp/NA-0175/base-reconciliation/historical-artifacts/docs/changes/2026/11/NA-0169-tacacs-tls/evidence/integration/checks.json"
+    },
+    {
+      "path": "docs/changes/2026/11/NA-0169-tacacs-tls/evidence/integration/ci-tree-proof.json",
+      "sha256": "a5d5844ee00492c4f3a4ee689965148dc91d75fb9a835637f313d6875aafe56f",
+      "bytes": 455,
+      "archive": ".tmp/NA-0175/base-reconciliation/historical-artifacts/docs/changes/2026/11/NA-0169-tacacs-tls/evidence/integration/ci-tree-proof.json"
+    },
+    {
+      "path": "docs/changes/2026/11/NA-0169-tacacs-tls/evidence/integration/images-summary.json",
+      "sha256": "8ac0dfe7bd87ccdbfae9b16370b5dabe81bb4a2fbf25feae7de1fca75ae3f6c8",
+      "bytes": 52800,
+      "archive": ".tmp/NA-0175/base-reconciliation/historical-artifacts/docs/changes/2026/11/NA-0169-tacacs-tls/evidence/integration/images-summary.json"
+    },
+    {
+      "path": "docs/changes/2026/11/NA-0169-tacacs-tls/evidence/integration/local-governance.json",
+      "sha256": "3d6cbb9b021a06bdbbb0bf2678cda60ce94931cd324c07290ac932250c1db816",
+      "bytes": 548,
+      "archive": ".tmp/NA-0175/base-reconciliation/historical-artifacts/docs/changes/2026/11/NA-0169-tacacs-tls/evidence/integration/local-governance.json"
+    },
+    {
+      "path": "docs/changes/2026/11/NA-0169-tacacs-tls/evidence/integration/merge59.json",
+      "sha256": "03e0846869de28db35e8e60d802856a38223d2e1859e5505fdaa238844ca12aa",
+      "bytes": 122,
+      "archive": ".tmp/NA-0175/base-reconciliation/historical-artifacts/docs/changes/2026/11/NA-0169-tacacs-tls/evidence/integration/merge59.json"
+    },
+    {
+      "path": "docs/changes/2026/11/NA-0169-tacacs-tls/evidence/integration/merge60.json",
+      "sha256": "f79447781258ce5120b45a59f011626f3c1d5f5c3a51a50e840872e9fbba7fff",
+      "bytes": 122,
+      "archive": ".tmp/NA-0175/base-reconciliation/historical-artifacts/docs/changes/2026/11/NA-0169-tacacs-tls/evidence/integration/merge60.json"
+    },
+    {
+      "path": "docs/changes/2026/11/NA-0169-tacacs-tls/evidence/integration/policy-tests.txt",
+      "sha256": "b79bd0501b509e9191def90f7344afb757ff1f94e8c11d670199e2b32c8d9aba",
+      "bytes": 3019,
+      "archive": ".tmp/NA-0175/base-reconciliation/historical-artifacts/docs/changes/2026/11/NA-0169-tacacs-tls/evidence/integration/policy-tests.txt"
+    },
+    {
+      "path": "docs/changes/2026/11/NA-0169-tacacs-tls/evidence/integration/sonar-ci-summary.json",
+      "sha256": "5b06a8ca4d2f8a0506f9313c19eb628ab78e3e37219883552e1201b8a7f8c748",
+      "bytes": 72656,
+      "archive": ".tmp/NA-0175/base-reconciliation/historical-artifacts/docs/changes/2026/11/NA-0169-tacacs-tls/evidence/integration/sonar-ci-summary.json"
+    },
+    {
+      "path": "docs/changes/2026/11/NA-0169-tacacs-tls/evidence/pr-governance.json",
+      "sha256": "d484bb419ae9b56fa93597285d60e9551eaadab588cf3bc6503b63de2d17df84",
+      "bytes": 179,
+      "archive": ".tmp/NA-0175/base-reconciliation/historical-artifacts/docs/changes/2026/11/NA-0169-tacacs-tls/evidence/pr-governance.json"
+    },
+    {
+      "path": "docs/changes/2026/11/NA-0169-tacacs-tls/evidence/second-ci-failure.json",
+      "sha256": "786a5ea3d3a1b8fff5b5b100d778270cacb23c07bf4b17e3643f9e92bf5d89c0",
+      "bytes": 72401,
+      "archive": ".tmp/NA-0175/base-reconciliation/historical-artifacts/docs/changes/2026/11/NA-0169-tacacs-tls/evidence/second-ci-failure.json"
+    },
+    {
+      "path": "docs/changes/2026/11/NA-0169-tacacs-tls/evidence/second-local-candidate-coverage.json",
+      "sha256": "a61a58c094d1ad664018c26f7a38df8d9a8d92ab7e0ce3f9c397d9445f03ccf5",
+      "bytes": 4993,
+      "archive": ".tmp/NA-0175/base-reconciliation/historical-artifacts/docs/changes/2026/11/NA-0169-tacacs-tls/evidence/second-local-candidate-coverage.json"
+    },
+    {
+      "path": "docs/changes/2026/11/NA-0169-tacacs-tls/evidence/second-local-candidate-tls-lab.json",
+      "sha256": "9fb16ca7e6fb3ea0c854a1257b0baf071e7cfb0e5d2f0e2084585d5d2761a42c",
+      "bytes": 846,
+      "archive": ".tmp/NA-0175/base-reconciliation/historical-artifacts/docs/changes/2026/11/NA-0169-tacacs-tls/evidence/second-local-candidate-tls-lab.json"
+    },
+    {
+      "path": "docs/changes/2026/11/NA-0169-tacacs-tls/evidence/second-local-final-sonar.json",
+      "sha256": "7b7deaee68394f929be4f26b7d78cbe9c702e67e64cb9f996108e0434f491903",
+      "bytes": 2140,
+      "archive": ".tmp/NA-0175/base-reconciliation/historical-artifacts/docs/changes/2026/11/NA-0169-tacacs-tls/evidence/second-local-final-sonar.json"
+    },
+    {
+      "path": "docs/changes/2026/11/NA-0169-tacacs-tls/evidence/second-local-final-verification.json",
+      "sha256": "83337a9dc8121d3e44c26a66452fe413f95cb122c7cc8c4432a9de64169c1e5a",
+      "bytes": 1720,
+      "archive": ".tmp/NA-0175/base-reconciliation/historical-artifacts/docs/changes/2026/11/NA-0169-tacacs-tls/evidence/second-local-final-verification.json"
+    },
+    {
+      "path": "docs/changes/2026/11/NA-0169-tacacs-tls/evidence/sonar-ci-summary.json",
+      "sha256": "1d1ad6194564cdaa5cd646218532a11177e4a70a184d1c6eac017d0d5d22ccb5",
+      "bytes": 72606,
+      "archive": ".tmp/NA-0175/base-reconciliation/historical-artifacts/docs/changes/2026/11/NA-0169-tacacs-tls/evidence/sonar-ci-summary.json"
+    },
+    {
+      "path": "docs/changes/2026/11/NA-0169-tacacs-tls/evidence/tls-activation-confirmation.png",
+      "sha256": "15fa27cfb5d0969f67c5d3c761b83cc6ca96bd4d8d79003a7f6c78041456eb0e",
+      "bytes": 148446,
+      "archive": ".tmp/NA-0175/base-reconciliation/historical-artifacts/docs/changes/2026/11/NA-0169-tacacs-tls/evidence/tls-activation-confirmation.png"
+    },
+    {
+      "path": "docs/changes/2026/11/NA-0169-tacacs-tls/evidence/tls-desktop.png",
+      "sha256": "621198fdbaff1988528c71698101502222451e8e819782c033475127f59d53bf",
+      "bytes": 134290,
+      "archive": ".tmp/NA-0175/base-reconciliation/historical-artifacts/docs/changes/2026/11/NA-0169-tacacs-tls/evidence/tls-desktop.png"
+    },
+    {
+      "path": "docs/changes/2026/11/NA-0169-tacacs-tls/evidence/tls-device-mobile-top.png",
+      "sha256": "9ea6ce27d40b4647a3b2d51a8b444969415004e9c4590230a5ea918855c965f0",
+      "bytes": 63496,
+      "archive": ".tmp/NA-0175/base-reconciliation/historical-artifacts/docs/changes/2026/11/NA-0169-tacacs-tls/evidence/tls-device-mobile-top.png"
+    },
+    {
+      "path": "docs/changes/2026/11/NA-0169-tacacs-tls/evidence/tls-mobile.png",
+      "sha256": "b632b39a9de34b746812481b1448cac68b1c6544ee953059c3cfa3b609feb173",
+      "bytes": 63570,
+      "archive": ".tmp/NA-0175/base-reconciliation/historical-artifacts/docs/changes/2026/11/NA-0169-tacacs-tls/evidence/tls-mobile.png"
+    },
+    {
+      "path": "docs/changes/2026/11/NA-0170-zap-stryker/evidence/dependency-audit.json",
+      "sha256": "dea73f25a62b6ec7fb74fd5f7dc1689b5ec4ceeba717696a12ac82c09b197141",
+      "bytes": 557,
+      "archive": ".tmp/NA-0175/base-reconciliation/historical-artifacts/docs/changes/2026/11/NA-0170-zap-stryker/evidence/dependency-audit.json"
+    },
+    {
+      "path": "docs/changes/2026/11/NA-0170-zap-stryker/evidence/mutation-baseline.json",
+      "sha256": "6b6c0ac3812d7824a4815f4d5741bf2cbf534f0512df599f6a7515d96e22d379",
+      "bytes": 3723,
+      "archive": ".tmp/NA-0175/base-reconciliation/historical-artifacts/docs/changes/2026/11/NA-0170-zap-stryker/evidence/mutation-baseline.json"
+    },
+    {
+      "path": "docs/changes/2026/11/NA-0170-zap-stryker/evidence/mutation-local-wip.json",
+      "sha256": "02b99f6f6030223fc2fc3141c0738d5eb0008fa3b5a2d1e63b21b4eb792e7417",
+      "bytes": 1595,
+      "archive": ".tmp/NA-0175/base-reconciliation/historical-artifacts/docs/changes/2026/11/NA-0170-zap-stryker/evidence/mutation-local-wip.json"
+    },
+    {
+      "path": "docs/changes/2026/11/NA-0170-zap-stryker/evidence/single-totp-review.json",
+      "sha256": "5408503c5ba1634662edcb8078a43395fbf5cf985969d16e7a69c2dc99ff733a",
+      "bytes": 578,
+      "archive": ".tmp/NA-0175/base-reconciliation/historical-artifacts/docs/changes/2026/11/NA-0170-zap-stryker/evidence/single-totp-review.json"
+    },
+    {
+      "path": "docs/changes/2026/11/NA-0170-zap-stryker/evidence/zap-first-complete.json",
+      "sha256": "116d052e35000893c210935cf10dee928b5185498e3f9224b10b18c725a3ce88",
+      "bytes": 4284,
+      "archive": ".tmp/NA-0175/base-reconciliation/historical-artifacts/docs/changes/2026/11/NA-0170-zap-stryker/evidence/zap-first-complete.json"
+    },
+    {
+      "path": "docs/changes/2026/11/NA-0170-zap-stryker/evidence/zap-local-final.json",
+      "sha256": "116d052e35000893c210935cf10dee928b5185498e3f9224b10b18c725a3ce88",
+      "bytes": 4284,
+      "archive": ".tmp/NA-0175/base-reconciliation/historical-artifacts/docs/changes/2026/11/NA-0170-zap-stryker/evidence/zap-local-final.json"
+    },
+    {
+      "path": "docs/changes/2026/11/NA-0171-csp-styles/dependency-hardening.json",
+      "sha256": "9bfabde94bb04e770adedf9adee91c02c86722d163169c01516b53bb9a752d73",
+      "bytes": 447,
+      "archive": ".tmp/NA-0175/base-reconciliation/historical-artifacts/docs/changes/2026/11/NA-0171-csp-styles/dependency-hardening.json"
+    },
+    {
+      "path": "docs/changes/2026/11/NA-0171-csp-styles/evidence/k8s-final.json",
+      "sha256": "f4ac46dd758e5ca69e3a6a2f62b141a7c8501f932d363440ad79d47f7d34bf68",
+      "bytes": 2074,
+      "archive": ".tmp/NA-0175/base-reconciliation/historical-artifacts/docs/changes/2026/11/NA-0171-csp-styles/evidence/k8s-final.json"
+    },
+    {
+      "path": "docs/changes/2026/11/NA-0171-csp-styles/evidence/manual-hosts.png",
+      "sha256": "3b0ee2a915517e55df59606f364bdb86af1d12b059ffe86fc0aabefe0143c131",
+      "bytes": 106416,
+      "archive": ".tmp/NA-0175/base-reconciliation/historical-artifacts/docs/changes/2026/11/NA-0171-csp-styles/evidence/manual-hosts.png"
+    },
+    {
+      "path": "docs/changes/2026/11/NA-0171-csp-styles/evidence/manual-sftp.png",
+      "sha256": "049ac71838cfa765ce36218a2be3e519de2c51b07abfe8a2d8bc10f68ddfa31e",
+      "bytes": 61218,
+      "archive": ".tmp/NA-0175/base-reconciliation/historical-artifacts/docs/changes/2026/11/NA-0171-csp-styles/evidence/manual-sftp.png"
+    },
+    {
+      "path": "docs/changes/2026/11/NA-0171-csp-styles/evidence/manual-sharing.png",
+      "sha256": "79fef0fae484bdf43fb97b73fc7e915a8c5e194a9d88cbb1846f187ea1f816e4",
+      "bytes": 39214,
+      "archive": ".tmp/NA-0175/base-reconciliation/historical-artifacts/docs/changes/2026/11/NA-0171-csp-styles/evidence/manual-sharing.png"
+    },
+    {
+      "path": "docs/changes/2026/11/NA-0171-csp-styles/evidence/manual-tenants.png",
+      "sha256": "4cd220c4bf0f28f587a273ff2669743048a2876bf4becd2fb08657b83b0de66f",
+      "bytes": 74024,
+      "archive": ".tmp/NA-0175/base-reconciliation/historical-artifacts/docs/changes/2026/11/NA-0171-csp-styles/evidence/manual-tenants.png"
+    },
+    {
+      "path": "docs/changes/2026/11/NA-0171-csp-styles/evidence/manual-terminal.png",
+      "sha256": "9e3efacf6da607e3820455764953fb597a491681094b32ea45f42e9ba0d098bb",
+      "bytes": 48043,
+      "archive": ".tmp/NA-0175/base-reconciliation/historical-artifacts/docs/changes/2026/11/NA-0171-csp-styles/evidence/manual-terminal.png"
+    },
+    {
+      "path": "docs/changes/2026/11/NA-0171-csp-styles/evidence/terminal-baseline-dark.png",
+      "sha256": "71e7dd24f87e1bc5eb3fbd7fc0bb7d3c7b8620589d00df578520446a64e4cd48",
+      "bytes": 95362,
+      "archive": ".tmp/NA-0175/base-reconciliation/historical-artifacts/docs/changes/2026/11/NA-0171-csp-styles/evidence/terminal-baseline-dark.png"
+    },
+    {
+      "path": "docs/changes/2026/11/NA-0171-csp-styles/evidence/terminal-csp-dark.png",
+      "sha256": "3c13c7a00e10ee1090e6be7b700105706edc9b0a949075cf205588f0b2a403f7",
+      "bytes": 95286,
+      "archive": ".tmp/NA-0175/base-reconciliation/historical-artifacts/docs/changes/2026/11/NA-0171-csp-styles/evidence/terminal-csp-dark.png"
+    },
+    {
+      "path": "docs/changes/2026/11/NA-0171-csp-styles/evidence/zap-final.json",
+      "sha256": "e50eaf4f5da10fde2e9f733db702961b96ddb68a9160d96c101052fc8dfda077",
+      "bytes": 4041,
+      "archive": ".tmp/NA-0175/base-reconciliation/historical-artifacts/docs/changes/2026/11/NA-0171-csp-styles/evidence/zap-final.json"
+    },
+    {
+      "path": "docs/changes/2026/11/NA-0171-csp-styles/runtime-coverage-focused.json",
+      "sha256": "6de6923de54efb8ab23d9ab66d957404434a6d5e1fe18c8a2c995c917c759046",
+      "bytes": 1372,
+      "archive": ".tmp/NA-0175/base-reconciliation/historical-artifacts/docs/changes/2026/11/NA-0171-csp-styles/runtime-coverage-focused.json"
+    },
+    {
+      "path": "docs/changes/2026/11/NA-0172-security-center/evidence/gate-final-20261115.json",
+      "sha256": "198e930e5188baab93b86830559da743ccaf85dcdf03237aa8caa0818788b1ce",
+      "bytes": 20340,
+      "archive": ".tmp/NA-0175/base-reconciliation/historical-artifacts/docs/changes/2026/11/NA-0172-security-center/evidence/gate-final-20261115.json"
+    },
+    {
+      "path": "docs/changes/2026/11/NA-0172-security-center/evidence/roadmap-final-20261115.json",
+      "sha256": "c84824092b852df278726aece3be982a50aca5d95c5f372c45381a095fb14b08",
+      "bytes": 390,
+      "archive": ".tmp/NA-0175/base-reconciliation/historical-artifacts/docs/changes/2026/11/NA-0172-security-center/evidence/roadmap-final-20261115.json"
+    },
+    {
+      "path": "docs/changes/2026/11/NA-0172-security-center/workspace-preserved/docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.csv",
+      "sha256": "1dcdb5a9fd6c2360dc43bc191ac5e3d2fa79dae85840c2bffa56d5b3fa2e9e7c",
+      "bytes": 125881,
+      "archive": ".tmp/NA-0175/base-reconciliation/historical-artifacts/docs/changes/2026/11/NA-0172-security-center/workspace-preserved/docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.csv"
+    },
+    {
+      "path": "docs/changes/2026/11/NA-0172-security-center/workspace-preserved/docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json",
+      "sha256": "067b6464423fec06c8db27020e2cecfa869b5c46875b529f0bf284d9c9122ec2",
+      "bytes": 1214764,
+      "archive": ".tmp/NA-0175/base-reconciliation/historical-artifacts/docs/changes/2026/11/NA-0172-security-center/workspace-preserved/docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json"
+    },
+    {
+      "path": "docs/changes/2026/11/NA-0172-security-center/workspace-preserved/docs/changes/2026/11/NA-0115-sonar-tooling-followup/dispositions.json",
+      "sha256": "0cf51049767d9faffce8b6eedc12bd418b5cb942526c33ddaf4b1eee0773c637",
+      "bytes": 9305,
+      "archive": ".tmp/NA-0175/base-reconciliation/historical-artifacts/docs/changes/2026/11/NA-0172-security-center/workspace-preserved/docs/changes/2026/11/NA-0115-sonar-tooling-followup/dispositions.json"
+    },
+    {
+      "path": "docs/changes/2026/11/NA-0172-security-center/workspace-preserved/docs/changes/2026/11/NA-0125-private-flow-artifacts/dispositions.json",
+      "sha256": "72229ce84d13e72626857b6c8039fd63230cf79ff59891c61a0fc61f429fa418",
+      "bytes": 612,
+      "archive": ".tmp/NA-0175/base-reconciliation/historical-artifacts/docs/changes/2026/11/NA-0172-security-center/workspace-preserved/docs/changes/2026/11/NA-0125-private-flow-artifacts/dispositions.json"
+    },
+    {
+      "path": "docs/changes/2026/11/NA-0172-security-center/workspace-preserved/docs/changes/2026/11/NA-0133-sonar-callback-contracts/dispositions.json",
+      "sha256": "dc0dd3d87f772db5ee907061359afcb080b8b4960ca43bc953cbc96612d9e490",
+      "bytes": 5424,
+      "archive": ".tmp/NA-0175/base-reconciliation/historical-artifacts/docs/changes/2026/11/NA-0172-security-center/workspace-preserved/docs/changes/2026/11/NA-0133-sonar-callback-contracts/dispositions.json"
+    },
+    {
+      "path": "docs/changes/2026/11/NA-0172-security-center/workspace-preserved/docs/changes/2026/11/NA-0142-linear-timeout-diagnostic/dispositions.json",
+      "sha256": "c41454304bd6c6d9bbc79cd0696d11f05eb1f51af305c0832565f605783634c0",
+      "bytes": 858,
+      "archive": ".tmp/NA-0175/base-reconciliation/historical-artifacts/docs/changes/2026/11/NA-0172-security-center/workspace-preserved/docs/changes/2026/11/NA-0142-linear-timeout-diagnostic/dispositions.json"
+    },
+    {
+      "path": "docs/changes/2026/11/NA-0172-security-center/workspace-preserved/docs/changes/2026/11/NA-0145-sonar-open-review/review.csv",
+      "sha256": "1fa65b2b6240a4b51eb230b97f03e692cd5b19b5d63c0760608973d4d1585054",
+      "bytes": 224196,
+      "archive": ".tmp/NA-0175/base-reconciliation/historical-artifacts/docs/changes/2026/11/NA-0172-security-center/workspace-preserved/docs/changes/2026/11/NA-0145-sonar-open-review/review.csv"
+    },
+    {
+      "path": "docs/changes/2026/11/NA-0172-security-center/workspace-preserved/docs/changes/2026/11/NA-0147-terminal-highlight-budget/resolution.json",
+      "sha256": "e966d0a6e258894ca56b260c23996fb96e89094a94cfceaa7b0f3b0d65430740",
+      "bytes": 600,
+      "archive": ".tmp/NA-0175/base-reconciliation/historical-artifacts/docs/changes/2026/11/NA-0172-security-center/workspace-preserved/docs/changes/2026/11/NA-0147-terminal-highlight-budget/resolution.json"
+    },
+    {
+      "path": "docs/changes/2026/11/NA-0172-security-center/workspace-preserved/docs/changes/2026/11/NA-0151-linear-backend-trims/evidence/source-fingerprints.json",
+      "sha256": "0042d6e30eeb4eb9a20a19398bb92045cdd7ecdc9f234d935c1d6104c8f29c42",
+      "bytes": 684,
+      "archive": ".tmp/NA-0175/base-reconciliation/historical-artifacts/docs/changes/2026/11/NA-0172-security-center/workspace-preserved/docs/changes/2026/11/NA-0151-linear-backend-trims/evidence/source-fingerprints.json"
+    },
+    {
+      "path": "docs/changes/2026/11/NA-0172-security-center/workspace-preserved/docs/changes/2026/11/NA-0153-harness-regex-restore/evidence/source-sha256.json",
+      "sha256": "8ea11c6dacce73ddd0adacaa07306f0921b609226f314ae2f898454cc7c9cbef",
+      "bytes": 802,
+      "archive": ".tmp/NA-0175/base-reconciliation/historical-artifacts/docs/changes/2026/11/NA-0172-security-center/workspace-preserved/docs/changes/2026/11/NA-0153-harness-regex-restore/evidence/source-sha256.json"
+    },
+    {
+      "path": "docs/changes/2026/11/NA-0172-security-center/workspace-preserved/docs/sonarqube/discovered-findings.json",
+      "sha256": "b61cba2e92df60e8573b10672974a2be1c5bc8360f3a7f116f0238defe587ef7",
+      "bytes": 11622,
+      "archive": ".tmp/NA-0175/base-reconciliation/historical-artifacts/docs/changes/2026/11/NA-0172-security-center/workspace-preserved/docs/sonarqube/discovered-findings.json"
+    },
+    {
+      "path": "docs/changes/2026/11/NA-0172-security-center/workspace-preserved/docs/sonarqube/findings.csv",
+      "sha256": "1ea8151740c02a6e48dce901b9d31a6918ed7aa69770f8a145068716a279246d",
+      "bytes": 450131,
+      "archive": ".tmp/NA-0175/base-reconciliation/historical-artifacts/docs/changes/2026/11/NA-0172-security-center/workspace-preserved/docs/sonarqube/findings.csv"
+    },
+    {
+      "path": "docs/changes/2026/11/NA-0172-security-center/workspace-preserved/docs/sonarqube/findings.html",
+      "sha256": "21031e650964796f45635fb578cd05e98a0b78aa117e9799730ead1b2936e0c2",
+      "bytes": 771170,
+      "archive": ".tmp/NA-0175/base-reconciliation/historical-artifacts/docs/changes/2026/11/NA-0172-security-center/workspace-preserved/docs/sonarqube/findings.html"
+    },
+    {
+      "path": "docs/changes/2026/11/NA-0172-security-center/workspace-preserved/docs/sonarqube/findings.json",
+      "sha256": "0d2c8950cf31275d350cc35bd6a5395c678ca70c3ce278a6a38195e28c1299b6",
+      "bytes": 772045,
+      "archive": ".tmp/NA-0175/base-reconciliation/historical-artifacts/docs/changes/2026/11/NA-0172-security-center/workspace-preserved/docs/sonarqube/findings.json"
+    },
+    {
+      "path": "docs/changes/2026/11/NA-0172-security-center/workspace-preserved/docs/sonarqube/reviewed-false-positives.json",
+      "sha256": "465f047c5d5ef20137fe7a4fa885e4638aebfb1a6886c66435e82200ef27fb01",
+      "bytes": 205355,
+      "archive": ".tmp/NA-0175/base-reconciliation/historical-artifacts/docs/changes/2026/11/NA-0172-security-center/workspace-preserved/docs/sonarqube/reviewed-false-positives.json"
+    },
+    {
+      "path": "docs/changes/2026/11/NA-0173-codex-token-efficiency/evidence/post-commit-20261111.json",
+      "sha256": "14f30ca21e16dfd6f8050c8ae9d271d88586d14d40ed112b4d18011f9d6ec31c",
+      "bytes": 4922,
+      "archive": ".tmp/NA-0175/base-reconciliation/historical-artifacts/docs/changes/2026/11/NA-0173-codex-token-efficiency/evidence/post-commit-20261111.json"
+    },
+    {
+      "path": "docs/changes/2026/11/NA-0174-security-diagnosis/evidence/controls-final-20261115.json",
+      "sha256": "3553c2057a2885e647c55fbe3b28aa86b69c04f16a5e105c7766e84c5adf0cb1",
+      "bytes": 5359,
+      "archive": ".tmp/NA-0175/base-reconciliation/historical-artifacts/docs/changes/2026/11/NA-0174-security-diagnosis/evidence/controls-final-20261115.json"
+    },
+    {
+      "path": "docs/changes/2026/11/NA-0174-security-diagnosis/evidence/controls-sonar-final-20261115.json",
+      "sha256": "809f96c2172f95c0f3df9d35c912d00f21b2330aa23b59024e5f756064fa1717",
+      "bytes": 4256,
+      "archive": ".tmp/NA-0175/base-reconciliation/historical-artifacts/docs/changes/2026/11/NA-0174-security-diagnosis/evidence/controls-sonar-final-20261115.json"
+    },
+    {
+      "path": "docs/changes/2026/11/NA-0174-security-diagnosis/evidence/roadmap-controls-20261115.json",
+      "sha256": "cc04179c697a3625123a8578410ba29df7f26933957cc3a7ea143f512ea26626",
+      "bytes": 459,
+      "archive": ".tmp/NA-0175/base-reconciliation/historical-artifacts/docs/changes/2026/11/NA-0174-security-diagnosis/evidence/roadmap-controls-20261115.json"
+    }
+  ]
+}

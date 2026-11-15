@@ -1,0 +1,14 @@
+{
+  "beforeSha256": "d2305f24b761e9afd576871f04db0b44132ae12da48261e654a3be44951ce45d",
+  "afterSha256": "b06f08f72ea92e049276b86bfff1af3ef1c41530ebd257d1af663560f5cd863d",
+  "changedCells": [
+    "D6",
+    "G6",
+    "I6",
+    "D18",
+    "G18",
+    "I18"
+  ],
+  "revisionRow": 25,
+  "validation": "ZIP íntegro; demais entradas, células e revisões anteriores preservadas; sem validação visual Excel"
+}
