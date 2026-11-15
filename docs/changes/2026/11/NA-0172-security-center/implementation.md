@@ -15,6 +15,69 @@ Evidência própria: `evidence/isolation-20261112.json`. Histórico de 11/11 cob
 Revisão independente final: PASS_WITH_WARNINGS para isolamento; BLOCKED integral pela reconciliação.
 Próximo: autorização específica para commit, sem publicação inferida.
 
+## Pedido e objetivo
+
+Disponibilizar uma Central informativa autenticada com afirmações sustentadas por evidências,
+sem expor metadados internos. Usuário autorizou concluir a frente antes do diagnóstico NA-0174.
+
+## Implementação
+
+Rota/menu/view SecurityCenter, catálogo e projeção pública por allowlist, navegação por âncoras
+sem recriar a página. Manual revalidado e harnesses corrigidos sem alterar transporte de produção.
+Base SHA: 745253d1edb522db79aaa44fd96608ce434a2774. Plano e evidências ficam nesta pasta.
+
+## Validação
+
+Ran: testes focados, build/typecheck, manual, lint explícito, scanners e validação pré-commit
+registrados em evidence/isolation-20261112.json. Gate OK, reconciliação pré-commit bloqueada.
+Ran após correção do lock: npm ci, Prisma/shared, 28 contratos de importação, auditoria sem vulnerabilidades conhecidas e build/typecheck frontend PASS. Planned: build Docker e validação no novo SHA limpo/checks remotos antes de merge.
+Manual: homologação informada da Central em 06/11; ajuste posterior de âncoras tem testes próprios.
+Skipped: nova homologação humana e PTY real nesta consolidação, sem mudança de resize/transporte.
+
+## Recuperação
+
+Reverter os commits desta frente remove rota/menu/plugin/catálogo; não há migração de banco.
+Preservar o checkout canônico e o backup da transição descrito em workspace-transition.md.
+Não sobrescrever documentos ou código de outras frentes durante sincronização.
+
+## Pendências
+
+Aprovação integral no SHA definitivo, checks remotos e merge/sincronização ainda condicionam
+entrega. A Central não comprova proteção ativa no tenant. Diagnóstico NA-0174 tem escopo próprio.
+
+## Diário de interações
+
+### 2026-11-14T21:52:48-03:00 — Validação das correções agrupadas
+
+Ran: npm ci pelo lock corrigido, Prisma/shared, 28 testes de importação/detecção, auditoria
+zero vulnerabilidades conhecidas, build/typecheck frontend e build Docker prod PASS.
+Inspeção da imagem final: 205 arquivos contra 53 valores internos, zero vazamentos e nenhum
+controls-catalog.json no diretório público; contêiner de inspeção removido. Primeiras tentativas
+Buildx falharam antes do build por grupo primário; execução com -g jeferson -G docker e estado
+isolado resolveu, sem alterar permissões permanentes. Governança do registro corrigida.
+Primeiro commit e83fdc5ba teve validação integral local PASS, mas CI encontrou três bloqueios
+tratados neste delta: diário, dependência herdada e contexto Docker. Novo SHA ainda exige
+validate:sonar e checks remotos. Sem declarar merge/entrega antes desses resultados.
+
+### 2026-11-14T21:43:46-03:00 — Correção mínima do gate de dependências
+
+CI dependencies reprovou fast-xml-parser5.11.2, resolução herdada da base, por
+GHSA-474x-hrwr-fgx4 (Low, CPU com stopNodes). Advisory oficial indica5.12.0 corrigida.
+Consumidor guacamole-import.service.ts não usa stopNodes; não há exploração demonstrada.
+NECESSARY_CORRECTION: lock para parser5.12.0, is-unsafe2.0.3 e strnum2.5.1 (mínimos exigidos).
+Range frontend ^5.10.1 e demais pacotes preservados; nenhuma nova dependência/política.
+Revisão independente PASS no delta. Risco: compatibilidade de importação XML/JSON; validar
+contratos Guacamole/detecção, instalação pelo lock e auditoria, além dos gates no novo SHA.
+Fonte: https://github.com/advisories/GHSA-474x-hrwr-fgx4. Testes do candidato atualizado
+permanecem pendentes neste registro pré-execução; não inferir aprovação do SHA anterior.
+
+### 2026-11-14T21:38:15-03:00 — Correção do formato do registro
+
+CI change-governance da PR63 reprovou títulos obrigatórios ausentes no diário. Conteúdo existia
+em resumo/entradas cronológicas; reorganizado com as seis seções do template, preservando histórico.
+Nenhuma mudança de código, teste ou política. Novo commit exige revalidar SHA final; resultados
+anteriores permanecem identificados pelo candidato correspondente.
+
 ### 2026-11-14T21:28:49-03:00 — Consolidação autorizada
 
 Usuário pediu fechar a Central e iniciar o diagnóstico aprofundado. Autorizada a consolidação
@@ -183,3 +246,10 @@ Usuário homologou a Central e apontou somente a transição de página ao selec
 Baseline independente reproduziu a falha: DOMsubstituído e21efeitos de transição/barra ao clicar Auditoria, embora alvo/hash corretos. Correção: routeContentKey elimina somente hash para security-center na key/indicador; query e outrasrotas preservadas, terminal mantém sua key original. View usa hash reativo para rolagem emmontagem/histórico, sem selector interpolado. Ran:4SSR,lint,typecheckPASS. HarnessindependentePASS com54observaçõesdesktop/mobile/temas/perfis; mesma instância, zeroefeitos e alvo visível emclique, repetição, Enter, Back/Forward, inclusivequerypreservada. Mudança real dequery mantém identidade anterior de navegação. Oitocenáriospreexistentes e12capturas preservados.
 
 Manual:5capturas/fluxosPASS e revisão visual independente semregressão; procedimentosHosts inalterados. Atualizado sóhashreviewHosts após revisão;2Node+18Vitest e5capítulosreviewedPASS. Buildfinal emconclusão; Sonar novo pendente. Homologação da tela anterior foi informada pelo usuário; ajuste possui evidência automatizada própria, sem inferir autorização decommit/publicação.
+
+### 2026-11-14T21:49:30-03:00 — Contexto Docker da Central
+
+CI upgrade-restore revelou módulo tools/security-center/build.cjs ausente do contexto Docker.
+Corrigida allowlist em .dockerignore para plugin, catálogo e evidência de teste Sonar exigida
+pelo verificador. Somente builder recebe fontes internas; runtime copia dist. Validação da
+imagem e inspeção de assets planejadas antes de considerar a correção aprovada.

@@ -45,3 +45,14 @@ tools/*
 !tools/shared/
 tools/shared/*
 !tools/shared/trusted-executable.cjs
+
+# Security Center validates its internal catalog in the builder; only projected text reaches dist.
+!docs/security/
+docs/security/*
+!docs/security/controls-catalog.json
+!tools/security-center/
+tools/security-center/*
+!tools/security-center/build.cjs
+!tools/sonarqube/
+tools/sonarqube/*
+!tools/sonarqube/validate-flow.test.mjs

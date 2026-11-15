@@ -90,3 +90,16 @@ UX e ambiente canônico disponíveis e testados, banco local alinhado mediante a
 
 ### Ajuste após homologação — âncoras da Central
 Usuário declarou homologação da Central e solicitou como único ajuste remover o efeito de transição ao selecionar uma seção. IN_PLAN: preservar a instância da Central quando apenas o fragmento muda; rolar para o conteúdo, incluindo teclado, histórico e links diretos. Identidade de outras rotas/query e cache do terminal preservados. Mudança localizada no layout e observação de hash na view; validar ausência de recriação, transição e indicador de carregamento. Revalidar manual por AppLayout mapeado e gates aplicáveis. Homologação informada vale para o estado apresentado; ajuste novo terá evidência própria. Sem autorização de commit/publicação inferida.
+
+### Correções necessárias de CI — 14/11/2026
+
+NECESSARY_CORRECTION: diário reorganizado nas seis seções obrigatórias sem remover histórico.
+Gate de dependências detectou GHSA-474x-hrwr-fgx4 no lock herdado. Atualização mínima revisada:
+fast-xml-parser5.12.0 e transitivas exigidas is-unsafe2.0.3/strnum2.5.1; range original preservado.
+Não muda políticas nem adiciona dependência. Contratos de importação, npm ci, auditoria e
+validação no novo SHA obrigatórios; sem exposição ao stopNodes demonstrada no consumidor.
+
+NECESSARY_CORRECTION adicional: CI upgrade-restore falhou porque .dockerignore excluía o
+plugin da Central. Reintroduzir somente catálogo, plugin e arquivo de evidência de teste
+Sonar necessário à validação do catálogo no builder. Validar imagem frontend prod e conferir
+que catálogo/metadados internos não são copiados para o diretório público da imagem final.
