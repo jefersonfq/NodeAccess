@@ -199,13 +199,14 @@
         "--target",
         "prod",
         "-t",
-        "nodeaccess-frontend:na0172-validation",
+        "<local-candidate-image-tag>",
         "."
       ],
       "started_at": "2026-11-15T00:50:02.475799+00:00",
       "finished_at": "2026-11-15T00:52:02.796275+00:00",
       "exit_code": 0,
-      "environment": "Primary group jeferson preserved; supplemental docker ephemeral; BUILDX_CONFIG isolated."
+      "environment": "Primary group jeferson preserved; supplemental docker ephemeral; BUILDX_CONFIG isolated.",
+      "command_note": "Historical command sanitized: arbitrary local image tag omitted; it was not a credential. Original execution retained in private evidence."
     },
     "privacy": {
       "passed": true,
