@@ -37,6 +37,7 @@ function fixture(t, options = {}) {
     if (args.includes('--coverage')) {
       assert.equal(env.NODEACCESS_TLS_COVERAGE, undefined)
       assert.equal(env.NODEACCESS_COVERAGE_COLLECT, '1')
+      assert.equal(env.RUN_TUNNEL_REAL, 'true')
       mkdirSync(join(root, 'coverage/vitest'), { recursive: true })
       writeFileSync(join(root, 'coverage/vitest/coverage-final.json'), JSON.stringify({ [join(root, browserFile)]: fileCoverage(join(root, browserFile)), [join(root, source)]: fileCoverage(join(root, source), options.lowCoverage ? 0 : 1), ...(options.jsonData ? { [join(root, 'tools/data.json')]: fileCoverage(join(root, 'tools/data.json')) } : {}) }))
       writeFileSync(join(root, 'coverage/vitest-tests.json'), JSON.stringify({ success: true, numPassedTests: 1, numFailedTests: 0, numPendingTests: 0, ...options.report }))

@@ -4,13 +4,15 @@ Base SHA: 28685c5b2c3fbf9739a05629260c95e42e0d62d0 (diagnóstico original e83fdc
 
 ## Resumo atual
 
-LOCAL_WIP pronto para commit validável; base master28685c5b2. Controles D01/D02/D06/D07/D08/
-D09/D11/D12 corrigidos e matriz focal D03/D04/D05/D10 validada nos limites registrados.
-Ran: suíte integral3739PASS/0FAIL/145skipped, suplemento final27PASS, lint de todos arquivos
-TypeScript alterados PASS;27 testes Node editoriais/relatórios PASS. HTTP/MySQL/SSH/SFTP/Redis
-reais, CAS concorrente e PTY fullapp/top/htop PASS. Revisão independente PASS_WITH_WARNINGS.
-Manual/capturas/catálogo revalidados sem ampliar alegações públicas. Scanner local PASS (40 fixtures conhecidas, zero achados não revisados; Semgrep zero);
-Sonar integral no commit e checks remotos ainda pendentes. Não considerar entregue.
+Candidato ce7a31fda publicado no PR64 (draft); base master28685c5b2. Controles
+D01/D02/D06/D07/D08/D09/D11/D12 corrigidos; D03/D04/D05/D10 validados nos limites registrados.
+HTTP/MySQL/SSH/SFTP/Redis reais, CAS concorrente e PTY fullapp/top/htop PASS.
+Revisão independente PASS_WITH_WARNINGS. Manual/capturas/catálogo revalidados.
+CI de upgrade/restore/runtime/imagens PASS (7/7); estática/segredos e governança PASS.
+Sonar local ce7a31fda FAIL: zero violações novas/hotspots, cobertura76,2% (<80%),
+coleta Node afetada por PATH e teste browser com data antiga. Não considerar entregue.
+Correções focais validadas: PATH limpo, data derivada do catálogo, laboratórios loopback SSH/SFTP
+incluídos na coleta Vitest local/CI e testes observáveis do repositório de usuários.
 
 Guacd1.6.0 e imagens de produto preservados; sem migração/dependência nova. Limites: Redis
 pubsub não durável, evento tardio pode encerrar reconexão válida, RDP/VNC sem wire real.
@@ -31,7 +33,7 @@ Host de origem exige regularização. Arquivo SFTP parcial não tem rollback aut
 ## Validação
 
 Ran: baseline, focais e laboratórios descritos no resumo/evidência; falhas iniciais preservadas.
-Planned: suíte completa após integração, lint final, Sonar no candidato, revisão/CI.
+Planned: repetir cobertura/Sonar e CI no SHA corrigido; preservar resultados anteriores.
 Skipped: produção e sessões RDP/VNC reais; testes de contrato não substituem esses ensaios.
 Manual: homologação funcional do usuário ainda não executada nesta frente.
 
@@ -42,7 +44,7 @@ nos laboratórios são descartáveis; cleanup registrado. Preservar demais frent
 
 ## Pendências
 
-Concluir commit, validate:sonar integral no SHA final e checks/revisão remotos antes
+Concluir correções do gate, validate:sonar integral no SHA final e checks/revisão remotos antes
 de entrega pelos gates. Roadmap será atualizado em uma única escrita ao fechar a rodada.
 
 ## Diário de interações
@@ -165,3 +167,29 @@ Duas constantes de teste explicitadas como sintéticas; hashes documentais tipad
 digests com valores preservados. Políticas/allowlists intactas. Tentativas anteriores
 FAIL preservadas nos logs privados. Revisão independente confirmou semântica/documentos.
 Próximo: commit rastreável e validate:sonar integral no SHA limpo; sem entrega presumida.
+
+### 2026-11-15T15:12:39-03:00 — PR64 e correção do gate
+
+Pedido mantido: concluir Central e derivados. PR64 publicado em ce7a31fda; sem merge/deploy.
+Ran: validate:sonar FAIL rastreável (76,2%, sem novas violações); upgrade/restore e scanner7/7
+PASS no CI. Coletor ajustado sem baixar thresholds;34 testes do coletor e13 testes novos
+do repositório PASS. Homologação humana permanece pendente. Próximo: validar candidato corrigido.
+
+### 2026-11-15T15:23:51-03:00 — Fixture TLS e cobertura
+
+Ran: Vitest integral3782PASS/0FAIL/124skipped; coletor34PASS; revisão focal81PASS/lint.
+Node693PASS/1FAIL/11skipped revelou live.mjs sem reader atual; corrigido com usuários reais
+distintos e claims persistidas. TLS focal3PASS,608requests,live/health/soak/watchdog e cleanup
+PASS. Coleta anterior invalidada também por edição de fonte durante browser;84,4% é apenas
+diagnóstico, não aprovação. Navegador repetido congelado; Sonar/CI do próximo SHA pendentes.
+
+Browser congelado:10/10 harnesses PASS; manual reviewed e catálogo PASS. Commit corretivo
+preparado; Sonar integral/CI do novo SHA ainda obrigatórios, sem homologação presumida.
+
+### 2026-11-15T15:41:58-03:00 — Correção de governança do commit
+
+CI f53c175 reprovou metadados: título da seção Aprovação e trailers obrigatórios.
+Restaurado o título e acrescentados Plan/Change-Date/Tests/Evidence ao último commit
+da própria branch. Sem mudança de runtime/testes ou regras. Lease exige head remoto
+f53c175, impedindo sobrescrever avanço alheio. Sonar desse SHA: True;
+resultado preservado. Novo SHA exigirá Sonar/CI completos; homologação pendente.

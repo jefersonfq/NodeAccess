@@ -177,3 +177,21 @@ Guacd1.6.0 mantido, bibliotecas corrigidas. Cinco triagens exatas até29/11, SQL
 PR63 MERGED e MASTER_SYNCED `28685c5b2c3fbf9739a05629260c95e42e0d62d0`. Não houve deploy; RDP/arm64 não homologados.
 Demais achados de controles continuam abertos, com as limitações de reprodução registradas.
 Evidência: ../NA-0172-security-center/evidence/gate-final-20261115.json.
+
+## Estado dos controles após correções — 2026-11-15
+
+As reproduções acima são históricas e motivaram o candidato ce7a31fda (PR64).
+D-01/D-02: estado atual e versão de sessão exigidos; logout-all concorrente por CAS,
+com revogação de canais existentes. D-06: gateway nativo registra/revalida o runtime.
+D-07/D-08/D-09: identidade SSH obrigatória no alvo e salto em SSH/SFTP/túneis/MCP;
+bastion legado exige Host de origem regularizado. D-11: revogação cancela conexões e
+transferências pendentes/ativas; arquivos parcialmente escritos não são revertidos.
+D-12: ACK correlacionado aguarda proprietário; negativos de outras instâncias não
+encerram antecipadamente a espera. Testes distinguem ACK de encerramento real.
+D-03/D-04/D-05/D-10: matriz focal tenant/Cofre/SSRF/ACL validada conforme evidence/controls-validation-20261115.json.
+D-13: já integrado pela PR63; novo CI de upgrade/restore e scanner7/7 também PASS no ce7a31fda.
+
+Limites: RDP/VNC cobertos por contratos/injeção de transporte, sem wire real nesta rodada;
+Redis pubsub não durável; revogação tardia pode alcançar reconexão válida. Não é pentest
+completo nem aprovação de produção. Gate Sonar ce7a31fda FAIL (cobertura76,2% e coleta),
+correções em andamento; PR64 draft, sem homologação humana/merge/deploy.

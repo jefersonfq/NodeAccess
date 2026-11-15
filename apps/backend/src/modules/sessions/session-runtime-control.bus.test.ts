@@ -97,6 +97,30 @@ describe('SessionRuntimeControlBus', () => {
 
 
 describe('distributed closure confirmation', () => {
+  it.each(['connect', 'subscribe'] as const)('does not publish when %s resolves after the closure deadline', async phase => {
+    vi.useFakeTimers()
+    const redis = new FakeRedis(), subscriber = new FakeRedis(), missing = { close: vi.fn(() => false) }
+    let release!: () => void
+    const delayed = new Promise<void>(resolve => { release = resolve })
+    vi.spyOn(redis, 'duplicate').mockReturnValue(subscriber)
+    const subscribe = vi.spyOn(subscriber, 'subscribe')
+    if (phase === 'subscribe') subscribe.mockReturnValue(delayed)
+    else vi.spyOn(subscriber, 'connect').mockReturnValue(delayed)
+    const disconnect = vi.spyOn(subscriber, 'disconnect')
+    const publish = vi.spyOn(redis, 'publish')
+    const bus = new SessionRuntimeControlBus(redis as never, missing as never, missing as never)
+    try {
+      const result = bus.closeSession(1, 20)
+      await vi.advanceTimersByTimeAsync(20)
+      expect(await result).toEqual({ closed: false, handledByRuntime: false })
+      release()
+      await vi.advanceTimersByTimeAsync(0)
+      expect(publish).not.toHaveBeenCalled()
+      expect(disconnect).toHaveBeenCalled()
+      expect(subscribe).toHaveBeenCalledTimes(phase === 'subscribe' ? 1 : 0)
+      expect(vi.getTimerCount()).toBe(0)
+    } finally { release(); vi.useRealTimers() }
+  })
   it.each([true, false])('waits for the owner even when non-owner replies first=%s', async nonOwnerFirst => {
     const redis = new FakeRedis(), missing = { close: vi.fn(() => false) }, owner = { close: vi.fn(() => true) }
     const ownerBus = new SessionRuntimeControlBus(redis as never, owner as never, missing as never)

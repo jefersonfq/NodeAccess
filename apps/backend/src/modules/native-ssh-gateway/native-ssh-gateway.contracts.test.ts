@@ -87,6 +87,19 @@ describe('native gateway lifecycle and operational heartbeat', () => {
 })
 
 describe('native gateway authentication contracts', () => {
+  it.each(['reader-rejection', 'role-change'])('denies target admission before opening a session on %s', async reason => {
+    const f = fixture(), channel = new Channel()
+    if (reason === 'reader-rejection') vi.mocked(assertCurrentUserVersion).mockRejectedValueOnce(new Error('state unavailable'))
+    else vi.mocked(assertCurrentUserVersion).mockResolvedValueOnce({ role: 'ADMIN' } as never)
+    const auth = { ...authenticated(), parsedLogin: { nodeAccessLogin: 'fixture', target: '#19' } }
+    await invoke(f.service, 'connectToTarget', channel, auth, info, { cols: 80, rows: 24 }, 'forbidden')
+    expect(channel.end).toHaveBeenCalledTimes(1)
+    expect(channel.write).toHaveBeenCalledWith(expect.stringContaining('Sessão revogada'))
+    expect(f.repo.resolveAccessibleHost).not.toHaveBeenCalled()
+    expect(f.managed.open).not.toHaveBeenCalled()
+    expect(f.session.write).not.toHaveBeenCalled()
+    expect(f.registry.has(41)).toBe(false)
+  })
   it('accepts valid password, clears counters and records tenant capability and audit', async () => {
     const f = fixture()
     const result = await invoke<Promise<unknown>>(f.service, 'authenticate', passwordContext(), null, info)

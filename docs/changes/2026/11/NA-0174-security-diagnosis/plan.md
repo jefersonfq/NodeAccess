@@ -16,11 +16,15 @@ risk: high (correções focais de autenticação e transporte)
 
 ## Aprovação
 
+O escopo somente leitura abaixo foi ampliado pelo pedido de concluir pendências em
+15/11; o contrato vigente está em “Correções autorizadas” e no critério de encerramento
+técnico ao final. PR63 já integrada; PR64 contém o candidato de controles, ainda sem merge.
+
 Decisão: GO_WITH_RISKS para diagnóstico inicial somente leitura; reproduções e correções futuras dependem de plano específico.
 Usuário autorizou fechar a Central e iniciar diagnóstico aprofundado em 14/11/2026.
 Escopo inicial aprovado: inspeção de código, mapa de fronteiras, matriz de evidências e
 backlog de testes por risco. Não autoriza mudar autenticação/SSH nem testar produção.
-Base é o commit local da Central, ainda em validação pós-commit; não confundir com master.
+Na abertura, a base era o commit local da Central; a implementação atual usa master28685c5b2 após integração da PR63.
 Origin/master consultado em 14/11: 745253d1edb522db79aaa44fd96608ce434a2774.
 
 ## Escopo

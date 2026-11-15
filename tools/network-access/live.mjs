@@ -10,6 +10,8 @@ import { createTacacsTestPki } from '../../apps/backend/dist/modules/network-acc
 import Fastify from 'fastify'
 import jwt from '@fastify/jwt'
 import { Prisma, PrismaClient } from '@prisma/client'
+import { configureCurrentSessionReader } from '../../apps/backend/dist/modules/auth/current-session.js'
+import { UserRepository } from '../../apps/backend/dist/modules/users/user.repository.js'
 import { SshRepository } from '../../apps/backend/dist/modules/ssh/ssh.repository.js'
 import { InventoryAclRepository } from '../../apps/backend/dist/modules/inventory/inventory-acl.repository.js'
 import { NetworkAccessService } from '../../apps/backend/dist/modules/network-access/network-access.service.js'
@@ -29,7 +31,10 @@ const rotatedFingerprint=new X509Certificate(pem('unknown.crt')).fingerprint256.
 const runtime=createTacacsServer(service,tlsMaterial)
 const clientIdentity=name=>({cert:join(pkiDirectory,name+'.crt'),key:join(pkiDirectory,name+'.key')})
 const tlsClient={...clientIdentity('client'),ca:join(pkiDirectory,'root/ca.crt'),crl:join(pkiDirectory,'root/ca.crl'),serverName:process.env.NETWORK_TLS_SERVER_NAME??'localhost'}
-let tenant,user,host,node,acl,foreignTenant,foreignUser,foreignHost
+let tenant,user,admin,host,node,acl,foreignTenant,foreignUser,foreignHost
+const users=new UserRepository(db)
+configureCurrentSessionReader((userId,tenantId)=>users.findCurrentSessionState(userId,tenantId))
+const claims=principal=>({sub:String(principal.id),tenantId:principal.tenantId,email:principal.email,role:principal.role.toLowerCase(),stage:'authenticated',sessionVersion:principal.sessionVersion,isPlatformAdmin:principal.isPlatformAdmin,canManageHosts:principal.canManageHosts,canViewLiveSessions:principal.canViewLiveSessions})
 const checks=[]
 function checked(name){checks.push(name);console.log('PASS '+name)}
 async function probe(action,extra={}) {
@@ -40,17 +45,18 @@ async function probe(action,extra={}) {
 }
 try{
  tenant=await db.tenant.create({data:{name:'Disposable network AAA',slug:'network-aaa-'+randomUUID()}})
+ admin=await db.user.create({data:{tenantId:tenant.id,name:'Administrator network pilot',email:randomUUID()+'@example.test',role:'ADMIN',canManageHosts:true}})
  user=await db.user.create({data:{tenantId:tenant.id,name:'Alice network pilot',email:randomUUID()+'@example.test'}})
  foreignTenant=await db.tenant.create({data:{name:'Disposable foreign AAA',slug:'network-foreign-'+randomUUID()}})
  foreignUser=await db.user.create({data:{tenantId:foreignTenant.id,name:'Foreign user',email:randomUUID()+'@example.test'}})
  host=await db.host.create({data:{tenantId:tenant.id,name:'Disposable network device',ip:'127.0.0.1',sshUser:'alice',authType:'PASSWORD',scope:'GLOBAL'}})
  node=await db.inventoryNode.create({data:{tenantId:tenant.id,hostId:host.id,name:host.name,type:'HOST',path:'/lab/'+randomUUID(),createdById:user.id}})
  await api.register(jwt,{secret:randomUUID()});await networkAccessRoutes(api,service)
- const token=api.jwt.sign({sub:String(user.id),tenantId:tenant.id,role:'admin',stage:'authenticated'})
+ const token=api.jwt.sign(claims(admin))
  const headers={authorization:'Bearer '+token}
  const put=async(path,payload,status=204)=>{const response=await api.inject({method:'PUT',url:'/'+path,headers,payload});assert.equal(response.statusCode,status,response.body)}
  assert.equal((await api.inject({method:'GET',url:'/'})).statusCode,401)
- assert.equal((await api.inject({method:'GET',url:'/',headers:{authorization:'Bearer '+api.jwt.sign({sub:String(user.id),tenantId:tenant.id,role:'user',stage:'authenticated'})}})).statusCode,403)
+ assert.equal((await api.inject({method:'GET',url:'/',headers:{authorization:'Bearer '+api.jwt.sign(claims(user))}})).statusCode,403)
  checked('HTTP authentication and administrator restriction')
  await put('settings',{defaultProfile:'network_generic',tacacsEnabled:true})
  assert.equal((await service.settings(tenant.id)).defaultProfile,'network_generic')
@@ -191,12 +197,14 @@ try{
  if(node)await db.inventoryNode.delete({where:{id:node.id}})
  if(host)await db.host.delete({where:{id:host.id}})
  if(user){await db.adminLog.deleteMany({where:{adminId:user.id}});await db.user.delete({where:{id:user.id}})}
+ if(admin){await db.adminLog.deleteMany({where:{adminId:admin.id}});await db.user.delete({where:{id:admin.id}})}
  if(tenant)await db.tenant.delete({where:{id:tenant.id}})
  if(foreignHost)await db.host.delete({where:{id:foreignHost.id}})
  if(foreignUser){await db.adminLog.deleteMany({where:{adminId:foreignUser.id}})}
  if(foreignUser)await db.user.delete({where:{id:foreignUser.id}})
  if(foreignTenant)await db.tenant.delete({where:{id:foreignTenant.id}})
  healthStore?.close()
+ configureCurrentSessionReader(undefined)
  await db.$disconnect()
  ownedPki?.cleanup()
 }
