@@ -1,0 +1,82 @@
+{
+  "startedAt": "2026-11-06T12:31:54.467Z",
+  "finishedAt": "2026-11-06T12:49:47.353Z",
+  "passed": false,
+  "failures": [
+    "REVIEWED_FINDINGS_NOT_VERIFIED"
+  ],
+  "base": "745253d1edb522db79aaa44fd96608ce434a2774",
+  "head": "745253d1edb522db79aaa44fd96608ce434a2774",
+  "toolingExit": 0,
+  "coverageExit": 0,
+  "scannerExit": 0,
+  "analysisId": "88b0f0e5-d699-459d-bee2-b457cc696311",
+  "analysisVerified": true,
+  "comparison": {
+    "passed": true,
+    "reviewed": 0,
+    "unexpected": [],
+    "absentReviewedOccurrences": 295
+  },
+  "gate": {
+    "status": "OK",
+    "conditions": [
+      {
+        "status": "OK",
+        "metricKey": "new_coverage",
+        "comparator": "LT",
+        "errorThreshold": "80",
+        "actualValue": "81.2"
+      },
+      {
+        "status": "OK",
+        "metricKey": "new_duplicated_lines_density",
+        "comparator": "GT",
+        "errorThreshold": "3",
+        "actualValue": "0.06514"
+      },
+      {
+        "status": "OK",
+        "metricKey": "new_violations",
+        "comparator": "GT",
+        "errorThreshold": "0",
+        "actualValue": "0"
+      }
+    ],
+    "ignoredConditions": false,
+    "period": {
+      "mode": "PREVIOUS_VERSION",
+      "date": "2026-11-03T16:48:47+0000"
+    },
+    "caycStatus": "compliant"
+  },
+  "hotspotsToReview": 0,
+  "error": "REVIEW_CHECKOUT_CHANGED",
+  "reviewsVerified": false,
+  "sourceFingerprint": "977d6cacbf026f22b70e3ca12e22c457c1428a28f6afd019bc0c2f91356aea05",
+  "diffCoverage": {
+    "status": "passed",
+    "base": "745253d1edb522db79aaa44fd96608ce434a2774",
+    "head": "745253d1edb522db79aaa44fd96608ce434a2774",
+    "includesWorkingTree": true,
+    "threshold": 80,
+    "percent": 92.47910863509749,
+    "lines": 241,
+    "coveredLines": 230,
+    "conditions": 118,
+    "coveredConditions": 102,
+    "files": [
+      "apps/frontend/src/layouts/AppLayout.vue",
+      "apps/frontend/src/router/index.ts",
+      "apps/frontend/src/security-center/types.ts",
+      "apps/frontend/src/views/SecurityCenterView.vue",
+      "tools/coverage/browser.mjs",
+      "tools/coverage/inventory.mjs",
+      "tools/frontend/security-center-playwright.cjs",
+      "tools/security-center/build.cjs"
+    ],
+    "missing": []
+  },
+  "exportedIssueCount": 0,
+  "exportedHotspotCount": 0
+}

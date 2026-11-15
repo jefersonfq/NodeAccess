@@ -1,0 +1,188 @@
+{
+  "startedAt": "2026-11-06T15:09:38.670Z",
+  "finishedAt": "2026-11-06T15:28:02.417Z",
+  "passed": false,
+  "failures": [
+    "REVIEWED_FINDINGS_NOT_VERIFIED"
+  ],
+  "base": "745253d1edb522db79aaa44fd96608ce434a2774",
+  "head": "745253d1edb522db79aaa44fd96608ce434a2774",
+  "analysisId": "953165e8-832b-486f-94c1-a9004c609ef2",
+  "analysisVerified": true,
+  "toolingExit": 0,
+  "coverageExit": 0,
+  "scannerExit": 0,
+  "gate": {
+    "status": "OK",
+    "conditions": [
+      {
+        "status": "OK",
+        "metricKey": "new_coverage",
+        "comparator": "LT",
+        "errorThreshold": "80",
+        "actualValue": "81.2"
+      },
+      {
+        "status": "OK",
+        "metricKey": "new_duplicated_lines_density",
+        "comparator": "GT",
+        "errorThreshold": "3",
+        "actualValue": "0.06452"
+      },
+      {
+        "status": "OK",
+        "metricKey": "new_violations",
+        "comparator": "GT",
+        "errorThreshold": "0",
+        "actualValue": "0"
+      }
+    ],
+    "ignoredConditions": false,
+    "period": {
+      "mode": "PREVIOUS_VERSION",
+      "date": "2026-11-03T16:48:47+0000"
+    },
+    "caycStatus": "compliant"
+  },
+  "comparison": {
+    "passed": true,
+    "reviewed": 0,
+    "unexpected": [],
+    "absentReviewedOccurrences": 295
+  },
+  "hotspotsToReview": 0,
+  "error": "REVIEW_CHECKOUT_CHANGED",
+  "reviewsVerified": false,
+  "sourceFingerprint": "133fa5b23a7857d9f3bef2338c50f415034733cb6c1d197b6e355f7bf3854f50",
+  "diffCoverage": {
+    "status": "passed",
+    "base": "745253d1edb522db79aaa44fd96608ce434a2774",
+    "head": "745253d1edb522db79aaa44fd96608ce434a2774",
+    "includesWorkingTree": true,
+    "threshold": 80,
+    "percent": 89.67136150234742,
+    "lines": 285,
+    "coveredLines": 266,
+    "conditions": 141,
+    "coveredConditions": 116,
+    "files": [
+      "apps/frontend/src/layouts/AppLayout.vue",
+      "apps/frontend/src/router/index.ts",
+      "apps/frontend/src/security-center/types.ts",
+      "apps/frontend/src/views/SecurityCenterView.vue",
+      "tools/coverage/browser.mjs",
+      "tools/coverage/inventory.mjs",
+      "tools/frontend/security-center-playwright.cjs",
+      "tools/frontend/terminal-experience-playwright.cjs",
+      "tools/network-access/live.mjs",
+      "tools/network-access/probe-response.mjs",
+      "tools/security-center/build.cjs"
+    ],
+    "missing": []
+  },
+  "vitest": {
+    "numPassedTests": 3662,
+    "numFailedTests": 0,
+    "numPendingTests": 125
+  },
+  "node": {
+    "tests": 704,
+    "pass": 697,
+    "fail": 0,
+    "skipped": 7
+  },
+  "browser": {
+    "status": "passed",
+    "captureRunId": "42a70170-9533-42a6-9271-2efe1947c6f8",
+    "harnesses": [
+      {
+        "name": "frontend",
+        "coverageMode": "node-only",
+        "exitCode": 0,
+        "timedOut": false
+      },
+      {
+        "name": "table",
+        "coverageMode": "node-only",
+        "exitCode": 0,
+        "timedOut": false
+      },
+      {
+        "name": "terminal",
+        "coverageMode": "node-and-browser",
+        "exitCode": 0,
+        "timedOut": false
+      },
+      {
+        "name": "platform",
+        "coverageMode": "node-and-browser",
+        "exitCode": 0,
+        "timedOut": false
+      },
+      {
+        "name": "flows",
+        "coverageMode": "node-and-browser",
+        "exitCode": 0,
+        "timedOut": false
+      },
+      {
+        "name": "ha",
+        "coverageMode": "node-and-browser",
+        "exitCode": 0,
+        "timedOut": false
+      },
+      {
+        "name": "audit-input",
+        "coverageMode": "node-and-browser",
+        "exitCode": 0,
+        "timedOut": false
+      },
+      {
+        "name": "tacacs-tls",
+        "coverageMode": "node-and-browser",
+        "exitCode": 0,
+        "timedOut": false
+      },
+      {
+        "name": "security-center",
+        "coverageMode": "node-and-browser",
+        "exitCode": 0,
+        "timedOut": false
+      },
+      {
+        "name": "highlight-budget",
+        "coverageMode": "node-only",
+        "exitCode": 0,
+        "timedOut": false
+      }
+    ],
+    "startedAt": "2026-11-06T15:16:09.762Z",
+    "finishedAt": "2026-11-06T15:22:32.825Z"
+  },
+  "tlsLab": {
+    "passed": true,
+    "isolated": true,
+    "cleanupVerified": true,
+    "checks": [
+      "live",
+      "health",
+      "soak",
+      "watchdog"
+    ]
+  },
+  "static": {
+    "at": "2026-11-06T15:11:52.796Z",
+    "gitleaks": {
+      "total": 61,
+      "reviewedFixtures": 61,
+      "unreviewed": []
+    },
+    "semgrep": {
+      "findings": [],
+      "errors": [],
+      "targets": 908
+    },
+    "passed": true
+  },
+  "exportedIssueCount": 0
+}

@@ -17,6 +17,8 @@ export function nodeTestFiles(root) {
 }
 export function sourceFingerprint(root, files) {
   const hash = createHash('sha256')
-  for (const file of files) hash.update(file).update('\0').update(readFileSync(resolve(root, file))).update('\0')
+  // Editorial content affects the rendered UI but must not inflate code coverage.
+  const contentInputs = ['docs/security/controls-catalog.json'].filter(file => existsSync(resolve(root, file)))
+  for (const file of [...new Set([...files, ...contentInputs])]) hash.update(file).update('\0').update(readFileSync(resolve(root, file))).update('\0')
   return hash.digest('hex')
 }

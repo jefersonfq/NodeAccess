@@ -1,0 +1,127 @@
+{
+  "captured_at": "2026-11-12T11:30:28.591846+00:00",
+  "canonical_workbook": "/home/jeferson/projects/NodeAccess-current/docs/planejamento/METAS e OBJETVIVOS Nodeaccess 2027.xlsx",
+  "sha256": "99ceda664db2dca57c3dba6eeccdf598836d00e8b2789a2c40b1999444d1aa93",
+  "stable_id": "META-051",
+  "source_rows": [
+    {
+      "sheet": "Roadmap 2027",
+      "row": {
+        "A1": "ID estável",
+        "B1": "Iniciativa",
+        "C1": "Objetivo / escopo",
+        "D1": "Status revisado",
+        "E1": "Prioridade",
+        "F1": "Fase / domínio",
+        "G1": "Próximo passo",
+        "H1": "Evidência no projeto",
+        "I1": "Limites / dependências",
+        "J1": "Publicação",
+        "K1": "Revisado em"
+      }
+    },
+    {
+      "sheet": "Roadmap 2027",
+      "row": {
+        "A52": "META-051",
+        "B52": "Central de Segurança e catálogo de controles",
+        "C52": "Página informativa autenticada e catálogo versionado com evidência, projeção pública segura e distinção entre implementado, testado e habilitado.",
+        "D52": "Homologação informada; ajuste de âncoras em validação",
+        "E52": "P1 sugerida",
+        "F52": "Segurança / UX",
+        "G52": "Concluir Sonar do ajuste de âncoras; preparar commit/PR somente após autorização explícita, com reconciliação do candidato limpo.",
+        "H52": "docs/changes/2026/11/NA-0172-security-center/implementation.md; docs/changes/2026/11/NA-0172-security-center/evidence/anchors/after-query/report.json",
+        "I52": "Etapas 0/1 aprovadas: catálogo e página informativa autenticada. Sem diagnóstico do tenant, alterações de autenticação/SSH, CA ou bloqueio adaptativo. Usuário homologou a Central e solicitou somente remover transição em âncoras. Ajuste local validado por 54 observações de identidade/rolagem/histórico, com API simulada. Sonar atual em andamento; não valida produção.",
+        "J52": "LOCAL_WIP no NodeAccess-current; ambiente local ativo. Sem commit, PR, merge ou implantação desta frente.",
+        "K52": "2026-11-06"
+      }
+    },
+    {
+      "sheet": "Revisões",
+      "row": {
+        "A1": "Data",
+        "B1": "IDs / escopo",
+        "C1": "Tipo",
+        "D1": "Alteração / decisão",
+        "E1": "Fonte / limite"
+      }
+    },
+    {
+      "sheet": "Revisões",
+      "row": {
+        "A12": "2026-11-06",
+        "B12": "META-051",
+        "C12": "NA-0172: início autorizado das etapas 0/1",
+        "D12": "Usuário aprovou sugestões. Catálogo com evidências e projeção pública restrita, Central autenticada e testes implementados localmente. Oito cenários browser aprovados; validação final Sonar/regressão e homologação pendentes. Sem publicação.",
+        "E12": "docs/changes/2026/11/NA-0172-security-center/plan.md; docs/security/ASSESSMENT.md"
+      }
+    },
+    {
+      "sheet": "Revisões",
+      "row": {
+        "A13": "2026-11-06",
+        "B13": "META-051",
+        "C13": "NA-0172: checkpoint local de validação",
+        "D13": "Catálogo e Central implementados e testados; cobertura diff 92,48%, Quality Gate OK, zero achados e hotspots pendentes. Reconciliação Sonar bloqueada pelo checkout sem commit; autorização de commit/PR e homologação pendentes. Sem publicação.",
+        "E13": "docs/changes/2026/11/NA-0172-security-center/plan.md; docs/security/ASSESSMENT.md"
+      }
+    },
+    {
+      "sheet": "Revisões",
+      "row": {
+        "A14": "2026-11-06",
+        "B14": "META-051",
+        "C14": "NA-0172: refinamento UX e ambiente principal",
+        "D14": "Usuário solicitou refinamento visual e autorizou preparar pasta principal preservando arquivos. Worktrees movidos com backup integral e documentos reconciliados; Node24.22.1 instalado para nvm use. Central servida no npmdev canônico; revalidação isolada em andamento após falhas concorrentes. Banco tem única migração pendente, sem DDL executado.",
+        "E14": "docs/changes/2026/11/NA-0172-security-center/plan.md; docs/security/ASSESSMENT.md"
+      }
+    },
+    {
+      "sheet": "Revisões",
+      "row": {
+        "A15": "2026-11-06",
+        "B15": "META-050/051",
+        "C15": "NA-0172: fechamento local do refinamento e transição",
+        "D15": "Central refinada e disponibilizada na pasta habitual após backup integral. Migração local TACACS aplicada com autorização e backup; prontidão normalizada. Corrigidos coletores de teste preservando deadlines/assertions. Testes, cobertura e Quality Gate finais aprovados; reconciliação exige checkout commitado/limpo. Homologação e publicação pendentes.",
+        "E15": "docs/changes/2026/11/NA-0172-security-center/ux-validation.md; docs/changes/2026/11/NA-0172-security-center/workspace-transition.md"
+      }
+    },
+    {
+      "sheet": "Revisões",
+      "row": {
+        "A16": "2026-11-06",
+        "B16": "META-051",
+        "C16": "NA-0172: homologação informada e ajuste de âncoras",
+        "D16": "Usuário informou homologação da Central, com único ajuste: navegar para a seção sem efeito de troca de página. Corrigida identidade restrita à rota da Central e rolagem por hash; baseline reproduziu remount, após ajuste 54 verificações passaram. Commit/publicação não autorizados por inferência.",
+        "E16": "docs/changes/2026/11/NA-0172-security-center/implementation.md; docs/changes/2026/11/NA-0172-security-center/evidence/anchors/after-query/report.json"
+      }
+    }
+  ],
+  "note": "Snapshot histórico do workbook canônico, sem escrita nesta captura. Não atesta validação nova nem transporta a planilha inteira. Estado atual do candidato no implementation.md.",
+  "previous_capture": true,
+  "current_capture": {
+    "at": "2026-11-12T08:57:34-03:00",
+    "sha256": "8183613e52b223acbc7c5aaaa8835574679719dbbc35ef4224283a88290cc602",
+    "row": {
+      "A52": "META-051",
+      "B52": "Central de Segurança e catálogo de controles",
+      "C52": "Página informativa autenticada e catálogo versionado com evidência, projeção pública segura e distinção entre implementado, testado e habilitado.",
+      "D52": "Homologação informada; candidato exclusivo validado localmente, reconciliação pendente",
+      "E52": "P1 sugerida",
+      "F52": "Segurança / UX",
+      "G52": "Autorizar commit NA-0172; depois executar validate:sonar no SHA limpo para reconciliar revisões antes de publicação.",
+      "H52": "docs/changes/2026/11/NA-0172-security-center/implementation.md; docs/changes/2026/11/NA-0172-security-center/evidence/isolation-20261112.json",
+      "I52": "Etapas 0/1 preservadas. Homologação informada em 06/11; ajuste de âncoras e candidato exclusivo testados com API simulada. Testes e Quality Gate OK; validação integral FAIL por REVIEW_CHECKOUT_CHANGED. Não valida produção.",
+      "J52": "LOCAL_WIP; candidato /home/jeferson/NodeAccess-NA-0172. Canônico preservado. Sem commit, PR, merge ou implantação desta frente.",
+      "K52": "2026-11-12"
+    },
+    "revision": {
+      "A17": "2026-11-12",
+      "B17": "META-051",
+      "C17": "NA-0172: candidato exclusivo e validação local",
+      "D17": "Separado das outras frentes; 3662 Vitest, 693 Node, 230 tooling e dez harnesses browser aprovados. Diff 84,37%; Quality Gate OK/81,0%. Reconciliação bloqueada pelo checkout sem commit; sem nova homologação ou publicação.",
+      "E17": "docs/changes/2026/11/NA-0172-security-center/evidence/isolation-20261112.json"
+    },
+    "preserved": "Todas as demais linhas e entradas ZIP, incluindo Original 2027, verificadas inalteradas."
+  }
+}

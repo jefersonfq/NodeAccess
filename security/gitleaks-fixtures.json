@@ -202,15 +202,15 @@
       "path": "apps/frontend/src/locales/en.json",
       "rule": "private-key",
       "line": 1050,
-      "fileSha256": "35ad1e23a15bcc0556d2a7c73b7f4f39cb6caa3bcfa1bc1a916c4ac2fd4f8bd7",
-      "reason": "Placeholder textual PEM com reticências, idêntico à base; revalidado na NA-0079 após mudança de traduções de conexão. Não contém chave privada."
+      "fileSha256": "cbbcb30677a45be95db749f30b978a86a824fbf09a07061e8ee9db6d9e2e7629",
+      "reason": "Placeholder textual PEM com reticências, idêntico à base e na mesma linha; revisão independente NA-0172 após adição das traduções da Central de Segurança. Não contém chave privada."
     },
     {
       "path": "apps/frontend/src/locales/pt-BR.json",
       "rule": "private-key",
       "line": 1053,
-      "fileSha256": "f678eadced312ab69f5762762595d2a715d1a81f9299ffa659db48c0748d5a24",
-      "reason": "Placeholder textual PEM com reticências, idêntico à base; revalidado na NA-0079 após mudança de traduções de conexão. Não contém chave privada."
+      "fileSha256": "f377e32283df8b9e2ed9d08107a7d1003a90865a1cbe9fb3512db4aa829cc6c6",
+      "reason": "Placeholder textual PEM com reticências, idêntico à base e na mesma linha; revisão independente NA-0172 após adição das traduções da Central de Segurança. Não contém chave privada."
     },
     {
       "path": "docs/DEPLOY-kubernetes-oidc-lite.md",

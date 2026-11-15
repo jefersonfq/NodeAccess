@@ -80,6 +80,7 @@ const router = createRouter({
         { path: 'graphical/:hostId', name: 'graphical-session', component: (): Promise<typeof import('@/views/GraphicalSessionView.vue')> => import('@/views/GraphicalSessionView.vue') },
         { path: 'files/:hostId',     name: 'files',    component: (): Promise<typeof import('@/views/FileManagerView.vue')> => import('@/views/FileManagerView.vue') },
         { path: 'manual/:chapter?', name: 'manual', component: (): Promise<typeof import('@/views/ManualView.vue')> => import('@/views/ManualView.vue') },
+        { path: 'security', name: 'security-center', component: (): Promise<typeof import('@/views/SecurityCenterView.vue')> => import('@/views/SecurityCenterView.vue') },
         { path: 'profile',           name: 'profile',  component: (): Promise<typeof import('@/views/ProfileView.vue')> => import('@/views/ProfileView.vue') },
         { path: 'profile/terminal-highlights', name: 'terminal-highlights', component: (): Promise<typeof import('@/views/TerminalHighlightsView.vue')> => import('@/views/TerminalHighlightsView.vue') },
         { path: 'platform/trials', name: 'platform-trials', component: (): Promise<typeof import('@/views/admin/TrialAdminView.vue')> => import('@/views/admin/TrialAdminView.vue'), meta: { requiresPlatformAdmin: true } },

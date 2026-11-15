@@ -6780,5 +6780,19 @@
     "cancelCopy": "Cancelar transferência",
     "editorOpenFailed": "Não foi possível abrir o editor. Verifique o aplicativo escolhido e o formato do arquivo no agente Windows.",
     "checkAgent": "Verificar agente"
+  },
+  "securityCenter": {
+    "title": "Central de Segurança",
+    "introduction": "Entenda os controles do NodeAccess e os cuidados que ajudam a proteger seu acesso.",
+    "scope": "Esta página é informativa. A disponibilidade dos recursos depende das permissões, das políticas e da configuração da organização. Ela não é um diagnóstico das proteções ativas neste ambiente.",
+    "languageNote": "O conteúdo revisado está disponível em português brasileiro.",
+    "contents": "Nesta página",
+    "conditions": "Condições e limites",
+    "practices": "Boas práticas para você",
+    "profileAction": "Revisar meu perfil",
+    "empty": "Não há conteúdo revisado disponível nesta versão. Consulte o responsável pela sua organização para orientações.",
+    "reviewedAt": "Revisão editorial em",
+    "revision": "Conteúdo {revision}",
+    "reviewScope": "A data indica a revisão deste conteúdo, não uma auditoria da sua organização ou garantia de ausência de vulnerabilidades."
   }
 }

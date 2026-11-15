@@ -1,0 +1,51 @@
+{
+  "passed": true,
+  "captureRunId": null,
+  "catalogSha256": "29b244fdd01cb7ec6ba9058adb3a288371170de3579e83562f9a6441fc5ff114",
+  "scenarios": [
+    {
+      "name": "unauthenticated guard",
+      "passed": true
+    },
+    {
+      "name": "401 expires session",
+      "passed": true
+    },
+    {
+      "name": "password-change guard",
+      "passed": true
+    },
+    {
+      "name": "static center, menu without manual, keyboard, profile and responsive layout",
+      "role": "user",
+      "theme": "light",
+      "passed": true
+    },
+    {
+      "name": "static center, menu without manual, keyboard, profile and responsive layout",
+      "role": "user",
+      "theme": "dark",
+      "passed": true
+    },
+    {
+      "name": "static center, menu without manual, keyboard, profile and responsive layout",
+      "role": "admin",
+      "theme": "light",
+      "passed": true
+    },
+    {
+      "name": "static center, menu without manual, keyboard, profile and responsive layout",
+      "role": "admin",
+      "theme": "dark",
+      "passed": true
+    },
+    {
+      "name": "valid deep link and unknown fragment fallback",
+      "passed": true
+    }
+  ],
+  "bundle": {
+    "inspectedJavaScriptFiles": 146,
+    "privateMetadataAbsent": true
+  }
+}

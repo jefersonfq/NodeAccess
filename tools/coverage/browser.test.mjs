@@ -62,7 +62,7 @@ test('isolated browser orchestration uses loopback fixtures and private outputs 
       assert.equal((await fetch(env.FRONTEND_BASE + '/api/v1/user')).status, 404)
       return { exitCode: 0, timedOut: false }
     } })
-  assert.equal(requiredBrowserHarnesses.length, 9)
+  assert.equal(requiredBrowserHarnesses.length, 10)
   assert.equal(result.harnesses.at(-1).coverageMode, 'node-only')
   assert.equal(result.status, 'passed'); assert.equal(result.phase, 'complete'); assert.equal(vite.closed, true)
   assert.deepEqual(runs, requiredBrowserHarnesses.map(([, script]) => script))
@@ -171,7 +171,7 @@ for (const override of [undefined, '', '/explicit/chromium']) test(`all nine chi
       return { exitCode: 0, timedOut: false }
     } })
   assert.equal(result.status, 'passed', result.error)
-  assert.equal(paths.length, 9); assert.equal(vite.closed, true)
+  assert.equal(paths.length, 10); assert.equal(vite.closed, true)
 })
 
 test('missing explicit browser stays explicit and failure cannot fall back to another executable', async t => {
@@ -215,7 +215,7 @@ test('failed frontend retains bounded stack coordinates without private text or 
   assert.doesNotMatch(JSON.stringify(result), /PRIVATE|selector/)
 })
 
-for (const name of ['ha', 'audit-input', 'tacacs-tls', 'highlight-budget']) {
+for (const name of ['ha', 'audit-input', 'tacacs-tls', 'security-center', 'highlight-budget']) {
   test(`new required browser harness ${name} blocks completion on failure`, async t => {
     const root = fixture(t), vite = fakeVite(), calls = []
     const script = requiredBrowserHarnesses.find(([candidate]) => candidate === name)[1]

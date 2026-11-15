@@ -1,0 +1,50 @@
+{
+  "changeId": "NA-0172",
+  "deliveryState": "LOCAL_WIP",
+  "assessment": "BLOCKED",
+  "baseSha": "745253d1edb522db79aaa44fd96608ce434a2774",
+  "headSha": "745253d1edb522db79aaa44fd96608ce434a2774",
+  "sourceFingerprint": "a5cdc47502dfe42840df705d2e75e267caa6f69118ed5f44c479f61e04ef65e5",
+  "includesWorkingTree": true,
+  "scopeLimitation": "Canonical checkout retains changes from multiple fronts; this is not validation of an exclusive committed NA-0172 candidate.",
+  "applicationCodeChangedDuringResume": false,
+  "independentReview": { "status": "BLOCKED", "materialDiscrepancies": [], "reason": "Evidence consistent; complete approval still blocked by REVIEW_CHECKOUT_CHANGED." },
+  "buildFrontend": { "exitCode": 0, "includesTypecheck": true },
+  "validation": {
+    "command": "npm run validate:sonar",
+    "startedAt": "2026-11-11T21:59:25.740Z",
+    "finishedAt": "2026-11-11T22:21:21.721Z",
+    "exitCode": 1,
+    "passed": false,
+    "failures": ["REVIEWED_FINDINGS_NOT_VERIFIED"],
+    "error": "REVIEW_CHECKOUT_CHANGED",
+    "tooling": { "passed": 230, "failed": 0, "skipped": 1 },
+    "vitest": { "passed": 3662, "failed": 0, "skipped": 125 },
+    "node": { "passed": 698, "failed": 0, "skipped": 11 },
+    "tlsLaboratory": { "passed": true, "isolated": true, "cleanupVerified": true },
+    "browser": { "passed": 10, "failed": 0, "timedOut": 0 },
+    "diffCoverage": { "percent": 80.26706231454006, "threshold": 80, "passed": true },
+    "analysisId": "1c8f8898-4f60-45ed-8b4d-beb797e8271a",
+    "analysisVerified": true,
+    "qualityGate": "OK",
+    "sonarNewCoverage": 80.8,
+    "unexpectedFindings": 0,
+    "hotspotsToReview": 0,
+    "reviewedFindingsVerified": false
+  },
+  "environment": {
+    "user": "jeferson",
+    "node": "24.22.1",
+    "dockerGroup": "Applied only to validation process; account and socket permissions unchanged",
+    "chromiumRevision": 1248,
+    "browserPlatform": "Ubuntu 22.04 package on Ubuntu 20.04 host; launch smoke and all browser harnesses passed",
+    "firstAttempt": "Failed before analysis: Docker socket permission denied and Chromium absent. Logs preserved in .tmp/NA-0173-resume/first-failed-run."
+  },
+  "warnings": [
+    "ResizeObserver message retained in browser log; all browser harnesses exited zero.",
+    "Skipped tests include Windows, opt-in and privileged-user conditions; no assertion or threshold was changed.",
+    "Nested worktree tsconfigs discovered by scanner, without duplication of indexed source scope. Worktree relocated after this run."
+  ],
+  "rawEvidence": ".sonar-reports/validation-1794434365739-404438f0-4efa-4cf5-922a-53b5d676af5a/validation.json",
+  "nextStep": "Prepare exclusive candidate and obtain explicit commit authorization; rerun required gates on fixed SHA before publication."
+}

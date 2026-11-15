@@ -11,6 +11,7 @@ import { randomUUID } from 'node:crypto'
 const { readFlowFailure } = createRequire(import.meta.url)('../frontend/sonar-flow-diagnostics.cjs')
 const { readHarnessDiagnostic } = createRequire(import.meta.url)('./harness-diagnostics.cjs')
 const { manualPlugin } = createRequire(import.meta.url)('../manual/build.cjs')
+const { securityCenterPlugin } = createRequire(import.meta.url)('../security-center/build.cjs')
 export const requiredBrowserHarnesses = [
   ['frontend', 'tools/frontend/sonar-frontend-review.cjs'], ['table', 'tools/sonarqube/table-review.cjs'],
   ['terminal', 'tools/frontend/terminal-experience-playwright.cjs'], ['platform', 'tools/frontend/platform-settings-playwright.cjs'],
@@ -18,6 +19,7 @@ export const requiredBrowserHarnesses = [
   ['ha', 'tools/frontend/ha-playwright-smoke.cjs'],
   ['audit-input', 'tools/frontend/audit-input-safety-playwright.cjs'],
   ['tacacs-tls', 'tools/network-access/tls-ux.test.cjs'],
+  ['security-center', 'tools/frontend/security-center-playwright.cjs'],
   ['highlight-budget', 'tools/frontend/terminal-highlight-budget.mjs'],
 ]
 
@@ -81,7 +83,7 @@ export async function collectBrowserCoverage({ root = projectRoot, env = process
           if (request.url?.startsWith('/api/')) { response.statusCode = 404; response.end('No backend in coverage fixture'); return }
           next()
         })
-      } }, manualPlugin()],
+      } }, manualPlugin(), securityCenterPlugin(root)],
       resolve: { alias: { '@': join(root, 'apps/frontend/src') } },
       optimizeDeps: { include: ['vue', 'naive-ui'], entries: ['index.html'] },
       server: { host: '127.0.0.1', port: 0, strictPort: false, proxy: {}, fs: { allow: [root] } },

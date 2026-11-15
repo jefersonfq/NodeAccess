@@ -3256,12 +3256,13 @@
         "startOffset": 182,
         "endOffset": 193
       },
-      "sourceSha256": "be931e39a0c4b5acb9ef049355a26d185e9394b54dd80b7458db6a8aa8da3858",
+      "sourceSha256": "3f2f44b843646c6b4999844c542d498c92fcf0540fef66c2695f130b9d1d1766",
       "ruleSha256": "47a5ad141f589cc10929bc37af67e1b72748bafba5026868b88f10f0dc5977a0",
       "rationale": "Literal representa host do terminal com FakeWebSocket. Não é endereço de infraestrutura configurado pelo produto: o consumidor recebe dado sintético através da fronteira de simulação verificada.",
       "evidence": [
         "docs/changes/2026/11/NA-0093-sonar-delivery/reconciliation/tooling.json",
-        "tools/frontend/terminal-experience-playwright.cjs"
+        "tools/frontend/terminal-experience-playwright.cjs",
+        "docs/changes/2026/11/NA-0172-security-center/evidence/sonar-review-revalidation.json"
       ]
     },
     {
@@ -3275,12 +3276,13 @@
         "startOffset": 63,
         "endOffset": 74
       },
-      "sourceSha256": "be931e39a0c4b5acb9ef049355a26d185e9394b54dd80b7458db6a8aa8da3858",
+      "sourceSha256": "3f2f44b843646c6b4999844c542d498c92fcf0540fef66c2695f130b9d1d1766",
       "ruleSha256": "47a5ad141f589cc10929bc37af67e1b72748bafba5026868b88f10f0dc5977a0",
       "rationale": "Literal representa host de retry com FakeWebSocket. Não é endereço de infraestrutura configurado pelo produto: o consumidor recebe dado sintético através da fronteira de simulação verificada.",
       "evidence": [
         "docs/changes/2026/11/NA-0093-sonar-delivery/reconciliation/tooling.json",
-        "tools/frontend/terminal-experience-playwright.cjs"
+        "tools/frontend/terminal-experience-playwright.cjs",
+        "docs/changes/2026/11/NA-0172-security-center/evidence/sonar-review-revalidation.json"
       ]
     },
     {
@@ -3294,12 +3296,13 @@
         "startOffset": 67,
         "endOffset": 78
       },
-      "sourceSha256": "be931e39a0c4b5acb9ef049355a26d185e9394b54dd80b7458db6a8aa8da3858",
+      "sourceSha256": "3f2f44b843646c6b4999844c542d498c92fcf0540fef66c2695f130b9d1d1766",
       "ruleSha256": "47a5ad141f589cc10929bc37af67e1b72748bafba5026868b88f10f0dc5977a0",
       "rationale": "Literal representa host bloqueado com FakeWebSocket. Não é endereço de infraestrutura configurado pelo produto: o consumidor recebe dado sintético através da fronteira de simulação verificada.",
       "evidence": [
         "docs/changes/2026/11/NA-0093-sonar-delivery/reconciliation/tooling.json",
-        "tools/frontend/terminal-experience-playwright.cjs"
+        "tools/frontend/terminal-experience-playwright.cjs",
+        "docs/changes/2026/11/NA-0172-security-center/evidence/sonar-review-revalidation.json"
       ]
     },
     {

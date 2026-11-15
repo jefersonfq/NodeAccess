@@ -1,0 +1,19 @@
+{
+  "passed": false,
+  "captureRunId": null,
+  "catalogSha256": "29b244fdd01cb7ec6ba9058adb3a288371170de3579e83562f9a6441fc5ff114",
+  "scenarios": [
+    {
+      "name": "unauthenticated guard",
+      "passed": true
+    },
+    {
+      "name": "401 expires session",
+      "passed": true
+    },
+    {
+      "name": "password-change guard",
+      "passed": true
+    }
+  ]
+}

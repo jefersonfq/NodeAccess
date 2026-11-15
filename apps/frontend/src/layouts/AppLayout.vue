@@ -128,8 +128,13 @@ function showAccessRefreshFeedback(): void {
   }, 650)
 }
 
+function routeContentKey(currentRoute: RouteLocationNormalizedLoaded): string {
+  // Section links keep the informational page mounted; other navigation stays unchanged.
+  return currentRoute.name === 'security-center' ? currentRoute.fullPath.split('#')[0] : currentRoute.fullPath
+}
+
 function isMeaningfulRouteChange(to: RouteLocationNormalizedLoaded, from: RouteLocationNormalizedLoaded): boolean {
-  return to.fullPath !== from.fullPath
+  return routeContentKey(to) !== routeContentKey(from)
 }
 
 function onKeydown(e: KeyboardEvent): void {
@@ -397,6 +402,7 @@ const menuOptions = computed<MenuOption[]>(() => {
     { key: 'dashboard', label: t('nav.home'), icon: icon(ICONS.home) },
     ...(canSupervise.value ? [{ key: 'session-supervision', label: 'Supervisão de sessões', icon: icon(ICONS.hosts) }] : []),
     ...(manual.enabled ? [{ key: 'manual', label: t('manual.title'), icon: icon('<path d="M12 5v15M3 4c4-1 6 0 9 1 3-1 5-2 9-1v15c-4-1-6 0-9 1-3-1-5-2-9-1Z"/>') }] : []),
+    { key: 'security-center', label: t('securityCenter.title'), icon: icon('<circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/>') },
     { key: 'hosts', label: renderMenuLabel('hosts', t('nav.hosts')), icon: icon(ICONS.hosts) },
     ...(auth.user?.canManageHosts || auth.isAdmin ? [
       { key: 'pem-keys', label: t('nav.pemKeys'), icon: icon(ICONS.keys) },
@@ -809,7 +815,7 @@ async function submitQuickFeedback(): Promise<void> {
           <KeepAlive include="TerminalView">
             <component
               :is="Component"
-              :key="currentRoute.name === 'terminal' ? 'terminal' : currentRoute.fullPath"
+              :key="currentRoute.name === 'terminal' ? 'terminal' : routeContentKey(currentRoute)"
             />
           </KeepAlive>
         </Transition>

@@ -4,6 +4,7 @@ Planos e registros versionados por implementação. PRs e checkpoints identifica
 
 | Mudança | Plano | Registro IA |
 |---|---|---|
+| NA-0172-security-center (candidato exclusivo validado localmente; reconciliação pendente) | [plano](2026/11/NA-0172-security-center/plan.md) | [registro](2026/11/NA-0172-security-center/implementation.md) |
 | NA-0080-terminal-mouse | [plano](2026/10/NA-0080-terminal-mouse/plan.md) | [registro](2026/10/NA-0080-terminal-mouse/implementation.md) |
 | NA-0069-release-integration | [plano](2026/10/NA-0069-release-integration/plan.md) | [registro](2026/10/NA-0069-release-integration/implementation.md) |
 | NA-0068-trial-review | [plano](2026/10/NA-0068-trial-review/plan.md) | [registro](2026/10/NA-0068-trial-review/implementation.md) |

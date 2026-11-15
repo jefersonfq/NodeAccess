@@ -1,0 +1,261 @@
+{
+  "schemaVersion": 1,
+  "revision": "1",
+  "reviewedAt": "2026-11-06",
+  "internalClassification": "Repositório interno: evidência de implementação, não atestado operacional.",
+  "controls": [
+    {
+      "id": "identity",
+      "state": "verified",
+      "category": "Login e verificação de identidade",
+      "owner": "Revisão de conteúdo em PR",
+      "internalDescription": "Leitura de beginMfaForUser e verifyTotp, token temporário e emissão após verificação; não afirma cobertura de todos os providers externos.",
+      "restrictions": [
+        "Os métodos disponíveis variam conforme a política da organização e o fluxo de acesso. Esta página não verifica a configuração atual da sua conta."
+      ],
+      "review": {
+        "method": "source-review",
+        "reviewedAt": "2026-11-06",
+        "sourceRevision": "745253d1edb522db79aaa44fd96608ce434a2774",
+        "sourceFiles": [
+          "apps/backend/src/modules/auth/auth.service.ts",
+          "apps/backend/src/modules/auth/auth-policy.ts"
+        ],
+        "sourceHash": "305505b07e0cbe0a588901354a15e3bccd101bce701401eeffb0d3f22efa50ca",
+        "testFiles": [
+          "apps/backend/src/modules/auth/auth.service.temp-token.test.ts",
+          "apps/backend/src/modules/auth/auth-policy.test.ts"
+        ],
+        "testsExecuted": false,
+        "scope": "Leitura de beginMfaForUser e verifyTotp, token temporário e emissão após verificação; não afirma cobertura de todos os providers externos."
+      },
+      "public": {
+        "title": "Login e verificação de identidade",
+        "summary": "O acesso utiliza uma conta individual e etapas de verificação de identidade.",
+        "details": [
+          "O fluxo de login local inclui uma etapa adicional de verificação antes de liberar a sessão.",
+          "Proteja os fatores de autenticação e encerre o acesso em dispositivos compartilhados."
+        ],
+        "conditions": [
+          "Os métodos disponíveis variam conforme a política da organização e o fluxo de acesso. Esta página não verifica a configuração atual da sua conta."
+        ]
+      }
+    },
+    {
+      "id": "permissions",
+      "state": "verified",
+      "category": "Hosts e permissões",
+      "owner": "Revisão de conteúdo em PR",
+      "internalDescription": "Leitura da consulta ACL por tenant e eventos de revalidação/fechamento; não comprova isolamento de todos os protocolos apenas por inspeção.",
+      "restrictions": [
+        "A disponibilidade de um recurso na interface não substitui a autorização para utilizá-lo. Alterações de acesso devem ser acompanhadas pelo administrador."
+      ],
+      "review": {
+        "method": "source-review",
+        "reviewedAt": "2026-11-06",
+        "sourceRevision": "745253d1edb522db79aaa44fd96608ce434a2774",
+        "sourceFiles": [
+          "apps/backend/src/modules/ssh/ssh.repository.ts",
+          "apps/backend/src/modules/inventory/inventory-acl-session-revocation.service.ts"
+        ],
+        "sourceHash": "eeafc47d246ee1a44beb448b8b05731fcd3b45dc365401fea699211a39c78528",
+        "testFiles": [
+          "apps/backend/src/modules/ssh/ssh.repository-acl.test.ts",
+          "apps/backend/src/modules/inventory/inventory-acl-session-revocation.service.test.ts"
+        ],
+        "testsExecuted": false,
+        "scope": "Leitura da consulta ACL por tenant e eventos de revalidação/fechamento; não comprova isolamento de todos os protocolos apenas por inspeção."
+      },
+      "public": {
+        "title": "Hosts e permissões",
+        "summary": "As permissões determinam quais recursos e ações podem ser utilizados.",
+        "details": [
+          "Usuários e grupos podem ter permissões diferentes para visualizar, conectar e administrar hosts.",
+          "Solicite ao administrador apenas os acessos necessários para seu trabalho."
+        ],
+        "conditions": [
+          "A disponibilidade de um recurso na interface não substitui a autorização para utilizá-lo. Alterações de acesso devem ser acompanhadas pelo administrador."
+        ]
+      }
+    },
+    {
+      "id": "credentials",
+      "state": "verified",
+      "category": "Cofre e credenciais",
+      "owner": "Revisão de conteúdo em PR",
+      "internalDescription": "Leitura de toPublic, encrypt/decrypt e findAccessibleActiveById. Não promete ausência absoluta de segredos no navegador: entrada e uso autorizado precisam ser distinguidos.",
+      "restrictions": [
+        "A disponibilidade do Cofre depende da licença e das permissões. A proteção também depende da configuração e da operação da instalação."
+      ],
+      "review": {
+        "method": "source-review",
+        "reviewedAt": "2026-11-06",
+        "sourceRevision": "745253d1edb522db79aaa44fd96608ce434a2774",
+        "sourceFiles": [
+          "apps/backend/src/modules/secrets/secret.service.ts",
+          "apps/backend/src/shared/crypto.ts"
+        ],
+        "sourceHash": "3867a719e4e4c778ee53945c8f39ddca112a7bf00ff6ed82160d4518c4fcdf9f",
+        "testFiles": [
+          "apps/backend/src/modules/secrets/secret.service.test.ts",
+          "apps/backend/src/shared/crypto.test.ts"
+        ],
+        "testsExecuted": false,
+        "scope": "Leitura de toPublic, encrypt/decrypt e findAccessibleActiveById. Não promete ausência absoluta de segredos no navegador: entrada e uso autorizado precisam ser distinguidos."
+      },
+      "public": {
+        "title": "Cofre e credenciais",
+        "summary": "O Cofre oferece armazenamento cifrado e controle de permissão de uso das credenciais.",
+        "details": [
+          "O valor das credenciais não é exibido nas listagens.",
+          "Use os recursos de credenciais autorizados pela sua organização; não cole senhas em descrições, chamados ou mensagens."
+        ],
+        "conditions": [
+          "A disponibilidade do Cofre depende da licença e das permissões. A proteção também depende da configuração e da operação da instalação."
+        ]
+      }
+    },
+    {
+      "id": "connections",
+      "state": "partial",
+      "category": "Conexões e identidade dos hosts",
+      "owner": "Revisão de conteúdo em PR",
+      "internalDescription": "HostVerifier só é configurado quando trustedHostKeyFingerprint existe nas credenciais. Cobertura de todos os chamadores permanece fora deste inventário focal; conteúdo público limita-se à orientação ao usuário.",
+      "restrictions": [
+        "As verificações e os recursos disponíveis variam conforme o protocolo e a modalidade de acesso. Esta Central não testa a conexão nem o equipamento de destino."
+      ],
+      "review": {
+        "method": "source-review",
+        "reviewedAt": "2026-11-06",
+        "sourceRevision": "745253d1edb522db79aaa44fd96608ce434a2774",
+        "sourceFiles": [
+          "apps/backend/src/modules/ssh/ssh.session.ts",
+          "apps/backend/src/modules/hosts/host.service.ts"
+        ],
+        "sourceHash": "02fdaf22003aaf0f7dce4e60ef4262e1789385766d84cfc150998a9d1546aea7",
+        "testFiles": [
+          "apps/backend/src/modules/hosts/host.service.test.ts",
+          "apps/backend/src/modules/ssh/managed-ssh-session.service.test.ts"
+        ],
+        "testsExecuted": false,
+        "scope": "HostVerifier só é configurado quando trustedHostKeyFingerprint existe nas credenciais. Cobertura de todos os chamadores permanece fora deste inventário focal; conteúdo público limita-se à orientação ao usuário."
+      },
+      "public": {
+        "title": "Conexões e identidade dos hosts",
+        "summary": "Confira o destino antes de abrir uma sessão e revise avisos sobre a identidade do host.",
+        "details": [
+          "Se houver um aviso de identidade desconhecida ou alterada, confirme o destino com o administrador antes de prosseguir.",
+          "Encerre as sessões que não estiver utilizando e proteja os arquivos transferidos."
+        ],
+        "conditions": [
+          "As verificações e os recursos disponíveis variam conforme o protocolo e a modalidade de acesso. Esta Central não testa a conexão nem o equipamento de destino."
+        ]
+      }
+    },
+    {
+      "id": "audit",
+      "state": "verified",
+      "category": "Auditoria e privacidade",
+      "owner": "Revisão de conteúdo em PR",
+      "internalDescription": "Leitura de shouldAuditSession: feature/licença/política/escopo; managed session condiciona publicação. Não afirma imutabilidade nem gravação universal.",
+      "restrictions": [
+        "Registro, acesso e retenção dependem da licença, das políticas e da configuração. Consulte o administrador para saber o que é registrado; esta página não confirma que uma sessão está sendo gravada."
+      ],
+      "review": {
+        "method": "source-review",
+        "reviewedAt": "2026-11-06",
+        "sourceRevision": "745253d1edb522db79aaa44fd96608ce434a2774",
+        "sourceFiles": [
+          "apps/backend/src/modules/session-audit/session-audit-policy.service.ts",
+          "apps/backend/src/modules/ssh/managed-ssh-session.service.ts"
+        ],
+        "sourceHash": "3dee462f9bbba0f104eeb08370ca7ad3d608de3b00fd8311ec39c0d10e69623d",
+        "testFiles": [
+          "apps/backend/src/modules/session-audit/session-audit-policy.repository.test.ts",
+          "apps/backend/src/modules/session-audit/session-audit-operational.test.ts"
+        ],
+        "testsExecuted": false,
+        "scope": "Leitura de shouldAuditSession: feature/licença/política/escopo; managed session condiciona publicação. Não afirma imutabilidade nem gravação universal."
+      },
+      "public": {
+        "title": "Auditoria e privacidade",
+        "summary": "A auditoria de sessões é um recurso configurável da organização.",
+        "details": [
+          "Quando habilitada e aplicável à sessão, a auditoria permite registrar atividade para consulta por pessoas autorizadas.",
+          "Registros de sessão podem conter informações do trabalho. Trate gravações e exportações como dados de acesso restrito."
+        ],
+        "conditions": [
+          "Registro, acesso e retenção dependem da licença, das políticas e da configuração. Consulte o administrador para saber o que é registrado; esta página não confirma que uma sessão está sendo gravada."
+        ]
+      }
+    },
+    {
+      "id": "quality",
+      "state": "verified",
+      "category": "Verificações de segurança e qualidade",
+      "owner": "Revisão de conteúdo em PR",
+      "internalDescription": "Workflows/scripts presentes na base; este inventário não executou scanners nem consultou o estado atual do CI. ZAP/Stryker permanecem em frentes separadas.",
+      "restrictions": [
+        "Cada verificação cobre um escopo e uma versão. Aprovação em testes não é certificação nem garantia de ausência de vulnerabilidades."
+      ],
+      "review": {
+        "method": "source-review",
+        "reviewedAt": "2026-11-06",
+        "sourceRevision": "745253d1edb522db79aaa44fd96608ce434a2774",
+        "sourceFiles": [
+          ".github/workflows/sonarqube.yml",
+          ".github/workflows/security.yml",
+          "scripts/security/audit.mjs",
+          "scripts/security/scan-local.mjs"
+        ],
+        "sourceHash": "8706a68e436ca876060cd4714fcdc512db9b3d7b79b6cc638b6dfeb11b9b5d71",
+        "testFiles": [
+          "tools/sonarqube/validate-flow.test.mjs"
+        ],
+        "testsExecuted": false,
+        "scope": "Workflows/scripts presentes na base; este inventário não executou scanners nem consultou o estado atual do CI. ZAP/Stryker permanecem em frentes separadas."
+      },
+      "public": {
+        "title": "Verificações de segurança e qualidade",
+        "summary": "O projeto dispõe de análise de código e testes automatizados para apoiar a identificação de falhas.",
+        "details": [
+          "SonarQube, análise de dependências e detecção de segredos complementam os testes da aplicação.",
+          "Achados e evidências precisam ser revisados antes da integração de mudanças."
+        ],
+        "conditions": [
+          "Cada verificação cobre um escopo e uma versão. Aprovação em testes não é certificação nem garantia de ausência de vulnerabilidades."
+        ]
+      }
+    },
+    {
+      "id": "future-zap-mutation",
+      "state": "planned",
+      "internalDescription": "ZAP/Stryker em PR61 separada, ainda não integrados à base deste catálogo. Não publicar como capacidade desta versão.",
+      "public": {
+        "title": "Internal planned ZAP/Stryker candidate"
+      }
+    },
+    {
+      "id": "future-adaptive",
+      "state": "planned",
+      "internalDescription": "Motor adaptativo é backlog, sem autorização de implementação nesta frente."
+    },
+    {
+      "id": "future-ssh-ca",
+      "state": "planned",
+      "internalDescription": "SSH CA/certificados por sessão são PoC futura."
+    },
+    {
+      "id": "runtime-installation",
+      "state": "unverified",
+      "internalDescription": "Estado efetivo de HTTPS, configuração e disponibilidade no tenant não consultado pela Central estática."
+    }
+  ],
+  "practices": [
+    "Use uma conta individual e não compartilhe senhas ou códigos de verificação.",
+    "Confira o host e a ação antes de conectar, transferir arquivos ou executar comandos.",
+    "Encerre sessões que não estiver utilizando, especialmente em dispositivos compartilhados.",
+    "Proteja arquivos e registros exportados de acordo com as orientações da organização.",
+    "Ao perceber atividade suspeita, procure o administrador pelo canal oficial já utilizado pela sua organização. Não envie credenciais ou gravações por canais não autorizados."
+  ]
+}

@@ -898,9 +898,12 @@ async function main() {
   // Simula um byte que chegou ao readline remoto enquanto o modelo local ainda
   // exibia a sugestão, reproduzindo o caso observado como /var/r/log/....
   await page.evaluate(() => window.__terminalExperience.sockets.filter((socket) => socket.url.includes('/ws/ssh/') && socket.readyState === WebSocket.OPEN).at(-1).send('r'))
-  const sentBeforeOrphanRecovery = await page.evaluate(() => window.__terminalExperience.sent.join('').length)
+  const sentBeforeOrphanRecovery = await page.evaluate(() => window.__terminalExperience.inputSent.join('').length)
   await terminalInput.press('Tab')
-  const orphanRecoveryBytes = await page.evaluate((offset) => window.__terminalExperience.sent.join('').slice(offset), sentBeforeOrphanRecovery)
+  // Heartbeats are WebSocket control frames, never SSH stdin. Interleave one
+  // deterministically while retaining the exact orphan-recovery byte assertion.
+  await page.evaluate(() => window.__terminalExperience.sockets.filter((socket) => socket.url.includes('/ws/ssh/') && socket.readyState === WebSocket.OPEN).at(-1).send(JSON.stringify({ type: 'ping' })))
+  const orphanRecoveryBytes = await page.evaluate((offset) => window.__terminalExperience.inputSent.join('').slice(offset), sentBeforeOrphanRecovery)
   if (orphanRecoveryBytes !== '\u0005\u0015cd /var/log/anaconda/') throw new Error(`Autocomplete preservou byte órfão no caminho: ${JSON.stringify(orphanRecoveryBytes)}`)
   // Completing a directory schedules the next listing asynchronously. Observe
   // that request before taking the cache baseline, rather than racing its timer.

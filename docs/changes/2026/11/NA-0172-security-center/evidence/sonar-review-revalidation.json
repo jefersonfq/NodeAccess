@@ -1,0 +1,53 @@
+{
+  "reviewedAt": "2026-11-06T12:07:14-03:00",
+  "independentReviewer": "security_catalog",
+  "newDecisions": 0,
+  "serverMutations": 0,
+  "findings": [
+    {
+      "id": "SQ-0437",
+      "file": "tools/frontend/terminal-experience-playwright.cjs",
+      "rule": "javascript:S1313",
+      "range": {
+        "startLine": 22,
+        "endLine": 22,
+        "startOffset": 182,
+        "endOffset": 193
+      },
+      "previousSourceSha256": "be931e39a0c4b5acb9ef049355a26d185e9394b54dd80b7458db6a8aa8da3858",
+      "sourceSha256": "3f2f44b843646c6b4999844c542d498c92fcf0540fef66c2695f130b9d1d1766",
+      "decision": "Existing contextual false-positive rationale retained after independent source review",
+      "reason": "Synthetic host literal unchanged. FakeWebSocket replaces real WebSocket and API interception precedes navigation. Diff changes only orphan-recovery stdin measurement and injects control ping; rule, finding hash, range and isolation boundary unchanged."
+    },
+    {
+      "id": "SQ-0438",
+      "file": "tools/frontend/terminal-experience-playwright.cjs",
+      "rule": "javascript:S1313",
+      "range": {
+        "startLine": 39,
+        "endLine": 39,
+        "startOffset": 63,
+        "endOffset": 74
+      },
+      "previousSourceSha256": "be931e39a0c4b5acb9ef049355a26d185e9394b54dd80b7458db6a8aa8da3858",
+      "sourceSha256": "3f2f44b843646c6b4999844c542d498c92fcf0540fef66c2695f130b9d1d1766",
+      "decision": "Existing contextual false-positive rationale retained after independent source review",
+      "reason": "Synthetic host literal unchanged. FakeWebSocket replaces real WebSocket and API interception precedes navigation. Diff changes only orphan-recovery stdin measurement and injects control ping; rule, finding hash, range and isolation boundary unchanged."
+    },
+    {
+      "id": "SQ-0439",
+      "file": "tools/frontend/terminal-experience-playwright.cjs",
+      "rule": "javascript:S1313",
+      "range": {
+        "startLine": 40,
+        "endLine": 40,
+        "startOffset": 67,
+        "endOffset": 78
+      },
+      "previousSourceSha256": "be931e39a0c4b5acb9ef049355a26d185e9394b54dd80b7458db6a8aa8da3858",
+      "sourceSha256": "3f2f44b843646c6b4999844c542d498c92fcf0540fef66c2695f130b9d1d1766",
+      "decision": "Existing contextual false-positive rationale retained after independent source review",
+      "reason": "Synthetic host literal unchanged. FakeWebSocket replaces real WebSocket and API interception precedes navigation. Diff changes only orphan-recovery stdin measurement and injects control ping; rule, finding hash, range and isolation boundary unchanged."
+    }
+  ]
+}

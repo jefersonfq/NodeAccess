@@ -1,0 +1,235 @@
+{
+  "recorded_at": "2026-11-12T08:57:34-03:00",
+  "worktree": "/home/jeferson/NodeAccess-NA-0172",
+  "branch": "feature/NA-0172-20261112-security-center-isolated",
+  "base_sha": "745253d1edb522db79aaa44fd96608ce434a2774",
+  "head_sha": "745253d1edb522db79aaa44fd96608ce434a2774",
+  "includes_working_tree": true,
+  "source_fingerprint": "652db5baba13aeb142942e9f7aeb642cacae93abe07499d77c3d1eedb55eaede",
+  "validation_raw": "/home/jeferson/NodeAccess-NA-0172/.sonar-reports/validation-1794483067896-a9f7dff1-5b0e-4484-b439-8162933b8ea5/validation.json",
+  "validation_sha256": "b8d943de5e20ebb2ed1d358edae68b71f97a13f7f30ec00fc158d91530a1f04e",
+  "result": "BLOCKED: checkout sem commit; testes e gate aprovados",
+  "sonar": {
+    "schemaVersion": 1,
+    "startedAt": "2026-11-12T11:31:07.897Z",
+    "finishedAt": "2026-11-12T11:48:44.094Z",
+    "passed": false,
+    "failures": [
+      "REVIEWED_FINDINGS_NOT_VERIFIED"
+    ],
+    "warnings": [],
+    "base": "745253d1edb522db79aaa44fd96608ce434a2774",
+    "head": "745253d1edb522db79aaa44fd96608ce434a2774",
+    "toolingExit": 0,
+    "coverageExit": 0,
+    "scannerExit": 0,
+    "analysisId": "6f9985d1-0ef5-4a2a-968d-5b7c0199d825",
+    "analysisVerified": true,
+    "comparison": {
+      "passed": true,
+      "reviewed": 0,
+      "unexpected": [],
+      "absentReviewedOccurrences": 295
+    },
+    "gate": {
+      "status": "OK",
+      "conditions": [
+        {
+          "status": "OK",
+          "metricKey": "new_coverage",
+          "comparator": "LT",
+          "errorThreshold": "80",
+          "actualValue": "81.0"
+        },
+        {
+          "status": "OK",
+          "metricKey": "new_duplicated_lines_density",
+          "comparator": "GT",
+          "errorThreshold": "3",
+          "actualValue": "0.06431"
+        },
+        {
+          "status": "OK",
+          "metricKey": "new_violations",
+          "comparator": "GT",
+          "errorThreshold": "0",
+          "actualValue": "0"
+        }
+      ],
+      "ignoredConditions": false,
+      "period": {
+        "mode": "PREVIOUS_VERSION",
+        "date": "2026-11-03T16:48:47+0000"
+      },
+      "caycStatus": "compliant"
+    },
+    "hotspotsToReview": 0,
+    "error": "REVIEW_CHECKOUT_CHANGED",
+    "reviewedFalsePositives": null,
+    "reviewsVerified": false,
+    "reports": "/home/jeferson/NodeAccess-NA-0172/.sonar-reports/2026-11-12T11-48-43.703Z-873fb50f-84af-4c0e-9591-2487d6030b53",
+    "output": "/home/jeferson/NodeAccess-NA-0172/.sonar-reports/validation-1794483067896-a9f7dff1-5b0e-4484-b439-8162933b8ea5"
+  },
+  "coverage": {
+    "diff_percent": 84.3687374749499,
+    "vitest": {
+      "exitCode": 0,
+      "passed": 3662,
+      "failed": 0,
+      "skipped": 125
+    },
+    "node": {
+      "passed": 693,
+      "failed": 0,
+      "skipped": 11
+    },
+    "tooling": {
+      "passed": 230,
+      "failed": 0,
+      "skipped": 1
+    },
+    "browser": {
+      "exitCode": 0,
+      "status": "passed",
+      "phase": "complete",
+      "captureRunId": "3cf201ae-ea3e-4b19-adde-b49f35daa00f",
+      "startedAt": "2026-11-12T11:36:33.150Z",
+      "kind": "real Chromium; Node and mapped browser coverage are collected separately",
+      "harnesses": [
+        {
+          "name": "frontend",
+          "coverageMode": "node-only",
+          "exitCode": 0,
+          "timedOut": false
+        },
+        {
+          "name": "table",
+          "coverageMode": "node-only",
+          "exitCode": 0,
+          "timedOut": false
+        },
+        {
+          "name": "terminal",
+          "coverageMode": "node-and-browser",
+          "exitCode": 0,
+          "timedOut": false
+        },
+        {
+          "name": "platform",
+          "coverageMode": "node-and-browser",
+          "exitCode": 0,
+          "timedOut": false
+        },
+        {
+          "name": "flows",
+          "coverageMode": "node-and-browser",
+          "exitCode": 0,
+          "timedOut": false
+        },
+        {
+          "name": "ha",
+          "coverageMode": "node-and-browser",
+          "exitCode": 0,
+          "timedOut": false
+        },
+        {
+          "name": "audit-input",
+          "coverageMode": "node-and-browser",
+          "exitCode": 0,
+          "timedOut": false
+        },
+        {
+          "name": "tacacs-tls",
+          "coverageMode": "node-and-browser",
+          "exitCode": 0,
+          "timedOut": false
+        },
+        {
+          "name": "security-center",
+          "coverageMode": "node-and-browser",
+          "exitCode": 0,
+          "timedOut": false
+        },
+        {
+          "name": "highlight-budget",
+          "coverageMode": "node-only",
+          "exitCode": 0,
+          "timedOut": false
+        }
+      ],
+      "origin": "http://127.0.0.1:38737",
+      "finishedAt": "2026-11-12T11:43:13.873Z"
+    },
+    "tls": {
+      "schemaVersion": 1,
+      "runId": "dbd3d814-f977-4a03-8400-9e2c7c41cf87",
+      "passed": true,
+      "checks": [
+        "live",
+        "health",
+        "soak",
+        "watchdog"
+      ],
+      "isolated": true,
+      "cleanupVerified": true,
+      "startedAt": "2026-11-12T11:33:36.534Z",
+      "limitations": "Disposable MySQL/Redis and synthetic devices; real TLS/Python/SSH. No vendor hardware, supervisor restart or production capacity certification.",
+      "pythonCoverage": {
+        "sourceSha256": "0a19cd3c0ebe150d0ef8e82eb0085558b8c994d4711541162db94e53d40b2434",
+        "reportSha256": "0a05765cfd7b617bd848665ac4807283a03bea6cde9af734bd61ac14a1153326",
+        "executedLines": 89,
+        "totalLines": 102,
+        "helperSourceSha256": "2d4ab6e0b04a6db881504ebeb0fe6c9324d47b69de4cb2fd0e091380322ec0ec"
+      },
+      "requests": 767,
+      "finishedAt": "2026-11-12T11:36:32.290Z",
+      "failure": null
+    }
+  },
+  "focused": {
+    "node_tests": 45,
+    "failed": 0,
+    "frontend_build": "PASS (inclui typecheck)",
+    "manual_node": 2,
+    "manual_vitest": 18,
+    "manual_reviewed_chapters": 5,
+    "lint": "PASS nas fontes/testes selecionados; vite.config.ts ignorado pela configuração ESLint existente. lint:changed selecionou zero arquivos, não usado como prova de lint.",
+    "diff_check": "PASS"
+  },
+  "security": {
+    "gitleaks_total": 42,
+    "reviewed": 42,
+    "unreviewed": 0,
+    "semgrep_targets": 908,
+    "findings": 0,
+    "errors": 0
+  },
+  "limitations": [
+    "Nenhum commit, push, PR ou merge NA-0172 executado.",
+    "Evidências anteriores são históricas e não validam este checkout.",
+    "Capturas/manualmente revisadas de 06/11 preservadas; fontes e imagens byteiguais, sem nova captura editorial nesta retomada.",
+    "Sem mudança de resize/transporte SSH; PTY real não executado nesta retomada.",
+    "Testes browser usam APIs sintéticas; não são homologação humana nem validação de produção."
+  ],
+  "independent_review": {
+    "result": "PASS_WITH_WARNINGS para isolamento; BLOCKED integral por reconciliação",
+    "reviewer": "review_isolation",
+    "checks": "Resultados brutos, branch, escopo e evidências equivalentes conferidos; sem testes novos executados pelo revisor.",
+    "limitation": "Comparação independente dos ZIPs impedida pelo sandbox .aws; revisor confirmou coerência documental, não recomputou a preservação do workbook."
+  },
+  "documentary_rescan": {
+    "at": "2026-11-12T12:00:45.777Z",
+    "gitleaks": {
+      "total": 42,
+      "reviewedFixtures": 42,
+      "unreviewed": []
+    },
+    "semgrep": {
+      "findings": [],
+      "errors": [],
+      "targets": 908
+    },
+    "passed": true,
+    "log": ".tmp/NA-0172-isolation/security-0.log"
+  }
+}

@@ -837,6 +837,8 @@ O cadastro de degustação também oferece telefone opcional para contato solici
 
 ## Segurança e qualidade de software
 
+A **Central de Segurança** (`/security`, após login) explica controles, condições e boas práticas. É uma página informativa, sem diagnóstico de ativação no tenant. O [catálogo e a manutenção do conteúdo](docs/security/README.md) vinculam as afirmações às evidências internas; esses metadados não são enviados ao navegador.
+
 O NodeAccess usa **SonarQube** na validação local e no CI. O check obrigatório
 `sonar-real` executa análises reais da base e do candidato em ambiente descartável,
 confere a configuração efetiva, importa cobertura e exige o Quality Gate.

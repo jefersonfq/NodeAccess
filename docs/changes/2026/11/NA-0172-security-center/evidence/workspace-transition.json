@@ -1,0 +1,182 @@
+{
+  "executedAt": "2026-11-06T14:15:49.640391+00:00",
+  "canonical": "/home/jeferson/projects/NodeAccess-current",
+  "backup": "/home/jeferson/projects/NodeAccess-current-backup-NA0081-20261106",
+  "branch": "feature/NA-0172-20261106-security-center",
+  "head": "745253d1edb522db79aaa44fd96608ce434a2774",
+  "sourceFingerprintBefore": "7141cec46d0aab03fedf5de7012a328d64afba5a229eb60f5614013ab6913d12",
+  "sourceFingerprintAfter": "7141cec46d0aab03fedf5de7012a328d64afba5a229eb60f5614013ab6913d12",
+  "documentsVerified": 834,
+  "privateStateFilesVerified": 7807,
+  "ownerUid": 1000,
+  "ownerGid": 1000,
+  "followedSymlinks": false,
+  "schemaChanged": false,
+  "commitCreated": false,
+  "archivedVariants": [
+    {
+      "path": "docs/changes/2026/11/NA-0089-sonar-integration/implementation.md",
+      "sourceSha256": "4be5457eb6d8f1ee691936a619eeceeb6bcc5d98c08df305f3e35a4b58e32233",
+      "candidateSha256": "f55c160831ae409d399b5c933e5c248b6a21e95c53ba188844fa7ac726438eec",
+      "preservedPath": "docs/changes/2026/11/NA-0172-security-center/workspace-preserved/docs/changes/2026/11/NA-0089-sonar-integration/implementation.md"
+    },
+    {
+      "path": "docs/changes/2026/11/NA-0089-sonar-integration/test-results.md",
+      "sourceSha256": "78ea064185e80586dae8eb07bab9a3de0f64895cb01709abde206db805632c9b",
+      "candidateSha256": "296799205285b11c3b42afb2b967b32f84e40e1e86e3f733737d43f2b1289c20",
+      "preservedPath": "docs/changes/2026/11/NA-0172-security-center/workspace-preserved/docs/changes/2026/11/NA-0089-sonar-integration/test-results.md"
+    },
+    {
+      "path": "docs/changes/2026/11/NA-0093-sonar-delivery/implementation.md",
+      "sourceSha256": "6b150132a86b49bfb677906e176ec8825f04f7caf51fd9fa912a67c6c9731ed0",
+      "candidateSha256": "8979256a023d3b7abd18f7cb8ce57ff1945c785c3e4cf7a038b14fb3be98a67f",
+      "preservedPath": "docs/changes/2026/11/NA-0172-security-center/workspace-preserved/docs/changes/2026/11/NA-0093-sonar-delivery/implementation.md"
+    },
+    {
+      "path": "docs/changes/2026/11/NA-0093-sonar-delivery/plan.md",
+      "sourceSha256": "da6900a5f72465b2d94a2eafaa7b877b4e37c77b742ad4d76a5238f72567b24f",
+      "candidateSha256": "5ef766971cf717189caec93ff24d9741c8abd5accf2c20335fd81771bddadd33",
+      "preservedPath": "docs/changes/2026/11/NA-0172-security-center/workspace-preserved/docs/changes/2026/11/NA-0093-sonar-delivery/plan.md"
+    },
+    {
+      "path": "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.csv",
+      "sourceSha256": "1dcdb5a9fd6c2360dc43bc191ac5e3d2fa79dae85840c2bffa56d5b3fa2e9e7c",
+      "candidateSha256": "6fb48fdd2fb45d232cce734fb3544cccd4316297b0a56e2965a7ff1830724eb9",
+      "preservedPath": "docs/changes/2026/11/NA-0172-security-center/workspace-preserved/docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.csv"
+    },
+    {
+      "path": "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json",
+      "sourceSha256": "067b6464423fec06c8db27020e2cecfa869b5c46875b529f0bf284d9c9122ec2",
+      "candidateSha256": "c18c0f973e3e3875c5368b9c75b42b65f96794aca15287a40aa8dbea4be34e4c",
+      "preservedPath": "docs/changes/2026/11/NA-0172-security-center/workspace-preserved/docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json"
+    },
+    {
+      "path": "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.md",
+      "sourceSha256": "081579b92d142a470e0c4f86b1e0c0cb4799920614377b10d9ae9330f8f58261",
+      "candidateSha256": "5dd13469526a074fd479c9614f51294a1d78c3009b9a3d1a4fdb54e2f0fd615a",
+      "preservedPath": "docs/changes/2026/11/NA-0172-security-center/workspace-preserved/docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.md"
+    },
+    {
+      "path": "docs/changes/2026/11/NA-0115-sonar-tooling-followup/dispositions.json",
+      "sourceSha256": "0cf51049767d9faffce8b6eedc12bd418b5cb942526c33ddaf4b1eee0773c637",
+      "candidateSha256": "33729e6202c0a126782fef227ac390478b1e24ae98d155880c94c32b35655203",
+      "preservedPath": "docs/changes/2026/11/NA-0172-security-center/workspace-preserved/docs/changes/2026/11/NA-0115-sonar-tooling-followup/dispositions.json"
+    },
+    {
+      "path": "docs/changes/2026/11/NA-0125-private-flow-artifacts/dispositions.json",
+      "sourceSha256": "72229ce84d13e72626857b6c8039fd63230cf79ff59891c61a0fc61f429fa418",
+      "candidateSha256": "220f30189e121171daa75f89352a4016a64876812e5d98dead9888cd3a6660ab",
+      "preservedPath": "docs/changes/2026/11/NA-0172-security-center/workspace-preserved/docs/changes/2026/11/NA-0125-private-flow-artifacts/dispositions.json"
+    },
+    {
+      "path": "docs/changes/2026/11/NA-0133-sonar-callback-contracts/dispositions.json",
+      "sourceSha256": "dc0dd3d87f772db5ee907061359afcb080b8b4960ca43bc953cbc96612d9e490",
+      "candidateSha256": "059eee7b03494240a7295f9c8819fa90641b036f503ebdb202f3d24d2d9577e4",
+      "preservedPath": "docs/changes/2026/11/NA-0172-security-center/workspace-preserved/docs/changes/2026/11/NA-0133-sonar-callback-contracts/dispositions.json"
+    },
+    {
+      "path": "docs/changes/2026/11/NA-0142-linear-timeout-diagnostic/dispositions.json",
+      "sourceSha256": "c41454304bd6c6d9bbc79cd0696d11f05eb1f51af305c0832565f605783634c0",
+      "candidateSha256": "daf6acfd12e927f8617922e13f125a034639e162f185d99a8b50d7d8beebb95e",
+      "preservedPath": "docs/changes/2026/11/NA-0172-security-center/workspace-preserved/docs/changes/2026/11/NA-0142-linear-timeout-diagnostic/dispositions.json"
+    },
+    {
+      "path": "docs/changes/2026/11/NA-0145-sonar-open-review/implementation.md",
+      "sourceSha256": "f5dc2a23da2d27b90202f698bbc0574e94c00b67972052f728d2d6eb6c53a8f6",
+      "candidateSha256": "f10dae195127cfd80b127c59ef069045c2deefdf45cea8aa489e224796f77e80",
+      "preservedPath": "docs/changes/2026/11/NA-0172-security-center/workspace-preserved/docs/changes/2026/11/NA-0145-sonar-open-review/implementation.md"
+    },
+    {
+      "path": "docs/changes/2026/11/NA-0145-sonar-open-review/review.csv",
+      "sourceSha256": "1fa65b2b6240a4b51eb230b97f03e692cd5b19b5d63c0760608973d4d1585054",
+      "candidateSha256": "24f29e65c557bfe76af2497bdc166f607ecc38b4069f6ace34919522cb315e1c",
+      "preservedPath": "docs/changes/2026/11/NA-0172-security-center/workspace-preserved/docs/changes/2026/11/NA-0145-sonar-open-review/review.csv"
+    },
+    {
+      "path": "docs/changes/2026/11/NA-0147-terminal-highlight-budget/resolution.json",
+      "sourceSha256": "e966d0a6e258894ca56b260c23996fb96e89094a94cfceaa7b0f3b0d65430740",
+      "candidateSha256": "58ca7584e14dda46abd3654864c1fcfe0c04932380147be6dab944323d3d9288",
+      "preservedPath": "docs/changes/2026/11/NA-0172-security-center/workspace-preserved/docs/changes/2026/11/NA-0147-terminal-highlight-budget/resolution.json"
+    },
+    {
+      "path": "docs/changes/2026/11/NA-0151-linear-backend-trims/evidence/source-fingerprints.json",
+      "sourceSha256": "0042d6e30eeb4eb9a20a19398bb92045cdd7ecdc9f234d935c1d6104c8f29c42",
+      "candidateSha256": "29a634a4cbced1d3ba6e029c35cf2029262e330ac1ea7aa9f2ee457aa60daf77",
+      "preservedPath": "docs/changes/2026/11/NA-0172-security-center/workspace-preserved/docs/changes/2026/11/NA-0151-linear-backend-trims/evidence/source-fingerprints.json"
+    },
+    {
+      "path": "docs/changes/2026/11/NA-0153-harness-regex-restore/evidence/source-sha256.json",
+      "sourceSha256": "8ea11c6dacce73ddd0adacaa07306f0921b609226f314ae2f898454cc7c9cbef",
+      "candidateSha256": "c2e705637af1984f44d6840a96f66bc9f07fe9fb931df59ddb46a676369f9a3c",
+      "preservedPath": "docs/changes/2026/11/NA-0172-security-center/workspace-preserved/docs/changes/2026/11/NA-0153-harness-regex-restore/evidence/source-sha256.json"
+    },
+    {
+      "path": "docs/changes/2026/11/NA-0169-tacacs-tls/implementation.md",
+      "sourceSha256": "127615af7e7f0f654ee70a3a45580a8cd23a7a7381cf943dcff2d101d1e23e24",
+      "candidateSha256": "c5cd5e5df7a81012487a7bba626b0638c1ac8a0ce74e58627ff567a6c4242766",
+      "preservedPath": "docs/changes/2026/11/NA-0172-security-center/workspace-preserved/docs/changes/2026/11/NA-0169-tacacs-tls/implementation.md"
+    },
+    {
+      "path": "docs/changes/2026/11/NA-0169-tacacs-tls/plan.md",
+      "sourceSha256": "b9e03a8925d69040204c50d77f9204cff7422eb5d950a3b97085e5eda0918b00",
+      "candidateSha256": "a72bc95c82907151e72ca66a1f45cb3296ac26f704c5bbbc461a6a4a89f05d79",
+      "preservedPath": "docs/changes/2026/11/NA-0172-security-center/workspace-preserved/docs/changes/2026/11/NA-0169-tacacs-tls/plan.md"
+    },
+    {
+      "path": "docs/changes/2026/11/NA-0169-tacacs-tls/test-results.md",
+      "sourceSha256": "dfcf46d800f9564ae98db1f64206b6e1abae4dc8f986a697824e13fa8f69a317",
+      "candidateSha256": "4cb07592bad0d30cef028582aa0498ab7c3abd4ebbbc12d0d23213bdcc1e143b",
+      "preservedPath": "docs/changes/2026/11/NA-0172-security-center/workspace-preserved/docs/changes/2026/11/NA-0169-tacacs-tls/test-results.md"
+    },
+    {
+      "path": "docs/sonarqube/discovered-findings.json",
+      "sourceSha256": "b61cba2e92df60e8573b10672974a2be1c5bc8360f3a7f116f0238defe587ef7",
+      "candidateSha256": "3c0fe11540384eda3d31a93ddd2627b7aaf2b24703c9fdc644efd19e59b10ba8",
+      "preservedPath": "docs/changes/2026/11/NA-0172-security-center/workspace-preserved/docs/sonarqube/discovered-findings.json"
+    },
+    {
+      "path": "docs/sonarqube/findings.csv",
+      "sourceSha256": "1ea8151740c02a6e48dce901b9d31a6918ed7aa69770f8a145068716a279246d",
+      "candidateSha256": "22ebc434c23f3d22006b9c384526f66cc6fa469ce11e84da0f6c37941c583521",
+      "preservedPath": "docs/changes/2026/11/NA-0172-security-center/workspace-preserved/docs/sonarqube/findings.csv"
+    },
+    {
+      "path": "docs/sonarqube/findings.html",
+      "sourceSha256": "21031e650964796f45635fb578cd05e98a0b78aa117e9799730ead1b2936e0c2",
+      "candidateSha256": "65c73bf8687eb1c0acad760bb9aa7768da5479575614fb817d028e94f0a4a530",
+      "preservedPath": "docs/changes/2026/11/NA-0172-security-center/workspace-preserved/docs/sonarqube/findings.html"
+    },
+    {
+      "path": "docs/sonarqube/findings.json",
+      "sourceSha256": "0d2c8950cf31275d350cc35bd6a5395c678ca70c3ce278a6a38195e28c1299b6",
+      "candidateSha256": "bbf82e4882189d6af027e3047e2857a4c77da5138cba846d179901247cf3ec96",
+      "preservedPath": "docs/changes/2026/11/NA-0172-security-center/workspace-preserved/docs/sonarqube/findings.json"
+    },
+    {
+      "path": "docs/sonarqube/reviewed-false-positives.json",
+      "sourceSha256": "465f047c5d5ef20137fe7a4fa885e4638aebfb1a6886c66435e82200ef27fb01",
+      "candidateSha256": "0130bce6ff583c77709a66b83471dd9cdbf1b4855a6543a4f5a9115ccc1a61ae",
+      "preservedPath": "docs/changes/2026/11/NA-0172-security-center/workspace-preserved/docs/sonarqube/reviewed-false-positives.json"
+    }
+  ],
+  "userRuntime": {
+    "path": "/home/jeferson/.nvm/versions/node/v24.22.1",
+    "nodeVersion": "24.22.1",
+    "npmVersion": "11.19.1",
+    "nvmUseAsUid1000": "passed",
+    "developmentPrecheckAsUid1000": "passed",
+    "defaultChanged": false,
+    "profileChanged": false,
+    "archiveSha256": "6c172a9ab6718f7b801fb5a7bd486af2ee5e32758086a04b84fcce2aa77095e6"
+  },
+  "databaseBackup": {
+    "path": "backups/NA0172-workspace/before-tacacs-tls-identity-20261106.sql",
+    "bytes": 12434812,
+    "sha256": "33b78ff71086f0c95b7448b2dd5ceaec3a14a1ae5d08cf863487e894b351b060",
+    "dumpExit": 0,
+    "createTableStatements": 103,
+    "structuralValidation": "passed",
+    "restoreTested": false,
+    "schemaChangedByTransition": false
+  }
+}
