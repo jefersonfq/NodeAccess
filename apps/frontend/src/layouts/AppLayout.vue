@@ -288,6 +288,7 @@ async function loadLicensedNavigation(): Promise<void> {
 // ── Active route → highlight no menu ─────────────────────────────────────────
 
 const activeKey = computed(() => {
+  if (route.name === 'secrets' || route.name === 'pem-keys') return 'vault'
   if (route.name === 'admin-session-audit-detail') return 'admin-session-audit'
   if (typeof route.name === 'string' && route.name.startsWith('admin-reports-')) return 'admin-reports'
   return route.name as string | null
@@ -404,8 +405,8 @@ const menuOptions = computed<MenuOption[]>(() => {
     ...(manual.enabled ? [{ key: 'manual', label: t('manual.title'), icon: icon('<path d="M12 5v15M3 4c4-1 6 0 9 1 3-1 5-2 9-1v15c-4-1-6 0-9 1-3-1-5-2-9-1Z"/>') }] : []),
     { key: 'security-center', label: t('securityCenter.title'), icon: icon('<circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/>') },
     { key: 'hosts', label: renderMenuLabel('hosts', t('nav.hosts')), icon: icon(ICONS.hosts) },
-    ...(auth.user?.canManageHosts || auth.isAdmin ? [
-      { key: 'pem-keys', label: t('nav.pemKeys'), icon: icon(ICONS.keys) },
+    ...(secretsLicensed.value || auth.user?.canManageHosts || auth.isAdmin ? [
+      { key: 'vault', label: t('nav.vault'), icon: icon(ICONS.secrets) },
     ] : []),
     ...(agentsLicensed.value ? [
       { key: 'agents', label: t('nav.agents'), icon: icon(ICONS.agents) },
@@ -413,9 +414,7 @@ const menuOptions = computed<MenuOption[]>(() => {
     ...(snippetsLicensed.value ? [
       { key: 'snippets', label: t('nav.snippets'), icon: icon(ICONS.snippets) },
     ] : []),
-    ...(secretsLicensed.value ? [
-      { key: 'secrets', label: t('nav.secrets'), icon: icon(ICONS.secrets) },
-    ] : []),
+
     ...(!isGuidedTrial(trial.value) ? [{ key: 'links', label: t('nav.links'), icon: icon(ICONS.links) }] : []),
     ...(portForwardingLicensed.value ? [
       { key: 'forwardings', label: t('nav.forwardings'), icon: icon(ICONS.forwardings) },

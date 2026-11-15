@@ -67,6 +67,7 @@ const router = createRouter({
         { path: 'my-activity', name: 'my-activity', component: (): Promise<typeof import('@/views/UserActivityView.vue')> => import('@/views/UserActivityView.vue') },
         { path: 'diagnostic-runs/:runId', name: 'diagnostic-run-detail', component: (): Promise<typeof import('@/views/DiagnosticRunDetailView.vue')> => import('@/views/DiagnosticRunDetailView.vue') },
         { path: 'ai-ssh-action-runs/:runId', name: 'ai-ssh-action-run-detail', component: (): Promise<typeof import('@/views/AiSshActionRunDetailView.vue')> => import('@/views/AiSshActionRunDetailView.vue') },
+        { path: 'vault', name: 'vault', component: (): Promise<typeof import('@/views/VaultView.vue')> => import('@/views/VaultView.vue') },
         { path: 'pem-keys', name: 'pem-keys', component: (): Promise<typeof import('@/views/PemKeysView.vue')> => import('@/views/PemKeysView.vue') },
         { path: 'agents',      name: 'agents',      component: (): Promise<typeof import('@/views/AgentsView.vue')> => import('@/views/AgentsView.vue') },
         { path: 'snippets',    name: 'snippets',    component: (): Promise<typeof import('@/views/SnippetsView.vue')> => import('@/views/SnippetsView.vue') },

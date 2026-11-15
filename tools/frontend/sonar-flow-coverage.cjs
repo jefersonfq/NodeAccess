@@ -162,6 +162,8 @@ async function main() {
     state.failDashboard = true; await page.getByRole('button', { name: /Atualizar|Refresh/ }).first().click(); await visible(page, 'Erro ao carregar estatísticas')
     state.failDashboard = false; await page.getByRole('button', { name: /Atualizar|Refresh/ }).first().click(); await visible(page, 'Operador de teste')
     await page.setViewportSize({ width: 390, height: 844 }); evidence.geometry.push(await geometry(page)); await page.screenshot({ path: artifactPath('dashboard-mobile.png', output), fullPage: true }); evidence.screenshots.push('dashboard-mobile.png')
+    stage = 'vault-catalog'
+    evidence.vault = await require('./vault-catalog-playwright.cjs').runVaultFlow(browser, base)
     assert.deepEqual(errors, []); evidence.pageErrors = errors; evidence.status = 'passed'; stage = 'complete'
     await context.close()
   } catch (error) { evidence.failure = flowFailure(stage, error); throw error }

@@ -27,14 +27,21 @@
       "apps/frontend/src/services/host-agent-availability.ts",
       "apps/frontend/src/services/host-dashboard-navigation.ts",
       "apps/backend/src/shared/ssh-host-key.ts",
-      "apps/backend/src/modules/ssh/ssh.repository.ts"
+      "apps/backend/src/modules/ssh/ssh.repository.ts",
+      "apps/frontend/src/views/VaultView.vue",
+      "apps/frontend/src/views/SecretsView.vue",
+      "apps/frontend/src/views/PemKeysView.vue",
+      "apps/frontend/src/components/vault/SecretActions.vue",
+      "apps/frontend/src/components/vault/PemKeyActions.vue",
+      "apps/frontend/src/composables/useVaultCatalog.ts",
+      "apps/frontend/src/services/vault-catalog.ts"
     ],
     "journey": [
       "Localizar o host",
       "Conferir o destino",
       "Conectar ou retomar"
     ],
-    "reviewedSourceHash": "88e7197a5beaadeeeed6f6522abfec0a48f0229c55bf3ab57b78e6c43e8dc2bc"
+    "reviewedSourceHash": "8bf98c01473490a60c1648790eab10ce764b6e260f489003735d8e8202e07465"
   },
   {
     "id": "terminal",

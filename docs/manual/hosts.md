@@ -61,6 +61,13 @@ Se a origem não carregar, tente novamente. Se uma pasta, rota ou credencial cop
 
 As abas e ações permanecem acessíveis enquanto o conteúdo da aba rola. Pelo teclado, use **Tab** para alcançar a aba ativa, **←/→** para alternar entre abas e **Home/End** para ir à primeira ou à última. Use **Tab** novamente para navegar pelos campos e ações.
 
+### Gerenciar credenciais no VaultNAccess
+Abra **VaultNAccess** no menu lateral para localizar Secrets e chaves PEM. Use a busca e o filtro de tipo; a lista mostra metadados, sem revelar os valores salvos. A disponibilidade acompanha a licença e as permissões do seu acesso.
+
+Use **Novo secret** ou **Importar chave PEM** para cadastrar. Em **Ações**, Secrets permitem consultar **Usos**, editar metadados, rotacionar, revogar e excluir; chaves PEM permitem atualizar a senha da chave e excluir. As ações de gerenciamento respeitam propriedade e administração. Antes de revogar ou excluir um Secret, consulte os usos em hosts e snippets e revise o aviso: referências existentes podem deixar de funcionar.
+
+Se uma origem falhar, os registros da outra continuam disponíveis. Use **Tentar novamente** para recarregar. Trocar o contexto ou atualizar o catálogo fecha os formulários abertos; alterações ainda não salvas precisam ser informadas novamente. Abrir o cofre não encerra a sessão do terminal.
+
 ## Entenda os indicadores
 - Cards e listas reutilizam os ícones de protocolo do acesso rápido. O ícone da rota informa acesso direto, automático ou por Agent/conector. Passe o mouse, toque ou use **Tab** para consultar a descrição e a disponibilidade; **Esc** fecha a dica. O botão **Conectar** informa o motivo quando uma rota obrigatória não está disponível.
 - No **Acesso rápido**, a pasta aparece junto ao endereço quando há espaço, seguida do relógio e da data do último acesso em **dia/mês**; a dica mostra a data por extenso e o horário. **Raiz** indica que o host está no diretório raiz do inventário. A dica da pasta mostra o caminho disponível, como **Raiz → Banco de dados → Dbs**. Se um ancestral não estiver disponível, o caminho pode aparecer parcial; a interface não presume pastas que você não pode consultar. O ícone no canto superior direito do card identifica o protocolo: terminal com cadeado para SSH, monitor para RDP, terminal com T para Telnet e monitor com V para VNC. Passe o mouse ou toque no ícone para consultar seu protocolo sem conectar. Passe o mouse ou toque no relógio para consultar o último acesso sem conectar. Pelo teclado, focar o card mostra o protocolo e o último acesso; **Esc** fecha a dica. **Sessão ativa** continua visível no card.

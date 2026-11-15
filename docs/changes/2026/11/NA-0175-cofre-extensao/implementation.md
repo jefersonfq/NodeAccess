@@ -2,31 +2,19 @@
 
 ## Resumo vigente
 
-Nome VaultNAccess definido pelo usuário; foco imediato Cofre + extensão, revelação autorizada em ambos e download/onboarding no frontend. Windows Hello é preferência de conveniência; E2EE/bridge/mobile podem evoluir depois. Adendo vaultnaccess-addendum.md rege mudanças em relação à avaliação inicial. Apenas documentos/roadmap alterados; sem implementação, PoC ou publicação.
+Fase1A autorizada fim a fim: base consolidada PR65 `ae188983d061a7bb5e6aaf855fd9d2f92416f3b8`; branch `feature/NA-0175-20261115-vaultnaccess`, código local no workspace canônico. Implementados /vault, menu VaultNAccess, catálogo público Secrets/PEM, busca/tipo/revogação, erros independentes e editores específicos reutilizados nas rotas legadas. Isolamento por contexto/geração e descarte dos rascunhos/confirmações ao desmontar. Sem API/backend/auth/transporte/cripto/plugin/reveal alterados. Extensão e segurança avançada permanecem fases futuras conforme adendos.
 
-Requisito vigente adicional: preservar integralmente fluxos centrais; delivery cifrado exclusivo das novas operações de extensão, conforme hybrid-delivery-review.md. HPKE/atestações não implementados.
+## Validação e estado
 
-## Pedido e objetivo
+Ran: baseline54; catálogo/editores17; snippets66; typecheck e lint focal sem avisos; build; jornadas nova e legada em Chromium; terminal-experience; manual:capture, revisão das cinco imagens, test:manual (2 Node +18 Vitest), manual:check-reviewed. Revisão independente estática PASS_WITH_WARNINGS; achados de isolamento corrigidos. Detalhes/limites em phase1a-evidence.md. Roadmap META-005/META-017 atualizado uma vez, Original2027 preservado.
 
-Avaliar o RFC de Cofre/extensão com evidência do projeto, etapas, dependências, riscos e decisões. Somente análise, conforme pedido e RFC.
+Planned: `npm run validate:sonar` integral sobre candidato commitado/checkout limpo; ainda não executado nesta frente. Commit e continuidade autorizados pelo usuário; candidato será congelado para o gate integral. Não herdar Sonar/CI de PR65. Manual: homologação humana pendente. Skipped: PTY real (sem resize/transporte), pentest/E2EE/agente/Windows Hello (fora da fase1A), Excel visual (ZIP/XML/células validados).
 
-## Implementação
+Estado: LOCAL_WIP; COMMITTED/PUSHED/PR_OPEN/MERGED/MASTER_SYNCED não atingidos para NA0175. Não publicada nem pronta para merge. SHA final será registrado somente após commit autorizado; não inventar associação de evidência dirty a um SHA final.
 
-Base observada: `745253d1edb522db79aaa44fd96608ce434a2774`; checkout canônico com alterações anteriores preservadas. Criados assessment.md (18 tópicos) e plan.md draft. Registro/índice e roadmap são documentação; nenhum código/infra/migração alterado. Nenhuma branch/commit/push/PR novo. Diferença de base cruzada com NA-0174 (`15938ada5b1a62e54870bfe50411bbce9f0a4f41`), sem presumir integração/publicação.
+## Recuperação e próximo passo
 
-## Validação
-
-Ran: inspeção estática, Git local, schemas/serviços/rotas/UI/agente; leitura focal do guard e resolvedores no candidato NA-0174; consulta oficial Chrome/MDN/NIST. Sem exploração ou testes de aplicação. Duas hipóteses persistem no candidato: resolução secret:// sem ACL de usuário nesse método e combinação de cifragens distintas para PEM externo. Detalhes e limites no assessment.
-Skipped: testes runtime, Sonar, PoCs/benchmark/pentest; nenhuma mudança de código. PASS de NA-0174 é evidência citada de outra frente, não executada aqui.
-Planned: homologação das decisões, base atualizada, reprodução focal e gates por fase.
-
-## Recuperação
-
-Remover/reverter somente os documentos/índice desta frente e suas células/revisão do roadmap. Preservar código pendente, RFC original e todas as outras frentes. Não reverter arquivo compartilhado inteiro após edições subsequentes.
-
-## Pendências
-
-Aprovar recorte 1A e ADRs antes de código; integrar/reconciliar NA-0174 na base futura. Completar auditoria de exportações/backups/RDP/consumidores e PoCs conforme plano. Roadmap META-005/META-017 atualizado em uma escrita; ver roadmap-evidence.json. Sem renderização Excel/LibreOffice.
+Preservar alterações locais da frente; rollback pelo recorte UI/menu/rota/editores, sem migração de dados. Backups anteriores de NA0176/stash preservados. Próximo gate: congelar candidato autorizado, executar Sonar completo e resolver achados/cobertura; abrir PR apenas se autorizado e gates aprovados. Homologação e merge separados. Pergunta pendente não autoriza publicação por decurso de tempo.
 
 ## Diário de interações
 
@@ -53,3 +41,16 @@ Usuário autorizou avançar com SOLID e desacoplamento e acrescentou não regres
 ### 2026-11-15T17:09:43-03:00 — Pré-requisito de unificação
 
 Usuário determinou consolidar/atualizar base antes de codificar. Nenhum código VaultNAccess editado; trabalho de implementação aguarda reconciliação NA-0176. Plano autorizado permanece, mas baseline não executada e base final ainda pendente. Backup e inventário feitos; gates/homologação descritos em ../NA-0176-base-reconciliation/implementation.md.
+
+### 2026-11-15T19:00:22-03:00 — Fase 1A autorizada fim a fim
+Usuário autorizou os itens1/2/3: plano/base, tela unificada e validações. Plano atual substitui restrições antigas de somente análise; base ae188983d após PR65, branch NA0175 movida ao workspace principal limpo. Baseline focal iniciada antes de alteração de aplicação. Abordagem: catálogo tipado, estado por origem/contexto e editores específicos reutilizados; nenhuma nova API, reveal, auth, transporte ou camada criptográfica. Próximo: implementar e validar aceites, manual e Sonar; resultados anteriores não aprovam novo código.
+
+### 2026-11-15T19:26:16-03:00 — Implementação e validação local
+
+Catálogo/formulários e navegação implementados. Baseline54 passou antes de código. Corrigidos achados independentes de contexto nas rotas legadas e leitura PEM após cancel/reabertura. Browser final valida também troca de tenant na mesma instância com formulário aberto nas três rotas; usa completeLogin existente para atualizar identidade/token, sem alterar auth. Uma tentativa usou setTokens (não atualiza user) e foi corrigida no ensaio. Testes SSR dos editores validam funções expostas/desmontagem; templates cobertos por Chromium. Lint/typecheck/build, catálogo17/snippets66, jornadas, terminal/manual passaram. Capturas inspecionadas; hash editorial atualizado após revalidação. Novo harness incluído na coleta de cobertura, agregado integral ainda não executado. Avisos Vite/Rollup de configuração/anotação/chunk registrados sem afrouxar thresholds. Roadmap local atualizado com limites explícitos. Commit/Sonar/PR/homologação pendentes conforme pergunta de autorização; nenhuma nova aprovação inferida. Evidência consolidada em phase1a-evidence.md.
+
+Servidor Vite temporário5199 encerrado após validação; código permanece no workspace. `git diff --check` PASS.
+
+### 2026-11-15T19:44:02-03:00 — Commit e continuidade autorizados
+
+Usuário autorizou seguir após solicitação explícita de commit/Sonar/PR. Preparação do candidato único, gate integral e abertura de PR condicionada aos checks; merge/homologação não autorizados implicitamente. Atualização do roadmap agrupada nesta interação; resultados finais de SHA/checks serão anexados à PR/evidência externa para evitar commits recursivos. Sem nova alteração funcional nesta retomada.
