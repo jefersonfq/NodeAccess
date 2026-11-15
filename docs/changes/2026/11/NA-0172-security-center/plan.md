@@ -103,3 +103,43 @@ NECESSARY_CORRECTION adicional: CI upgrade-restore falhou porque .dockerignore e
 plugin da Central. Reintroduzir somente catálogo, plugin e arquivo de evidência de teste
 Sonar necessário à validação do catálogo no builder. Validar imagem frontend prod e conferir
 que catálogo/metadados internos não são copiados para o diretório público da imagem final.
+
+## Bloqueio de integração — 2026-11-14T22:23:12-03:00
+
+PR63 draft, head0b68abaf301e72b2fd4820b47876457a5b8915d3. Local e Sonar remoto PASS;
+security:images FAIL. Não entregue. Oito achados em quatro imagens, detalhados na
+NA-0174/evidence/image-gate.json; correções/triagens e novo ciclo de gates pendentes.
+
+## Continuação autorizada — 2026-11-14T22:27:57-03:00
+
+Usuário: “vamos em frente com o gate e os cenarios fim a fim”. GO_WITH_RISKS para
+Correções mínimas de imagens e revalidação de triagens, necessárias para o gate da PR63. Não alterar regras/thresholds nem aceitar vulnerabilidade por conveniência.
+
+Aceite: evidência por achado/pacote, imagens identificadas por digest/ID, revisão independente,
+regressões pertinentes e validate:sonar para código alterado; nenhum merge com gate aberto.
+Risco: atualizações de bibliotecas podem afetar TLS/guacd/CLI. Mitigar por build, inventário,
+scanner atual e cenários reais antes de commit/integração. Rollback: reverter apenas a correção
+da frente, sem alterar ambiente em uso. Plano anterior descreve etapas históricas.
+
+## Estado do gate — 2026-11-14T23:23:51-03:00
+
+LOCAL_WIP. Evidências finais desta rodada na NA-0172/evidence/gate-progress-20261114.json.
+Sonar Quality Gate OK, validação integral bloqueada por reconciliação do checkout.
+Imagens5/7 PASS; triagens pendentes de autorização e atualização MySQL sem build concluído.
+Reproduções NA-0174 com limitações concluídas; correções dos controles ainda pendentes.
+
+## Autorização de 2026-11-15
+
+Usuário autorizou as cinco triagens exatas propostas até2026-11-29T00:00:00Z e correção
+da imagem MySQL. Esclareceu manter a versão guacd, permitindo corrigir bibliotecas.
+Guacd permanece1.6.0; SQLite não alterado. Escopo necessário: atualizar libbrotli oficial
+com checksum e assinatura, preservar fullupdate, validar imagem por digest e repetir stack.
+Qualquer build aproveitando cache será identificado; não equivale a fullupdate fresco.
+
+## Gate pré-commit consolidado — 2026-11-15T12:21:57-03:00
+
+Imagens7/7, stack, upgrade/restore, contratos, lint e testes/cobertura Sonar PASS.
+Primeira rodada falhou HA; falha preservada, dois ensaios focados e repetição integral
+aprovados sem alterações de assertions/timeouts. Quality Gate OK; único bloqueio final
+REVIEW_CHECKOUT_CHANGED. Commit já autorizado necessário à reconciliação; exigir validate:sonar
+integral no SHA limpo e checks remotos antes de merge. RDP, arm64 e produção não validados.

@@ -1,11 +1,20 @@
-FROM docker:29.9.2-cli@sha256:5e6baf67325a79f64ed3bed6863954d5e05d0f3d4e57cbdb14809346814bbfdb AS docker-cli
+# Rebuild the same CLI release with the patched Go runtime (GO-2026-6859).
+FROM golang:1.26.11-alpine3.24@sha256:ae52b5bc6ed045a9ed26ab03dc19327a802a9cc9aa8b27ed57f5c6b60579b0bb AS docker-cli
+ADD --checksum=sha256:e3b1fab5e2ee2d6b63b8ce0e8bbd08d6f54c0537c470332f2c345ab997233409 https://codeload.github.com/docker/cli/tar.gz/refs/tags/v29.9.2 /tmp/docker-cli.tar.gz
+WORKDIR /go/src/github.com/docker/cli
+RUN tar -xzf /tmp/docker-cli.tar.gz --strip-components=1 && rm /tmp/docker-cli.tar.gz
+# Vendored release dependencies only; no downloads or toolchain switching during compilation.
+RUN --network=none CGO_ENABLED=0 GOTOOLCHAIN=local GOPROXY=off GOFLAGS=-trimpath \
+    VERSION=29.9.2 GITCOMMIT=v29.9.2-source GO_STRIP=1 \
+    sh scripts/build/binary \
+    && cp build/docker /usr/local/bin/docker
 
 FROM node:24.22.1-alpine@sha256:06d7adf3e0ef61a13f1d28682726366f97a15aa1888c934d3ecec86c33918b53 AS base
 WORKDIR /app
 # Docker CLI is needed inside the API container by the observability collector.
-# The official CLI is built with patched Go; daemon access stays deployment-controlled.
+# The release CLI is rebuilt with patched Go; daemon access stays deployment-controlled.
 RUN sed -i 's/dl-cdn.alpinelinux.org/dl-4.alpinelinux.org/g' /etc/apk/repositories \
-  && apk --timeout 30 upgrade --no-cache && apk --timeout 30 add --no-cache openssl python3 make g++
+  && apk --timeout 30 upgrade --no-cache && apk --timeout 30 add --no-cache openssl "zlib>=1.4-r0" python3 make g++
 COPY --from=docker-cli /usr/local/bin/docker /usr/bin/docker
 COPY package*.json ./
 COPY scripts/dependency-patches/typedoc-minimatch.mjs ./scripts/dependency-patches/typedoc-minimatch.mjs
@@ -49,7 +58,7 @@ WORKDIR /app
 ENV NODE_ENV=production
 ENV APP_VERSION=${APP_VERSION}
 RUN sed -i 's/dl-cdn.alpinelinux.org/dl-4.alpinelinux.org/g' /etc/apk/repositories \
-  && apk --timeout 30 upgrade --no-cache && apk --timeout 30 add --no-cache openssl
+  && apk --timeout 30 upgrade --no-cache && apk --timeout 30 add --no-cache openssl "zlib>=1.4-r0"
 COPY --from=docker-cli /usr/local/bin/docker /usr/bin/docker
 # Runtime executes the installed Prisma CLI directly; package managers belong to build stages.
 RUN rm -rf /usr/local/lib/node_modules/npm /opt/yarn-* \

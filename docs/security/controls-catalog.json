@@ -43,10 +43,10 @@
     },
     {
       "id": "permissions",
-      "state": "verified",
+      "state": "partial",
       "category": "Hosts e permissões",
       "owner": "Revisão de conteúdo em PR",
-      "internalDescription": "Leitura da consulta ACL por tenant e eventos de revalidação/fechamento; não comprova isolamento de todos os protocolos apenas por inspeção.",
+      "internalDescription": "Leitura da consulta ACL por tenant e eventos de revalidação/fechamento; não comprova isolamento de todos os protocolos apenas por inspeção. Diagnóstico NA-0174 reproduziu limite no fechamento de sessão SSH nativa após revogação; não afirmar revogação universal de sessões existentes.",
       "restrictions": [
         "A disponibilidade de um recurso na interface não substitui a autorização para utilizá-lo. Alterações de acesso devem ser acompanhadas pelo administrador."
       ],
@@ -64,11 +64,11 @@
           "apps/backend/src/modules/inventory/inventory-acl-session-revocation.service.test.ts"
         ],
         "testsExecuted": false,
-        "scope": "Leitura da consulta ACL por tenant e eventos de revalidação/fechamento; não comprova isolamento de todos os protocolos apenas por inspeção."
+        "scope": "Leitura da consulta ACL por tenant e eventos de revalidação/fechamento; não comprova isolamento de todos os protocolos apenas por inspeção. Complemento NA-0174: revogação de sessão nativa reproduzida com limite, ver docs canônicas da frente."
       },
       "public": {
         "title": "Hosts e permissões",
-        "summary": "As permissões determinam quais recursos e ações podem ser utilizados.",
+        "summary": "Os recursos de permissão permitem configurar o acesso a hosts e ações.",
         "details": [
           "Usuários e grupos podem ter permissões diferentes para visualizar, conectar e administrar hosts.",
           "Solicite ao administrador apenas os acessos necessários para seu trabalho."

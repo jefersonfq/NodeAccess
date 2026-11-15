@@ -1,0 +1,275 @@
+{
+  "recorded_at": "2026-11-14T22:23:12-03:00",
+  "head": "0b68abaf301e72b2fd4820b47876457a5b8915d3",
+  "base": "745253d1edb522db79aaa44fd96608ce434a2774",
+  "pr": "https://github.com/jefersonfq/NodeAccess/pull/63",
+  "delivery_state": "PR_OPEN; BLOCKED_IMAGE_GATE",
+  "validation_raw": "/home/jeferson/NodeAccess-NA-0172/.sonar-reports/validation-1794703987461-415755d7-a1c4-4825-aad7-0f05ef00d1d4/validation.json",
+  "validation_sha256": "e825c8e9ca14ceb7c0eac180197c8aeba0215decae6320d1d62178e7da202033",
+  "validation": {
+    "schemaVersion": 1,
+    "startedAt": "2026-11-15T00:53:07.462Z",
+    "finishedAt": "2026-11-15T01:08:32.452Z",
+    "passed": true,
+    "failures": [],
+    "warnings": [],
+    "base": "745253d1edb522db79aaa44fd96608ce434a2774",
+    "head": "0b68abaf301e72b2fd4820b47876457a5b8915d3",
+    "toolingExit": 0,
+    "coverageExit": 0,
+    "scannerExit": 0,
+    "analysisId": "1a38e457-0410-484c-98af-da820b009c41",
+    "analysisVerified": true,
+    "comparison": {
+      "passed": true,
+      "reviewed": 0,
+      "unexpected": [],
+      "absentReviewedOccurrences": 295
+    },
+    "gate": {
+      "status": "OK",
+      "conditions": [
+        {
+          "status": "OK",
+          "metricKey": "new_coverage",
+          "comparator": "LT",
+          "errorThreshold": "80",
+          "actualValue": "81.0"
+        },
+        {
+          "status": "OK",
+          "metricKey": "new_duplicated_lines_density",
+          "comparator": "GT",
+          "errorThreshold": "3",
+          "actualValue": "0.06431"
+        },
+        {
+          "status": "OK",
+          "metricKey": "new_violations",
+          "comparator": "GT",
+          "errorThreshold": "0",
+          "actualValue": "0"
+        }
+      ],
+      "ignoredConditions": false,
+      "period": {
+        "mode": "PREVIOUS_VERSION",
+        "date": "2026-11-03T16:48:47+0000"
+      },
+      "caycStatus": "compliant"
+    },
+    "hotspotsToReview": 0,
+    "error": null,
+    "reviewedFalsePositives": {
+      "status": "dry_run",
+      "proposed": 0,
+      "changed": 0,
+      "absent": 0,
+      "unchanged": 206
+    },
+    "reviewsVerified": true,
+    "reports": "/home/jeferson/NodeAccess-NA-0172/.sonar-reports/2026-11-15T01-08-28.171Z-26404c04-1f0b-415f-9778-ef4a948aea56",
+    "output": "/home/jeferson/NodeAccess-NA-0172/.sonar-reports/validation-1794703987461-415755d7-a1c4-4825-aad7-0f05ef00d1d4"
+  },
+  "coverage": {
+    "diff_percent": 84.3687374749499,
+    "vitest": {
+      "exitCode": 0,
+      "passed": 3662,
+      "failed": 0,
+      "skipped": 125
+    },
+    "node": {
+      "passed": 693,
+      "failed": 0,
+      "skipped": 11
+    },
+    "tooling": {
+      "passed": 230,
+      "failed": 0,
+      "skipped": 1
+    },
+    "browser": {
+      "exitCode": 0,
+      "status": "passed",
+      "phase": "complete",
+      "captureRunId": "065c6d50-e318-4fd6-8ca2-01268b892344",
+      "startedAt": "2026-11-15T00:57:56.066Z",
+      "kind": "real Chromium; Node and mapped browser coverage are collected separately",
+      "harnesses": [
+        {
+          "name": "frontend",
+          "coverageMode": "node-only",
+          "exitCode": 0,
+          "timedOut": false
+        },
+        {
+          "name": "table",
+          "coverageMode": "node-only",
+          "exitCode": 0,
+          "timedOut": false
+        },
+        {
+          "name": "terminal",
+          "coverageMode": "node-and-browser",
+          "exitCode": 0,
+          "timedOut": false
+        },
+        {
+          "name": "platform",
+          "coverageMode": "node-and-browser",
+          "exitCode": 0,
+          "timedOut": false
+        },
+        {
+          "name": "flows",
+          "coverageMode": "node-and-browser",
+          "exitCode": 0,
+          "timedOut": false
+        },
+        {
+          "name": "ha",
+          "coverageMode": "node-and-browser",
+          "exitCode": 0,
+          "timedOut": false
+        },
+        {
+          "name": "audit-input",
+          "coverageMode": "node-and-browser",
+          "exitCode": 0,
+          "timedOut": false
+        },
+        {
+          "name": "tacacs-tls",
+          "coverageMode": "node-and-browser",
+          "exitCode": 0,
+          "timedOut": false
+        },
+        {
+          "name": "security-center",
+          "coverageMode": "node-and-browser",
+          "exitCode": 0,
+          "timedOut": false
+        },
+        {
+          "name": "highlight-budget",
+          "coverageMode": "node-only",
+          "exitCode": 0,
+          "timedOut": false
+        }
+      ],
+      "origin": "http://127.0.0.1:36473",
+      "finishedAt": "2026-11-15T01:03:34.620Z"
+    },
+    "tls": {
+      "schemaVersion": 1,
+      "runId": "eca3f01a-8fa8-4eae-ba85-8f3651977570",
+      "passed": true,
+      "checks": [
+        "live",
+        "health",
+        "soak",
+        "watchdog"
+      ],
+      "isolated": true,
+      "cleanupVerified": true,
+      "startedAt": "2026-11-15T00:55:03.050Z",
+      "limitations": "Disposable MySQL/Redis and synthetic devices; real TLS/Python/SSH. No vendor hardware, supervisor restart or production capacity certification.",
+      "pythonCoverage": {
+        "sourceSha256": "0a19cd3c0ebe150d0ef8e82eb0085558b8c994d4711541162db94e53d40b2434",
+        "reportSha256": "7bea1c217a7057bb71e9359d9c2a3c0f4ba487f14cb08f710b5a87733baba000",
+        "executedLines": 89,
+        "totalLines": 102,
+        "helperSourceSha256": "2d4ab6e0b04a6db881504ebeb0fe6c9324d47b69de4cb2fd0e091380322ec0ec"
+      },
+      "requests": 798,
+      "finishedAt": "2026-11-15T00:57:55.095Z",
+      "failure": null
+    }
+  },
+  "precommit_corrections": {
+    "import_tests": 28,
+    "audit": "zero known vulnerabilities under all-dependencies policy",
+    "docker_build": {
+      "command": [
+        "docker",
+        "build",
+        "-f",
+        "docker/frontend.Dockerfile",
+        "--target",
+        "prod",
+        "-t",
+        "nodeaccess-frontend:na0172-validation",
+        "."
+      ],
+      "started_at": "2026-11-15T00:50:02.475799+00:00",
+      "finished_at": "2026-11-15T00:52:02.796275+00:00",
+      "exit_code": 0,
+      "environment": "Primary group jeferson preserved; supplemental docker ephemeral; BUILDX_CONFIG isolated."
+    },
+    "privacy": {
+      "passed": true,
+      "image_id": "sha256:c51edba42e168140e784ca601a0632bef11fb9577587cd8010482b5af1913d07",
+      "files_checked": 205,
+      "forbidden_values_checked": 53,
+      "leaking_files": [],
+      "catalog_file_present": false,
+      "container_removed": true
+    },
+    "staged_secrets": {
+      "files": 4,
+      "findings": 0
+    }
+  },
+  "independent_review": {
+    "reviewer": "review_isolation",
+    "result": "PASS local final; remote gates required before delivery",
+    "limitations": "Privacy check covers enumerated values, not universal confidentiality certification; remote CI not independently rechecked.",
+    "final_image_blocker": "PASS_WITH_WARNINGS documental; counts and clean tested HEAD confirmed. Path/status/baseline wording corrections applied; integration BLOCKED."
+  },
+  "remote_pending": [
+    "upgrade-restore/security:images"
+  ],
+  "ci_corrections": [
+    "Required journal headings",
+    "Inherited fast-xml-parser advisory, minimal compatible lock update",
+    "Docker context for catalog build inputs"
+  ],
+  "registry_retry": "Upgrade/restore rerun on same SHA after openssh image registry toomanyrequests; no digest/test changed.",
+  "canonical_workspace": "Unrelated dirty files preserved; no claim that final commit was tested in canonical checkout.",
+  "merge": false,
+  "master_synced": false,
+  "production_deployment": false,
+  "image_gate": "../../NA-0174-security-diagnosis/evidence/image-gate.json",
+  "ci_sonar": {
+    "passed": true,
+    "run": "https://github.com/jefersonfq/NodeAccess/actions/runs/43660430543",
+    "tree_equivalence": [
+      {
+        "sha": "9593c85365c4f382a43dd51a33da8c20640992b3",
+        "tree": "a07b1c64e55cc22978196549eade68d500554d85",
+        "parents": [
+          "745253d1edb522db79aaa44fd96608ce434a2774",
+          "0b68abaf301e72b2fd4820b47876457a5b8915d3"
+        ]
+      },
+      {
+        "sha": "0b68abaf301e72b2fd4820b47876457a5b8915d3",
+        "tree": "a07b1c64e55cc22978196549eade68d500554d85",
+        "parents": [
+          "e83fdc5bac00c3ef72b19b18169941d2d3f67fc8"
+        ]
+      }
+    ],
+    "gate_new_coverage": 84.7,
+    "diff_coverage": 84.3687374749499,
+    "limitations": "CI sanitized diagnostics enumerate nine harnesses; local raw ten. Three reviewed source hash changes; zero baseline occurrences added/removed."
+  },
+  "ci_upgrade_restore": {
+    "result": "FAIL",
+    "failed_step": "security:images",
+    "run": "https://github.com/jefersonfq/NodeAccess/actions/runs/43660430571",
+    "blocking_findings": 8,
+    "affected_images": 4
+  }
+}

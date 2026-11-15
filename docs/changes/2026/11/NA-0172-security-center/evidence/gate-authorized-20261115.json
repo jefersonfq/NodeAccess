@@ -1,0 +1,463 @@
+{
+  "recorded_at": "2026-11-15T11:55:44.818482-03:00",
+  "base_head": "0b68abaf301e72b2fd4820b47876457a5b8915d3",
+  "working_tree": true,
+  "state": "PRECOMMIT_GATES_PASS; CHECKOUT_RECONCILIATION_PENDING",
+  "images": [
+    {
+      "ref": "nodeaccess-backend:security-local",
+      "id": "sha256:a441c68cec1a17093226c21fb8cd08667dc994c6de5b66cc4fd1a57905d46c8e",
+      "passed": true,
+      "counts": {
+        "Medium": 3
+      },
+      "triaged": [],
+      "database_built": null
+    },
+    {
+      "ref": "nodeaccess-frontend:security-local",
+      "id": "sha256:e2f71ef8ef9a7e7126e6f7b012ea27ca817b4252d874df887d8b4ded0df173d3",
+      "passed": true,
+      "counts": {
+        "Medium": 3
+      },
+      "triaged": [],
+      "database_built": null
+    },
+    {
+      "ref": "nodeaccess-frontend-k8s:security-local",
+      "id": "sha256:56ad197df942f442f7b069a380860e9a720820a449c64579454edf9e5890e3d8",
+      "passed": true,
+      "counts": {
+        "Medium": 3
+      },
+      "triaged": [],
+      "database_built": null
+    },
+    {
+      "ref": "nodeaccess-tls-agent:security-local",
+      "id": "sha256:9b885daad15ec24961e8854867a26b5a49481f529c0485d4fa533f0373ff23c9",
+      "passed": true,
+      "counts": {
+        "High": 1,
+        "Medium": 4,
+        "Low": 1
+      },
+      "triaged": [
+        {
+          "package": "sqlite-libs",
+          "version": "3.54.1-r0",
+          "id": "CVE-2026-119586",
+          "severity": "High",
+          "expires_at": "2026-11-18"
+        }
+      ],
+      "database_built": null
+    },
+    {
+      "ref": "nodeaccess-guacd:1.6.0-1",
+      "id": "sha256:89bbbbe3bdf52e24607938e23b7f197348705f2999fe5363a758517d19454fdd",
+      "passed": true,
+      "counts": {
+        "High": 3,
+        "Medium": 18,
+        "Low": 3
+      },
+      "triaged": [
+        {
+          "package": "sqlite-libs",
+          "version": "3.54.1-r0",
+          "id": "CVE-2026-119586",
+          "severity": "High",
+          "expires_at": "2026-11-18"
+        },
+        {
+          "package": "cups-libs",
+          "version": "2.4.19-r1",
+          "id": "CVE-2018-6553",
+          "severity": "High",
+          "expires_at": "2026-11-29"
+        },
+        {
+          "package": "libssh2",
+          "version": "1.11.1-r4",
+          "id": "CVE-2026-59850",
+          "severity": "High",
+          "expires_at": "2026-11-29"
+        }
+      ],
+      "database_built": null
+    },
+    {
+      "ref": "nodeaccess-redis:8.2.10-1",
+      "id": "sha256:7f0faf3c7f2059c982d23f008f09c3215e53f1f7317fc9b01d412dc8d7c7d289",
+      "passed": true,
+      "counts": {
+        "Medium": 3,
+        "Low": 1
+      },
+      "triaged": [],
+      "database_built": null
+    },
+    {
+      "ref": "nodeaccess-mysql:8.4.12-1",
+      "id": "sha256:329503c8e99b44f24f841abaa24a6f4a33b2b964440ba29e22c7cdab753c8582",
+      "passed": true,
+      "counts": {
+        "Medium": 18,
+        "High": 3
+      },
+      "triaged": [
+        {
+          "package": "openssl-libs",
+          "version": "1:3.5.8-2.0.1.el9_8",
+          "id": "ELSA-2026-50075",
+          "severity": "High",
+          "expires_at": "2026-11-29"
+        },
+        {
+          "package": "gnutls",
+          "version": "3.8.10-9.el9_8",
+          "id": "ELSA-2026-50346",
+          "severity": "High",
+          "expires_at": "2026-11-29"
+        },
+        {
+          "package": "openssl-libs",
+          "version": "1:3.5.8-2.0.1.el9_8",
+          "id": "ELSA-2026-500448",
+          "severity": "High",
+          "expires_at": "2026-11-29"
+        }
+      ],
+      "database_built": null
+    }
+  ],
+  "raw_reports": [
+    {
+      "path": "/home/jeferson/projects/NodeAccess-current/.tmp/NA-0174-gate/authorized-scan/artifacts/security/images/summary.json",
+      "sha256": "51758dc45ea48de78a55a1f410baa79e6ceb5a91199753b9d7207089f9dc4e20"
+    },
+    {
+      "path": "/home/jeferson/projects/NodeAccess-current/.tmp/NA-0174-gate/authorized-mysql-scan/artifacts/security/images/summary.json",
+      "sha256": "bcea6df5701dd9995a3591fc372dba8ff0e04e1a25e8a46f89a07b69861abff4"
+    }
+  ],
+  "policies": {
+    "approved_by_user": "2026-11-15",
+    "scope": "five exact triages; remove59851; unchangedSQLite",
+    "expires_at": "2026-11-29T00:00:00Z",
+    "contracts_pass": 50
+  },
+  "mysql_build": {
+    "command": [
+      "docker",
+      "build",
+      "--progress=plain",
+      "-f",
+      "docker/state.Dockerfile",
+      "--target",
+      "mysql",
+      "-t",
+      "nodeaccess-mysql:na0174-gate",
+      "."
+    ],
+    "recipe_sha256": "6ba3bfecf832873c172961e15a8891801a5f901520f752db1e864fcaabd8063f",
+    "started_at": "2026-11-15T14:53:48Z",
+    "limitations": [
+      "Full OS update original RUN reused cache; not a successful fresh OS update.",
+      "Official RPM fetched and checksummed in preceding same-recipe HTTP1.1 proof; cache is build-generated, no private RPM copied.",
+      "Pinned RPM x86_64; newer upstream package fails closed and needs reviewed repin."
+    ],
+    "exit": 0,
+    "seconds": 0.4,
+    "image_id": "sha256:329503c8e99b44f24f841abaa24a6f4a33b2b964440ba29e22c7cdab753c8582",
+    "proof": {
+      "exit": 0,
+      "stdout": "libbrotli-1.0.9-10.0.1.el9_8.x86_64\nopenssl-libs-3.5.8-2.0.1.el9_8.x86_64\ngnutls-3.8.10-9.el9_8.x86_64\nuid=999(mysql) gid=999(mysql) groups=999(mysql)\n",
+      "stderr": ""
+    }
+  },
+  "limits": [
+    "MySQL full-update layer reused cache; no successful uncached OS update asserted.",
+    "RPM amd64 only; no arm64 approval.",
+    "Guacd version1.6.0 retained; library fixes authorized.",
+    "No production deployment."
+  ],
+  "runtime": {
+    "stack": {
+      "started_at": "2026-11-15T14:55:22.995252+00:00",
+      "finished_at": "2026-11-15T14:56:40.920715+00:00",
+      "exit": 0,
+      "passed": true,
+      "head_before": "0b68abaf301e72b2fd4820b47876457a5b8915d3",
+      "head_after": "0b68abaf301e72b2fd4820b47876457a5b8915d3",
+      "sources_unchanged": true,
+      "checks": 7,
+      "versions": null,
+      "cleanup": {
+        "remainingHarnessContainers": [],
+        "remainingHarnessNetworks": []
+      },
+      "raw": {
+        "path": "/home/jeferson/projects/NodeAccess-current/.tmp/NA-0174-gate/authorized-stack/execution.json",
+        "sha256": "7aec479cf23748e086dca66a835b25f6dbb6b47b03edf539002049526abaf3a2"
+      }
+    },
+    "upgrade": {
+      "started_at": "2026-11-15T14:56:51.525813+00:00",
+      "finished_at": "2026-11-15T14:59:23.264202+00:00",
+      "exit": 0,
+      "passed": true,
+      "head_before": "0b68abaf301e72b2fd4820b47876457a5b8915d3",
+      "head_after": "0b68abaf301e72b2fd4820b47876457a5b8915d3",
+      "sources_unchanged": true,
+      "checks": 9,
+      "versions": {
+        "mysqlBefore": "8.0.46",
+        "mysqlAfter": "8.4.12",
+        "redisAfter": "8.2.10"
+      },
+      "cleanup": {
+        "remainingHarnessContainers": [],
+        "remainingHarnessVolumes": []
+      },
+      "raw": {
+        "path": "/home/jeferson/projects/NodeAccess-current/.tmp/NA-0174-gate/authorized-upgrade/execution.json",
+        "sha256": "acac9d139c0db22e4a7692bb1eeb87801c76e13b85ad8f64e08b4d6ee053064c"
+      }
+    }
+  },
+  "sonar_current": {
+    "startedAt": "2026-11-15T15:05:34.639Z",
+    "finishedAt": "2026-11-15T15:21:08.394Z",
+    "passed": false,
+    "failures": [
+      "REVIEWED_FINDINGS_NOT_VERIFIED"
+    ],
+    "gate": {
+      "status": "OK",
+      "conditions": [
+        {
+          "status": "OK",
+          "metricKey": "new_coverage",
+          "comparator": "LT",
+          "errorThreshold": "80",
+          "actualValue": "80.8"
+        },
+        {
+          "status": "OK",
+          "metricKey": "new_duplicated_lines_density",
+          "comparator": "GT",
+          "errorThreshold": "3",
+          "actualValue": "0.06426"
+        },
+        {
+          "status": "OK",
+          "metricKey": "new_violations",
+          "comparator": "GT",
+          "errorThreshold": "0",
+          "actualValue": "0"
+        }
+      ],
+      "ignoredConditions": false,
+      "period": {
+        "mode": "PREVIOUS_VERSION",
+        "date": "2026-11-03T16:48:47+0000"
+      },
+      "caycStatus": "compliant"
+    },
+    "error": "REVIEW_CHECKOUT_CHANGED",
+    "analysisVerified": true,
+    "comparison": {
+      "passed": true,
+      "reviewed": 0,
+      "unexpected": [],
+      "absentReviewedOccurrences": 295
+    },
+    "raw": {
+      "path": "/home/jeferson/NodeAccess-NA-0172/.sonar-reports/validation-1794755134636-83631109-2c36-4915-b601-b425003fabfc/validation.json",
+      "sha256": "e5cb0051935a3f424bef77a535dc489a8e9587593b3295222df1d54fba1a91b5"
+    }
+  },
+  "sonar_failed_round": {
+    "startedAt": "2026-11-15T14:50:46.909Z",
+    "finishedAt": "2026-11-15T15:04:24.455Z",
+    "passed": false,
+    "failures": [
+      "TESTS_OR_COVERAGE_FAILED",
+      "SCANNER_OR_GATE_FAILED",
+      "REVIEWED_FINDINGS_NOT_VERIFIED",
+      "QUALITY_GATE_NOT_OK"
+    ],
+    "gate": {
+      "status": "ERROR",
+      "conditions": [
+        {
+          "status": "ERROR",
+          "metricKey": "new_coverage",
+          "comparator": "LT",
+          "errorThreshold": "80",
+          "actualValue": "74.4"
+        },
+        {
+          "status": "OK",
+          "metricKey": "new_duplicated_lines_density",
+          "comparator": "GT",
+          "errorThreshold": "3",
+          "actualValue": "0.06426"
+        },
+        {
+          "status": "OK",
+          "metricKey": "new_violations",
+          "comparator": "GT",
+          "errorThreshold": "0",
+          "actualValue": "0"
+        }
+      ],
+      "ignoredConditions": false,
+      "period": {
+        "mode": "PREVIOUS_VERSION",
+        "date": "2026-11-03T16:48:47+0000"
+      },
+      "caycStatus": "compliant"
+    },
+    "error": "REVIEW_CHECKOUT_CHANGED",
+    "raw": {
+      "path": "/home/jeferson/NodeAccess-NA-0172/.sonar-reports/validation-1794754246907-a3533089-59ba-4b87-b32d-3c90d27f1355/validation.json",
+      "sha256": "c67e5f9291819a5350b99808ce670516f0bd54bdc05e8dcf475a7c1233efbceb"
+    }
+  },
+  "ha_reproduction": {
+    "status": "UNDETERMINED_NOT_REPRODUCED",
+    "focused_original": "7 scenarios PASS; no tracked changes or weakened assertions",
+    "evidence_path": "/home/jeferson/projects/NodeAccess-current/.tmp/NA-0174-ha-diagnosis/evidence.json",
+    "sha256": "4e16994ad0b508d43252254f50da772e2e52ca23a2acb92b0a800c9ed08f7533"
+  },
+  "validation_counts": {
+    "vitest_pass": 3662,
+    "node_pass": 693,
+    "tooling_pass": 230,
+    "browser_harnesses_pass": 10,
+    "differential_coverage_percent": 83.36633663366337,
+    "skips": "Existing Vitest125 / Node11 / tooling1; policy-focused50 no skips."
+  },
+  "final_sha_policy": "This evidence is precommit working-tree. Required final validation and tested SHA must be attached to PR/artifact after commit; no final approval inferred here.",
+  "scanner_databases": {
+    "None": {
+      "status": {
+        "schemaVersion": "v6.1.10",
+        "from": "https://grype.anchore.io/databases/v6/vulnerability-db_v6.1.10_2026-11-15T00:23:02Z_1794723579.tar.zst?checksum=sha256%3A96ada30f3287fd04be595a8f419df98efdf19955e7bfa28eae80ef7c5fe27eb7",
+        "built": "2026-11-15T06:19:39Z",
+        "path": "/cache/6/vulnerability.db",
+        "valid": true
+      },
+      "providers": {
+        "alma": {
+          "captured": "2026-11-15T00:23:05Z",
+          "input": "xxh64:66787c2858efc7ff"
+        },
+        "alpine": {
+          "captured": "2026-11-15T00:23:02Z",
+          "input": "xxh64:e0e44e3a641d785d"
+        },
+        "amazon": {
+          "captured": "2026-11-15T00:23:08Z",
+          "input": "xxh64:8c07f49d395f5562"
+        },
+        "arch": {
+          "captured": "2026-11-15T00:23:13Z",
+          "input": "xxh64:db8b4998ab00141d"
+        },
+        "bitnami": {
+          "captured": "2026-11-15T00:23:15Z",
+          "input": "xxh64:86509bf68da90029"
+        },
+        "chainguard": {
+          "captured": "2026-11-15T00:23:10Z",
+          "input": "xxh64:4f46ad6f59b73e74"
+        },
+        "chainguard-libraries": {
+          "captured": "2026-11-15T00:23:06Z",
+          "input": "xxh64:9af0f7af1581e02d"
+        },
+        "debian": {
+          "captured": "2026-11-15T00:23:55Z",
+          "input": "xxh64:86848175fedeacb3"
+        },
+        "echo": {
+          "captured": "2026-11-15T00:23:04Z",
+          "input": "xxh64:06744ed3f9108311"
+        },
+        "eol": {
+          "captured": "2026-11-15T00:23:06Z",
+          "input": "xxh64:a7ec31c80585f7ae"
+        },
+        "epss": {
+          "captured": "2026-11-15T00:23:13Z",
+          "input": "xxh64:286c57121f9acf03"
+        },
+        "fedora": {
+          "captured": "2026-11-15T00:23:08Z",
+          "input": "xxh64:a2c679da034fa4ac"
+        },
+        "github": {
+          "captured": "2026-11-15T00:23:23Z",
+          "input": "xxh64:37a1f4c4efb08325"
+        },
+        "govulndb": {
+          "captured": "2026-11-15T00:23:15Z",
+          "input": "xxh64:66490c654353472b"
+        },
+        "hummingbird": {
+          "captured": "2026-11-15T00:26:14Z",
+          "input": "xxh64:a0e26b96324ff59a"
+        },
+        "kev": {
+          "captured": "2026-11-15T00:23:12Z",
+          "input": "xxh64:4568728f33b4c2af"
+        },
+        "mariner": {
+          "captured": "2026-11-15T00:23:15Z",
+          "input": "xxh64:64b488170f6c947c"
+        },
+        "minimos": {
+          "captured": "2026-11-15T00:23:07Z",
+          "input": "xxh64:53a50171d85ce5db"
+        },
+        "nvd": {
+          "captured": "2026-11-15T00:24:38Z",
+          "input": "xxh64:061aa35eec760ef3"
+        },
+        "oracle": {
+          "captured": "2026-11-15T00:23:15Z",
+          "input": "xxh64:0719d876023dad58"
+        },
+        "photon": {
+          "captured": "2026-11-15T00:23:22Z",
+          "input": "xxh64:a6b41779d3619690"
+        },
+        "rhel": {
+          "captured": "2026-11-15T00:24:40Z",
+          "input": "xxh64:1053c5369852e30f"
+        },
+        "secureos": {
+          "captured": "2026-11-15T00:23:03Z",
+          "input": "xxh64:a0a8347160466cdc"
+        },
+        "sles": {
+          "captured": "2026-11-15T00:25:23Z",
+          "input": "xxh64:ccdc5171d000bcc9"
+        },
+        "ubuntu": {
+          "captured": "2026-11-15T01:30:42Z",
+          "input": "xxh64:9c866d01d8bae104"
+        },
+        "wolfi": {
+          "captured": "2026-11-15T00:23:10Z",
+          "input": "xxh64:fe8952b91086c579"
+        }
+      }
+    }
+  }
+}

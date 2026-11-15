@@ -54,7 +54,8 @@ for (const f of policy.findings) {
     for (const distro of [{ name: 'ubuntu', version: '3.24.3' }, { name: 'alpine', version: '3.24.4' }, null]) {
       assert.equal(reviewedGuacdImageFinding(policy.image, distro, original, policy, now), null)
     }
-    assert.equal(reviewedGuacdImageFinding(policy.image, policy.distro, original, policy, new Date('2026-11-08T00:00:00Z')), null)
+    assert.ok(reviewedGuacdImageFinding(policy.image, policy.distro, original, policy, new Date(Date.parse(`${policy.expiresAt}T00:00:00Z`) - 1)))
+    assert.equal(reviewedGuacdImageFinding(policy.image, policy.distro, original, policy, new Date(`${policy.expiresAt}T00:00:00Z`)), null)
     assert.equal(reviewedGuacdImageFinding(policy.image, policy.distro, original, policy, new Date('invalid')), null)
     assert.equal(reviewedGuacdImageFinding(policy.image, policy.distro, original, { ...policy, expiresAt: 'invalid' }, now), null)
     assert.equal(check(null), null)
@@ -73,4 +74,12 @@ test('guacd pins matching FreeRDP build and runtime revisions across Docker cach
   const runtime = dockerfile.match(/freerdp-libs=([\d.]+-r\d+)/)?.[1]
   assert.ok(build, 'development package must be version pinned')
   assert.equal(runtime, build, 'runtime must invalidate cache with the same package revision')
+})
+
+test('removed CVE-2026-59851 is not covered by the renewal', () => {
+  const match = fixture(policy.findings.find(f => f.id === 'CVE-2026-59850'))
+  match.vulnerability.id = 'CVE-2026-59851'
+  match.vulnerability.dataSource = 'https://nvd.nist.gov/vuln/detail/CVE-2026-59851'
+  match.matchDetails[0].found.vulnerabilityID = 'CVE-2026-59851'
+  assert.equal(reviewedGuacdImageFinding(policy.image, policy.distro, match, policy, now), null)
 })

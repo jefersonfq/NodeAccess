@@ -2,18 +2,19 @@
 
 Base SHA:745253d1edb522db79aaa44fd96608ce434a2774
 
-## Resumo atual — candidato exclusivo validado em 2026-11-12
+## Resumo atual — 2026-11-15T12:21:57-03:00
 
-LOCAL_WIP, sem commit/publicação. Candidato `/home/jeferson/NodeAccess-NA-0172`, branch
-`feature/NA-0172-20261112-security-center-isolated`, na base acima; canônico preservado.
-Build/typecheck, 45 testes focados, manual (2 Node +18 Vitest, cinco capítulos), lint das fontes,
-scanners e dez harnesses browser PASS. Rodada própria: 3.662 Vitest/693 Node/230 tooling PASS,
-zero falhas; TLS isolado com limpeza verificada. Diff 84,37%; Quality Gate OK (81,0%).
-`validate:sonar` integral FAIL somente por REVIEWED_FINDINGS_NOT_VERIFIED / REVIEW_CHECKOUT_CHANGED.
-Não é aprovação integral: reconciliação exige commit autorizado e novo gate no SHA limpo.
-Evidência própria: `evidence/isolation-20261112.json`. Histórico de 11/11 cobre checkout misto.
-Revisão independente final: PASS_WITH_WARNINGS para isolamento; BLOCKED integral pela reconciliação.
-Próximo: autorização específica para commit, sem publicação inferida.
+Candidato sobre head `0b68abaf301e72b2fd4820b47876457a5b8915d3`; PR63 permanece draft.
+Gate de imagens7/7 PASS (DB15/11), stack real e upgrade/restore MySQL/Redis PASS.
+MySQL libbrotli corrigido por RPM oficial HTTP/1.1, assinatura/checksum; fullupdate preservado
+com camada cacheada, escopo amd64. Guacd permanece1.6.0, bibliotecas corrigidas autorizadas.
+Cinco triagens exatas autorizadas até29/11; SQLite mantém18/11;50contratos PASS.
+Repetição integral:3662Vitest/693Node/230tooling e10harnessesbrowser PASS; cobertura83,37%,
+Quality Gate OK. validate:sonar ainda FAIL apenas REVIEW_CHECKOUT_CHANGED: exige commit
+limpo para reconciliação. Timeout HA da primeira rodada preservado, causa não reproduzida;
+nenhuma assertion/timeout alterado. Commit autorizado será seguido de validação integral
+no SHA limpo e checks remotos; entrega/merge/deploy ainda não aprovados.
+Evidência: evidence/gate-authorized-20261115.json; SHA final/checks serão vinculados à PR.
 
 ## Pedido e objetivo
 
@@ -30,7 +31,7 @@ Base SHA: 745253d1edb522db79aaa44fd96608ce434a2774. Plano e evidências ficam ne
 
 Ran: testes focados, build/typecheck, manual, lint explícito, scanners e validação pré-commit
 registrados em evidence/isolation-20261112.json. Gate OK, reconciliação pré-commit bloqueada.
-Ran após correção do lock: npm ci, Prisma/shared, 28 contratos de importação, auditoria sem vulnerabilidades conhecidas e build/typecheck frontend PASS. Planned: build Docker e validação no novo SHA limpo/checks remotos antes de merge.
+Ran após correção do lock: npm ci, Prisma/shared, 28 contratos de importação, auditoria sem vulnerabilidades conhecidas e build/typecheck frontend PASS. Ran: build Docker e validação integral no SHA final PASS; Sonar remoto PASS. Bloqueado: scanner de imagens no upgrade/restore.
 Manual: homologação informada da Central em 06/11; ajuste posterior de âncoras tem testes próprios.
 Skipped: nova homologação humana e PTY real nesta consolidação, sem mudança de resize/transporte.
 
@@ -46,6 +47,61 @@ Aprovação integral no SHA definitivo, checks remotos e merge/sincronização a
 entrega. A Central não comprova proteção ativa no tenant. Diagnóstico NA-0174 tem escopo próprio.
 
 ## Diário de interações
+
+### 2026-11-15T12:21:57-03:00 — Candidato pronto para reconciliação no commit autorizado
+
+Ran:7/7scans reais,50contratos,lint,governança,stack,upgrade/restore,integridadeRPM,
+catálogo nos bundles e repetição integral Sonar. Apenas checkoutdirty bloqueia reconciliação;
+Quality Gate OK. Primeira rodada FAILHA preservada; dois ensaios focados e nova integral
+PASS sem enfraquecer assertions/timeouts. Alterações: DockerGo/Python/zlib/libxslt/libbrotli,
+triagens exatas, catálogo permissõespartial e overrides de imagens do harness.
+Não foram alterados auth/ACL/SSH. Versão guacd1.6.0 mantida. Limites: amd64, fullupdate
+MySQL cacheado, RDP/producão não validados. Cópia duplicada de backups de outras frentes
+no worktree foi arquivada em.tmp após hashes iguais ao canônico; original preservado.
+Decisão: consolidar commit já autorizado, repetir gate no SHA limpo e atualizar PR apenas
+com evidência real. Sem novos commits de relatórios após declarar o SHA validado.
+
+
+### 2026-11-15T11:39:57-03:00 — Triagens autorizadas e guacd preservado
+
+Usuário autorizou as cinco triagens até29/11 e correção MySQL. Aplicado patch exato,
+retirada59851 e testes de expiração alinhados ao prazo da política. Esclarecimento posterior:
+manter versão guacd1.6.0 e permitir correções de bibliotecas; ajuste zlib mantido, sem troca
+de versão do guacd.
+Nenhuma imagem em uso substituída. Rebuild MySQL e revisão independente em andamento.
+
+
+### 2026-11-14T23:23:51-03:00 — Gate e cenários fim a fim consolidados
+
+Pedido: avançar gate e cenários. Corrigidas imagens na NA-0172 isolada; catálogo de permissões
+passou a partial. Integrações de stack, TLS, nonroot e guacd SSH/VNC PASS. Diagnóstico reproduziu
+tokens antigos após mudanças de estado, identidade SFTP/bastion e revogação nativa; limites
+de adapters e topologia estão no diagnosis.md. RDP, UI completa do diagnóstico e produção não
+validados. Sem patch de auth/SSH. Sonar final: gate OK,80,8%; validação integral FAIL apenas
+por REVIEW_CHECKOUT_CHANGED. Imagens5/7 PASS, sete achados bloqueantes restantes. Oracle
+falhou em metadados/download; última tentativa incompleta, sem sucesso inferido. Auto-review
+recusou renovação de cinco triagens até29/11 por alterar exceções sem autorização específica;
+proposta reviewável e pergunta pendentes, sem aplicação. Nenhum novo commit/push/merge/deploy.
+Roadmap META-051/META-054 atualizado uma vez; Original2027 preservado. Próximo: decisão sobre
+triagens, concluir atualização MySQL, estabilizar checkout e repetir gate integral antes de CI.
+
+
+### 2026-11-14T22:27:57-03:00 — Gate e cenários autorizados
+
+Retomado head0b68abaf da Central, PR63 draft e gate de imagens FAIL. Usuário autorizou
+tratar gate e executar cenários fim a fim. Plano ampliado com escopo mínimo, laboratório
+descartável e revisão independente. Diagnóstico inicial preservado; nenhum resultado novo
+ainda inferido. Próximo: corrigir/triagar imagens e reproduzir controles com dados sintéticos.
+
+### 2026-11-14T22:23:12-03:00 — Bloqueio real no fechamento
+
+Usuário autorizou fechar Central e iniciar diagnóstico. Dois commits publicados na PR63,
+SHA final 0b68abaf301e72b2fd4820b47876457a5b8915d3. Validação local integral e Sonar remoto
+aprovados; retry de CI após429 chegou ao scanner e reprovou backend/TLS agent/MySQL/guacd.
+Oito achados: cinco triagens vencidas e três não cobertos. Não houve merge, sincronização
+de master, implantação ou renovação de exceções. Plano e evidências do bloqueio na NA-0174.
+Próximo: tratar bases/dependências e revalidar triagens com revisão independente; então repetir
+gates no novo SHA antes da integração. Roadmap recebe estado bloqueado e diagnóstico iniciado.
 
 ### 2026-11-14T21:52:48-03:00 — Validação das correções agrupadas
 

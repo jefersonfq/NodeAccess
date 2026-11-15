@@ -12,7 +12,8 @@ for (const finding of policy.findings) {
     assert.ok(reviewedImageFinding(policy.image, policy.distro, match, policy, now))
     assert.equal(reviewedImageFinding('unreviewed:latest', policy.distro, match, policy, now), null)
     assert.equal(reviewedImageFinding(policy.image, { ...policy.distro, version: '9.9' }, match, policy, now), null)
-    assert.equal(reviewedImageFinding(policy.image, policy.distro, match, policy, new Date('2026-11-08T00:00:00Z')), null)
+    assert.ok(reviewedImageFinding(policy.image, policy.distro, match, policy, new Date(Date.parse(`${policy.expiresAt}T00:00:00Z`) - 1)))
+    assert.equal(reviewedImageFinding(policy.image, policy.distro, match, policy, new Date(`${policy.expiresAt}T00:00:00Z`)), null)
     for (const [key, value] of [['id', 'NEW-CVE'], ['severity', 'Critical'], ['namespace', 'another:namespace'], ['dataSource', 'https://unreviewed.invalid'], ['fix', { versions: ['a-different-fix'] }]]) {
       assert.equal(reviewedImageFinding(policy.image, policy.distro, { ...match, vulnerability: { ...match.vulnerability, [key]: value } }, policy, now), null)
     }
