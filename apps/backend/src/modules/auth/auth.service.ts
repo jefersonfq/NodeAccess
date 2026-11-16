@@ -475,14 +475,12 @@ export class AuthService {
   // ---------------------------------------------------------------------------
 
   async logout(refreshToken: string): Promise<void> {
-    try {
-      const payload = jwt.verify(refreshToken, env.JWT_SECRET) as RefreshTokenPayload
-      if (payload.stage === 'refresh') {
-        await this.redis.del(`${REFRESH_KEY_PREFIX}${payload.jti}`)
-      }
-    } catch {
-      // Token já expirado ou inválido — não é erro de negócio
+    let payload: RefreshTokenPayload
+    try { payload = jwt.verify(refreshToken, env.JWT_SECRET) as RefreshTokenPayload } catch {
+      // Invalid/expired tokens are already unusable. Storage failures must not confirm revocation.
+      return
     }
+    if (payload.stage === 'refresh') await this.redis.del(`${REFRESH_KEY_PREFIX}${payload.jti}`)
   }
 
   async logoutAll(userId: number, tenantId: number, expectedSessionVersion: number): Promise<void> {

@@ -1,3 +1,4 @@
+import { vaultRoutes } from './modules/vault-security/vault.routes.js'
 import { trialRoutes } from './modules/trials/trial.routes.js'
 import { installTrialPolicy, createTrialRuntime } from './modules/trials/trial-runtime.js'
 import type { IncomingMessage, ServerResponse } from 'node:http'
@@ -503,9 +504,11 @@ async function buildApiApp(): Promise<FastifyInstance<RawServerDefault, Incoming
       await api.register(async (r) => sessionAuditRoutes(r, container.sessionAuditController), { prefix: '/session-audit' })
       await api.register(async (r) => sessionAuditPolicyRoutes(r, container.sessionAuditPolicyController), { prefix: '/session-audit-policy' })
       await api.register(async (r) => tenantAuthPolicyRoutes(r, container.tenantAuthPolicyController), { prefix: '/tenant-auth-policy' })
+      await api.register(async (r) => vaultRoutes(r, container.vaultSecurityService, container.vaultAdministrationService), { prefix: '/vault-security' })
       await api.register(async (r) => secretRoutes(r, container.secretController), { prefix: '/secrets' })
       const trialRuntime = createTrialRuntime()
       api.addHook('onClose', () => { trialRuntime.stop(); return Promise.resolve() })
+      api.addHook('onClose', () => container.closeVaultDatabase())
       await trialRoutes(api, trialRuntime.service, trialRuntime.limiter, trialRuntime.writeLimiter)
       await api.register(async (r) => tenantRoutes(r, container.tenantController), { prefix: '/platform/tenants' })
       await api.register(async (r) => platformAdminRoutes(r, container.platformAdminController), { prefix: '/platform/superadmins' })

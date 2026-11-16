@@ -4,6 +4,14 @@ import { env } from './env.js'
 
 export const LOGGER_REDACT_PATHS = [
   'req.headers.authorization',
+  'req.headers["x-vault-client"]',
+  'req.body.sessionId',
+  'req.body.challengeId',
+  'req.body.operationId',
+  'req.body.proposalId',
+  'res.body.envelope',
+  'res.body.sessionId',
+  'res.body.clientId',
   'req.headers.cookie',
   'req.query.phone',
   'req.query.token',

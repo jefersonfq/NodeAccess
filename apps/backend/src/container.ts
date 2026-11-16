@@ -1,3 +1,10 @@
+import { VaultDatabase } from './modules/vault-security/vault.database.js'
+import { VaultAdministrationService } from './modules/vault-security/vault-administration.service.js'
+import { randomBytes, createHash } from 'node:crypto'
+import { VaultService } from './modules/vault-security/vault.service.js'
+import { SqlVaultStore } from './modules/vault-security/vault.repository.js'
+import { RedisVaultOrigin, LocalVaultReauthentication } from './modules/vault-security/vault-identity.js'
+import { JweVaultEnvelope } from './modules/vault-security/vault-envelope.js'
 import { UserSessionRevocationService } from './modules/auth/user-session-revocation.service.js'
 import { configureCurrentSessionReader } from './modules/auth/current-session.js'
 import { SessionAuditReconstructionRepository } from './modules/session-audit/session-audit-reconstruction.repository.js'
@@ -327,6 +334,12 @@ const inventoryAclSessionRevocationService = new InventoryAclSessionRevocationSe
 const googleService      = new GoogleService(integrationRepository, userRepository)
 const localIdentityProvider = new LocalIdentityProvider(userRepository)
 const ldapIdentityProvider = new LdapIdentityProvider(integrationRepository, ldapIntegrationService, userRepository)
+const vaultEntropy = { token: (): string => randomBytes(32).toString('base64url'), digest: (value: string): string => createHash('sha256').update(value).digest('hex') }
+const vaultDatabase = new VaultDatabase(env.DATABASE_URL)
+const vaultSecurityService = new VaultService(new SqlVaultStore(() => vaultDatabase.client()), new RedisVaultOrigin(redis, env.JWT_SECRET),
+  new LocalVaultReauthentication(totpService), new JweVaultEnvelope(),
+  vaultEntropy)
+const vaultAdministrationService = new VaultAdministrationService(vaultSecurityService, vaultEntropy)
 const authService        = new AuthService(userRepository, totpService, redis, googleService, emailConfigService, emailService, localIdentityProvider, ldapIdentityProvider, tenantAuthPolicyService, appEventBus)
 const authRateLimitService = new AuthRateLimitService(redis, {
   windowSeconds: env.AUTH_RATE_LIMIT_WINDOW_SECONDS,
@@ -664,6 +677,9 @@ export const container = {
   oidcGroupMappingController,
   scimService,
   // Secrets
+  vaultSecurityService,
+  vaultAdministrationService,
+  closeVaultDatabase: (): Promise<void> => vaultDatabase.close(),
   secretController,
   // Platform
   tenantController,

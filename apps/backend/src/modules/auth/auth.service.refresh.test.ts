@@ -205,3 +205,23 @@ describe('AuthService refresh token tenant isolation', () => {
   })
 
 })
+
+describe('logout revocation acknowledgement', () => {
+  it('does not acknowledge a storage failure as successful revocation', async () => {
+    const {service,redis,refreshToken}=makeHarness()
+    redis.del.mockRejectedValue(new Error('redis unavailable'))
+    await expect(service.logout(refreshToken)).rejects.toThrow('redis unavailable')
+    expect(redis.del).toHaveBeenCalledWith(refreshKey)
+  })
+  it('invalid tokens remain idempotent without touching storage', async () => {
+    const {service,redis}=makeHarness()
+    await expect(service.logout('invalid')).resolves.toBeUndefined()
+    expect(redis.del).not.toHaveBeenCalled()
+  })
+  it('acknowledges a real deletion or an already absent origin', async () => {
+    const {service,redis,refreshToken}=makeHarness()
+    await service.logout(refreshToken)
+    redis.del.mockResolvedValue(0)
+    await expect(service.logout(refreshToken)).resolves.toBeUndefined()
+  })
+})

@@ -1,0 +1,11 @@
+{
+  "at": "2026-11-16T00:46:50-03:00",
+  "updated": [
+    "META-005",
+    "META-017"
+  ],
+  "writes_this_interaction": 1,
+  "preserved": "Original 2027, demais entradas ZIP, células não alteradas e revisões anteriores",
+  "before_sha256": "b6e9cde37352bd239c5eddd0a7c0d238f1efa9418d9c8a84bcc2485667658911",
+  "after_sha256": "e906aa48d111e40f9a6f1beeb2f3a83101da0de8076cb0193140a63422f2aae5"
+}
