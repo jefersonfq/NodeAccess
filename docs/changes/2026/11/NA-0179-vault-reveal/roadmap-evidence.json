@@ -1,0 +1,78 @@
+{
+  "at": "2026-11-16T10:01:18-03:00",
+  "change_id": "NA-0179",
+  "base_sha": "89a8d949b4419264d121a1c8d5da900f666a38c4",
+  "updated_ids": [
+    "META-005",
+    "META-017"
+  ],
+  "writes_this_interaction": 1,
+  "before_sha256": "e906aa48d111e40f9a6f1beeb2f3a83101da0de8076cb0193140a63422f2aae5",
+  "after_sha256": "950a4df8ae4e04b3747c0d6bc72173b9f97249acdefcc495e9154f6fb81460f7",
+  "modified_zip_entries": [
+    "xl/worksheets/sheet2.xml",
+    "xl/worksheets/sheet4.xml"
+  ],
+  "zip_entries_preserved": 12,
+  "zip_order_metadata_and_comment_preserved": true,
+  "unmodified_cells_byte_identical": true,
+  "existing_revision_rows_byte_identical": true,
+  "appended_revision_row": 33,
+  "original_2027_sha256_before": "7cc4aaf67d4cf2c1266e924b3b11d14332ccf44236458771f04975a4c76cc88d",
+  "original_2027_sha256_after": "7cc4aaf67d4cf2c1266e924b3b11d14332ccf44236458771f04975a4c76cc88d",
+  "changed_cells": {
+    "D6": {
+      "before": "Catálogo integrado; camada criptográfica backend em validação local",
+      "after": "Catálogo integrado; backend implementado na PR68 em gates; revelar/copiar no portal implementado com validação local"
+    },
+    "G6": {
+      "before": "NA-0178: concluir gate Sonar no SHA final e homologação do backend; depois interface, extensão e WebAuthn.",
+      "after": "Concluir gates e integrar backend/portal; registrar SHA/checks nas PRs e homologação do frontend. Próximo objetivo: extensão do navegador após integração."
+    },
+    "I6": {
+      "before": "Contrato documental não ativa reveal/Hello/E2EE. Preservar auth, SSH/RDP, auditoria, terminal e snippets. Timeout TLS anterior preservado; repetição passou sem relaxar parâmetros.",
+      "after": "Entrega cifrada por operação não equivale a E2EE. Preservar autenticação central, SSH/RDP, auditoria, terminal e snippets; capacidades/valores do portal só em memória. Extensão, Windows Hello e E2EE permanecem posteriores. Sem deploy/ativação."
+    },
+    "J6": {
+      "before": "NA-0178 LOCAL_WIP: sessão própria, permissões e entrega cifrada implementadas no backend; testes locais em validação, Sonar diagnóstico FAIL. Sem publicação, ativação ou deploy.",
+      "after": "Snapshot 2026-11-16: backend implementado na PR68, gates do candidato 89a8d949 em curso; frontend NA-0179 implementado em WIP, com ensaios locais, sem commit/publicação ou homologação. SHA final, checks e integração devem ser consultados nas PRs e registros NA-0178/NA-0179. Sem deploy ou ativação."
+    },
+    "K6": {
+      "before": "2026-11-16",
+      "after": "2026-11-16"
+    },
+    "H6": {
+      "before": "docs/changes/2026/11/NA-0175-cofre-extensao/plan.md; docs/changes/2026/11/NA-0175-cofre-extensao/implementation.md; docs/changes/2026/11/NA-0175-cofre-extensao/phase1a-evidence.md; https://github.com/jefersonfq/NodeAccess/pull/66; docs/changes/2026/11/NA-0177-vault-security-contract/security-contract.md",
+      "after": "docs/changes/2026/11/NA-0175-cofre-extensao/plan.md; docs/changes/2026/11/NA-0175-cofre-extensao/implementation.md; docs/changes/2026/11/NA-0175-cofre-extensao/phase1a-evidence.md; https://github.com/jefersonfq/NodeAccess/pull/66; docs/changes/2026/11/NA-0177-vault-security-contract/security-contract.md; docs/changes/2026/11/NA-0178-vault-delivery/plan.md; docs/changes/2026/11/NA-0178-vault-delivery/implementation.md; https://github.com/jefersonfq/NodeAccess/pull/68; docs/changes/2026/11/NA-0179-vault-reveal/plan.md; docs/changes/2026/11/NA-0179-vault-reveal/implementation.md"
+    },
+    "D18": {
+      "before": "Contrato de segurança definido e revisado; extensão ainda não implementada",
+      "after": "Extensão ainda não implementada; contrato revisado e fundamentos backend/portal implementados em validação"
+    },
+    "G18": {
+      "before": "NA-0178: concluir gate Sonar no SHA final e homologação do backend; depois interface, extensão e WebAuthn.",
+      "after": "Após integrar backend NA-0178 e portal NA-0179, planejar e implementar extensão com distribuição piloto pelo frontend; validar permissões e compatibilidade. Hello/WebAuthn e E2EE em etapas posteriores."
+    },
+    "I18": {
+      "before": "Sessão/entitlements/revogação/auditoria especificados. Bootstrap, referência revogável central, cripto e compatibilidade Windows/navegador precisam de implementação e provas; não há plugin disponível.",
+      "after": "Nenhum pacote de extensão disponível. Portal revelar/copiar não representa entrega do plugin, autofill, Windows Hello ou E2EE. Integração opcional com agente e segurança por dispositivo exigem implementação e provas específicas. Preservar fluxos existentes."
+    },
+    "J18": {
+      "before": "NA-0178 LOCAL_WIP: sessão própria, permissões e entrega cifrada implementadas no backend; testes locais em validação, Sonar diagnóstico FAIL. Sem publicação, ativação ou deploy.",
+      "after": "Snapshot 2026-11-16: backend implementado na PR68, gates do candidato 89a8d949 em curso; frontend NA-0179 implementado em WIP, com ensaios locais, sem commit/publicação ou homologação. SHA final, checks e integração devem ser consultados nas PRs e registros NA-0178/NA-0179. Sem deploy ou ativação."
+    },
+    "K18": {
+      "before": "2026-11-16",
+      "after": "2026-11-16"
+    },
+    "H18": {
+      "before": "docs/planejamento/METAS e OBJETVIVOS Nodeaccess 2027.original-2026-11-02.xlsx; docs/changes/2026/11/NA-0175-cofre-extensao/assessment.md; docs/changes/2026/11/NA-0175-cofre-extensao/vaultnaccess-addendum.md; docs/changes/2026/11/NA-0175-cofre-extensao/hybrid-delivery-review.md; docs/changes/2026/11/NA-0177-vault-security-contract/plan.md; docs/changes/2026/11/NA-0177-vault-security-contract/security-contract.md",
+      "after": "docs/planejamento/METAS e OBJETVIVOS Nodeaccess 2027.original-2026-11-02.xlsx; docs/changes/2026/11/NA-0175-cofre-extensao/assessment.md; docs/changes/2026/11/NA-0175-cofre-extensao/vaultnaccess-addendum.md; docs/changes/2026/11/NA-0175-cofre-extensao/hybrid-delivery-review.md; docs/changes/2026/11/NA-0177-vault-security-contract/plan.md; docs/changes/2026/11/NA-0177-vault-security-contract/security-contract.md; docs/changes/2026/11/NA-0178-vault-delivery/plan.md; docs/changes/2026/11/NA-0178-vault-delivery/implementation.md; https://github.com/jefersonfq/NodeAccess/pull/68; docs/changes/2026/11/NA-0179-vault-reveal/plan.md; docs/changes/2026/11/NA-0179-vault-reveal/implementation.md"
+    }
+  },
+  "validation_snapshot": "Frontend WIP/local validation only; final SHA/checks/integration belong to PR68 and forthcoming NA-0179 PR. No frontend homologation, extension, deploy or activation claimed.",
+  "limitations": [
+    "Excel visual inspection unavailable; ZIP CRC, XML structure, IDs, untouched cells, existing revision rows and unrelated ZIP entries verified.",
+    "HTTPS diagnostic run passed 19 cases plus catalogue14 and full terminal, with documented manifest/HMR limitation; final frozen-SHA run pending."
+  ]
+}

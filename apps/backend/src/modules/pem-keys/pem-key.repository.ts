@@ -1,19 +1,23 @@
 import { Prisma, type PrismaClient, type PemKey } from '@prisma/client'
 
+export type ListedPemKey = PemKey & { createdBy: { name: string } }
+
 export class PemKeyRepository {
   constructor(private readonly db: PrismaClient) {}
 
-  async findByUser(createdById: number): Promise<PemKey[]> {
+  async findByUser(createdById: number): Promise<ListedPemKey[]> {
     return this.db.pemKey.findMany({
       where: { createdById },
       orderBy: { createdAt: 'desc' },
+      include: { createdBy: { select: { name: true } } },
     })
   }
 
-  async findAll(tenantId: number): Promise<PemKey[]> {
+  async findAll(tenantId: number): Promise<ListedPemKey[]> {
     return this.db.pemKey.findMany({
       where: { createdBy: { tenantId } },
       orderBy: { createdAt: 'desc' },
+      include: { createdBy: { select: { name: true } } },
     })
   }
 

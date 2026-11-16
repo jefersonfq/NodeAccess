@@ -2,7 +2,7 @@
 
 ## Estado e limites
 
-Esta entrega implementa o backend do piloto portal/local. A tela de revelação, extensão, autofill, WebAuthn/Windows Hello, bridge e E2EE continuam em fases posteriores. Não há pacote de extensão ou armazenamento offline. JWE acrescenta proteção de aplicação; o servidor continua conhecendo segredos operacionais. Nenhum tenant/item existente ganha permissão de extração com a migração.
+NA-0178 implementa o backend do piloto portal/local; NA-0179 adiciona revelar/copiar no portal sob os mesmos pré-requisitos. Extensão, autofill, WebAuthn/Windows Hello, bridge e E2EE continuam em fases posteriores. Não há pacote de extensão ou armazenamento offline. JWE acrescenta proteção de aplicação; o servidor continua conhecendo segredos operacionais. Nenhum tenant/item existente ganha permissão de extração com a migração.
 
 Pré-requisitos para ativação: validações da frente aprovadas, homologação do piloto, HTTPS e proxy confiável corretamente configurados, tenant comercial com licença Secrets, contas locais com senha e TOTP ativos, dois gestores distintos, dados de teste e quota acordada. Trial, login externo/SSO/break-glass, tenant delegado, PEM e fill são recusados neste piloto. Reautenticação local é opção explícita prevista no contrato, não fallback automático de uma falha WebAuthn. Não foi realizada prova Windows Hello nesta frente.
 
@@ -31,7 +31,7 @@ Prefixo `/api/v1/vault-security`. Todas as rotas usam POST para que IDs e capaci
 | `/sessions/unlock` | `challengeId`, senha NodeAccess em `password`, TOTP em `token` | `sessionId`, `idleUntil`, `expiresAt` |
 | `/sessions/current` | `{}` | Estado e prazos, sem renovar atividade |
 | `/sessions/lock` | `{}` | LOCKED; idempotente para cliente já removido |
-| `/operations` | `sessionId`, `action: reveal\|copy`, `secretId`, `recipient` | `operationId`, AUTHORIZED, `expiresAt` |
+| `/operations` | `sessionId`, `action: reveal\|copy`, `secretId`, `recipient` | `operationId`, AUTHORIZED, `expiresAt`, `serverNow`, `context` autorizado completo |
 | `/operations/consume` | `sessionId`, `operationId` | `envelope` JWE somente após consumo e auditoria |
 | `/operations/status` | `operationId` | Apenas estado |
 | `/operations/cancel` | `operationId` | CANCELLED ou estado terminal; não reabre consumo |
@@ -52,7 +52,7 @@ Após `/clients`, enviar `x-vault-client: clientId` nas chamadas. Guardar client
 
 Instância cliente e sessão duram no máximo30min, limitadas pela origem central. Idle5min; desafio120s uso único; reveal/copy/admin exigem prova de até60s; grant até30s e nunca ultrapassa prazos de origem, cliente, sessão, prova e licença. Licença inativa/expirada nega; vencimento durante selagem/commit também impede a resposta. GET/status/polling não renovam atividade. Não existe sessão do cofre global nem dependência de cofre no resolvedor operacional. Reautenticação verifica senha+TOTP fora da transação e revalida o snapshot de credenciais sob lock antes de desbloquear.
 
-Destinatário: JWK **somente público** `{kty:"RSA",n,e:"AQAB"}`, módulo2048–4096bits, gerado para a operação. Envelope compacto JWE v1 via `jose` existente: `RSA-OAEP-256` e `A256GCM`. O protected header contém `typ: vaultnaccess+jwe` e `vault` com versão, operação, tenant/usuário, digest da instância, ação, item, snapshot do item, thumbprint destinatário, geração, expiração e origem. O futuro cliente deve comparar todo o contexto esperado após autenticar/descriptografar; rejeitar algoritmo/contexto/expiração divergente. Nenhum key URL/JWKS remoto ou algoritmo indicado pelo cliente é aceito. Limite do segredo8KiB, sem truncamento. Não há promessa de zeragem física de strings/memória JS.
+Destinatário: JWK **somente público** `{kty:"RSA",n,e:"AQAB"}`, módulo2048–4096bits, gerado para a operação. Envelope compacto JWE v1 via `jose` existente: `RSA-OAEP-256` e `A256GCM`. O protected header contém `typ: vaultnaccess+jwe` e `vault` com versão, operação, tenant/usuário, digest da instância, ação, item, snapshot do item, thumbprint destinatário, geração, expiração e origem. O cliente compara todo o contexto autorizado retornado por `/operations` e valida também a intenção local (usuário, tenant, ação, item, digest da instância, destinatário e origem) após autenticar/descriptografar; rejeitar algoritmo/contexto/expiração divergente. Nenhum key URL/JWKS remoto ou algoritmo indicado pelo cliente é aceito. Limite do segredo8KiB, sem truncamento. Não há promessa de zeragem física de strings/memória JS.
 
 SQL usa locking reads de tenant, usuário, licença, política local, registro trial, política do cofre, entitlement, item/elegibilidade e associação de grupo usada. Writers operacionais normais disputam esses mesmos locks; não precisam chamar VaultNAccess. Snapshot inclui ciphertext/IV e ACL, sem depender só de timestamps. Consumo e evento `DELIVERY_RELEASE_COMMITTED` ficam na mesma transação; o evento significa autorização consumida, não confirmação de visualização. Sem auditoria durável, não há envelope. Não há publicação best-effort obrigatória para confirmar a entrega: `vault_audit` é o ledger durável, disponível para integração de relatórios posterior.
 
@@ -92,3 +92,13 @@ Ensaio reproduzível: `npm run test:vault:real` cria MySQL/Redis próprios em lo
 O cofre usa um PrismaClient próprio, criado somente no primeiro acesso à API, com connection_limit=2 e pool_timeout=1 por réplica. Seu fechamento desconecta apenas esse pool. O limite de quatro operações admitidas e os timeouts SQL/Redis reduzem contenção; MySQL e Redis continuam recursos compartilhados e não há garantia de isolamento total de CPU ou locks. Nenhum pool adicional é aberto pelo gateway sem acesso ao cofre.
 
 Se a validade da licença for encurtada após a autorização, a entrega retorna conflito antes de descriptografar ou selar. Uma nova autorização é necessária: o contexto criptográfico autorizado nunca é alterado silenciosamente.
+
+## Portal — NA-0179
+
+HTTP do cofre usa Bearer capturado e contrato próprio sem interceptors de refresh/retry/reloadglobais. 401 descarta estado local e orienta renovação da autenticação; não encerra terminal automaticamente. Os demais erros ficam na janela. Respostas limitadas durante streaming e timeout de 8s; perda da resposta não reabre consumo.
+
+`serverNow` acompanha registro, desafio, desbloqueio, status e autorização. O portal calcula prazos a partir do início local da requisição, desconta margem de1s, usa relógio monotônico e limite adicional de relógio civil; movimento regressivo do relógio não prolonga a autorização. Não há heartbeat de renovação. Novo desbloqueio pode reutilizar cliente ainda válido; lock/saída/blur remove o cliente em melhor esforço com contexto original. A quota10clientes/h permanece e pode limitar alternância frequente de telas.
+
+Cada operação gera chave RSA2048 privada nãoexportável em memória. Capabilities e valores não vão para Pinia, catálogo ou armazenamentooffline. Reveal aparece por até15s; copy aguarda gesto separado sem exibir plaintext. Falha/expiração descarta o buffer, sem fallback que coloque senha no DOM. O SO pode já ter aceitado uma escrita quando o contexto é cancelado; não há promessa de reversão ou limpeza automática da área de transferência.
+
+Manual do operador: `docs/manual/hosts.md`. Harness HTTPS: `npm run test:vault:frontend` (`tools/vault-security/frontend-harness.mts`), com Fastify/bcrypt/TOTP/JWE reais e autoridade/Redis sintéticos; não substitui ensaio MySQL/Redis da camada backend nem homologação humana. Nenhum dado ou tenant real é utilizado.
