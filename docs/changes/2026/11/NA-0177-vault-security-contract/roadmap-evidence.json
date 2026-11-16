@@ -1,0 +1,20 @@
+{
+  "at": "2026-11-15T21:57:19-03:00",
+  "updated": [
+    "META-005",
+    "META-017"
+  ],
+  "writes_this_interaction": 1,
+  "before_sha256": "bd2c4b2cda4984389bcd2219bfcb0049d9cab25ebdf73bab487034325f57f406",
+  "after_sha256": "860e0b0d3986e82f7200bc7b26b1b6253498f44b999f141b10b9591d90831cfa",
+  "preserved": [
+    "Original 2027",
+    "other ZIP entries",
+    "unrelated rows/cells including priorities and IDs",
+    "existing revisions"
+  ],
+  "limitations": [
+    "Excel visual not available",
+    "PR66 not yet merged; reconcile appended revision and scoped cells onto its workbook after integration without overwriting history"
+  ]
+}

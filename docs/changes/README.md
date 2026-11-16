@@ -4,8 +4,9 @@ Planos e registros versionados por implementação. PRs e checkpoints identifica
 
 | Mudança | Plano | Registro IA |
 |---|---|---|
+| NA-0177-vault-security-contract (contrato documental; revisão independente, sem runtime) | [plano](2026/11/NA-0177-vault-security-contract/plan.md) | [registro](2026/11/NA-0177-vault-security-contract/implementation.md) |
 | NA-0176-base-reconciliation (PR65; gate local PASS; CI/merge pendentes) | [plano](2026/11/NA-0176-base-reconciliation/plan.md) | [registro](2026/11/NA-0176-base-reconciliation/implementation.md) |
-| NA-0175-cofre-extensao (planned; aguarda consolidação NA-0176) | [plano](2026/11/NA-0175-cofre-extensao/plan.md) | [registro](2026/11/NA-0175-cofre-extensao/implementation.md) |
+| NA-0175-cofre-extensao (PR66; catálogo validado, fechamento pendente) | [plano](2026/11/NA-0175-cofre-extensao/plan.md) | [registro](2026/11/NA-0175-cofre-extensao/implementation.md) |
 | NA-0174-security-diagnosis (merged; PR64; master sincronizada be4daff2e) | [plano](2026/11/NA-0174-security-diagnosis/plan.md) | [registro](2026/11/NA-0174-security-diagnosis/implementation.md) |
 | NA-0173-codex-token-efficiency (COMMITTED; validação pós-commit aprovada) | [plano](2026/11/NA-0173-codex-token-efficiency/plan.md) | [registro](2026/11/NA-0173-codex-token-efficiency/implementation.md) |
 | NA-0172-security-center (MERGED + MASTER_SYNCED; PR63; gate concluído) | [plano](2026/11/NA-0172-security-center/plan.md) | [registro](2026/11/NA-0172-security-center/implementation.md) |
