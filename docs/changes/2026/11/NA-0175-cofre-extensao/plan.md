@@ -2,7 +2,7 @@
 change_id: NA-0175
 title: VaultNAccess fase 1A — catálogo unificado de Secrets e PEM
 type: feature
-status: ready-for-tests
+status: closed
 created_at: 2026-11-15T16:28:40-03:00
 base_branch: master
 base_sha: ae188983d061a7bb5e6aaf855fd9d2f92416f3b8
@@ -29,7 +29,7 @@ Tela /vault, navegação única, catálogo tipado, busca/filtro por tipo e revog
 - [x] Licença conferida antes de Secrets; falha de features não libera Secrets nem impede PEM autorizado.
 - [x] Ações/formulários específicos reutilizados e rotas legadas preservadas, com ACL existente.
 - [x] Contexto antigo não repopula catálogo/drafts após troca de tenant, revogação de feature ou unmount.
-- [ ] Testes de contratos e regressão terminal/snippets, build/typecheck/lint, manual e Sonar aplicáveis registrados.
+- [x] Testes de contratos e regressão terminal/snippets, build/typecheck/lint, manual e Sonar aplicáveis registrados.
 - [x] Revisão independente e evidência visual antes de prontidão; nenhuma aprovação humana presumida.
 
 ## Estratégia técnica
@@ -66,7 +66,7 @@ Reverter somente UI/menu/rota e extração de editores; sem migração de dados,
 - Aprovado em: 2026-11-15T19:00:22-03:00
 - Gates finais e homologação funcional não presumidos; segurança avançada/plugin seguem fases posteriores.
 
-## Estado local em 2026-11-15
+## Estado histórico antes dos gates finais
 Itens1/2 implementados e validação focal do item3 executada; resultados em phase1a-evidence.md. Sonar completo pendente de execução no candidato autorizado; revisão estática PASS_WITH_WARNINGS, sem homologação/PR/merge desta frente. Critério de qualidade global permanece aberto.
 
 ## Correção necessária do gate
@@ -75,3 +75,7 @@ Primeiro candidato01f348977 falhou em timeout do bootstrap de fixtures, cobertur
 ## Correção necessária do check de fechamento
 
 Após homologação confirmada, o check remoto de integração TLS expôs observação imediata do certificado durante reload assíncrono. Ajustar somente o harness para aguardar identidade exata dentro de5s, com handshake limitado, preservando validação CA/SNI, comparação com certificado anterior e sessãoSSH/WebSocket. Testes negativos e laboratório real obrigatórios; worker/produto inalterados. Classificação NECESSARY_CORRECTION do gate, revisão independente e nova validação do SHA antes do merge.
+
+## Fechamento da fase 1A
+
+PR66 integrada em f5bf34b148e64f5f18c4752c95cacf88978e67b7 e master local sincronizada em 2026-11-15T22:56:39-03:00. Homologação confirmada explicitamente pelo usuário; onze checks remotos e gate local aprovados no candidato 314e502ea7e049fb97ce38df04cd3286c1b3e807. Entrega somente do catálogo e editores; contrato e segurança futura seguem NA-0177. Evidências finais na PR66 e no registro.

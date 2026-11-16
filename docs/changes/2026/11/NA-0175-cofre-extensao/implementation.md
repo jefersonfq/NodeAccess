@@ -10,9 +10,7 @@ Base ae188983d061a7bb5e6aaf855fd9d2f92416f3b8 (PR65); branch feature/NA-0175-202
 
 ## Validação
 
-Ran: baseline 54; testes focais 50 e snippets 66; typecheck/lint/build; Chromium; terminal-experience; manual/capturas. Gate integral no candidato 451e1ccbe2cda8a0b4c9a939a974ac3c9dea13d3 passou em 2026-11-15 23:57:13 UTC: Vitest 3832 PASS/124 pendentes, Node 701 PASS/11 skips, tooling 231 PASS/1 skip, TLS e cleanup aprovados, dez jornadas Chromium aprovadas. Cobertura Sonar 81,8%, diff local 86,71%; zero novas violações/hotspots; reconciliação verificada. Revisão independente PASS_WITH_WARNINGS pelos limites dos cenários simulados.
-
-Planned: reexecutar gate no novo SHA após esta correção documental. O resultado acima pertence exclusivamente a 451e1ccbe. PR66 aberta; check remoto de governança reprovou os títulos das seções deste registro, agora adequados ao template. O check static-and-secrets também reprovou três fixtures: dois placeholders PEM existentes e um marcador sintético no teste. Revisão independente aprovou somente atualização das duas ocorrências antigas e cadastro exato da nova por regra/linha/hash integral; nenhum segredo válido e nenhuma regra desativada. Outros checks remotos ainda em andamento. Manual: homologação funcional confirmada pelo usuário na interação atual; sem roteiro humano executado pelo agente. Skipped: PTY real (sem resize/transporte), pentest e Excel visual. Não afirmar aprovação do novo SHA antes da execução.
+Ran: baseline54; focais50; snippets66; typecheck/lint/build; Chromium; terminal-experience; manual/capturas. Gate final no SHA314e502ea7e049fb97ce38df04cd3286c1b3e807 PASS: Vitest3832/124pendentes, Node712/11skips, tooling231/1skip, TLS com cleanup e dez jornadas aprovados. Cobertura Sonar81,8%, diff86,48%, zero violações/hotspots; análise e revisões verificadas. Integração TLS/PTY real preservou SSH1/WebSocket1. Revisão independente PASS_WITH_WARNINGS; onze checks remotos PASS no mesmo SHA. Falhas históricas preservadas abaixo, sem relaxamento de parâmetros. Manual: homologação confirmada pelo usuário. Skipped: pentest e Excel visual. Sem validação de todos os destinos SSH/RDP ou de funcionalidades futuras.
 
 ## Recuperação
 
@@ -20,7 +18,7 @@ Reverter os commits desta PR para restaurar UI/menu/rota/editores anteriores; se
 
 ## Pendências
 
-Revalidar correção documental e checks remotos no novo candidato; homologação humana confirmada; merge ainda depende dos checks do novo candidato. Extensão, reveal, autofill, Hello/WebAuthn, agente e HPKE/E2EE são fases posteriores, não implementadas nesta fase 1A. Estado atingido: COMMITTED/PUSHED/PR_OPEN; LOCAL_WIP documental até o próximo commit; MERGED/MASTER_SYNCED pendentes. PR: https://github.com/jefersonfq/NodeAccess/pull/66.
+Fase1A entregue: PR66 MERGED em f5bf34b148e64f5f18c4752c95cacf88978e67b7 e master sincronizada. LOCAL_WIP limpo, COMMITTED/PUSHED concluídos, PR_OPEN encerrada, MERGED/MASTER_SYNCED concluídos. Sem deploy. Contrato documental segue na PR67/NA-0177; extensão, reveal, autofill, Hello/WebAuthn, agente e HPKE/E2EE permanecem fases posteriores. Evidência final: https://github.com/jefersonfq/NodeAccess/pull/66.
 
 ## Diário de interações
 
@@ -96,3 +94,9 @@ Usuário confirmou a homologação solicitada e perguntou as próximas etapas. M
 NECESSARY_CORRECTION restrita ao harness: post-apply/automatic aguardam exatamente o fingerprint esperado, prazo total5s e handshake com deadline2s; validação CA/SNI/authorized e divergência do certificado antigo mantidas. Sem mudança de worker TLS, timeouts operacionais ou assertivas SSH/WebSocket. Fonte primária consultada: https://nginx.org/en/docs/control.html. Revisão independente da proposta PASS_WITH_WARNINGS.
 
 Ran: ensaio original local PASS (falha de CI não reproduzida);11 testes novos PASS (identidade errada, atraso, erro e conexão travada); ensaio real corrigido PASS com SSH1/WebSocket1, PTY, troca e recuperação preservados. Logs .tmp/NA-0175/tls-baseline-closure.log e tls-fixed-closure.log. Planned: revisão final do delta, commit autorizado, Sonar integral no novo SHA e CI antes de merge. NA-0177/PR67 permanece publicada e preservada, dependente de integração/reconciliação apósPR66. Roadmap será reconciliado em uma escrita agrupada de fechamento, sem sobrescrever revisões de outras frentes.
+
+### 2026-11-15T22:56:39-03:00 — Fechamento autorizado da PR66
+
+Homologação humana confirmada pelo usuário. Ran: validate:sonar no SHA314e502ea7e049fb97ce38df04cd3286c1b3e807 PASS; Vitest3832/124pendentes, Node712/11skips, dez jornadas Chromium e laboratório TLS PASS; cobertura diff86,48%, Sonar81,8%, zero violações/hotspots, análise e revisões verificadas. Integração TLS/PTY real PASS preservou SSH1/WebSocket1; revisão independente PASS_WITH_WARNINGS. Os onze checks remotos passaram no mesmo SHA, incluindo upgrade-restore. Causa da falha TLS anterior não comprovada; histórico preservado.
+
+PR66 MERGED em f5bf34b148e64f5f18c4752c95cacf88978e67b7; master local sincronizada e limpa. LOCAL_WIP limpo, COMMITTED/PUSHED concluídos, PR_OPEN encerrada, MERGED/MASTER_SYNCED concluídos. Sem deploy. O contrato NA-0177/PR67 é reconciliado sobre essa base, com uma escrita agrupada do roadmap preservando revisões. Próximas implementações: sessão própria/permissões, entrega cifrada, reveal/copy no portal e piloto da extensão. Nenhum desses recursos futuros foi ativado.
