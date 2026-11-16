@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "revision": "2",
-  "reviewedAt": "2026-11-15",
+  "revision": "2026-11-16-na0178",
+  "reviewedAt": "2026-11-16",
   "internalClassification": "Repositório interno: evidência de implementação, não atestado operacional.",
   "controls": [
     {
@@ -9,27 +9,28 @@
       "state": "verified",
       "category": "Login e verificação de identidade",
       "owner": "Revisão de conteúdo em PR",
-      "internalDescription": "Releitura NA-0174: ingressos validam estado atual do usuário, tenant, versão e privilégios; logout-all incrementa versão por comparação atômica. Delegação de plataforma exige origem e ator válidos. Não afirma cobertura de todos os providers externos.",
+      "internalDescription": "Revalidação NA-0178: afirmações de login/MFA e validação corrente preservadas; logout não oculta erro Redis. Não afirma métodos externos adicionais nem ativa VaultNAccess.",
       "restrictions": [
         "Os métodos disponíveis variam conforme a política da organização e o fluxo de acesso. Esta página não verifica a configuração atual da sua conta."
       ],
       "review": {
         "method": "source-review",
-        "reviewedAt": "2026-11-15",
-        "sourceRevision": "28685c5b2c3fbf9739a05629260c95e42e0d62d0",
+        "reviewedAt": "2026-11-16",
+        "sourceRevision": "bf122f141029244b0687f549353d79b4dcbaa506",
         "sourceFiles": [
           "apps/backend/src/modules/auth/auth.service.ts",
           "apps/backend/src/modules/auth/auth-policy.ts",
           "apps/backend/src/modules/auth/current-session.ts",
           "apps/backend/src/shared/guards.ts"
         ],
-        "sourceHash": "66e000658c5ec015e0719d973a54d10fa58b35eaa6e1a6c7f71ac65e9aba2f14",
+        "sourceHash": "262368c4cee06e44b67aebea5f3ac150367a11888dd554c1a468c4f1d1575312",
         "testFiles": [
           "apps/backend/src/modules/auth/auth.service.temp-token.test.ts",
-          "apps/backend/src/modules/auth/auth-policy.test.ts"
+          "apps/backend/src/modules/auth/auth-policy.test.ts",
+          "apps/backend/src/modules/auth/auth.service.refresh.test.ts"
         ],
         "testsExecuted": false,
-        "scope": "Releitura NA-0174: ingressos validam estado atual do usuário, tenant, versão e privilégios; logout-all incrementa versão por comparação atômica. Delegação de plataforma exige origem e ator válidos. Não afirma cobertura de todos os providers externos. Base integrada informada em sourceRevision; hashes identificam o candidato NA-0174. Execuções e SHA final constam no registro da frente, separados desta revisão editorial."
+        "scope": "Revalidação editorial NA-0178: somente logout mudou para não confirmar revogação se Redis.del falhar. Login/MFA, guards, estado atual e logout-all preservados. Base em sourceRevision; hash identifica candidato. Revisão independente PASS; testes e SHA final registrados separadamente, sem alegação de Vault ativado."
       },
       "public": {
         "title": "Login e verificação de identidade",

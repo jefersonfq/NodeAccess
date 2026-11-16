@@ -1,0 +1,174 @@
+import { assertPolicy, assertSession, denied, grantDeadline, unavailable, VaultError } from './vault-domain.js'
+import type { VaultAction, VaultChallenge, VaultClient, VaultIdentity, VaultOperation, VaultSession } from './vault-domain.js'
+import type { EnvelopeSealer, OriginVerifier, Reauthentication, VaultEntropy, VaultStore, VaultTransaction } from './vault-ports.js'
+
+export class VaultService {
+  private active = 0
+  constructor(private readonly store: VaultStore, private readonly origin: OriginVerifier,
+    private readonly reauth: Reauthentication, private readonly envelope: EnvelopeSealer,
+    private readonly entropy: VaultEntropy, private readonly now = Date.now) {}
+
+  /** Bounded admission: no unbounded queue in the shared application process. */
+  async admitted<T>(run: () => Promise<T>): Promise<T> {
+    if (this.active >= 4) throw new VaultError('VAULT_BUSY', 503)
+    this.active++
+    try { return await run() } finally { this.active-- }
+  }
+  private async client(tx: VaultTransaction, id: string, identity: VaultIdentity, origin: string): Promise<VaultClient> {
+    assertPolicy(tx.authority.policy)
+    if (origin !== tx.authority.policy.origin) denied()
+    const client = await tx.get<VaultClient>('client', id)
+    if (!client || client.id !== this.entropy.digest(id) || client.sessionVersion !== identity.sessionVersion || client.expiresAt <= tx.now() || client.policyVersion !== tx.authority.policy.version) throw new VaultError('VAULT_LOCKED', 423)
+    await this.origin.assert(client.origin, identity)
+    return client
+  }
+  async register(identity: VaultIdentity, refreshToken: string, requestOrigin: string): Promise<{ clientId: string; expiresAt: number }> {
+    const origin = await this.origin.bind(refreshToken, identity)
+    return this.store.transaction(identity, async tx => {
+      assertPolicy(tx.authority.policy)
+      if (requestOrigin !== tx.authority.policy.origin) denied()
+      await tx.limit('clients', 3_600_000, 10)
+      const id = this.entropy.token(), expiresAt = Math.min(tx.now() + 1_800_000, origin.expiresAt, tx.authority.validUntil)
+      await tx.put('client', id, { id: this.entropy.digest(id), sessionVersion: identity.sessionVersion, origin, policyVersion: tx.authority.policy.version, expiresAt }, expiresAt)
+      await tx.audit({ type: 'CLIENT_REGISTERED', clientId: id, policyVersion: tx.authority.policy.version })
+      return { clientId: id, expiresAt }
+    })
+  }
+  async challenge(identity: VaultIdentity, clientId: string, origin: string): Promise<{ challengeId: string; expiresAt: number }> {
+    return this.store.transaction(identity, async tx => {
+      const client = await this.client(tx, clientId, identity, origin)
+      await tx.limit('unlock', 300_000, 5)
+      const challengeId = this.entropy.token(), expiresAt = Math.min(tx.now() + 120_000, client.expiresAt)
+      await tx.put('challenge', challengeId, { clientId: client.id, credentialVersion: tx.authority.credentialVersion, expiresAt }, expiresAt)
+      return { challengeId, expiresAt }
+    })
+  }
+  async unlock(identity: VaultIdentity, clientId: string, origin: string, challengeId: string, password: string, otp: string): Promise<{ sessionId: string; idleUntil: number; expiresAt: number }> {
+    // Burn each challenge before expensive verification; failures cannot replay it.
+    const proof = await this.store.transaction(identity, async tx => {
+      await this.client(tx, clientId, identity, origin)
+      const c = await tx.get<VaultChallenge>('challenge', challengeId)
+      if (!c || c.clientId !== this.entropy.digest(clientId) || c.expiresAt <= tx.now() || c.credentialVersion !== tx.authority.credentialVersion) denied()
+      await tx.remove('challenge', challengeId)
+      return { authority: tx.authority, expiresAt: c.expiresAt }
+    })
+    if (!await this.reauth.verify(password, otp, proof.authority)) {
+      await this.store.transaction(identity, tx => tx.audit({ type: 'UNLOCK_DENIED', clientId, policyVersion: tx.authority.policy.version }))
+      denied()
+    }
+    return this.store.transaction(identity, async tx => {
+      const client = await this.client(tx, clientId, identity, origin)
+      if (proof.expiresAt <= tx.now() || proof.authority.credentialVersion !== tx.authority.credentialVersion) denied()
+      // One active session per client. A new unlock invalidates all previous grants via session removal.
+      await tx.remove('session', this.entropy.digest(clientId))
+      const sessionId = this.entropy.token(), expiresAt = Math.min(tx.now() + 1_800_000, client.expiresAt, tx.authority.validUntil)
+      const session: VaultSession = { clientId: client.id, policyVersion: tx.authority.policy.version, credentialVersion: tx.authority.credentialVersion,
+        proofAt: tx.now(), idleUntil: Math.min(tx.now() + 300_000, expiresAt), expiresAt }
+      await tx.put('session', client.id, { ...session, sessionId: this.entropy.digest(sessionId) }, expiresAt)
+      await tx.audit({ type: 'VAULT_UNLOCKED', clientId, policyVersion: tx.authority.policy.version })
+      return { sessionId, idleUntil: session.idleUntil, expiresAt }
+    })
+  }
+  private async session(tx: VaultTransaction, client: VaultClient, sessionId: string): Promise<VaultSession> {
+    const s = await tx.get<VaultSession & { sessionId: string }>('session', client.id)
+    assertSession(s, client, tx.authority, tx.now())
+    if (s.sessionId !== this.entropy.digest(sessionId)) throw new VaultError('VAULT_LOCKED', 423)
+    return s
+  }
+  async lock(identity: VaultIdentity, clientId: string, origin: string): Promise<void> {
+    await this.store.transaction(identity, async tx => {
+      const existing = await tx.get<VaultClient>('client', clientId)
+      if (!existing) return
+      if (origin !== tx.authority.policy.origin) denied()
+      // Delete client as well: all its challenges and grants become unusable, even after a new bootstrap.
+      await tx.remove('session', this.entropy.digest(clientId))
+      await tx.remove('client', clientId)
+      await tx.audit({ type: 'VAULT_LOCKED', clientId, policyVersion: tx.authority.policy.version })
+    })
+  }
+  async current(identity: VaultIdentity, clientId: string, origin: string): Promise<{ state: 'LOCKED' | 'UNLOCKED'; idleUntil?: number; expiresAt?: number }> {
+    return this.store.transaction(identity, async tx => {
+      const client = await this.client(tx, clientId, identity, origin)
+      const s = await tx.get<VaultSession>('session', client.id)
+      try { assertSession(s, client, tx.authority, tx.now()) } catch { return { state: 'LOCKED' } }
+      return { state: 'UNLOCKED', idleUntil: s.idleUntil, expiresAt: s.expiresAt }
+    })
+  }
+  async request(identity: VaultIdentity, clientId: string, origin: string, sessionId: string, action: VaultAction, secretId: number, recipient: VaultOperation['recipient']): Promise<{ operationId: string; expiresAt: number; state: 'AUTHORIZED' }> {
+    // Admission is committed independently; denied item/key attempts still consume quota.
+    await this.store.transaction(identity, async tx => {
+      await this.client(tx, clientId, identity, origin)
+      await tx.limit('operations', 60_000, 30)
+      await tx.limit('tenant:operations', 60_000, tx.authority.policy.tenantQuota)
+    })
+    const recipientThumbprint = await this.envelope.validate(recipient)
+    return this.store.transaction(identity, async tx => {
+      const client = await this.client(tx, clientId, identity, origin)
+      const session = await this.session(tx, client, sessionId)
+      const secret = await tx.secret(secretId, action)
+      const operationId = this.entropy.token(), expiresAt = grantDeadline(session, client, tx.now(), tx.authority.validUntil)
+      const op: VaultOperation = { clientId: client.id, sessionId: this.entropy.digest(sessionId), action, secretId, secretVersion: secret.version, recipient, recipientThumbprint,
+        policyVersion: tx.authority.policy.version, expiresAt, state: 'AUTHORIZED' }
+      await tx.put('operation', operationId, op, expiresAt)
+      await tx.put('session', client.id, { ...session, sessionId: this.entropy.digest(sessionId), idleUntil: Math.min(tx.now() + 300_000, session.expiresAt) }, session.expiresAt)
+      await tx.audit({ type: 'OPERATION_AUTHORIZED', clientId, operationId, action, secretId, policyVersion: op.policyVersion })
+      return { operationId, expiresAt, state: 'AUTHORIZED' }
+    })
+  }
+  async consume(identity: VaultIdentity, clientId: string, origin: string, sessionId: string, operationId: string): Promise<{ envelope: string }> {
+    const release = await this.store.transaction(identity, async tx => {
+      const client = await this.client(tx, clientId, identity, origin)
+      const session = await this.session(tx, client, sessionId)
+      const op = await tx.get<VaultOperation>('operation', operationId)
+      if (!op || op.clientId !== this.entropy.digest(clientId) || op.sessionId !== this.entropy.digest(sessionId) || op.state !== 'AUTHORIZED' || op.expiresAt <= tx.now()
+        || op.policyVersion !== tx.authority.policy.version) unavailable()
+      const deadline = Math.min(op.expiresAt, grantDeadline(session, client, tx.now(), tx.authority.validUntil))
+      if (deadline < op.expiresAt) unavailable() // An authorized envelope context is immutable.
+      const secret = await tx.secret(op.secretId, op.action)
+      if (secret.version !== op.secretVersion) unavailable()
+      const envelope = await this.envelope.seal(op.recipient, { version: 1, operationId, tenantId: identity.tenantId, userId: identity.userId,
+        clientId: client.id, action: op.action, itemRef: `secret:${op.secretId}`, recipientThumbprint: op.recipientThumbprint,
+        policyVersion: op.policyVersion, secretVersion: op.secretVersion, expiresAt: deadline, origin }, secret)
+      if (tx.now() >= deadline) unavailable()
+      await tx.put('operation', operationId, { ...op, state: 'CONSUMED' }, op.expiresAt)
+      await tx.audit({ type: 'DELIVERY_RELEASE_COMMITTED', clientId, operationId, action: op.action, secretId: op.secretId, policyVersion: op.policyVersion })
+      return { envelope, origin: client.origin, expiresAt: deadline }
+    })
+    // A lost response or failed post-commit check NEVER reopens the grant.
+    await this.origin.assert(release.origin, identity)
+    if (this.now() >= release.expiresAt) unavailable()
+    return { envelope: release.envelope }
+  }
+  async administer<T>(identity: VaultIdentity, clientId: string, origin: string, sessionId: string, run: (tx: VaultTransaction) => Promise<T>): Promise<T> {
+    return this.store.transaction(identity, async tx => {
+      const client = await this.client(tx, clientId, identity, origin)
+      const session = await this.session(tx, client, sessionId)
+      const deadline = grantDeadline(session, client, tx.now(), tx.authority.validUntil)
+      await tx.limit('administration', 60_000, 10)
+      const result = await run(tx)
+      // All SQL decisions/writes remain locked and uncommitted at this authorization point.
+      await this.origin.assert(client.origin, identity)
+      if (tx.now() >= deadline) unavailable()
+      return result
+    })
+  }
+  async recordDenial(identity: VaultIdentity, reasonCode: string): Promise<void> {
+    await this.store.transaction(identity, async tx => {
+      await tx.limit('denial-audit', 60_000, 5)
+      await tx.audit({ type: 'OPERATION_DENIED', reasonCode, policyVersion: tx.authority.policy.version })
+    })
+  }
+  async operation(identity: VaultIdentity, clientId: string, origin: string, operationId: string, cancel = false): Promise<{ state: string }> {
+    return this.store.transaction(identity, async tx => {
+      await this.client(tx, clientId, identity, origin)
+      const op = await tx.get<VaultOperation>('operation', operationId)
+      if (!op || op.clientId !== this.entropy.digest(clientId)) unavailable()
+      if (cancel && op.state === 'AUTHORIZED') {
+        await tx.put('operation', operationId, { ...op, state: 'CANCELLED' }, op.expiresAt)
+        await tx.audit({ type: 'OPERATION_CANCELLED', clientId, operationId, policyVersion: op.policyVersion })
+        return { state: 'CANCELLED' }
+      }
+      return { state: op.expiresAt <= tx.now() && op.state === 'AUTHORIZED' ? 'EXPIRED' : op.state }
+    })
+  }
+}

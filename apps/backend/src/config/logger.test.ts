@@ -69,3 +69,11 @@ describe('authentication log sanitization', () => {
     expect(opaqueLogId(value)).toBe(reference)
   })
 })
+
+it('redacts vault capabilities and envelopes from request/response logging', () => {
+  let output = ''
+  const log = pino({redact:{paths:[...LOGGER_REDACT_PATHS],censor:'[REDACTED]'}},{write(chunk:string){output+=chunk}})
+  const fields=['sessionId','challengeId','operationId','proposalId']
+  log.info({req:{headers:{'x-vault-client':'client-capability'},body:Object.fromEntries(fields.map(k=>[k,'private-'+k]))},res:{body:{envelope:'private-envelope',sessionId:'session-capability',clientId:'client-capability'}}})
+  for(const raw of ['client-capability','session-capability','private-envelope',...fields.map(k=>'private-'+k)])expect(output).not.toContain(raw)
+})

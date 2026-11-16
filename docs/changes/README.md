@@ -4,6 +4,7 @@ Planos e registros versionados por implementação. PRs e checkpoints identifica
 
 | Mudança | Plano | Registro IA |
 |---|---|---|
+| NA-0178-vault-delivery (implementação e validação; sem deploy) | [plano](2026/11/NA-0178-vault-delivery/plan.md) | [registro](2026/11/NA-0178-vault-delivery/implementation.md) |
 | NA-0177-vault-security-contract (contrato documental; revisão independente, sem runtime) | [plano](2026/11/NA-0177-vault-security-contract/plan.md) | [registro](2026/11/NA-0177-vault-security-contract/implementation.md) |
 | NA-0176-base-reconciliation (PR65; gate local PASS; CI/merge pendentes) | [plano](2026/11/NA-0176-base-reconciliation/plan.md) | [registro](2026/11/NA-0176-base-reconciliation/implementation.md) |
 | NA-0175-cofre-extensao (fase1A; PR66 MERGED/MASTER_SYNCED) | [plano](2026/11/NA-0175-cofre-extensao/plan.md) | [registro](2026/11/NA-0175-cofre-extensao/implementation.md) |
