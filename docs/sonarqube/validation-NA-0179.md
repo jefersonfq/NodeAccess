@@ -30,3 +30,13 @@ Ocorrências identificadas pelo CI em `tools/vault-security/frontend-harness.mts
 Nenhuma alteração em `accepted-findings.json`. Lint focal PEM encontrou sete diagnósticos no parser ssh2 preexistente, reproduzidos com HEAD; parser não foi alterado nem regras suprimidas. Typecheck detectou a suposição incorreta de User.username no adendo de proprietário; corrigida para User.name e validada com build compartilhado/typecheck backend e testes.
 
 O CI f07 alcançou sete diagnósticos antigos do parser PEM porque o arquivo recebeu metadados. Adequação mínima de tipos, validação de retorno e remoção de cast redundante corrigiram o lint sem mudar o método/receiver/argumento da conversão legada. Ran14testesPASS, typecheckbackendPASS, lint:changed completoPASS; revisãoindependentePASS. Limitação PPK preexistente registrada separadamente, sem promessa de conversão real validada. A base31a9 contém apenas a revalidação independente de três sourceSha S1313 do teste SFTP; não houve exceção nova na baseline. Gates integrais no novo SHA permanecem Planned.
+
+## Reanálise do candidato0321
+
+CI run43888789345: FAIL (Vitest4048PASS/1FAIL, cobertura63,68%, um novo achado). Artefato não inclui stack do teste; não atribuir a falha a um cenário sem prova. Portabilidade corrigida: resolução chromium.executablePath() e propagação ao subprocesso terminal, conforme coletor existente.
+
+| ID da ocorrência CI | Regra / linha | Correção | Estado |
+|---|---|---|---|
+| `6076873d-13ed-47d6-b72c-6e0ff1307fb1` | typescript:S5443 / 52 | Runtime criado exclusivamente por mkdtemp sob diretório privado e umask077. | Reanálise pendente |
+
+Local0321: Vitest4049PASS, HTTPS19/HTTP/catálogo14/terminalPASS, Node722PASS e TLS cleanupVerified. Execução substituída após os coletores para corrigir CI; sem scanner final, portanto não é gate aprovado. Artefatos preservados em `.tmp/NA-0179/sonar-0321-superseded/`. Revisão independente das correções PASS; importação isolada1PASS. Próximo gate integral deve usar novo SHA, sem exceções ou thresholds alterados.

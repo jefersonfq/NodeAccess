@@ -20,7 +20,7 @@ Manter extração desativada. Para rollback, reverter a interface e preservar ba
 
 ## Pendências
 
-Concluir gates backend (falha TLS em investigação), gates frontend, revisão e correções de feedback HTTP antes dos merges; aceite humano condicionado aos gates já recebido. PR69 depende da PR68. Roadmap já atualizado uma vez nesta interação; evidências finais ficam nas PRs e artefatos privados, sem commits recursivos de relatórios.
+Backend integrado pela PR68 após gates completos. Concluir gates frontend e revisão antes do merge69; aceite humano condicionado aos gates já recebido. PR69 depende da PR68. Roadmap já atualizado uma vez nesta interação; evidências finais ficam nas PRs e artefatos privados, sem commits recursivos de relatórios.
 
 ## Diário de interações
 
@@ -90,3 +90,11 @@ Root confirmou preservar a chamada legada PPK e não substituir serializador nes
 Ran SQL/Redis32/32PASS nof07b0d08,cleanup/fontesestáveis (.tmp/NA-0178/mysql-1794839369/execution.json). CIstatic-quality f07FAILpelos7diagnósticospreexistentesdoparserPEM; corrigi-los tornou-senecessáriaparaarquivoalterado. Adequação restrita deunknown/guards/Reflect preservamétodo,receiver eargumentolegado; semnovoserializador, semcastsasany/supressões. Ran14testesfocaisPASS,lintsservice/testPASS,typecheckbackendPASS e lint:changedcompletoPASS. RevisãoindependentePASS; PPKeyrealnãofoiafirmadocomotestadopormocks, limitaçãolegadapermanecependênciaseparada.
 
 Sonarbackendc3 tevecoletores/diff92,13%/qualidadePASS, mas revisãofonteFAIL. Três sourceSha deSQ0437–439 foram revalidadosindependentemente mantendo ocorrências,IPs,contextoFakeWebSocket, regras eacceptedbaseline; base31a9integradacomstashrecuperável .tmp/NA-0179/base-integration-metadata.json. Gatelocalbackend31a9emcurso, nãohámerge. ManualHoststemhashrevalidadoapósadequação técnica semmudançadeprocedimento; capturasjáinspecionadasmantidas. Planned: novoSHAfrontend/gatescompletosSQL/CI/Sonar, depoisintegraçãoautorizada. Alteraçõesposteriores ao snapshotúnicodoplanilhaficamregistradasaqui; pendênciaPPKdevesertriadaemfrenteprópria epróximaconsolidaçãodoroadmap.
+
+### 2026-11-16T12:13:58-03:00 — Integração backend e portabilidade do harness
+
+PR68 integrada após Sonar local integral e checks remotos aprovados, com aceite humano já registrado; sem deploy/ativação. PR69 redirecionada para master preservando o candidato. Estado frontend: COMMITTED/PUSHED/PR_OPEN, MERGED/MASTER_SYNCED pendentes. O job macOS cancelado por falta de runner passou na repetição.
+
+CI0321 FAIL: 4048 testes Vitest passaram e um falhou, mas o artefato remoto não publicou nome/stack; cobertura63,68% e S5443 na criação de runtime. Não inferir aprovação nem afirmar identidade desse teste. Defeito concreto de portabilidade: harness procurava Chromium em /usr/bin/chromium-browser embora CI instale no cache Playwright. Correção necessária usa resolução Playwright e propaga o mesmo executável ao filho terminal; runtime usa mkdtemp exclusivo sob raiz privada. Sem mudança de aplicação, limites, assertions ou baseline. Revisão independente estática PASS. Ran importação sem efeitos colaterais1PASS; Chromium Playwright instalado localmente, sem override.
+
+Gate local0321 interrompido como substituído após limpeza TLS, não aprovado: Vitest4049PASS, HTTPS19/HTTPbloqueado/catálogo14/terminalPASS com fontes estáveis, Node722PASS, TLS cleanupVerified. Evidências preservadas em .tmp/NA-0179/sonar-0321-superseded/. Planned: repetir gate integral e checks no novo SHA, incluindo caminho Playwright sem override e SQL32, depois merge autorizado. Planilha já consolidada uma vez; sem nova escrita nesta interação.

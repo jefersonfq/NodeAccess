@@ -48,8 +48,8 @@ export async function executeFrontendHarness(): Promise<FrontendHarnessResult> {
 async function executeIsolatedRun(): Promise<FrontendHarnessResult> {
   const outputRoot = join(root, '.tmp/NA-0179'); mkdirSync(outputRoot, { recursive: true, mode: 0o700 })
   const output = mkdtempSync(join(outputRoot, 'frontend-'))
-  const runtimeDirectory = join(output, 'runtime')
-  mkdirSync(runtimeDirectory, { mode: 0o700 }); process.env.TMPDIR = runtimeDirectory
+  const runtimeDirectory = mkdtempSync(join(output, 'runtime-'))
+  process.env.TMPDIR = runtimeDirectory
   // Overwrite deployment credentials before importing backend modules, never open a real database.
   const disposableDatabaseCredential = randomBytes(24).toString('hex')
   Object.assign(process.env, { NODE_ENV: 'test', DATABASE_URL: `mysql://fixture:${disposableDatabaseCredential}@127.0.0.1:1/unused`, REDIS_URL: 'redis://127.0.0.1:1',
@@ -78,7 +78,8 @@ async function executeIsolatedRun(): Promise<FrontendHarnessResult> {
     const address = httpsServer.httpServer!.address()
     if (!address || typeof address === 'string') throw new Error('HTTPS address unavailable')
     const base = `https://127.0.0.1:${address.port}`; fixture.authority.policy.origin = base
-    browser = await chromium.launch({ headless: true, executablePath: process.env.PLAYWRIGHT_EXECUTABLE_PATH || '/usr/bin/chromium-browser', args: ['--no-sandbox'] })
+    const executablePath = process.env.PLAYWRIGHT_EXECUTABLE_PATH || chromium.executablePath()
+    browser = await chromium.launch({ headless: true, executablePath, args: ['--no-sandbox'] })
     watchdog = setTimeout(() => { report.timedOut = true; void browser?.close() }, 360000)
     report.browser = await browser.version()
     report.flow = await runVaultFrontendFlow(browser, base, fixture, output)
@@ -91,7 +92,7 @@ async function executeIsolatedRun(): Promise<FrontendHarnessResult> {
     process.env.VAULT_REVIEW_OUTPUT = output
     report.httpBoundary = await runVaultHttpBoundary(browser, httpBase, fixture, output)
     report.catalogue = await runVaultFlow(browser, httpBase)
-    const childEnv = { ...process.env, FRONTEND_BASE: httpBase, REPORT_PATH: join(output, 'terminal.json'), SCREENSHOT_PATH: join(output, 'terminal.png'),
+    const childEnv = { ...process.env, PLAYWRIGHT_EXECUTABLE_PATH: executablePath, CHROMIUM_PATH: executablePath, FRONTEND_BASE: httpBase, REPORT_PATH: join(output, 'terminal.json'), SCREENSHOT_PATH: join(output, 'terminal.png'),
       AUTOCOMPLETE_SCREENSHOT_PATH: join(output, 'autocomplete.png'), AUTOCOMPLETE_MOBILE_SCREENSHOT_PATH: join(output, 'autocomplete-mobile.png'),
       THEME_SCREENSHOT_PATH: join(output, 'theme.png'), HIGHLIGHT_SCREENSHOT_PATH: join(output, 'highlight.png') }
     delete childEnv.CHROMIUM_CDP_URL; delete childEnv.SONAR_TOKEN; delete childEnv.SONAR_REVIEW_TOKEN
