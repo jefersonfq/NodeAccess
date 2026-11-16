@@ -89,7 +89,8 @@
     "aiAutomation": "IA e automação",
     "webhooks": "Webhooks",
     "emailConfig": "Config. de E-mail",
-    "activeTerminalShortcut": "Terminais ativos: {count}"
+    "activeTerminalShortcut": "Terminais ativos: {count}",
+    "vault": "VaultNAccess"
   },
   "aiHub": {
     "eyebrow": "Configuração guiada",
@@ -6794,5 +6795,30 @@
     "reviewedAt": "Revisão editorial em",
     "revision": "Conteúdo {revision}",
     "reviewScope": "A data indica a revisão deste conteúdo, não uma auditoria da sua organização ou garantia de ausência de vulnerabilidades."
+  },
+  "vault": {
+    "subtitle": "Gerencie seus Secrets e chaves SSH em um só lugar.",
+    "allTypes": "Todos os tipos",
+    "secretType": "Secret",
+    "pemType": "Chave PEM",
+    "name": "Nome ou alias",
+    "type": "Tipo",
+    "access": "Acesso",
+    "status": "Estado",
+    "pemOwner": "Proprietário: usuário #{id}",
+    "withPassphrase": "Com senha da chave",
+    "withoutPassphrase": "Sem senha da chave",
+    "importPem": "Importar chave PEM",
+    "refresh": "Atualizar",
+    "retry": "Tentar novamente",
+    "metadataOnly": "Os valores salvos não são exibidos neste catálogo. As permissões e os usos existentes continuam sendo respeitados.",
+    "partialError": "Não foi possível carregar todo o cofre",
+    "secretError": "Secrets indisponíveis. Não foi possível verificar a licença ou carregar os registros.",
+    "pemError": "Não foi possível carregar as chaves PEM.",
+    "search": "Buscar por nome, alias ou descrição",
+    "partialEmpty": "Nenhum registro disponível nas fontes carregadas. Tente novamente para consultar o restante.",
+    "noResults": "Nenhum registro corresponde aos filtros.",
+    "empty": "Nenhum registro disponível no cofre para este acesso.",
+    "groupsError": "Não foi possível carregar os grupos. Tente novamente antes de salvar um Secret de grupo."
   }
 }

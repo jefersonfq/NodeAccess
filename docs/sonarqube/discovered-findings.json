@@ -324,6 +324,60 @@
       "hash": "0d560d84fcb906dc6e6ec0bbbcb521da",
       "severity": "MAJOR",
       "type": "VULNERABILITY"
+    },
+    {
+      "issueId": "977969d0-0128-4784-bbc3-4cc5845df3d2",
+      "rule": "Web:InputWithoutLabelCheck",
+      "component": "nodeaccess:apps/frontend/src/components/vault/PemKeyActions.vue",
+      "line": 176,
+      "hash": "cdc25cdd05ee25c9ea83a53a4aa750dd",
+      "severity": "MAJOR",
+      "type": "BUG"
+    },
+    {
+      "issueId": "531986b2-99f2-4c52-9bc0-a08d68f10aed",
+      "rule": "Web:InputWithoutLabelCheck",
+      "component": "nodeaccess:apps/frontend/src/components/vault/SecretActions.vue",
+      "line": 382,
+      "hash": "cdc25cdd05ee25c9ea83a53a4aa750dd",
+      "severity": "MAJOR",
+      "type": "BUG"
+    },
+    {
+      "issueId": "dce9b48d-d5f7-4339-a431-88d2757acb1f",
+      "rule": "Web:InputWithoutLabelCheck",
+      "component": "nodeaccess:apps/frontend/src/components/vault/SecretActions.vue",
+      "line": 389,
+      "hash": "cdc25cdd05ee25c9ea83a53a4aa750dd",
+      "severity": "MAJOR",
+      "type": "BUG"
+    },
+    {
+      "issueId": "7a6ccd22-6e34-404f-8448-40763e5a02ad",
+      "rule": "Web:InputWithoutLabelCheck",
+      "component": "nodeaccess:apps/frontend/src/components/vault/SecretActions.vue",
+      "line": 484,
+      "hash": "cdc25cdd05ee25c9ea83a53a4aa750dd",
+      "severity": "MAJOR",
+      "type": "BUG"
+    },
+    {
+      "issueId": "3b55d668-d574-4ec2-b531-98a43669716b",
+      "rule": "Web:InputWithoutLabelCheck",
+      "component": "nodeaccess:apps/frontend/src/components/vault/SecretActions.vue",
+      "line": 491,
+      "hash": "cdc25cdd05ee25c9ea83a53a4aa750dd",
+      "severity": "MAJOR",
+      "type": "BUG"
+    },
+    {
+      "issueId": "bc8eaa0e-51ac-4976-8884-e3be4c7116bd",
+      "rule": "javascript:S3403",
+      "component": "nodeaccess:tools/frontend/vault-catalog-playwright.cjs",
+      "line": 153,
+      "hash": "dc0cddd8274f28e486e00630b048e3da",
+      "severity": "MAJOR",
+      "type": "BUG"
     }
   ]
 }

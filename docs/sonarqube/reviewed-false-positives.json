@@ -2153,25 +2153,6 @@
       ]
     },
     {
-      "id": "SQ-0247",
-      "rule": "Web:InputWithoutLabelCheck",
-      "file": "apps/frontend/src/views/PemKeysView.vue",
-      "hash": "cdc25cdd05ee25c9ea83a53a4aa750dd",
-      "range": {
-        "startLine": 199,
-        "endLine": 205,
-        "startOffset": 12,
-        "endOffset": 14
-      },
-      "sourceSha256": "913796c2afaa82a04b64cf1f69c95bb172a057a22a221acd242c55720fe52c07",
-      "ruleSha256": "364063b4ce150ed114c1a468ac33e4685efcba303096bd136991b75e4031bd4a",
-      "rationale": "O input pemKeyFileInput de seleção de chave PEM usa class hidden (display:none) e não é o controle apresentado ao usuário. A seleção é aberta por acionador visível nomeado; adicionar label ao elemento oculto não corrige uma falta de nome na interface. A regra exige nome/associação para controles apresentados ao usuário; este controle com display:none não participa da árvore de acessibilidade. Não se usa tabindex=-1 isoladamente como justificativa.",
-      "evidence": [
-        "docs/changes/2026/11/NA-0093-sonar-delivery/reconciliation/frontend.json",
-        "apps/frontend/src/views/PemKeysView.vue"
-      ]
-    },
-    {
       "id": "SQ-0248",
       "rule": "Web:InputWithoutLabelCheck",
       "file": "apps/frontend/src/views/ProfileView.vue",
@@ -2188,82 +2169,6 @@
       "evidence": [
         "docs/changes/2026/11/NA-0093-sonar-delivery/reconciliation/frontend.json",
         "apps/frontend/src/views/ProfileView.vue"
-      ]
-    },
-    {
-      "id": "SQ-0249",
-      "rule": "Web:InputWithoutLabelCheck",
-      "file": "apps/frontend/src/views/SecretsView.vue",
-      "hash": "4d691aef722d6e016466c5aee49a3e59",
-      "range": {
-        "startLine": 483,
-        "endLine": 483,
-        "startOffset": 8,
-        "endOffset": 108
-      },
-      "sourceSha256": "3dea9261b5154f38b1cd375f72ee40ce9ce55446808f9c622cf058c7e943df0a",
-      "ruleSha256": "364063b4ce150ed114c1a468ac33e4685efcba303096bd136991b75e4031bd4a",
-      "rationale": "Campo auxiliar de usuário para desviar autofill em criação/edição de segredo; class hidden e tabindex=-1 retiram-no da interação visual e por Tab. Não é o campo real de credencial nem carece de label de um controle visível. A regra exige nome/associação para controles apresentados ao usuário; este controle com display:none não participa da árvore de acessibilidade. Não se usa tabindex=-1 isoladamente como justificativa.",
-      "evidence": [
-        "docs/changes/2026/11/NA-0093-sonar-delivery/reconciliation/frontend.json",
-        "apps/frontend/src/views/SecretsView.vue"
-      ]
-    },
-    {
-      "id": "SQ-0250",
-      "rule": "Web:InputWithoutLabelCheck",
-      "file": "apps/frontend/src/views/SecretsView.vue",
-      "hash": "1dc745b02dcc1bfbfbc3876ecaf1b98c",
-      "range": {
-        "startLine": 484,
-        "endLine": 484,
-        "startOffset": 8,
-        "endOffset": 120
-      },
-      "sourceSha256": "3dea9261b5154f38b1cd375f72ee40ce9ce55446808f9c622cf058c7e943df0a",
-      "ruleSha256": "364063b4ce150ed114c1a468ac33e4685efcba303096bd136991b75e4031bd4a",
-      "rationale": "Campo auxiliar de senha para desviar autofill em criação/edição de segredo; class hidden e tabindex=-1 retiram-no da interação visual e por Tab. Não é o campo real de credencial nem carece de label de um controle visível. A regra exige nome/associação para controles apresentados ao usuário; este controle com display:none não participa da árvore de acessibilidade. Não se usa tabindex=-1 isoladamente como justificativa.",
-      "evidence": [
-        "docs/changes/2026/11/NA-0093-sonar-delivery/reconciliation/frontend.json",
-        "apps/frontend/src/views/SecretsView.vue"
-      ]
-    },
-    {
-      "id": "SQ-0251",
-      "rule": "Web:InputWithoutLabelCheck",
-      "file": "apps/frontend/src/views/SecretsView.vue",
-      "hash": "e46d05d1a67da2960f82d99d09c64a5a",
-      "range": {
-        "startLine": 540,
-        "endLine": 540,
-        "startOffset": 8,
-        "endOffset": 108
-      },
-      "sourceSha256": "3dea9261b5154f38b1cd375f72ee40ce9ce55446808f9c622cf058c7e943df0a",
-      "ruleSha256": "364063b4ce150ed114c1a468ac33e4685efcba303096bd136991b75e4031bd4a",
-      "rationale": "Campo auxiliar de usuário para desviar autofill em rotação de segredo; class hidden e tabindex=-1 retiram-no da interação visual e por Tab. Não é o campo real de credencial nem carece de label de um controle visível. A regra exige nome/associação para controles apresentados ao usuário; este controle com display:none não participa da árvore de acessibilidade. Não se usa tabindex=-1 isoladamente como justificativa.",
-      "evidence": [
-        "docs/changes/2026/11/NA-0093-sonar-delivery/reconciliation/frontend.json",
-        "apps/frontend/src/views/SecretsView.vue"
-      ]
-    },
-    {
-      "id": "SQ-0252",
-      "rule": "Web:InputWithoutLabelCheck",
-      "file": "apps/frontend/src/views/SecretsView.vue",
-      "hash": "6f68172438b301e640c421467c773e26",
-      "range": {
-        "startLine": 541,
-        "endLine": 541,
-        "startOffset": 8,
-        "endOffset": 120
-      },
-      "sourceSha256": "3dea9261b5154f38b1cd375f72ee40ce9ce55446808f9c622cf058c7e943df0a",
-      "ruleSha256": "364063b4ce150ed114c1a468ac33e4685efcba303096bd136991b75e4031bd4a",
-      "rationale": "Campo auxiliar de senha para desviar autofill em rotação de segredo; class hidden e tabindex=-1 retiram-no da interação visual e por Tab. Não é o campo real de credencial nem carece de label de um controle visível. A regra exige nome/associação para controles apresentados ao usuário; este controle com display:none não participa da árvore de acessibilidade. Não se usa tabindex=-1 isoladamente como justificativa.",
-      "evidence": [
-        "docs/changes/2026/11/NA-0093-sonar-delivery/reconciliation/frontend.json",
-        "apps/frontend/src/views/SecretsView.vue"
       ]
     },
     {
