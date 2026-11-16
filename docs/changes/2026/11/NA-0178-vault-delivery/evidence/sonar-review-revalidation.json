@@ -1,0 +1,60 @@
+{
+  "candidate": "c3e754dd00ba0a6edb158f7cc99d7003cdb49987",
+  "status": "independently-reviewed-approved",
+  "entries": [
+    {
+      "id": "SQ-0437",
+      "file": "tools/frontend/terminal-experience-playwright.cjs",
+      "rule": "javascript:S1313",
+      "range": {
+        "startLine": 22,
+        "endLine": 22,
+        "startOffset": 182,
+        "endOffset": 193
+      },
+      "hash": "25ada84a62211ba6be5189d8f3d9e68e",
+      "oldSourceSha256": "3f2f44b843646c6b4999844c542d498c92fcf0540fef66c2695f130b9d1d1766",
+      "newSourceSha256": "9d18d28b72aaeea039786f71c7d71b33cdf0a96058baeed52d2750586549ff7e",
+      "occurrenceLineUnchanged": true,
+      "literal": "'10.40.0.1'",
+      "rationale": "Literal representa host do terminal com FakeWebSocket. Não é endereço de infraestrutura configurado pelo produto: o consumidor recebe dado sintético através da fronteira de simulação verificada."
+    },
+    {
+      "id": "SQ-0438",
+      "file": "tools/frontend/terminal-experience-playwright.cjs",
+      "rule": "javascript:S1313",
+      "range": {
+        "startLine": 39,
+        "endLine": 39,
+        "startOffset": 63,
+        "endOffset": 74
+      },
+      "hash": "751b0af3f9db6f5f53a080155d5650cb",
+      "oldSourceSha256": "3f2f44b843646c6b4999844c542d498c92fcf0540fef66c2695f130b9d1d1766",
+      "newSourceSha256": "9d18d28b72aaeea039786f71c7d71b33cdf0a96058baeed52d2750586549ff7e",
+      "occurrenceLineUnchanged": true,
+      "literal": "'10.70.0.1'",
+      "rationale": "Literal representa host de retry com FakeWebSocket. Não é endereço de infraestrutura configurado pelo produto: o consumidor recebe dado sintético através da fronteira de simulação verificada."
+    },
+    {
+      "id": "SQ-0439",
+      "file": "tools/frontend/terminal-experience-playwright.cjs",
+      "rule": "javascript:S1313",
+      "range": {
+        "startLine": 40,
+        "endLine": 40,
+        "startOffset": 67,
+        "endOffset": 78
+      },
+      "hash": "394a204f2a495242d9451d01eba8d095",
+      "oldSourceSha256": "3f2f44b843646c6b4999844c542d498c92fcf0540fef66c2695f130b9d1d1766",
+      "newSourceSha256": "9d18d28b72aaeea039786f71c7d71b33cdf0a96058baeed52d2750586549ff7e",
+      "occurrenceLineUnchanged": true,
+      "literal": "'10.80.0.1'",
+      "rationale": "Literal representa host bloqueado com FakeWebSocket. Não é endereço de infraestrutura configurado pelo produto: o consumidor recebe dado sintético através da fronteira de simulação verificada."
+    }
+  ],
+  "reviewer": "Independent API_tests agent; confirmed by orchestrator",
+  "reviewedAt": "2026-11-16T11:35:22-03:00",
+  "scope": "Only three sourceSha256 updates; occurrence identity, ranges, rule and rationale unchanged."
+}
