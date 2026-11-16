@@ -46,7 +46,7 @@ async function runVaultFlow(browser, base) {
   if (process.env.BROWSER_COVERAGE_DIR) await require('../coverage/playwright-coverage.cjs').attachBrowserCoverage(page, browser)
   page.on('pageerror', e => errors.push(e.message)); page.setDefaultTimeout(15000)
   const row = key => page.locator(`[data-vault-id="${key}"]`)
-  const action = async (key, label) => { await row(key).getByRole('button').click(); await page.locator('.n-dropdown-option').getByText(label).click() }
+  const action = async (key, label) => { await row(key).getByRole('button', { name: /^Ações:/ }).click(); await page.locator('.n-dropdown-option').getByText(label).click() }
   const close = async () => { await page.keyboard.press('Escape'); await page.locator('.n-modal').waitFor({ state: 'hidden' }) }
   try {
     await page.goto(`${base}/vault`, { waitUntil: 'networkidle' })
@@ -113,7 +113,7 @@ async function runVaultFlow(browser, base) {
     const userToken = `${Buffer.from('{}').toString('base64url')}.${Buffer.from(JSON.stringify({ ...payload, role: 'user', canManageHosts: false })).toString('base64url')}.fixture`
     await page.evaluate(value => localStorage.setItem('na_access_token', value), userToken)
     await page.reload({ waitUntil: 'networkidle' }); await row('secret:2').waitFor()
-    assert.equal(await row('secret:2').getByRole('button').isDisabled(), true)
+    assert.equal(await row('secret:2').getByRole('button', { name: /^Ações:/ }).isDisabled(), true)
     assert.equal(await page.getByRole('button', { name: 'Importar chave PEM', exact: true }).count(), 0)
     await page.evaluate(value => localStorage.setItem('na_access_token', value), token)
     // Legacy deep links remain operable with the extracted editors.

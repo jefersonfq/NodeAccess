@@ -20,6 +20,7 @@ vi.mock('@/services/group.service', () => ({ groupService: { list: mocks.groups 
 vi.mock('@/components/vault/SecretActions.vue', () => ({ default: defineComponent({ render: () => null }) }))
 vi.mock('@/components/vault/PemKeyActions.vue', () => ({ default: defineComponent({ render: () => null }) }))
 vi.mock('naive-ui', () => ({ ...Object.fromEntries(['NAlert','NButton','NDropdown','NEmpty','NInput','NSelect','NTag','NText','NSpace'].map(name => [name, defineComponent({ inheritAttrs: false, setup: (_, { attrs, slots }) => () => h(name, attrs, slots.default?.()) })])),
+ NModal: defineComponent({ props: ['show'], setup: (props, { slots }) => () => props.show ? slots.default?.() : null }),
  NDataTable: defineComponent({ props: ['data','columns'], setup: props => () => h('table', (props.data as unknown[]).map(row => h('tr', (props.columns as Column[]).map(col => h('td', col.render?.(row)))))) }) }))
 interface Column { key: string; render?: (row: unknown) => VNodeChild }
 interface HostNode { parent: HostNode | null; children: HostNode[] }

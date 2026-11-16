@@ -95,3 +95,5 @@ Planos e registros versionados por implementação. PRs e checkpoints identifica
 
 ### Preservação histórica — NA-0176
 Planos e registros de frentes não integradas permanecem como histórico, sem comprovar disponibilidade atual. Capturas e relatórios gerados antigos foram preservados localmente com [manifesto e recuperação](2026/11/NA-0176-base-reconciliation/recovery.md); links históricos para esses arquivos podem exigir restauração do caminho original. O checkpoint não deve ser apagado antes de outra cópia verificada.
+
+- [NA-0179 — Revelar/copiar no portal VaultNAccess](2026/11/NA-0179-vault-reveal/plan.md) — implementação e validação local; dependente da PR68.

@@ -6820,5 +6820,36 @@
     "noResults": "Nenhum registro corresponde aos filtros.",
     "empty": "Nenhum registro disponível no cofre para este acesso.",
     "groupsError": "Não foi possível carregar os grupos. Tente novamente antes de salvar um Secret de grupo."
+  },
+  "vaultDelivery": {
+    "locked": "Cofre bloqueado",
+    "sessionActive": "Sessão do cofre ativa",
+    "lock": "Bloquear cofre",
+    "https": "Revelar e copiar exigem acesso HTTPS.",
+    "reveal": "Revelar senha",
+    "copy": "Copiar senha",
+    "values": "Valores protegidos",
+    "catalogHint": "O catálogo mostra metadados. Revelar ou copiar uma senha exige desbloqueio e permissão específica. Chaves PEM não são exportadas.",
+    "policyHint": "Disponível somente para itens e usuários autorizados. Use sua senha NodeAccess e o código do autenticador. A prova de identidade precisa ser renovada após um minuto.",
+    "password": "Senha NodeAccess",
+    "otp": "Código do autenticador (6 dígitos)",
+    "unlock": "Desbloquear e continuar",
+    "delivering": "Autorizando entrega protegida…",
+    "revealHint": "A senha será ocultada em até 15 segundos ou ao sair desta tela.",
+    "hide": "Ocultar senha",
+    "copyHint": "Confirme a cópia em até 15 segundos. O sistema operacional e outros aplicativos poderão acessar a área de transferência; o cofre não garante sua limpeza.",
+    "confirmCopy": "Confirmar cópia",
+    "copied": "Senha copiada. Gerencie a área de transferência do seu dispositivo.",
+    "valueCleared": "O valor foi descartado. Feche esta janela e solicite uma nova operação se necessário.",
+    "errors": {
+      "unavailable": "A operação não pôde ser concluída. A entrega pode ter sido consumida; solicite uma nova operação quando estiver pronto.",
+      "denied": "Esta conta ou item não está habilitado para esta operação. Consulte os gestores do cofre.",
+      "locked": "Desbloqueie o cofre novamente para continuar.",
+      "expired": "A autorização expirou ou ficou indisponível. Solicite uma nova operação.",
+      "quota": "Limite de tentativas atingido. Aguarde antes de tentar novamente.",
+      "login": "A autenticação do portal precisa ser renovada. Nenhuma operação foi repetida automaticamente.",
+      "clipboard": "Não foi possível confirmar a cópia. O valor foi descartado; verifique as permissões do navegador antes de solicitar outra operação.",
+      "unsupported": "Este fluxo exige HTTPS e uma sessão local elegível, sem gerenciamento de outro tenant."
+    }
   }
 }

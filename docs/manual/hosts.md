@@ -68,6 +68,22 @@ Use **Novo secret** ou **Importar chave PEM** para cadastrar. Em **Ações**, Se
 
 Se uma origem falhar, os registros da outra continuam disponíveis. Use **Tentar novamente** para recarregar. Trocar o contexto ou atualizar o catálogo fecha os formulários abertos; alterações ainda não salvas precisam ser informadas novamente. Abrir o cofre não encerra a sessão do terminal.
 
+
+### Revelar ou copiar uma senha
+Este piloto exige HTTPS, conta local com senha e autenticador TOTP, licença Secrets e habilitação explícita pelos gestores do cofre. Permissão de administrar ou ser proprietário de um Secret não concede permissão de revelar ou copiar. Cada ação tem sua própria autorização, e o item precisa estar habilitado para entrega. Os botões não indicam que você já tem essa permissão. Chaves PEM não participam desse fluxo.
+
+1. Na linha de um Secret ativo, selecione **Revelar senha** ou **Copiar senha**.
+2. Se solicitado, informe sua **Senha NodeAccess** e o **Código do autenticador (6 dígitos)**. Selecione **Desbloquear e continuar**. A senha do Windows não é utilizada neste piloto.
+3. Ao revelar, confira o valor na janela e use **Ocultar senha** quando terminar. O valor é descartado em até 15 segundos, podendo expirar antes conforme a autorização.
+4. Ao copiar, selecione **Confirmar cópia** em até 15 segundos. Essa ação não exibe a senha e exige autorização própria. Confira a confirmação; se o navegador negar acesso à área de transferência, o valor é descartado e uma nova tentativa exige nova operação.
+5. Use **Bloquear cofre** para encerrar a sessão local do cofre. Sair da tela, ocultar a aba, perder o foco da janela ou mudar o contexto também descarta os valores. Isso não faz logout do portal nem encerra as conexões do terminal.
+
+A prova de identidade precisa ser renovada após aproximadamente um minuto. Sem atividade, o backend limita a sessão a cinco minutos, com duração absoluta de até trinta minutos; a interface pode bloquear antes por privacidade. Novos registros de cliente são limitados a dez por hora por usuário: alternar frequentemente entre o cofre e outras telas pode atingir esse limite. Aguarde se isso ocorrer.
+
+**Acesso negado:** consulte os gestores do cofre; ser administrador não contorna a política. **Autorização expirada ou resposta perdida:** não há repetição automática da entrega; feche a janela e solicite uma nova operação. **Autenticação do portal precisa ser renovada:** renove sua sessão do portal antes de tentar novamente. Falhas do cofre não iniciam recuperação global do terminal.
+
+A área de transferência pertence ao dispositivo e pode ser acessada por outros aplicativos. O cofre não garante apagamento posterior nem revogação de uma senha já entregue. Gerencie a área de transferência e rotacione a senha no destino quando necessário. Windows Hello e extensão ainda não fazem parte desta entrega.
+
 ## Entenda os indicadores
 - Cards e listas reutilizam os ícones de protocolo do acesso rápido. O ícone da rota informa acesso direto, automático ou por Agent/conector. Passe o mouse, toque ou use **Tab** para consultar a descrição e a disponibilidade; **Esc** fecha a dica. O botão **Conectar** informa o motivo quando uma rota obrigatória não está disponível.
 - No **Acesso rápido**, a pasta aparece junto ao endereço quando há espaço, seguida do relógio e da data do último acesso em **dia/mês**; a dica mostra a data por extenso e o horário. **Raiz** indica que o host está no diretório raiz do inventário. A dica da pasta mostra o caminho disponível, como **Raiz → Banco de dados → Dbs**. Se um ancestral não estiver disponível, o caminho pode aparecer parcial; a interface não presume pastas que você não pode consultar. O ícone no canto superior direito do card identifica o protocolo: terminal com cadeado para SSH, monitor para RDP, terminal com T para Telnet e monitor com V para VNC. Passe o mouse ou toque no ícone para consultar seu protocolo sem conectar. Passe o mouse ou toque no relógio para consultar o último acesso sem conectar. Pelo teclado, focar o card mostra o protocolo e o último acesso; **Esc** fecha a dica. **Sessão ativa** continua visível no card.

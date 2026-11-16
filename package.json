@@ -41,6 +41,7 @@
     "test:agent-faults": "node --test tools/agent/faults.test.cjs",
     "test:acl:core": "vitest run apps/frontend/src/services/api-public-auth.test.ts apps/backend/src/modules/inventory/inventory-acl.routes.test.ts apps/backend/src/modules/hosts/host.service.test.ts apps/backend/src/modules/inventory/inventory-acl.service.test.ts apps/backend/src/modules/inventory/inventory.service.test.ts apps/backend/src/modules/inventory/inventory-acl-session-revocation.service.test.ts apps/backend/src/modules/ssh/ssh.repository-acl.test.ts",
     "test:vault:real": "python3 tools/vault-security/mysql-harness.py",
+    "test:vault:frontend": "RUN_VAULT_FRONTEND=true node --import tsx tools/vault-security/frontend-harness.mts",
     "test:acl:mysql": "RUN_ACL_MYSQL=true vitest run apps/backend/src/modules/inventory/inventory-acl.mysql.test.ts",
     "test:acl:web": "node tools/frontend/hosts-acl-resilience-playwright.cjs && ACL_TARGET=host node tools/frontend/hosts-acl-resilience-playwright.cjs && node tools/frontend/hosts-corporate-folders-playwright.cjs",
     "test:forwardings:core": "vitest run apps/backend/src/modules/tunnels/tunnel-runtime.registry.test.ts apps/frontend/src/services/tunnel-presence.test.ts apps/backend/src/modules/tunnels/tunnel-concurrency.test.ts apps/backend/src/modules/port-forwardings/port-forwarding.service.test.ts apps/frontend/src/services/api-public-auth.test.ts",

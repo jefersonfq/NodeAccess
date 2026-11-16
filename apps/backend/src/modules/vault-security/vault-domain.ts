@@ -41,3 +41,16 @@ export function grantDeadline(session: VaultSession, client: VaultClient, now: n
 export type VaultChange = { kind: 'grant'; userId: number; action: VaultAction; enabled: boolean }
   | { kind: 'item'; secretId: number; enabled: boolean }
   | { kind: 'policy'; reveal: boolean; copy: boolean; tenantQuota: number }
+
+/** Same authenticated context at authorization and release; deadline is immutable. */
+export interface VaultEnvelopeContext {
+  version: 1; operationId: string; tenantId: number; userId: number; clientId: string;
+  action: VaultAction; itemRef: `secret:${number}`; recipientThumbprint: string;
+  policyVersion: number; secretVersion: string; expiresAt: number; origin: string
+}
+export function vaultEnvelopeContext(identity: VaultIdentity, operationId: string, op: VaultOperation, origin: string): VaultEnvelopeContext {
+  return { version: 1, operationId, tenantId: identity.tenantId, userId: identity.userId,
+    clientId: op.clientId, action: op.action, itemRef: `secret:${op.secretId}`,
+    recipientThumbprint: op.recipientThumbprint, policyVersion: op.policyVersion,
+    secretVersion: op.secretVersion, expiresAt: op.expiresAt, origin }
+}

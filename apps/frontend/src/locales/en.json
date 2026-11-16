@@ -6796,5 +6796,36 @@
     "noResults": "No records match these filters.",
     "empty": "No vault records are available for this access.",
     "groupsError": "Groups could not be loaded. Try again before saving a group Secret."
+  },
+  "vaultDelivery": {
+    "locked": "Vault locked",
+    "sessionActive": "Vault session active",
+    "lock": "Lock vault",
+    "https": "Revealing and copying require HTTPS.",
+    "reveal": "Reveal password",
+    "copy": "Copy password",
+    "values": "Protected values",
+    "catalogHint": "The catalog shows metadata. Revealing or copying requires unlocking and specific permission. PEM keys cannot be exported.",
+    "policyHint": "Available only for authorized items and users. Use your NodeAccess password and authenticator code. Identity proof must be renewed after one minute.",
+    "password": "NodeAccess password",
+    "otp": "Authenticator code (6 digits)",
+    "unlock": "Unlock and continue",
+    "delivering": "Authorizing protected delivery…",
+    "revealHint": "The password will be hidden within 15 seconds or when you leave this screen.",
+    "hide": "Hide password",
+    "copyHint": "Confirm within 15 seconds. The operating system and other apps may access the clipboard; the vault cannot guarantee its removal.",
+    "confirmCopy": "Confirm copy",
+    "copied": "Password copied. Manage your device clipboard.",
+    "valueCleared": "The value was discarded. Close this window and request a new operation if needed.",
+    "errors": {
+      "unavailable": "The operation could not be completed. Delivery may have been consumed; request a new operation when ready.",
+      "denied": "This account or item is not enabled for this operation. Contact your vault managers.",
+      "locked": "Unlock the vault again to continue.",
+      "expired": "Authorization expired or became unavailable. Request a new operation.",
+      "quota": "Attempt limit reached. Wait before trying again.",
+      "login": "Portal authentication needs renewal. No operation was automatically retried.",
+      "clipboard": "Could not confirm the copy. The value was discarded; check browser permissions before requesting another operation.",
+      "unsupported": "This flow requires HTTPS and an eligible local session, without delegated tenant management."
+    }
   }
 }

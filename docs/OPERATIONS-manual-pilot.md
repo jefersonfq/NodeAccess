@@ -1,5 +1,11 @@
 # Manual integrado — piloto de 24/09/2026
 
+
+## Revalidação de 16/11/2026 — NA-0179 / revelar e copiar
+
+Capítulo Hosts documenta desbloqueio local, permissões independentes, revelação temporária, confirmação de cópia, recuperação de erros e limites de privacidade/clipboard. Mapeados componente e serviços do fluxo. Ensaio HTTPS sintético confirmou19cenários; catálogo14cenários e terminal completo passaram (snapshot documental final ainda exige gate). `manual:capture` executado nofrontendlocal5199, versão9.8.7-manual-test; validou cinco capítulos, mobile, ajuda sem reconexão,60estados de compartilhamento e2ciclos de tenant. As cinco imagens foram inspecionadas: controles legíveis, enquadramento preservado, dados fictícios. Somente três PNGs tiveram bytes diferentes; outros dois permaneceram idênticos. `test:manual` passou (2 Node +18 Vitest) e `manual:check-reviewed` confirmou os cinco capítulos atuais. Hash de Hosts recalculado por `loadManual()` após revisão. Demais procedimentos não alterados. Não houve alteração de área útil, resize ou transporte SSH; ensaioPTYreal não é requisito desta mudança. Sem produção, deploy ou homologação humana de frontend presumidos. Evidências privadas em `.tmp/NA-0179` e `.tmp/nodeaccess-harness-1000-869308a222af`.
+
+
 ## Revalidação de 15/11/2026 — NA-0175 / VaultNAccess fase 1A
 
 Hosts documenta a entrada VaultNAccess, busca, ações específicas de Secrets/PEM, usos em hosts/snippets e recuperação de falha parcial. Incluídos os fontes do catálogo e editores no mapa editorial. Captura executada com frontend local5199 e versão9.8.7-manual-test; cinco imagens inspecionadas quanto a legibilidade/enquadramento, sem dados reais. Manual/captura verificou60 estados de compartilhamento e retorno de tenant em2 ciclos sem reconexão. `test:manual` passou (2 Node +18 Vitest); `test:terminal-experience:web` passou com transporte simulado. Sem mudança em resize/SSH/WebSocket, ensaio PTY real não aplicável a este incremento. Hash de Hosts recalculado por `loadManual()` após essas verificações; check-reviewed registrado no diário da frente. Demais capítulos mantêm procedimentos. Capturas geradas pelo helper legado inicialmente em /tmp, copiadas para public/manual-assets; evidências novas do trabalho em `.tmp/NA-0175`. Homologação humana e publicação ainda pendentes.

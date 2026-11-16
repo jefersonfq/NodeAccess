@@ -12,6 +12,7 @@ import { useVaultCatalog } from '@/composables/useVaultCatalog'
 import { canManageVaultEntry, filterVaultEntries, type VaultEntry, type VaultKind } from '@/services/vault-catalog'
 import SecretActions from '@/components/vault/SecretActions.vue'
 import PemKeyActions from '@/components/vault/PemKeyActions.vue'
+import VaultDeliveryPanel from '@/components/vault/VaultDeliveryPanel.vue'
 
 const { t } = useI18n()
 const auth = useAuthStore()
@@ -19,6 +20,7 @@ const catalog = useVaultCatalog()
 const { secretState, pemState, loading, generation } = catalog
 const secretActions = ref<SecretActionHandle | null>(null)
 const pemActions = ref<PemActionHandle | null>(null)
+const deliveryPanel = ref<InstanceType<typeof VaultDeliveryPanel> | null>(null)
 const search = ref('')
 const kind = ref<VaultKind | 'all'>('all')
 const includeRevoked = ref(false)
@@ -31,6 +33,7 @@ const typeOptions = computed(() => [
   { label: t('vault.pemType'), value: 'pem' },
 ])
 function reload(): Promise<void> {
+  deliveryPanel.value?.lock()
   return catalog.load({ includeRevoked: includeRevoked.value, canListPem: canListPem.value })
 }
 watch(() => [auth.user?.id, auth.user?.tenantId, auth.user?.actingTenantId, auth.isAdmin, canListPem.value], () => {
@@ -83,6 +86,11 @@ const columns = computed<DataTableColumns<VaultEntry>>(() => [
   { title: t('vault.status'), key: 'status', width: 170, render: (entry): VNodeChild => entry.kind === 'secret'
     ? h(NTag, { size: 'small', type: entry.record.revokedAt ? 'error' : 'success' }, () => t(entry.record.revokedAt ? 'secrets.status.revoked' : 'secrets.status.active'))
     : t(entry.record.hasPassphrase ? 'vault.withPassphrase' : 'vault.withoutPassphrase') },
+  { title: t('vaultDelivery.values'), key: 'delivery', width: 190, render: (entry): VNodeChild => entry.kind === 'secret' && !entry.record.revokedAt
+    ? h('div', { class: 'flex flex-wrap gap-2' }, (['reveal', 'copy'] as const).map(action => h(NButton, {
+      size: 'small', secondary: true, 'aria-label': `${t(`vaultDelivery.${action}`)}: ${entry.name}`,
+      onClick: (): void => { deliveryPanel.value?.request(action, entry.record.id, entry.name) },
+    }, () => t(`vaultDelivery.${action}`)))) : '—' },
   { title: t('common.actions'), key: 'actions', width: 130, render: (entry): VNodeChild => h(NDropdown, {
     trigger: 'click', placement: 'bottom-end', options: actionOptions(entry), onSelect: (action: string) => act(entry, action),
   }, { default: () => h(NButton, {
@@ -133,8 +141,9 @@ const columns = computed<DataTableColumns<VaultEntry>>(() => [
       </div>
     </header>
     <p class="mb-4 text-sm text-gray-400">
-      {{ t('vault.metadataOnly') }}
+      {{ t('vaultDelivery.catalogHint') }}
     </p>
+    <VaultDeliveryPanel ref="deliveryPanel" />
     <NAlert
       v-if="secretState === 'unlicensed'"
       type="info"
@@ -195,7 +204,7 @@ const columns = computed<DataTableColumns<VaultEntry>>(() => [
         :loading="loading"
         :row-key="(entry: VaultEntry) => entry.key"
         :row-props="(entry: VaultEntry) => ({ class: 'vault-row', 'data-vault-id': entry.key })"
-        :scroll-x="830"
+        :scroll-x="1020"
       >
         <template #empty>
           <NEmpty :description="t(partialError ? 'vault.partialEmpty' : search || kind !== 'all' ? 'vault.noResults' : 'vault.empty')" />
