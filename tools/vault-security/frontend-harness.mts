@@ -48,7 +48,8 @@ export async function executeFrontendHarness(): Promise<FrontendHarnessResult> {
 async function executeIsolatedRun(): Promise<FrontendHarnessResult> {
   const outputRoot = join(root, '.tmp/NA-0179'); mkdirSync(outputRoot, { recursive: true, mode: 0o700 })
   const output = mkdtempSync(join(outputRoot, 'frontend-'))
-  const runtimeDirectory = mkdtempSync(join(output, 'runtime-'))
+  // Chromium Unix socket paths must fit sun_path; keep runtime near the workspace root.
+  const runtimeDirectory = mkdtempSync(join(root, '.tmp/v-'))
   process.env.TMPDIR = runtimeDirectory
   // Overwrite deployment credentials before importing backend modules, never open a real database.
   const disposableDatabaseCredential = randomBytes(24).toString('hex')
@@ -113,6 +114,7 @@ async function executeIsolatedRun(): Promise<FrontendHarnessResult> {
     const cleanup = await Promise.allSettled([browser?.close(), httpsServer?.close(), httpServer?.close(), fixture?.close()])
     rmSync(privateKey, { force: true }); rmSync(certificate, { force: true })
     report.cleanup = cleanup.every(result => result.status === 'fulfilled')
+    try { rmSync(runtimeDirectory, { recursive: true, force: true }) } catch { report.cleanup = false }
     report.fingerprintAfter = fingerprint(); report.sourcesUnchanged = report.fingerprintBefore === report.fingerprintAfter
     if (!report.cleanup || !report.sourcesUnchanged || report.timedOut) { report.status = 'failed' }
     report.finishedAt = new Date().toISOString()
