@@ -116,6 +116,7 @@ async function main() {
           if (message.type === 'sftp_home') this.emitControl({ type: 'sftp_result', requestId: message.requestId, ok: true, home: '/root' })
           if (message.type === 'sftp_list') {
             window.__terminalExperience.sftpMessages.push(message.path)
+            ;(window.__terminalExperience.sftpListingQueries ??= []).push({ path: message.path, prefix: message.prefix, directoriesOnly: message.directoriesOnly })
             window.__terminalExperience.sftpFaults[message.path] = (window.__terminalExperience.sftpFaults[message.path] || 0) + 1
             if (message.path === '/review-delayed' || message.path === '/review-dismiss') {
               setTimeout(() => this.emitControl({ type: 'sftp_result', requestId: message.requestId, ok: true, path: message.path, entries: [{ name: 'report.txt', type: 'file', permissions: '-rw-r--r--' }] }), 600); return
@@ -912,11 +913,17 @@ async function main() {
   if (sessionSftpRequests.length < 2 || sessionSftpRequests[0] !== '/' || sessionSftpRequests[1] !== '/var' || autocompleteSftpRequests.length !== 0) throw new Error(`Autocomplete não reutilizou exclusivamente o SFTP da sessão: ${JSON.stringify({ sessionSftpRequests, autocompleteSftpRequests })}`)
   await terminalInput.press('Control+U')
   await terminalInput.pressSequentially('mkdir /var/new-directory', { delay: 4 })
+  // Exercise legitimate autocomplete before submission: its prefix has a distinct
+  // cache entry, so this request must not count as post-command invalidation.
+  await page.waitForFunction(() => window.__terminalExperience.sftpListingQueries?.some((query) => query.path === '/var' && query.prefix === 'new-directory' && query.directoriesOnly === true))
+  // Include Enter itself in the measured interval: an unexpected listing during
+  // submission must not be absorbed into the baseline.
+  const sessionSftpBeforeCommand = await page.evaluate(() => window.__terminalExperience.sftpMessages)
   await terminalInput.press('Enter')
   await terminalInput.pressSequentially('cd /var/lo', { delay: 8 })
   await inlineAutocomplete.getByText('cd /var/local/', { exact: true }).waitFor()
   const sessionSftpAfterMutation = await page.evaluate(() => window.__terminalExperience.sftpMessages)
-  const sessionCacheInvalidation = assertFreshSftpListing(sessionSftpRequests, sessionSftpAfterMutation, '/var')
+  const sessionCacheInvalidation = assertFreshSftpListing(sessionSftpBeforeCommand, sessionSftpAfterMutation, '/var')
   await terminalInput.press('Escape')
   await terminalInput.press('Control+U')
   await terminalInput.pressSequentially('disco', { delay: 8 })

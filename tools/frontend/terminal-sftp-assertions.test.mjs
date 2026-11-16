@@ -21,3 +21,13 @@ test('rejects an unprimed target cache and accepts a single isolated refresh', (
   assert.throws(() => assertFreshSftpListing(['/'], ['/', '/var'], '/var'), /não foi aquecido/)
   assert.deepEqual(assertFreshSftpListing(before, [...before, '/var'], '/var'), { path: '/var', before: 2, after: 3 })
 })
+
+test('measures Enter and refresh after legitimate command prefetch', () => {
+  const afterPrefetch = [...before, '/var']
+  const afterRefresh = [...afterPrefetch, '/var']
+  assert.throws(() => assertFreshSftpListing(before, afterRefresh, '/var'), /antes=2, depois=4/)
+  assert.deepEqual(assertFreshSftpListing(afterPrefetch, afterRefresh, '/var'), { path: '/var', before: 3, after: 4 })
+  const afterUnexpectedEnterListing = [...afterPrefetch, '/var']
+  const afterEnterAndRefresh = [...afterUnexpectedEnterListing, '/var']
+  assert.throws(() => assertFreshSftpListing(afterPrefetch, afterEnterAndRefresh, '/var'), /antes=3, depois=5/)
+})
