@@ -1,6 +1,6 @@
 # NA-0175 — Evidência local da fase 1A
 
-Data: 2026-11-15, America/Sao_Paulo. Base: ae188983d061a7bb5e6aaf855fd9d2f92416f3b8. Branch: feature/NA-0175-20261115-vaultnaccess. Árvore local não commitada; resultados não equivalem a aprovação de SHA final/produção.
+Data: 2026-11-15, America/Sao_Paulo. Base: ae188983d061a7bb5e6aaf855fd9d2f92416f3b8. Branch: feature/NA-0175-20261115-vaultnaccess. Registro histórico da validação inicial antes do commit. Situação posterior e SHA aprovado no gate constam em implementation.md e na PR66; não equivale a aprovação de produção.
 
 ## Resultado funcional
 

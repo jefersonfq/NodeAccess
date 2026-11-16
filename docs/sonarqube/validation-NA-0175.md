@@ -16,3 +16,7 @@ Retiradas revisadas independentemente: SQ-0247, SQ-0249, SQ-0250, SQ-0251, SQ-02
 Contrato CI agora aceita tsconfigPaths e testa rejeição de ausência, divergência e duplicidade divergente; materialização conserva os mesmos bytes da configuração base. Ferramentas Sonar: 231 testes passaram, 1 skip; catálogo/componentes/telas: 50 passaram. Evidências privadas em .tmp/NA-0175/sonar-tooling-fix.log e fix-tests.log. Helper Chromium separado mantém coleta e encerramento de contexto/browser.
 
 Gate integral obrigatório no próximo SHA; resultado final será vinculado na PR e evidência sanitizada, sem presumir aprovação desta correção.
+
+## Reanálise do candidato 451e1ccbe
+
+Gate integral PASS em 2026-11-15 23:57:13 UTC, análise f241f9ef-7340-4c41-856a-f7e9a0203f43. Cobertura Sonar 81,8%, diff 86,71%; zero violações novas, zero hotspots, nenhuma condição ignorada. Reconciliação verificada, 201 revisões inalteradas e zero inesperados. Os seis achados desta frente estão ausentes das violações abertas. Revisão técnica independente PASS_WITH_WARNINGS. PR66 registra a evidência sanitizada. Correção documental posterior exige nova execução no SHA correspondente; este resultado não é transferido automaticamente.

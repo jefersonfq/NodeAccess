@@ -1,20 +1,26 @@
-# NA-0175 — Registro da análise
+# NA-0175 — Registro da implementação
 
-## Resumo vigente
+## Pedido e objetivo
 
-Fase1A autorizada fim a fim: base consolidada PR65 `ae188983d061a7bb5e6aaf855fd9d2f92416f3b8`; branch `feature/NA-0175-20261115-vaultnaccess`, código local no workspace canônico. Implementados /vault, menu VaultNAccess, catálogo público Secrets/PEM, busca/tipo/revogação, erros independentes e editores específicos reutilizados nas rotas legadas. Isolamento por contexto/geração e descarte dos rascunhos/confirmações ao desmontar. Sem API/backend/auth/transporte/cripto/plugin/reveal alterados. Extensão e segurança avançada permanecem fases futuras conforme adendos.
+Implementar os itens 1/2/3 da fase 1A: consolidar plano/base, criar catálogo VaultNAccess e validar a entrega. Preservar autenticação central, SSH/RDP, auditoria, terminal e snippets. Usuário autorizou commit e abertura de PR após checks; merge não está autorizado nesta interação.
 
-## Validação e estado
+## Implementação
 
-Ran: baseline54; catálogo/editores17; snippets66; typecheck e lint focal sem avisos; build; jornadas nova e legada em Chromium; terminal-experience; manual:capture, revisão das cinco imagens, test:manual (2 Node +18 Vitest), manual:check-reviewed. Revisão independente estática PASS_WITH_WARNINGS; achados de isolamento corrigidos. Detalhes/limites em phase1a-evidence.md. Roadmap META-005/META-017 atualizado uma vez, Original2027 preservado.
+Base ae188983d061a7bb5e6aaf855fd9d2f92416f3b8 (PR65); branch feature/NA-0175-20261115-vaultnaccess. Implementados /vault, menu único, catálogo público tipado Secrets/PEM, busca/tipo/revogação, erros independentes e editores reutilizados nas rotas legadas. Invalidação por contexto/geração, descarte de respostas/arquivos tardios e limpeza de rascunhos. Arquivos principais em apps/frontend/src/{services,composables,components/vault,views}; nenhum backend, auth, transporte ou armazenamento alterado. Correções necessárias do gate e revisões individuais em docs/sonarqube/validation-NA-0175.md. Roadmap atualizado uma vez nesta interação.
 
-Ran: primeira execução integral de `npm run validate:sonar` reprovada; detalhes no diário. Planned: nova execução integral após correções e novo candidato congelado. Commit e continuidade autorizados pelo usuário; candidato será congelado para o gate integral. Não herdar Sonar/CI de PR65. Manual: homologação humana pendente. Skipped: PTY real (sem resize/transporte), pentest/E2EE/agente/Windows Hello (fora da fase1A), Excel visual (ZIP/XML/células validados).
+## Validação
 
-Estado: COMMITTED no candidato inicial01f348977, com LOCAL_WIP de correções de validação. PUSHED/PR_OPEN/MERGED/MASTER_SYNCED não atingidos para NA0175. Não publicada nem pronta para merge. SHA final será registrado somente após commit autorizado; não inventar associação de evidência dirty a um SHA final.
+Ran: baseline 54; testes focais 50 e snippets 66; typecheck/lint/build; Chromium; terminal-experience; manual/capturas. Gate integral no candidato 451e1ccbe2cda8a0b4c9a939a974ac3c9dea13d3 passou em 2026-11-15 23:57:13 UTC: Vitest 3832 PASS/124 pendentes, Node 701 PASS/11 skips, tooling 231 PASS/1 skip, TLS e cleanup aprovados, dez jornadas Chromium aprovadas. Cobertura Sonar 81,8%, diff local 86,71%; zero novas violações/hotspots; reconciliação verificada. Revisão independente PASS_WITH_WARNINGS pelos limites dos cenários simulados.
 
-## Recuperação e próximo passo
+Planned: reexecutar gate no novo SHA após esta correção documental. O resultado acima pertence exclusivamente a 451e1ccbe. PR66 aberta; check remoto de governança reprovou os títulos das seções deste registro, agora adequados ao template. O check static-and-secrets também reprovou três fixtures: dois placeholders PEM existentes e um marcador sintético no teste. Revisão independente aprovou somente atualização das duas ocorrências antigas e cadastro exato da nova por regra/linha/hash integral; nenhum segredo válido e nenhuma regra desativada. Outros checks remotos ainda em andamento. Manual: homologação funcional humana pendente. Skipped: PTY real (sem resize/transporte), pentest e Excel visual. Não afirmar aprovação do novo SHA antes da execução.
 
-Preservar alterações locais da frente; rollback pelo recorte UI/menu/rota/editores, sem migração de dados. Backups anteriores de NA0176/stash preservados. Próximo gate: congelar candidato autorizado, executar Sonar completo e resolver achados/cobertura; abrir PR apenas se autorizado e gates aprovados. Homologação e merge separados. Pergunta pendente não autoriza publicação por decurso de tempo.
+## Recuperação
+
+Reverter os commits desta PR para restaurar UI/menu/rota/editores anteriores; sem migração de dados ou mudança de banco/configuração operacional. Preservar base ae188983d e backups anteriores de NA-0176. Estado publicado está na PR66; resultados finais de SHA/checks serão vinculados à PR para evitar commits recursivos de relatórios.
+
+## Pendências
+
+Revalidar correção documental e checks remotos no novo candidato; homologação humana e merge permanecem pendentes. Extensão, reveal, autofill, Hello/WebAuthn, agente e HPKE/E2EE são fases posteriores, não implementadas nesta fase 1A. Estado atingido: COMMITTED/PUSHED/PR_OPEN; LOCAL_WIP documental até o próximo commit; MERGED/MASTER_SYNCED pendentes. PR: https://github.com/jefersonfq/NodeAccess/pull/66.
 
 ## Diário de interações
 
@@ -74,3 +80,11 @@ Candidato 4eb6e4cb3: gate reprovado. Vitest 3832 PASS/124 pendentes; Node 700 PA
 Após correção: 50 testes focais PASS, ferramentas Sonar 231 PASS/1 skip e jornada Chromium PASS. Manual Hosts revalidado: somente atributos de inputs ocultos mudaram, sem alteração de procedimento, layout ou capturas; jornada desktop/mobile confirma fluxos. Hash editorial atualizado após revisão. Próximo: revisão final, commit autorizado e gate integral no SHA congelado; sem push/PR ou merge até aqui. Roadmap já atualizado uma vez nesta interação.
 
 Revisão independente do diff final: PASS_WITH_WARNINGS, sem bloqueadores; comparação literal da jornada/fixtures, 206→201 exceções com somente as cinco previstas removidas, nenhum baseline aceito alterado. Lint, typecheck/build, check-reviewed e dois testes do manual PASS. Avisos Rollup já conhecidos; nenhuma supressão adicionada. Gate integral ainda pendente no novo SHA.
+
+### 2026-11-15T21:00:14-03:00 — PR66 e contrato documental de governança
+
+Gate integral e revisão técnica aprovaram 451e1ccbe; branch publicada e PR66 aberta conforme autorização. Check remoto de governança identificou cinco títulos obrigatórios ausentes no implementation.md, apesar de conteúdo equivalente existir. Adequado o resumo ao template sem alterar código ou relaxar validador. Consolidado resultado do candidato anterior e estados reais; nova validação local do contrato e gate integral obrigatórios após commit. Sem nova escrita de roadmap, sem merge.
+
+Falha static-and-secrets tratada após revisão independente dos três exemplos e seus hashes. Locale placeholders idênticos à base; novo corpo literal fixture não constitui chave PKCS8/DER. Alteração restrita ao cadastro exato em security/gitleaks-fixtures.json, preservando regras e escopo. Validar scan-local e gate integral antes de publicar o próximo SHA.
+
+Validações locais após as correções: validateLifecycle sem erros (plano, três commits anteriores, corpo da PR e registro); scan-local PASS em 2026-11-16T00:03:04Z, 41 fixtures revisadas/zero não revisadas, Semgrep 918 alvos/zero achados/zero erros. Sem mudança de código de produto. Próximo candidato precisa repetir gate integral e checks remotos; resultados anteriores não substituem essa execução.
