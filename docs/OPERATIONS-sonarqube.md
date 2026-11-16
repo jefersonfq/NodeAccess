@@ -112,3 +112,13 @@ Backup, restauração isolada, renovação com sobreposição de tokens e manute
 ## Descoberta de TypeScript — NA-0175
 
 O scanner usa explicitamente os três tsconfig.json do checkout atual (backend, frontend e shared). Em15/11/2026, a descoberta recursiva também carregou seis configurações de worktrees em .tmp e o processo Node do analisador atingiu seu limite de4288MB. Fixar `sonar.typescript.tsconfigPaths` evita esses programas duplicados; `sonar.sources`, exclusões, regras e thresholds não foram alterados. Arquivos JavaScript fora desses projetos continuam no escopo de fontes do scanner. [Referência oficial](https://docs.sonarsource.com/sonarqube-server/analyzing-source-code/languages/javascript-typescript-css#typescript-configuration). A nova configuração requer análise integral comprovada; não presumir gate aprovado a partir da correção.
+
+## Verificação rápida e diagnósticos (NA-0180)
+
+Antes de uma rodada longa, `npm run validate:environment` verifica Node, executáveis, permissões dos diretórios realmente utilizados, loopback e abertura do Chromium do Playwright. É a mesma verificação chamada automaticamente antes dos coletores de cobertura. Não repara caches nem inicia serviços do produto; falha informa código e orientação sem mensagens brutas. O comando e a cobertura usam o ambiente Linux/WSL já exigido pelos laboratórios.
+
+`validate:sonar` também consulta a disponibilidade do Sonar local e autenticação dos dois tokens antes dos testes. Essa consulta não substitui as verificações finais de permissões, análise e revisões.
+
+O navegador da cobertura usa cache próprio em `coverage/browser/vite-cache`, sem depender do cache Vite da aplicação. Na execução orquestrada, o ensaio do cofre delega somente a regressão completa do terminal ao coletor geral obrigatório, com identificador novo por execução. O resumo do cofre registra `delegated`, nunca aprovação do terminal. Ausência, falha ou relatório incompleto do coletor geral reprova o gate. O comando isolado `npm run test:vault:frontend` continua executando a regressão completa. Nenhuma evidência de outro SHA ou de outra execução é reaproveitada.
+
+Quando Vitest falhar, o resumo sanitizado do CI inclui caminho relativo verificado no Git, índices de suíte/teste (base1) e categoria fixa do erro. Nomes dinâmicos, mensagens, stacks e valores esperados/recebidos ficam somente no relatório privado. `sourceVerified:false` indica que o caminho não foi confirmado; consulte os índices no JSON privado. Relatórios inválidos, grandes ou truncados são sinalizados, não tratados como sucesso.

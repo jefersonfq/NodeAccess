@@ -12,13 +12,18 @@ function fixture(t) {
   t.after(() => rmSync(root, { recursive: true, force: true }))
   return root
 }
+function completeTerminalReport(env) {
+  if (env.REPORT_PATH?.includes('/terminal/')) writeFileSync(env.REPORT_PATH, JSON.stringify({ result: 'passed', snippets: { refreshedOnOpen: true, transientFailureRecovered: true }, resilience: { checked: true } }))
+}
 function completeTlsReport(env) {
+  completeTerminalReport(env)
   if (env.RUN_TACACS_TLS_UX === 'true') writeFileSync(join(env.TACACS_TLS_UX_OUTPUT, 'report.json'), JSON.stringify({ passed: true, captureRunId: env.BROWSER_COVERAGE_RUN_ID, checks: Array.from({ length: 5 }, (_, index) => `Check ${index}`) }))
 }
 function fakeVite(options = {}) {
   let closed = false
   return { get closed() { return closed }, async create(config) {
     assert.equal(config.configFile, false)
+    assert.match(config.cacheDir, /coverage\/browser\/vite-cache$/)
     assert.equal(config.server.host, '127.0.0.1'); assert.deepEqual(config.server.proxy, {})
     const middleware = []
     config.plugins[1].configureServer({ middlewares: { use(fn) { middleware.push(fn) } } })
@@ -66,6 +71,7 @@ test('isolated browser orchestration uses loopback fixtures and private outputs 
   assert.equal(result.harnesses.at(-1).coverageMode, 'node-only')
   assert.equal(result.status, 'passed'); assert.equal(result.phase, 'complete'); assert.equal(vite.closed, true)
   assert.deepEqual(runs, requiredBrowserHarnesses.map(([, script]) => script))
+  assert.equal(runs.filter(script => script.endsWith('terminal-experience-playwright.cjs')).length, 1)
   assert.equal(JSON.parse(readFileSync(join(root, 'coverage/browser/summary.json'))).status, 'passed')
   assert.equal(statSync(join(root, 'coverage/browser')).mode & 0o777, 0o700)
 })
@@ -193,6 +199,7 @@ test('flow diagnostics are current, sanitized and never turn a failed run into s
   mkdirSync(directory, { recursive: true })
   writeFileSync(join(directory, 'report.json'), JSON.stringify({ failure: { stage: 'setup', category: 'OTHER' } }))
   const result = await collectBrowserCoverage({ root, env: {}, create: vite.create, execute: async (_root, script, env) => {
+    completeTerminalReport(env)
     if (!script.endsWith('sonar-flow-coverage.cjs')) return { exitCode: 0, timedOut: false }
     assert.equal(existsSync(join(directory, 'report.json')), false)
     writeFileSync(join(env.SONAR_FLOW_OUTPUT, 'report.json'), JSON.stringify({ failure: { stage: 'hosts-destination', category: 'ASSERTION', message: 'PRIVATE' } }))
@@ -232,6 +239,7 @@ for (const name of ['ha', 'audit-input', 'tacacs-tls', 'security-center', 'highl
 for (const proof of ['missing', 'stale', 'malformed', 'incomplete', 'failed']) test(`TACACS TLS zero exit with ${proof} proof cannot pass`, async t => {
   const root = fixture(t), vite = fakeVite()
   const result = await collectBrowserCoverage({ root, env: { RUN_TACACS_TLS_UX: 'false' }, create: vite.create, execute: async (_root, script, env) => {
+    completeTerminalReport(env)
     if (script.endsWith('tls-ux.test.cjs')) {
       assert.equal(env.RUN_TACACS_TLS_UX, 'true')
       if (proof !== 'missing') writeFileSync(join(env.TACACS_TLS_UX_OUTPUT, 'report.json'), proof === 'malformed' ? '{' : JSON.stringify({ passed: proof !== 'failed', captureRunId: proof === 'stale' ? 'previous-run' : env.BROWSER_COVERAGE_RUN_ID, checks: Array.from({ length: proof === 'incomplete' ? 4 : 5 }, () => 'Check') }))
@@ -241,4 +249,45 @@ for (const proof of ['missing', 'stale', 'malformed', 'incomplete', 'failed']) t
   assert.equal(result.status, 'failed'); assert.equal(vite.closed, true)
   assert.equal(result.harnesses.at(-1).name, 'tacacs-tls')
   assert.match(result.error, /harness incomplete: tacacs-tls/)
+})
+
+for (const terminalReport of [null, { result: 'passed' }, { result: 'passed', snippets: { refreshedOnOpen: true, transientFailureRecovered: false }, resilience: {} }]) {
+  test('terminal success exit without complete fresh report fails the browser gate', async t => {
+    const root = fixture(t), vite = fakeVite()
+    const result = await collectBrowserCoverage({ root, create: vite.create, execute: async (_root, script, env) => {
+      completeTlsReport(env)
+      if (script.endsWith('terminal-experience-playwright.cjs')) {
+        if (terminalReport === null) rmSync(env.REPORT_PATH, { force: true })
+        else writeFileSync(env.REPORT_PATH, JSON.stringify(terminalReport))
+      }
+      return { exitCode: 0, timedOut: false }
+    } })
+    assert.equal(result.status, 'failed')
+    assert.equal(vite.closed, true)
+  })
+}
+
+test('dependency readiness uses explicitly selected isolated cache URLs', async () => {
+  const calls = []
+  await waitForBrowserModules('http://127.0.0.1:1', { modulePaths: ['/@fs/workspace/coverage/browser/vite-cache/deps/vue.js', '/@fs/workspace/coverage/browser/vite-cache/deps/naive-ui.js'],
+    fetcher: async url => { calls.push(url); return new Response('export const loaded = true') } })
+  assert.equal(calls.length, 2)
+  assert.ok(calls.every(url => url.includes('/coverage/browser/vite-cache/deps/')))
+  assert.ok(calls.every(url => !url.includes('/node_modules/.vite/')))
+})
+
+test('legacy dependency imports redirect to the isolated graph instead of creating a second Vue runtime', async t => {
+  const root = fixture(t), vite = fakeVite(); let checked = false
+  const result = await collectBrowserCoverage({ root, create: vite.create, execute: async (_root, _script, env) => {
+    completeTlsReport(env)
+    if (!checked) {
+      checked = true
+      const response = await fetch(`${env.FRONTEND_BASE}/node_modules/.vite/deps/vue.js?v=fixture`, { redirect: 'manual' })
+      assert.equal(response.status, 302)
+      assert.equal(response.headers.get('location'), `/@fs${join(root, 'coverage/browser/vite-cache/deps/vue.js')}?v=fixture`)
+      await response.body?.cancel()
+    }
+    return { exitCode: 0, timedOut: false }
+  } })
+  assert.equal(result.status, 'passed'); assert.equal(checked, true); assert.equal(vite.closed, true)
 })

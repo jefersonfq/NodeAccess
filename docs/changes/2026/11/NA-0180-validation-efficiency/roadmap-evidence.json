@@ -1,0 +1,63 @@
+{
+  "at": "2026-11-16T13:52:20-03:00",
+  "change_id": "NA-0180",
+  "base_sha": "2b980b9950ecbdb6f675a84c004dfd31981f999c",
+  "updated_ids": [
+    "META-050"
+  ],
+  "writes_this_interaction": 1,
+  "before_sha256": "950a4df8ae4e04b3747c0d6bc72173b9f97249acdefcc495e9154f6fb81460f7",
+  "after_sha256": "bd1b841139db7affa57d643b01ff8855c2170dcde99678eae77fb620d5d23942",
+  "modified_zip_entries": [
+    "xl/worksheets/sheet2.xml",
+    "xl/worksheets/sheet4.xml"
+  ],
+  "zip_entries_preserved": 12,
+  "zip_order_metadata_and_comment_preserved": true,
+  "unmodified_cells_byte_identical": true,
+  "existing_revision_rows_byte_identical": true,
+  "appended_revision_row": 34,
+  "original_2027_sha256_before": "7cc4aaf67d4cf2c1266e924b3b11d14332ccf44236458771f04975a4c76cc88d",
+  "original_2027_sha256_after": "7cc4aaf67d4cf2c1266e924b3b11d14332ccf44236458771f04975a4c76cc88d",
+  "changed_cells": {
+    "C51": {
+      "before": "Análise estática, cobertura e gates Sonar; análise dinâmica passiva ZAP e mutação Stryker por módulos críticos, com limites e evidências.",
+      "after": "Análise estática, cobertura e gates Sonar; análise dinâmica passiva ZAP e mutação Stryker por módulos críticos, com limites e evidências. NA-0180: pré-validação rápida do ambiente, diagnóstico seguro de falhas e eliminação da execução terminal duplicada na cobertura orquestrada."
+    },
+    "D51": {
+      "before": "Parcial",
+      "after": "Parcial; NA-0180 implementado localmente, em validação"
+    },
+    "G51": {
+      "before": "Plano v2: reaproveitar scanners existentes e testes contínuos; avaliar novas ferramentas por lacuna. Conferir checks das PRs61/62 e homologação antes de integrar. NA-0172: coletores de stdin/controle e subprocesso corrigidos; testes e Quality Gate finais aprovados. Reconciliar candidato commitado/limpo antes da publicação, sem desabilitar regras.",
+      "after": "Plano v2: reaproveitar scanners existentes e testes contínuos; avaliar novas ferramentas por lacuna. Conferir checks das PRs61/62 e homologação antes de integrar. NA-0172: coletores de stdin/controle e subprocesso corrigidos; testes e Quality Gate finais aprovados. Reconciliar candidato commitado/limpo antes da publicação, sem desabilitar regras. NA-0180: concluir testes negativos, modos standalone/orquestrado, revisão independente e Sonar integral; manter gates obrigatórios."
+    },
+    "H51": {
+      "before": "docs/changes/2026/11/NA-0170-zap-stryker/security-review-totp.md; docs/changes/2026/11/NA-0171-csp-styles/test-results.md; docs/OPERATIONS-zap-stryker.md; docs/changes/2026/11/NA-0170-zap-stryker/security-plan-v2-review.md; docs/changes/2026/11/NA-0172-security-center/ux-validation.md; docs/changes/2026/11/NA-0172-security-center/workspace-transition.md",
+      "after": "docs/changes/2026/11/NA-0170-zap-stryker/security-review-totp.md; docs/changes/2026/11/NA-0171-csp-styles/test-results.md; docs/OPERATIONS-zap-stryker.md; docs/changes/2026/11/NA-0170-zap-stryker/security-plan-v2-review.md; docs/changes/2026/11/NA-0172-security-center/ux-validation.md; docs/changes/2026/11/NA-0172-security-center/workspace-transition.md; docs/changes/2026/11/NA-0180-validation-efficiency/plan.md; docs/changes/2026/11/NA-0180-validation-efficiency/implementation.md"
+    },
+    "I51": {
+      "before": "ZAP final após CSP: 0 Medium/High, 2 Low, 4 Info; 12 cenários/18 mensagens/62 regras, cleanup completo. Terminal/editor/manual e imagem Kubernetes não privilegiada aprovados localmente. Monaco sob demanda; nonce/SW entram no Sonar.",
+      "after": "ZAP final após CSP: 0 Medium/High, 2 Low, 4 Info; 12 cenários/18 mensagens/62 regras, cleanup completo. Terminal/editor/manual e imagem Kubernetes não privilegiada aprovados localmente. Monaco sob demanda; nonce/SW entram no Sonar. NA-0180 preserva cobertura, TLS, dez coletores e terminal standalone completo; sem reduzir thresholds/exclusões, reutilizar evidências entre SHAs ou prometer economia percentual sem medição."
+    },
+    "J51": {
+      "before": "Snapshot anterior: PR61 e PR62 criadas; documentação complementar local sem novo commit. Estado remoto/merge/deploy não reconsultado nesta análise.",
+      "after": "Snapshot anterior: PR61 e PR62 criadas; documentação complementar local sem novo commit. Estado remoto/merge/deploy não reconsultado nesta análise. NA-0180 LOCAL_WIP: implementação local em validação; sem commit, publicação, merge, homologação ou deploy desta frente."
+    },
+    "K51": {
+      "before": "2026-11-06",
+      "after": "2026-11-16"
+    }
+  },
+  "appended_revision_cells": {
+    "A34": "2026-11-16T13:52:20-03:00",
+    "B34": "META-050",
+    "C34": "NA-0180 — implementação local em validação",
+    "D34": "Usuário autorizou pré-validação rápida, diagnóstico seguro e remoção da duplicação do terminal no gate orquestrado. Implementação local em validação; terminal standalone completo, TLS, dez coletores e thresholds preservados. Cache do navegador isolado para não reparar cache compartilhado do usuário. Revisão independente e Sonar integral ainda necessários; sem commit, publicação, merge, homologação ou deploy.",
+    "E34": "docs/changes/2026/11/NA-0180-validation-efficiency/plan.md; docs/changes/2026/11/NA-0180-validation-efficiency/implementation.md; economia percentual não medida."
+  },
+  "validation_snapshot": "LOCAL_WIP em validação; revisão independente e Sonar integral pendentes; sem commit/publicação/merge/homologação/deploy.",
+  "limitations": [
+    "Inspeção visual no Excel não executada; CRC ZIP, XML, IDs, células não alteradas, revisões existentes e demais entradas ZIP validados."
+  ]
+}

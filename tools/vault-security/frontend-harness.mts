@@ -28,9 +28,11 @@ function fingerprint() {
 const environmentKeys = ['BROWSER_COVERAGE_DIR', 'BROWSER_COVERAGE_RUN_ID', 'TMPDIR', 'NODE_ENV', 'DATABASE_URL', 'REDIS_URL',
   'JWT_SECRET', 'PEM_ENCRYPTION_KEY', 'PEM_ENCRYPTION_PREVIOUS_KEYS', 'VAULT_REVIEW_OUTPUT'] as const
 export interface FrontendHarnessResult { report: Record<string, unknown>; evidence: string }
+export interface FrontendHarnessOptions { coverageSession?: string }
 
 /** Runs in the caller's isolated process; Vitest owns TS coverage transformation. */
-export async function executeFrontendHarness(): Promise<FrontendHarnessResult> {
+export async function executeFrontendHarness(options: FrontendHarnessOptions = {}): Promise<FrontendHarnessResult> {
+  if (options.coverageSession !== undefined && !/^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/.test(options.coverageSession)) throw new Error('Invalid coverage session')
   const savedEnvironment = new Map(environmentKeys.map(key => [key, process.env[key]] as const))
   const previousUmask = process.umask()
   try {
@@ -38,14 +40,14 @@ export async function executeFrontendHarness(): Promise<FrontendHarnessResult> {
     // No browser-page HTTPS coverage is claimed; Vitest collects the executing harness/fixture.
     delete process.env.BROWSER_COVERAGE_DIR
     delete process.env.BROWSER_COVERAGE_RUN_ID
-    return await executeIsolatedRun()
+    return await executeIsolatedRun(options)
   } finally {
     for (const [key, value] of savedEnvironment) { if (value === undefined) delete process.env[key]; else process.env[key] = value }
     process.umask(previousUmask)
   }
 }
 
-async function executeIsolatedRun(): Promise<FrontendHarnessResult> {
+async function executeIsolatedRun(harnessOptions: FrontendHarnessOptions): Promise<FrontendHarnessResult> {
   const outputRoot = join(root, '.tmp/NA-0179'); mkdirSync(outputRoot, { recursive: true, mode: 0o700 })
   const output = mkdtempSync(join(outputRoot, 'frontend-'))
   // Chromium Unix socket paths must fit sun_path; keep runtime near the workspace root.
@@ -92,16 +94,21 @@ async function executeIsolatedRun(): Promise<FrontendHarnessResult> {
     process.env.VAULT_REVIEW_OUTPUT = output
     report.httpBoundary = await runVaultHttpBoundary(browser, httpBase, fixture, output)
     report.catalogue = await runVaultFlow(browser, httpBase)
-    const childEnv = { ...process.env, TMPDIR: runtimeDirectory, PLAYWRIGHT_EXECUTABLE_PATH: executablePath, CHROMIUM_PATH: executablePath, FRONTEND_BASE: httpBase, REPORT_PATH: join(output, 'terminal.json'), SCREENSHOT_PATH: join(output, 'terminal.png'),
-      AUTOCOMPLETE_SCREENSHOT_PATH: join(output, 'autocomplete.png'), AUTOCOMPLETE_MOBILE_SCREENSHOT_PATH: join(output, 'autocomplete-mobile.png'),
-      THEME_SCREENSHOT_PATH: join(output, 'theme.png'), HIGHLIGHT_SCREENSHOT_PATH: join(output, 'highlight.png') }
-    delete childEnv.CHROMIUM_CDP_URL; delete childEnv.SONAR_TOKEN; delete childEnv.SONAR_REVIEW_TOKEN
-    const terminal = await executeBrowserHarness(root, 'tools/frontend/terminal-experience-playwright.cjs', childEnv, join(output, 'terminal.log'), 120000)
-    report.terminal = terminal
-    if (terminal.exitCode !== 0 || terminal.timedOut) throw new Error('Existing terminal regression failed; inspect private terminal log')
-    const terminalReport = JSON.parse(readFileSync(join(output, 'terminal.json'), 'utf8'))
-    if (terminalReport.result !== 'passed' || !terminalReport.snippets?.refreshedOnOpen || !terminalReport.snippets?.transientFailureRecovered || !terminalReport.resilience) throw new Error('Terminal report does not prove the full regression suite')
-    report.terminalSnippets = terminalReport.snippets
+    if (harnessOptions.coverageSession) {
+      // This is not a terminal PASS: runCoverage must execute and verify its mandatory collector.
+      report.terminal = { status: 'delegated', collector: 'browser', harness: 'terminal', coverageSession: harnessOptions.coverageSession }
+    } else {
+      const childEnv = { ...process.env, TMPDIR: runtimeDirectory, PLAYWRIGHT_EXECUTABLE_PATH: executablePath, CHROMIUM_PATH: executablePath, FRONTEND_BASE: httpBase, REPORT_PATH: join(output, 'terminal.json'), SCREENSHOT_PATH: join(output, 'terminal.png'),
+        AUTOCOMPLETE_SCREENSHOT_PATH: join(output, 'autocomplete.png'), AUTOCOMPLETE_MOBILE_SCREENSHOT_PATH: join(output, 'autocomplete-mobile.png'),
+        THEME_SCREENSHOT_PATH: join(output, 'theme.png'), HIGHLIGHT_SCREENSHOT_PATH: join(output, 'highlight.png') }
+      delete childEnv.CHROMIUM_CDP_URL; delete childEnv.SONAR_TOKEN; delete childEnv.SONAR_REVIEW_TOKEN
+      const terminal = await executeBrowserHarness(root, 'tools/frontend/terminal-experience-playwright.cjs', childEnv, join(output, 'terminal.log'), 120000)
+      report.terminal = terminal
+      if (terminal.exitCode !== 0 || terminal.timedOut) throw new Error('Existing terminal regression failed; inspect private terminal log')
+      const terminalReport = JSON.parse(readFileSync(join(output, 'terminal.json'), 'utf8'))
+      if (terminalReport.result !== 'passed' || !terminalReport.snippets?.refreshedOnOpen || !terminalReport.snippets?.transientFailureRecovered || !terminalReport.resilience) throw new Error('Terminal report does not prove the full regression suite')
+      report.terminalSnippets = terminalReport.snippets
+    }
     report.status = 'passed'
   } catch (error) {
     report.status = 'failed'
