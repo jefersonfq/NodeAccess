@@ -69,3 +69,7 @@ PR68 contém o candidato 8fca07200, com gate integral local PASS e aceite humano
 ## Adequação do harness SFTP na validação final
 
 Correção IN_PLAN autorizada para delimitar a medição de invalidação após o prefetch confirmado e antes do Enter no harness, sem alterar produto, cache, debounce ou assertiva de exatamente uma nova listagem. O fixture registrará path/prefix/directoriesOnly e aguardará um prefetch conhecido antes de enviar o comando, tornando a regressão determinística. Baseline anterior permanece validando reuso exclusivo do canal SFTP. Manter teste negativo de duplicação. Revisão independente antes de commit; ensaio Chromium e novo gate integral no SHA final são obrigatórios antes de prontidão. Nenhuma mudança de escopo do roadmap.
+
+## Revalidação exata das revisões de fonte
+
+Após o harness mudar, revalidar somente sourceSha256 de SQ-0437/SQ-0438/SQ-0439, ocorrências S1313 de IPs sintéticos intactos em FakeWebSocket. Revisão independente aprovou contexto e identidade das três ocorrências. Não alterar regras, assinaturas, ranges, racionales, accepted-findings ou thresholds. Necessidade revelada por REVIEW_SOURCE_CHANGED nos gates local/remoto de c3e754dd0; novo candidato exige gates completos antes de merge.

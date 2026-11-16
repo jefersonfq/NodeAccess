@@ -14,3 +14,13 @@ Base: bf122f141029244b0687f549353d79b4dcbaa506. Candidato local sem commit; nenh
 | new_coverage 79,5% | Gate Sonar | Repetir coleta completa após correções e commit; se persistir, adicionar cobertura pertinente, sem reduzir thresholds. |
 
 Reanálise integral no candidato final: Planned. Nenhuma aprovação de baseline, homologação, publicação ou deploy presumida.
+
+## Revalidação de fonte após correção do harness SFTP
+
+| Ocorrência | Fonte | Revalidação independente |
+|---|---|---|
+| SQ-0437 | terminal-experience-playwright.cjs:22 | IP sintético do host, consumido via FakeWebSocket; linha/range/assinatura intactos. |
+| SQ-0438 | terminal-experience-playwright.cjs:39 | IP sintético de retry, consumido via FakeWebSocket; linha/range/assinatura intactos. |
+| SQ-0439 | terminal-experience-playwright.cjs:40 | IP sintético bloqueado, consumido via FakeWebSocket; linha/range/assinatura intactos. |
+
+Atualizado somente sourceSha256 das três revisões para 9d18d28b72aaeea039786f71c7d71b33cdf0a96058baeed52d2750586549ff7e. Evidência individual: docs/changes/2026/11/NA-0178-vault-delivery/evidence/sonar-review-revalidation.json. Nenhuma nova permissão, alteração de regra, rationale, range, threshold ou accepted-findings. Gate c3 terminou FAIL por REVIEW_SOURCE_CHANGED apesar de coletores PASS e Quality Gate OK; aprovação integral do novo SHA permanece pendente.

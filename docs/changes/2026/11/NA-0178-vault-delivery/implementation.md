@@ -71,3 +71,11 @@ Revisão independente inicial FAIL focal: baseline pósEnter poderia absorver um
 Revalidação após revisão: helper 5/5 PASS e diff-check PASS (.tmp/sftp-baseline-helper-review2.log). Baseline agora préEnter após prefetch confirmado; duplicação Enter+cd explicitamente rejeitada. Revisão 2 pendente; nenhum Chromium, commit ou novo Sonar executado.
 
 Revisão independente 2 PASS, confirmada pelo orquestrador: intervalo inclui Enter+cd e mantém +1. Commit/push destes quatro arquivos autorizados para PR68 draft; testes integrais no novo SHA continuam Planned e aguardam disponibilidade de recursos. Sem merge/deploy.
+
+### 2026-11-16T11:35:22-03:00 — Reconciliação exata das três revisões existentes
+
+Gate integral c3e754dd0 encerrou 2026-11-16T14:33:22Z exit1: única falha REVIEWED_FINDINGS_NOT_VERIFIED/error REVIEW_SOURCE_CHANGED. Vitest3962, Node722, Chromium10/10 e TLS/cleanup PASS; diff92,1316%, Sonar81,8%, zero novas violações/hotspots, analysisVerifiedtrue. Relatório .sonar-reports/validation-1794838616920-c34b9b32-68e8-4483-ae50-14d1f812cbeb/validation.json. Não aprovado integralmente.
+
+Revisor independente API_tests confirmou SQ-0437/438/439: IPs sintéticos e fronteira FakeWebSocket intactos. Autorizado atualizar apenas três sourceSha256 e documentação/evidência individual; plano registrado antes. Commit/push metadata autorizado, PR68 draft e novo gate pendente; sem merge/deploy, sem novo coletor até liberação. Nenhuma mudança de produto/roadmap.
+
+Ran: teste focal tools/sonarqube/reconcile.test.mjs PASS; comparação estrutural confirmou somente três sourceSha256 e metadados/quantidade restantes intactos; diff-check PASS. Evidência .tmp/c3-review-reconcile-tests.log. Gate integral do novo SHA continua Planned.

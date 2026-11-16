@@ -32,29 +32,30 @@ export class PemKeyService {
   }
 
   /**
-   * Converts a PuTTY .ppk key to OpenSSH PEM format.
+   * Validates key input and preserves the legacy PPK conversion call.
    * Returns the original string unchanged if it is not a .ppk file.
    */
   private normalizePemKey(raw: string, passphrase?: string): string {
-    const parsed = sshUtils.parseKey(Buffer.from(raw), passphrase)
-    const key    = Array.isArray(parsed) ? parsed[0] : parsed
-    if (!key || key instanceof Error) {
+    const parsed: unknown = sshUtils.parseKey(Buffer.from(raw), passphrase)
+    const key: unknown = Array.isArray(parsed) ? parsed[0] : parsed
+    if (!key || typeof key !== 'object' || key instanceof Error) {
       const encrypted = /encrypted|passphrase|decrypt/i.test(key instanceof Error ? key.message : '')
       throw new BadRequestError(encrypted
         ? 'A chave privada é criptografada. Informe a senha da chave e tente novamente.'
         : 'Chave privada inválida ou senha da chave incorreta.')
     }
     if (!raw.includes('PuTTY-User-Key-File')) return raw
-    // Convert to OpenSSH private key format (-----BEGIN OPENSSH PRIVATE KEY-----)
-    const converted = key.toString('openssh' as Parameters<typeof key.toString>[0])
-    if (!converted) throw new BadRequestError('Não foi possível converter a chave .ppk para o formato OpenSSH.')
+    // Preserve the legacy call contract; ssh2 PPK serialization needs a separate fix.
+    const convert: unknown = Reflect.get(key, 'toString')
+    const converted: unknown = typeof convert === 'function' ? Reflect.apply(convert, key, ['openssh']) : undefined
+    if (typeof converted !== 'string' || !converted) throw new BadRequestError('Não foi possível converter a chave .ppk para o formato OpenSSH.')
     return converted
   }
 
   async create(dto: CreatePemKeyDto, userId: number): Promise<PemKeyPublic> {
     const passphrase = dto.passphrase || undefined
     const keyContent      = this.normalizePemKey(dto.key, passphrase)
-    const { encrypted, iv } = encrypt(keyContent as string)
+    const { encrypted, iv } = encrypt(keyContent)
     const encryptedPassphrase = passphrase ? encrypt(passphrase) : null
     const key = await this.pemKeyRepo.create({
       name:         dto.name,

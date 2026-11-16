@@ -1,6 +1,6 @@
 # NA-0179 — Registro de implementação
 
-Basec3e754dd00ba0a6edb158f7cc99d7003cdb49987 (anteriores89a8d949b e8fca07200); branchfeature/NA-0179-20261116-vault-reveal.
+Base31a9f3601874ea2d0fa474972dc01a07e35f94b6 (anterioresc3e754dd0,89a8d949b e8fca07200); branchfeature/NA-0179-20261116-vault-reveal.
 
 ## Pedido e objetivo
 
@@ -76,3 +76,17 @@ Ran após correção para User.name: sharedbuild ebackendtypecheckPASS,6testesPE
 Ran scannerlocal42/42fixturesPASS,Semgrep0/0/934targets antesdarestauraçãodasduasfixturesSecret (CIrepetiránofinal); hashesdastraduçõesrevalidadosindependentemente apósparamname. Ranmanual:capturePASS,5imagensinspecionadas,20testesmanualPASS echeck-reviewed5/5PASS; hashHostsrecalculadoapósrevisão, fontesPEMmapeadas. Semmudançanaáreaútil/transportePTY.
 
 CandidatoconsolidaWIPautorizado e integração c3 emumcommitdemerge, semdeploy/ativação. Aceiteshumanosbackend/frontendcondicionaiscontinuamnaPR68/69; relatodoHTTP e pedidoproprietárioatendidoscomcorreçõesconcretas. Planned: Sonarcompleto eSQL32noSHAfinal, CIlatestSHA, encerramentodasrevisões e merge68→69/masterlimpa. SHAs/evidênciasfinais serãoanexadosàsPRs, nãohácommitrecursivoderelatório. Roadmapfoiatualizadoumaúnicaveznestainteração; snapshotdistinguevalidaçãolocaldepublicação.
+
+### 2026-11-16T11:33:33-03:00 — Diagnóstico de lint no parser PEM
+
+CI do candidato f07 incluiu pem-key.service.ts em lint:changed e reprovou sete erros de tipos preexistentes. Inspecionados @types/ssh2 e implementação local: Array.isArray expande elemento para any; ParsedKey/BaseKey não fornecem serializador toString openssh. Planejada correção mínima unknown/guards/Reflect.apply preservando chamada legada; substituição semântica PPK não autorizada por esta adequação. Testes de mocks anteriores não comprovam importação PPK real. Nenhum código do parser alterado neste checkpoint; revisor/root informado antes da edição.
+
+### 2026-11-16T11:37:18-03:00 — Correção mínima de tipos PEM validada
+
+Root confirmou preservar a chamada legada PPK e não substituir serializador nesta frente. Implementados unknown no retorno do parser/elemento, guard objeto/Error, Reflect.get com callable guard e Reflect.apply preservando método/receiver/argumento openssh; retorno validado como string não vazia e cast de encrypt removido. Primeiro lint apontou unbound-method, corrigido sem supressão. Ran final: ESLint service/normalization.test PASS; backend typecheck PASS; 14 testes focais em 3 arquivos PASS (6 anteriores e 8 de normalização). PEM real válido/inválido e passphrase/SSH cobertos; contrato PPK exercitado com mock explícito, não prova importação PPK real. Pendência específica preexistente: ssh2 BaseKey expõe getPrivatePEM e herda toString padrão, logo a conversão PPK precisa de correção semântica separada e testes reais antes de ser prometida. Próximo: revisão independente, manual/hash afetado e gates no novo candidato.
+
+### 2026-11-16T11:42:37-03:00 — Correções exatas dos últimos gates
+
+Ran SQL/Redis32/32PASS nof07b0d08,cleanup/fontesestáveis (.tmp/NA-0178/mysql-1794839369/execution.json). CIstatic-quality f07FAILpelos7diagnósticospreexistentesdoparserPEM; corrigi-los tornou-senecessáriaparaarquivoalterado. Adequação restrita deunknown/guards/Reflect preservamétodo,receiver eargumentolegado; semnovoserializador, semcastsasany/supressões. Ran14testesfocaisPASS,lintsservice/testPASS,typecheckbackendPASS e lint:changedcompletoPASS. RevisãoindependentePASS; PPKeyrealnãofoiafirmadocomotestadopormocks, limitaçãolegadapermanecependênciaseparada.
+
+Sonarbackendc3 tevecoletores/diff92,13%/qualidadePASS, mas revisãofonteFAIL. Três sourceSha deSQ0437–439 foram revalidadosindependentemente mantendo ocorrências,IPs,contextoFakeWebSocket, regras eacceptedbaseline; base31a9integradacomstashrecuperável .tmp/NA-0179/base-integration-metadata.json. Gatelocalbackend31a9emcurso, nãohámerge. ManualHoststemhashrevalidadoapósadequação técnica semmudançadeprocedimento; capturasjáinspecionadasmantidas. Planned: novoSHAfrontend/gatescompletosSQL/CI/Sonar, depoisintegraçãoautorizada. Alteraçõesposteriores ao snapshotúnicodoplanilhaficamregistradasaqui; pendênciaPPKdevesertriadaemfrenteprópria epróximaconsolidaçãodoroadmap.

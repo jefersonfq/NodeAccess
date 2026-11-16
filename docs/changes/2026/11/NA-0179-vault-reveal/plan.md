@@ -5,7 +5,7 @@ type: feature
 status: ready-for-tests
 created_at: 2026-11-16T09:15:00-03:00
 base_branch: security/NA-0178-20261115-vault-delivery
-base_sha: c3e754dd00ba0a6edb158f7cc99d7003cdb49987
+base_sha: 31a9f3601874ea2d0fa474972dc01a07e35f94b6
 branch: feature/NA-0179-20261116-vault-reveal
 risk: high
 owner: unassigned
@@ -75,3 +75,9 @@ O usuário solicitou substituir “Proprietário: usuário #1” pela identifica
 ## Base reconciliada para o candidato final
 
 Incorporado c3e754dd00ba0a6edb158f7cc99d7003cdb49987, que delimita o teste SFTP depois de um prefetch confirmado e antes de Enter. A exigência de exatamente uma listagem permanece, assim como o teste negativo de duplicação. Nenhum código de terminal foi alterado por essa correção. Trabalho frontend preservado com stash identificado e reaplicado sem conflitos; commit de integração será consolidado com as correções desta frente.
+
+## Adequação mínima de tipos do parser PEM
+
+O CI lint:changed encontrou sete erros preexistentes no parser PEM, agora incluído no delta de metadados. Corrigir propagação de any de Array.isArray com fronteira unknown e validação de retorno; retirar assertion redundante de encrypt. Preservar parser, receiver, argumento e método de conversão legados, sem mudar algoritmo, autorização ou fluxo SSH. Inspeção de ssh2 revela que a conversão PPK legada usa toString sem serializador próprio; não afirmar validação funcional desse formato nem substituir por getPrivatePEM nesta adequação. Registrar a limitação e submeter mudança semântica PPK separadamente. Executar testes focais de PEM válido/inválido/passphrase e contrato legado da chamada PPK, lint e typecheck.
+
+Base final31a9f360 incorporada para revalidar os três hashes de fontes dos falsos positivos S1313 já revisados no roteiro SFTP. Não muda código, regras ou baseline aceita. A integração preservou a correção local de tipos via stash identificado, sem conflitos.

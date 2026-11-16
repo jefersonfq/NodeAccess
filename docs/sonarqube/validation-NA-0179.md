@@ -1,6 +1,6 @@
 # NA-0179 — Validação e evidências
 
-Base:c3e754dd00ba0a6edb158f7cc99d7003cdb49987 (análises anteriores sobre89a8). A frente acrescenta reveal/copy portal; não ativa tenants nem altera transporte de terminal.
+Base:31a9f3601874ea2d0fa474972dc01a07e35f94b6 (análises anteriores sobre89a8/c3). A frente acrescenta reveal/copy portal; não ativa tenants nem altera transporte de terminal.
 
 Ran antes do commit:61testesbackend/adapterJWE,42estadoHTTP/views,13componente,20manual; typecheckbackend/frontend, lintfocal ebuildfrontendPASS. EnsaioHTTPS19,catálogo14 e terminal/snippetsPASS, com ressalva documental registrada no relatório; execução definitiva deve usarSHAcongelado.
 
@@ -28,3 +28,5 @@ Ocorrências identificadas pelo CI em `tools/vault-security/frontend-harness.mts
 | `c9ff3a22-bec9-42bf-b9bb-fdbe7bc4c1d8` | typescript:S4036 / 49 | Executável com caminho absoluto; sem resolução pelo PATH. | Corrigido no código; reanálise pendente |
 
 Nenhuma alteração em `accepted-findings.json`. Lint focal PEM encontrou sete diagnósticos no parser ssh2 preexistente, reproduzidos com HEAD; parser não foi alterado nem regras suprimidas. Typecheck detectou a suposição incorreta de User.username no adendo de proprietário; corrigida para User.name e validada com build compartilhado/typecheck backend e testes.
+
+O CI f07 alcançou sete diagnósticos antigos do parser PEM porque o arquivo recebeu metadados. Adequação mínima de tipos, validação de retorno e remoção de cast redundante corrigiram o lint sem mudar o método/receiver/argumento da conversão legada. Ran14testesPASS, typecheckbackendPASS, lint:changed completoPASS; revisãoindependentePASS. Limitação PPK preexistente registrada separadamente, sem promessa de conversão real validada. A base31a9 contém apenas a revalidação independente de três sourceSha S1313 do teste SFTP; não houve exceção nova na baseline. Gates integrais no novo SHA permanecem Planned.

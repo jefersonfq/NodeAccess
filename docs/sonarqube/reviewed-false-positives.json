@@ -3161,7 +3161,7 @@
         "startOffset": 182,
         "endOffset": 193
       },
-      "sourceSha256": "3f2f44b843646c6b4999844c542d498c92fcf0540fef66c2695f130b9d1d1766",
+      "sourceSha256": "9d18d28b72aaeea039786f71c7d71b33cdf0a96058baeed52d2750586549ff7e",
       "ruleSha256": "47a5ad141f589cc10929bc37af67e1b72748bafba5026868b88f10f0dc5977a0",
       "rationale": "Literal representa host do terminal com FakeWebSocket. Não é endereço de infraestrutura configurado pelo produto: o consumidor recebe dado sintético através da fronteira de simulação verificada.",
       "evidence": [
@@ -3181,7 +3181,7 @@
         "startOffset": 63,
         "endOffset": 74
       },
-      "sourceSha256": "3f2f44b843646c6b4999844c542d498c92fcf0540fef66c2695f130b9d1d1766",
+      "sourceSha256": "9d18d28b72aaeea039786f71c7d71b33cdf0a96058baeed52d2750586549ff7e",
       "ruleSha256": "47a5ad141f589cc10929bc37af67e1b72748bafba5026868b88f10f0dc5977a0",
       "rationale": "Literal representa host de retry com FakeWebSocket. Não é endereço de infraestrutura configurado pelo produto: o consumidor recebe dado sintético através da fronteira de simulação verificada.",
       "evidence": [
@@ -3201,7 +3201,7 @@
         "startOffset": 67,
         "endOffset": 78
       },
-      "sourceSha256": "3f2f44b843646c6b4999844c542d498c92fcf0540fef66c2695f130b9d1d1766",
+      "sourceSha256": "9d18d28b72aaeea039786f71c7d71b33cdf0a96058baeed52d2750586549ff7e",
       "ruleSha256": "47a5ad141f589cc10929bc37af67e1b72748bafba5026868b88f10f0dc5977a0",
       "rationale": "Literal representa host bloqueado com FakeWebSocket. Não é endereço de infraestrutura configurado pelo produto: o consumidor recebe dado sintético através da fronteira de simulação verificada.",
       "evidence": [
