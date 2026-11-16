@@ -69,8 +69,10 @@ Use **Novo secret** ou **Importar chave PEM** para cadastrar. Em **Ações**, Se
 Se uma origem falhar, os registros da outra continuam disponíveis. Use **Tentar novamente** para recarregar. Trocar o contexto ou atualizar o catálogo fecha os formulários abertos; alterações ainda não salvas precisam ser informadas novamente. Abrir o cofre não encerra a sessão do terminal.
 
 
+Na coluna **Acesso** das chaves PEM, o cofre mostra o nome cadastrado do proprietário junto ao ID. Se esse nome não estiver disponível na resposta, mantém a identificação pelo ID. Isso não altera permissões sobre a chave.
+
 ### Revelar ou copiar uma senha
-Este piloto exige HTTPS, conta local com senha e autenticador TOTP, licença Secrets e habilitação explícita pelos gestores do cofre. Permissão de administrar ou ser proprietário de um Secret não concede permissão de revelar ou copiar. Cada ação tem sua própria autorização, e o item precisa estar habilitado para entrega. Os botões não indicam que você já tem essa permissão. Chaves PEM não participam desse fluxo.
+Este piloto exige HTTPS, conta local com senha e autenticador TOTP, licença Secrets e habilitação explícita pelos gestores do cofre. Em acesso HTTP, inclusive no ambiente de desenvolvimento, um aviso informa a exigência de HTTPS e os botões de revelar/copiar ficam desabilitados. Durante uma operação, os botões também ficam indisponíveis para evitar solicitações simultâneas. Permissão de administrar ou ser proprietário de um Secret não concede permissão de revelar ou copiar. Cada ação tem sua própria autorização, e o item precisa estar habilitado para entrega. Os botões não indicam que você já tem essa permissão. Chaves PEM não participam desse fluxo.
 
 1. Na linha de um Secret ativo, selecione **Revelar senha** ou **Copiar senha**.
 2. Se solicitado, informe sua **Senha NodeAccess** e o **Código do autenticador (6 dígitos)**. Selecione **Desbloquear e continuar**. A senha do Windows não é utilizada neste piloto.

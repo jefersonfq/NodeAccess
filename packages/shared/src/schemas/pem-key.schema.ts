@@ -14,6 +14,7 @@ export const PemKeyPublicSchema = z.object({
   id:          z.number(),
   name:        z.string(),
   createdById: z.number(),
+  createdByName: z.string().optional(),
   createdAt:   z.coerce.date(),
   hasPassphrase: z.boolean(),
 })

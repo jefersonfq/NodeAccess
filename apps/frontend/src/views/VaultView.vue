@@ -82,13 +82,15 @@ const columns = computed<DataTableColumns<VaultEntry>>(() => [
   { title: t('vault.type'), key: 'kind', width: 120, render: (entry): VNodeChild => t(entry.kind === 'secret' ? 'vault.secretType' : 'vault.pemType') },
   { title: t('vault.access'), key: 'access', width: 190, render: (entry): VNodeChild => entry.kind === 'secret'
     ? `${t(`secrets.scopes.${entry.record.scope}`)}${entry.record.scope === 'GROUP' ? ` · #${entry.record.groupId}` : ''}`
-    : t('vault.pemOwner', { id: entry.record.createdById }) },
+    : entry.record.createdByName
+      ? t('vault.pemOwnerNamed', { name: entry.record.createdByName, id: entry.record.createdById })
+      : t('vault.pemOwner', { id: entry.record.createdById }) },
   { title: t('vault.status'), key: 'status', width: 170, render: (entry): VNodeChild => entry.kind === 'secret'
     ? h(NTag, { size: 'small', type: entry.record.revokedAt ? 'error' : 'success' }, () => t(entry.record.revokedAt ? 'secrets.status.revoked' : 'secrets.status.active'))
     : t(entry.record.hasPassphrase ? 'vault.withPassphrase' : 'vault.withoutPassphrase') },
   { title: t('vaultDelivery.values'), key: 'delivery', width: 190, render: (entry): VNodeChild => entry.kind === 'secret' && !entry.record.revokedAt
     ? h('div', { class: 'flex flex-wrap gap-2' }, (['reveal', 'copy'] as const).map(action => h(NButton, {
-      size: 'small', secondary: true, 'aria-label': `${t(`vaultDelivery.${action}`)}: ${entry.name}`,
+      size: 'small', secondary: true, disabled: deliveryPanel.value?.available !== true, 'aria-label': `${t(`vaultDelivery.${action}`)}: ${entry.name}`,
       onClick: (): void => { deliveryPanel.value?.request(action, entry.record.id, entry.name) },
     }, () => t(`vaultDelivery.${action}`)))) : '—' },
   { title: t('common.actions'), key: 'actions', width: 130, render: (entry): VNodeChild => h(NDropdown, {

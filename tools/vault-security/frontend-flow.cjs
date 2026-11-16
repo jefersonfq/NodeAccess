@@ -31,7 +31,7 @@ async function runVaultFrontendFlow(browser, base, fixture, output) {
       let body = {}
       if (path.endsWith('/features')) body = { secretsLicensed: true, secrets: true }
       else if (path === '/api/v1/secrets') body = [metadata]
-      else if (path === '/api/v1/pem-keys') body = [{ id: 1, name: 'gateway', createdById: 41, createdAt: metadata.createdAt, hasPassphrase: false }]
+      else if (path === '/api/v1/pem-keys') body = [{ id: 1, name: 'gateway', createdById: 73, createdByName: 'pem-owner-fixture', createdAt: metadata.createdAt, hasPassphrase: false }]
       else if (path.endsWith('/groups')) body = []
       await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) })
     })
@@ -77,6 +77,7 @@ async function runVaultFrontendFlow(browser, base, fixture, output) {
   }
   try {
     await scenario('HTTPS, real bcrypt/TOTP/JWE, failed password, explicit hide and memory-only capabilities', async h => {
+      await h.page.locator('[data-vault-id="pem:1"]').getByText('Proprietário: pem-owner-fixture (#73)', { exact: true }).waitFor()
       await h.open('reveal'); await h.unlock('incorrect-synthetic-password')
       await h.page.getByRole('alert').waitFor(); check(h.releaseCount() === 0, 'Wrong password authorized a release')
       await h.unlock(); await h.visible(); check(h.releaseCount() === 1, 'Reveal did not commit exactly one release')
@@ -158,4 +159,33 @@ async function runVaultFrontendFlow(browser, base, fixture, output) {
     return { status: 'passed', scenarios, count: scenarios.length }
   } finally { await Promise.allSettled([...contexts].map(context => context.close())) }
 }
-module.exports = { runVaultFrontendFlow }
+async function runVaultHttpBoundary(browser, base, fixture, output) {
+  check(new URL(base).protocol === 'http:', 'HTTP boundary requires a non-TLS browser origin')
+  const context = await browser.newContext({ serviceWorkers: 'block', locale: 'pt-BR', viewport: { width: 1360, height: 900 } })
+  let vaultRequests = 0
+  try {
+    await context.addInitScript(({ access, refresh }) => {
+      localStorage.setItem('na_access_token', access); localStorage.setItem('na_refresh_token', refresh)
+    }, { access: fixture.accessToken, refresh: fixture.refreshToken })
+    await context.route('**/api/v1/**', async route => {
+      const path = new URL(route.request().url()).pathname
+      if (path.startsWith('/api/v1/vault-security/')) vaultRequests++
+      const body = path.endsWith('/features') ? { secretsLicensed: true, secrets: true }
+        : path === '/api/v1/secrets' ? [metadata] : path === '/api/v1/pem-keys' || path.endsWith('/groups') ? [] : {}
+      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) })
+    })
+    const page = await context.newPage(); page.setDefaultTimeout(15000)
+    await page.goto(`${base}/vault`, { waitUntil: 'networkidle' })
+    await page.getByRole('alert').filter({ hasText: 'HTTPS' }).waitFor()
+    for (const name of ['Revelar senha: database', 'Copiar senha: database']) {
+      const button = page.getByRole('button', { name, exact: true })
+      check(await button.isDisabled(), 'HTTP exposes an enabled secret-delivery action')
+      await button.evaluate(element => element.click())
+    }
+    check(vaultRequests === 0, 'HTTP dispatched a Vault API request despite the disabled actions')
+    check(await page.getByRole('dialog').count() === 0, 'HTTP opened a secret-delivery dialog')
+    await page.screenshot({ path: join(output, 'http-blocked.png'), fullPage: true, animations: 'disabled' })
+    return { status: 'passed', reasonVisible: true, revealDisabled: true, copyDisabled: true, vaultRequests }
+  } finally { await context.close() }
+}
+module.exports = { runVaultFrontendFlow, runVaultHttpBoundary }

@@ -17,6 +17,7 @@ const delivery = createVaultDelivery({ identity }), state = delivery.state
 const dialog = ref(false), password = ref(''), token = ref(''), itemName = ref(''), action = ref<'reveal' | 'copy'>('reveal')
 let itemId = 0, intent = 0, ticker: ReturnType<typeof setInterval> | undefined
 const busy = computed(() => ['unlocking', 'delivering', 'copying'].includes(state.phase))
+const available = computed(() => secure.value && !busy.value)
 const title = computed(() => `${t(`vaultDelivery.${action.value}`)}: ${itemName.value}`)
 function clearForm(): void { password.value = ''; token.value = '' }
 function reset(): void { ++intent; clearForm(); dialog.value = false; itemId = 0; itemName.value = ''; delivery.lock() }
@@ -50,7 +51,7 @@ onBeforeUnmount(() => {
   window.removeEventListener('nodeaccess:tenant-context-changed', reset)
   document.removeEventListener('visibilitychange', visibility)
 })
-defineExpose({ request, lock: reset })
+defineExpose({ request, lock: reset, available })
 </script>
 
 <template>
@@ -71,12 +72,14 @@ defineExpose({ request, lock: reset })
     >
       {{ t('vaultDelivery.lock') }}
     </NButton>
-    <NText
+    <NAlert
       v-if="!secure"
-      depth="3"
+      type="warning"
+      role="alert"
+      class="w-full"
     >
       {{ t('vaultDelivery.https') }}
-    </NText>
+    </NAlert>
     <NModal
       :show="dialog"
       :mask-closable="false"

@@ -7,11 +7,12 @@ import type { LogRepository } from '../logs/log.repository.js'
 import ssh2 from 'ssh2'
 const sshUtils = ssh2.utils
 
-function toPublic(key: PemKey): PemKeyPublic {
+function toPublic(key: PemKey & { createdBy?: { name: string } }): PemKeyPublic {
   return {
     id:          key.id,
     name:        key.name,
     createdById: key.createdById,
+    ...(key.createdBy ? { createdByName: key.createdBy.name } : {}),
     createdAt:   key.createdAt,
     hasPassphrase: Boolean(key.encryptedPassphrase && key.passphraseIv),
   }

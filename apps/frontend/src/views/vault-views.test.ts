@@ -12,7 +12,7 @@ import PemKeysView from './PemKeysView.vue'
 const mocks = vi.hoisted(() => ({ features: vi.fn(), secrets: vi.fn(), pem: vi.fn(), groups: vi.fn() }))
 const auth = reactive({ isAdmin: false, user: { id: 41, tenantId: 7, actingTenantId: undefined as number | undefined, canManageHosts: true } })
 vi.mock('@/stores/auth', () => ({ useAuthStore: () => auth }))
-vi.mock('vue-i18n', () => ({ useI18n: () => ({ t: (key: string) => key }) }))
+vi.mock('vue-i18n', () => ({ useI18n: () => ({ t: (key: string, values?: { name?: string; id?: number }) => key === 'vault.pemOwnerNamed' ? `${key}:${values?.name} (#${values?.id})` : key }) }))
 vi.mock('@/services/features.service', () => ({ FEATURES_UPDATED_EVENT: 'features-updated', featuresService: { get: mocks.features } }))
 vi.mock('@/services/secret.service', () => ({ secretService: { list: mocks.secrets } }))
 vi.mock('@/services/pem-key.service', () => ({ pemKeyService: { list: mocks.pem } }))
@@ -72,6 +72,13 @@ describe('Unified vault presentation and context',()=>{
   mocks.secrets.mockResolvedValue({data:[revoked.record]});mocks.pem.mockResolvedValue({data:[{...pemFixture,hasPassphrase:false}]});await s.reload()
   html=await f.html();expect(html).toContain('secrets.status.revoked');expect(html).toContain('#8');expect(html).toContain('vault.withoutPassphrase')
   f.unmount()
+ })
+ it('shows the PEM owner supplied by the authorized listing and falls back to the ID label',async()=>{
+  mocks.pem.mockResolvedValue({data:[{...pemFixture,createdByName:'actual-owner'}]})
+  const f=mount<VaultState>(VaultView);await flush()
+  expect(await f.html()).toContain('vault.pemOwnerNamed:actual-owner (#41)')
+  mocks.pem.mockResolvedValue({data:[{...pemFixture,createdByName:undefined}]});await f.state.reload()
+  const html=await f.html();expect(html).toContain('vault.pemOwner');expect(html).not.toContain('actual-owner');f.unmount()
  })
  it('closes licensing on feature errors while retaining authorized PEM and reacts to feature events',async()=>{
   const f=mount<VaultState>(VaultView);await flush();mocks.features.mockRejectedValueOnce(new Error('license unavailable'))

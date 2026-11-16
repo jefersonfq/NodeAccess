@@ -38,14 +38,17 @@
       "apps/frontend/src/components/vault/VaultDeliveryPanel.vue",
       "apps/frontend/src/services/vault-delivery.ts",
       "apps/frontend/src/services/vault-envelope.ts",
-      "apps/frontend/src/services/vault-http.ts"
+      "apps/frontend/src/services/vault-http.ts",
+      "apps/backend/src/modules/pem-keys/pem-key.repository.ts",
+      "apps/backend/src/modules/pem-keys/pem-key.service.ts",
+      "packages/shared/src/schemas/pem-key.schema.ts"
     ],
     "journey": [
       "Localizar o host",
       "Conferir o destino",
       "Conectar ou retomar"
     ],
-    "reviewedSourceHash": "88904d67a4a751009ca9cb651453346dbfcf4b1250112af529f5f532a15cd1d0"
+    "reviewedSourceHash": "4510741c1926fb5a58a66ebdf0fa78a73d143f9dceea3aba47e4f2ae12f5a97b"
   },
   {
     "id": "terminal",

@@ -1,6 +1,6 @@
 # NA-0179 — Registro de implementação
 
-Base89a8d949b4419264d121a1c8d5da900f666a38c4 (inicial8fca07200); branchfeature/NA-0179-20261116-vault-reveal.
+Basec3e754dd00ba0a6edb158f7cc99d7003cdb49987 (anteriores89a8d949b e8fca07200); branchfeature/NA-0179-20261116-vault-reveal.
 
 ## Pedido e objetivo
 
@@ -12,7 +12,7 @@ Frontend implementado com estado local efêmero, transporte isolado, desbloqueio
 
 ## Validação
 
-Ran: no candidato 3476e9fb, HTTPS19, catálogo14, terminal com snippets e SQL/Redis32 passaram com fontes congeladas e cleanup confirmado. Unidades, lint, typecheck, build, scanner e manual passaram conforme diário. Governança remota encontrou seções ausentes nestes documentos; esta revisão corrige o formato. Planned: repetir evidências exigidas no novo SHA, Sonar integral e checks remotos. Manual: homologação funcional do frontend ainda não recebida.
+Ran: no candidato 3476e9fb, HTTPS19, catálogo14, terminal com snippets e SQL/Redis32 passaram com fontes congeladas e cleanup confirmado. Unidades, lint, typecheck, build, scanner e manual passaram conforme diário. Governança remota encontrou seções ausentes nestes documentos; esta revisão corrige o formato. Planned: repetir evidências exigidas no novo SHA, Sonar integral e checks remotos. Manual: usuário aceitou a integração da interface condicionada a todos os gates, extração desativada e sem deploy; aceite registrado na PR69. O teste posterior em dev HTTP revelou falha de feedback, corrigida neste WIP e sujeita a nova validação.
 
 ## Recuperação
 
@@ -20,7 +20,7 @@ Manter extração desativada. Para rollback, reverter a interface e preservar ba
 
 ## Pendências
 
-Concluir gates backend (falha TLS em investigação), gates frontend, revisão e homologação humana frontend antes dos merges. PR69 depende da PR68. Roadmap já atualizado uma vez nesta interação; evidências finais ficam nas PRs e artefatos privados, sem commits recursivos de relatórios.
+Concluir gates backend (falha TLS em investigação), gates frontend, revisão e correções de feedback HTTP antes dos merges; aceite humano condicionado aos gates já recebido. PR69 depende da PR68. Roadmap já atualizado uma vez nesta interação; evidências finais ficam nas PRs e artefatos privados, sem commits recursivos de relatórios.
 
 ## Diário de interações
 
@@ -54,3 +54,25 @@ Roadmap atualizado em uma única escrita (META-005/META-017 e revisão33); Origi
 ### 2026-11-16T10:18:12-03:00 — Correção da governança documental
 
 PR69 apontou campos/seções obrigatórios ausentes no plano e registro; corrigidos sem alteração de código ou escopo. Evidências finais do candidato 3476e9fb permanecem históricas; novo SHA exigirá revalidação. Backend89a8 teve execução interrompida após análise no servidor e nova execução apresentou timeout TLS de 200ms; falha preservada, sem aprovação ou relaxamento de teste. Ran: validate:change local PASS sobre os documentos corrigidos; revisão independente do delta documental PASS. Próximo: diagnóstico TLS e gates no candidato corrigido.
+
+### 2026-11-16T10:53:03-03:00 — Sonar e relato de clique sem resposta em HTTP
+
+Ran no4611156: 4031VitestPASS/156opt-in,721NodePASS/11skip,10ChromiumPASS. Sonar local/remoto FAIL: cobertura51,99%,8achados no frontend-harness; evidências privadas preservadas e semmerge. Usuário aceitou integraçãoUI e depois confirmou que clicou em Revelar no devHTTP sem mensagem visível. Correção necessária: painel expõe disponibilidade segura, botões desabilitados e alertaHTTPS destacado, sem relaxar transporte. Ran23testesdirecionadosPASS, incluindo renderização/escape/erro/cópia; primeira rodada falhou por mockNInput não propagar input-props, mockcorrigido mantendoassert. Harness exportado e integrado ao Vitest opt-in para coletar execução real dos helpersTS, com8correçõessemexceçõesdebaseline; revisãoindependente PASS_WITH_WARNINGS, risco de concorrênciaentreworkersVitest a validar. Planned: ensaioHTTPS/HTTP, manual, cobertura/gates novos e SQLlatestSHA. Backend89a8 emrevalidação integral isolada; nenhumdeploy/ativação. Roadmap já consolidado nesta interação; semnovaescrita.
+
+### 2026-11-16T11:11:44-03:00 — Proprietário PEM, cobertura real e reconciliação
+
+Pedido adicional autorizado: substituir identificação somente por ID pelo nome cadastrado do proprietário PEM. Listagem seleciona somente createdBy.name com filtros inalterados; schemaaditivoopcional, UI nome+ID/fallback, nenhum materialcriptográfico novo. Ran6testesbackend/passphrasePASS e27testesdirecionadosUI/projeçãoPASS; revisãoindependentePASScomressalva de fallbackapósupdateantigo. LintPEM encontrou7diagnósticos emnormalizePemKey preexistente, reproduzidoscomHEAD; parsernãoalterado/regrasnãosuprimidas. SharedbuildPASS; typechecksfrontend/backendPASS antes último adendoowner, revalidaçãofinalpendente.
+
+Ran coletaVitestcompletacomnovoHTTPSinstrumentado:4041PASS/0FAIL/156opt-in,891suites;19HTTPS+HTTPboundary+14catálogo+terminalPASS, cleanup e fontesestáveis. ScreenshotHTTPinspecionado, alertalegível e açõesdesabilitadas. Helpersanteszeradosagoracobertos; diagnósticodiferencialVitest88,30% (não éSonarcompleto). Evidências .tmp/NA-0179/vitest-harness-instrumented e frontend-9DOtfG. Depoisadicionado subcaso proprietárioPEM em19cenários e fingerprintampliado; aindaaguardaensaio.
+
+Backendgate89a8falhouSFTPporbaselineantesdedigitação; revisãoencontrou risco de absorverconsultasEnter e exigiu baselineapósprefetch/antesEnter. Correçãoc3e754ddrevisadaPASS, helper5/5PASS, semprodedit. Base incorporadasemconflito e WIPrestaurado; stashrecuperável em .tmp/NA-0179/base-integration.json. Planned: manual/capturas, checksfinais, commitintegrado e gatesnosSHAsfinais. Hashes2fixtureslocale revalidadosindependentemente apósrótulopemOwnerNamed, escopoinalterado.
+
+Correção do adendo PEM: typecheck completo identificou seleção de username inexistente no modelo User. Os testes com mocks anteriores não detectavam o contrato incorreto. Implementação e testes foram alinhados ao campo real name, com createdByName opcional na resposta; sem migração e sem exposição do e-mail. Revalidação de tipos e consultas exigida antes de commit.
+
+### 2026-11-16T11:25:16-03:00 — Candidato corrigido para gates finais
+
+Ran após correção para User.name: sharedbuild ebackendtypecheckPASS,6testesPEM/passphrasePASS,frontendtypecheck/buildPASS (35,50s; aviso debundle950kB preservado). Ran27testesdirecionadosPASS comcreatedByName e fixturesSecretrestauradas acreatedByUsername. Revisãoindependente confirmoucamposreais/schema e ausênciaemail/segredos; revisãoanterior haviaomitidovalidaçãodocampoPrisma e nãoéusadacomoprova. Lintfocalencontrouumanynomockdeformulário, corrigidocomPropType e revalidadoPASS; seteavisospreexistentesdoparserPEM continuamregistrados, semsupressão.
+
+Ran scannerlocal42/42fixturesPASS,Semgrep0/0/934targets antesdarestauraçãodasduasfixturesSecret (CIrepetiránofinal); hashesdastraduçõesrevalidadosindependentemente apósparamname. Ranmanual:capturePASS,5imagensinspecionadas,20testesmanualPASS echeck-reviewed5/5PASS; hashHostsrecalculadoapósrevisão, fontesPEMmapeadas. Semmudançanaáreaútil/transportePTY.
+
+CandidatoconsolidaWIPautorizado e integração c3 emumcommitdemerge, semdeploy/ativação. Aceiteshumanosbackend/frontendcondicionaiscontinuamnaPR68/69; relatodoHTTP e pedidoproprietárioatendidoscomcorreçõesconcretas. Planned: Sonarcompleto eSQL32noSHAfinal, CIlatestSHA, encerramentodasrevisões e merge68→69/masterlimpa. SHAs/evidênciasfinais serãoanexadosàsPRs, nãohácommitrecursivoderelatório. Roadmapfoiatualizadoumaúnicaveznestainteração; snapshotdistinguevalidaçãolocaldepublicação.

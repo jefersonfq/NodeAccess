@@ -6806,6 +6806,7 @@
     "access": "Acesso",
     "status": "Estado",
     "pemOwner": "Proprietário: usuário #{id}",
+    "pemOwnerNamed": "Proprietário: {name} (#{id})",
     "withPassphrase": "Com senha da chave",
     "withoutPassphrase": "Sem senha da chave",
     "importPem": "Importar chave PEM",
