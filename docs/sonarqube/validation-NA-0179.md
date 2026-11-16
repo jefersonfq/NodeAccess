@@ -42,3 +42,13 @@ CI run43888789345: FAIL (Vitest4048PASS/1FAIL, cobertura63,68%, um novo achado).
 Local0321: Vitest4049PASS, HTTPS19/HTTP/catálogo14/terminalPASS, Node722PASS e TLS cleanupVerified. Execução substituída após os coletores para corrigir CI; sem scanner final, portanto não é gate aprovado. Artefatos preservados em `.tmp/NA-0179/sonar-0321-superseded/`. Revisão independente das correções PASS; importação isolada1PASS. Próximo gate integral deve usar novo SHA, sem exceções ou thresholds alterados.
 
 O candidato7f583 encontrou falha local de caminho AF_UNIX antes da UI (Chromium cache localizado, socket131bytes). Runtime agora usa diretório exclusivo curto sob `.tmp/v-` (101bytes no checkout atual), com remoção após fechamento e registro de falha de cleanup. Focal Vitest2/2PASS, HTTPS19/HTTP/catálogo14/terminalPASS, fontes estáveis e runtime removido; evidência `frontend-buu7Vc/execution.json`. Gate7f anterior substituído após TLS limpo, sem aprovação integral. Próxima análise usa novo commit; nenhuma baseline ou regra alterada.
+
+## Configuração de runtime por processo
+
+CI165b/run43896543671: todos os coletores PASS, cobertura88,577%, missing[], único achado abaixo. A regra na versão14.0.0.46108 detecta o MemberExpression process.env.TMPDIR, sem inspecionar o valor atribuído. Removida a mutação global; Chromium e terminal recebem TMPDIR via ambiente próprio, preservando runtime exclusivo/curto e cleanup. Nenhuma supressão ou alteração de baseline.
+
+| ID da ocorrência CI | Regra / linha | Correção | Estado |
+|---|---|---|---|
+| `726c0c6c-4abb-4427-829b-d5177ce71a26` | typescript:S5443 / 53 | Ambiente temporário restrito aos subprocessos; removida mutação global. | Reanálise pendente |
+
+Fonte primária: https://github.com/SonarSource/SonarJS/blob/14.0.0.46108/packages/analysis/src/jsts/rules/S5443/rule.ts. Revisão independente PASS; focal2PASS/174s com HTTPS/HTTP/catálogo/terminal. Gate local165b teve falha ambiental de cacheVite; retry passou todos os coletores e SQL32, mas scanner foi interrompido antes de submissão para aplicar esta correção. Não é aprovação integral. Próximo commit exige novo gate completo.
