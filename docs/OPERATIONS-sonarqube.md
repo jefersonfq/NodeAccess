@@ -108,3 +108,7 @@ A rotina `npm run validate:sonar` usa agora o agregador Vitest + Node/V8 com bas
 ## Continuidade operacional — NA-0091
 
 Backup, restauração isolada, renovação com sobreposição de tokens e manutenção agendada estão descritos no [guia de operação e recuperação](changes/2026/11/NA-0091-sonar-recovery/operations.md). Evidências sanitizadas registram a restauração equivalente e a primeira execução manual da manutenção instalada. Tokens e backups permanecem fora do repositório.
+
+## Descoberta de TypeScript — NA-0175
+
+O scanner usa explicitamente os três tsconfig.json do checkout atual (backend, frontend e shared). Em15/11/2026, a descoberta recursiva também carregou seis configurações de worktrees em .tmp e o processo Node do analisador atingiu seu limite de4288MB. Fixar `sonar.typescript.tsconfigPaths` evita esses programas duplicados; `sonar.sources`, exclusões, regras e thresholds não foram alterados. Arquivos JavaScript fora desses projetos continuam no escopo de fontes do scanner. [Referência oficial](https://docs.sonarsource.com/sonarqube-server/analyzing-source-code/languages/javascript-typescript-css#typescript-configuration). A nova configuração requer análise integral comprovada; não presumir gate aprovado a partir da correção.

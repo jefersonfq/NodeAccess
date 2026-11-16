@@ -5641,11 +5641,12 @@
       "signature": "9748f174fc03348ec6971eb632c36ee632f9d4dbadb023e63566a34e2c4ad4da",
       "status": "context_reviewed",
       "observed": "absent",
-      "rationale": "Falso positivo aplicado e confirmado no Sonar, com revisor temporário autorizado e desativado. O input pemKeyFileInput de seleção de chave PEM usa class hidden (display:none) e não é o controle apresentado ao usuário. A seleção é aberta por acionador visível nomeado; adicionar label ao elemento oculto não corrige uma falta de nome na interface. A regra exige nome/associação para controles apresentados ao usuário; este controle com display:none não participa da árvore de acessibilidade. Não se usa tabindex=-1 isoladamente como justificativa.",
+      "rationale": "Falso positivo aplicado e confirmado no Sonar, com revisor temporário autorizado e desativado. O input pemKeyFileInput de seleção de chave PEM usa class hidden (display:none) e não é o controle apresentado ao usuário. A seleção é aberta por acionador visível nomeado; adicionar label ao elemento oculto não corrige uma falta de nome na interface. A regra exige nome/associação para controles apresentados ao usuário; este controle com display:none não participa da árvore de acessibilidade. Não se usa tabindex=-1 isoladamente como justificativa. NA-0175: autorização histórica retirada do manifesto após extração dos controles para components/vault; contexto antigo não reutilizado. Novos inputs recebem nomes acessíveis.",
       "evidence": [
         "apps/frontend/src/views/PemKeysView.vue:199",
         "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json",
-        "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/final-review.json"
+        "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/final-review.json",
+        "docs/sonarqube/validation-NA-0175.md"
       ],
       "branch": "fix/NA-0087-20261103-sonar-frontend",
       "risk": "low",
@@ -5687,11 +5688,12 @@
       "signature": "9735558c8fb3adc57abe350dbc8be885e4586d3e8fd05efdca379bac54f1461a",
       "status": "context_reviewed",
       "observed": "absent",
-      "rationale": "Falso positivo aplicado e confirmado no Sonar, com revisor temporário autorizado e desativado. Campo auxiliar de usuário para desviar autofill em criação/edição de segredo; class hidden e tabindex=-1 retiram-no da interação visual e por Tab. Não é o campo real de credencial nem carece de label de um controle visível. A regra exige nome/associação para controles apresentados ao usuário; este controle com display:none não participa da árvore de acessibilidade. Não se usa tabindex=-1 isoladamente como justificativa.",
+      "rationale": "Falso positivo aplicado e confirmado no Sonar, com revisor temporário autorizado e desativado. Campo auxiliar de usuário para desviar autofill em criação/edição de segredo; class hidden e tabindex=-1 retiram-no da interação visual e por Tab. Não é o campo real de credencial nem carece de label de um controle visível. A regra exige nome/associação para controles apresentados ao usuário; este controle com display:none não participa da árvore de acessibilidade. Não se usa tabindex=-1 isoladamente como justificativa. NA-0175: autorização histórica retirada do manifesto após extração dos controles para components/vault; contexto antigo não reutilizado. Novos inputs recebem nomes acessíveis.",
       "evidence": [
         "apps/frontend/src/views/SecretsView.vue:483",
         "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json",
-        "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/final-review.json"
+        "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/final-review.json",
+        "docs/sonarqube/validation-NA-0175.md"
       ],
       "branch": "fix/NA-0087-20261103-sonar-frontend",
       "risk": "low",
@@ -5710,11 +5712,12 @@
       "signature": "5573c742390e974308ae0d9d75fc1bf8b5829020390a8d591de1231f9212e113",
       "status": "context_reviewed",
       "observed": "absent",
-      "rationale": "Falso positivo aplicado e confirmado no Sonar, com revisor temporário autorizado e desativado. Campo auxiliar de senha para desviar autofill em criação/edição de segredo; class hidden e tabindex=-1 retiram-no da interação visual e por Tab. Não é o campo real de credencial nem carece de label de um controle visível. A regra exige nome/associação para controles apresentados ao usuário; este controle com display:none não participa da árvore de acessibilidade. Não se usa tabindex=-1 isoladamente como justificativa.",
+      "rationale": "Falso positivo aplicado e confirmado no Sonar, com revisor temporário autorizado e desativado. Campo auxiliar de senha para desviar autofill em criação/edição de segredo; class hidden e tabindex=-1 retiram-no da interação visual e por Tab. Não é o campo real de credencial nem carece de label de um controle visível. A regra exige nome/associação para controles apresentados ao usuário; este controle com display:none não participa da árvore de acessibilidade. Não se usa tabindex=-1 isoladamente como justificativa. NA-0175: autorização histórica retirada do manifesto após extração dos controles para components/vault; contexto antigo não reutilizado. Novos inputs recebem nomes acessíveis.",
       "evidence": [
         "apps/frontend/src/views/SecretsView.vue:484",
         "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json",
-        "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/final-review.json"
+        "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/final-review.json",
+        "docs/sonarqube/validation-NA-0175.md"
       ],
       "branch": "fix/NA-0087-20261103-sonar-frontend",
       "risk": "low",
@@ -5733,11 +5736,12 @@
       "signature": "8ad410e0f8283677bbc60b7eed393d88266cda3ba6f84d4dd85992c864745786",
       "status": "context_reviewed",
       "observed": "absent",
-      "rationale": "Falso positivo aplicado e confirmado no Sonar, com revisor temporário autorizado e desativado. Campo auxiliar de usuário para desviar autofill em rotação de segredo; class hidden e tabindex=-1 retiram-no da interação visual e por Tab. Não é o campo real de credencial nem carece de label de um controle visível. A regra exige nome/associação para controles apresentados ao usuário; este controle com display:none não participa da árvore de acessibilidade. Não se usa tabindex=-1 isoladamente como justificativa.",
+      "rationale": "Falso positivo aplicado e confirmado no Sonar, com revisor temporário autorizado e desativado. Campo auxiliar de usuário para desviar autofill em rotação de segredo; class hidden e tabindex=-1 retiram-no da interação visual e por Tab. Não é o campo real de credencial nem carece de label de um controle visível. A regra exige nome/associação para controles apresentados ao usuário; este controle com display:none não participa da árvore de acessibilidade. Não se usa tabindex=-1 isoladamente como justificativa. NA-0175: autorização histórica retirada do manifesto após extração dos controles para components/vault; contexto antigo não reutilizado. Novos inputs recebem nomes acessíveis.",
       "evidence": [
         "apps/frontend/src/views/SecretsView.vue:540",
         "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json",
-        "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/final-review.json"
+        "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/final-review.json",
+        "docs/sonarqube/validation-NA-0175.md"
       ],
       "branch": "fix/NA-0087-20261103-sonar-frontend",
       "risk": "low",
@@ -5756,11 +5760,12 @@
       "signature": "405bff83b6c6c08fc6463c6d62c3a7a2678e20f8bc645e4d8f4fcc5082b5e9a9",
       "status": "context_reviewed",
       "observed": "absent",
-      "rationale": "Falso positivo aplicado e confirmado no Sonar, com revisor temporário autorizado e desativado. Campo auxiliar de senha para desviar autofill em rotação de segredo; class hidden e tabindex=-1 retiram-no da interação visual e por Tab. Não é o campo real de credencial nem carece de label de um controle visível. A regra exige nome/associação para controles apresentados ao usuário; este controle com display:none não participa da árvore de acessibilidade. Não se usa tabindex=-1 isoladamente como justificativa.",
+      "rationale": "Falso positivo aplicado e confirmado no Sonar, com revisor temporário autorizado e desativado. Campo auxiliar de senha para desviar autofill em rotação de segredo; class hidden e tabindex=-1 retiram-no da interação visual e por Tab. Não é o campo real de credencial nem carece de label de um controle visível. A regra exige nome/associação para controles apresentados ao usuário; este controle com display:none não participa da árvore de acessibilidade. Não se usa tabindex=-1 isoladamente como justificativa. NA-0175: autorização histórica retirada do manifesto após extração dos controles para components/vault; contexto antigo não reutilizado. Novos inputs recebem nomes acessíveis.",
       "evidence": [
         "apps/frontend/src/views/SecretsView.vue:541",
         "docs/changes/2026/11/NA-0093-sonar-delivery/remediation-progress.json",
-        "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/final-review.json"
+        "docs/changes/2026/11/NA-0093-sonar-delivery/evidence/final-review.json",
+        "docs/sonarqube/validation-NA-0175.md"
       ],
       "branch": "fix/NA-0087-20261103-sonar-frontend",
       "risk": "low",
@@ -15876,6 +15881,132 @@
       "risk": "Revisão limitada à fonte/range registrados; não é aceite de risco nem homologação humana.",
       "url": "http://localhost:9000/project/issues?id=nodeaccess&issues=9db2139f-246d-4122-890c-37141d038405",
       "sonarState": "FALSE_POSITIVE"
+    },
+    {
+      "issueId": "977969d0-0128-4784-bbc3-4cc5845df3d2",
+      "id": "SQ-0570",
+      "rule": "Web:InputWithoutLabelCheck",
+      "type": "BUG",
+      "severity": "MAJOR",
+      "file": "apps/frontend/src/components/vault/PemKeyActions.vue",
+      "baselineLine": 176,
+      "domain": "Frontend",
+      "signature": "90bb5c9a8e3a1f87e0a064850c9bfc7a9d1935732847f42bc5097a8ab755dc34",
+      "status": "fixed",
+      "observed": "present",
+      "rationale": "Nome acessível adicionado ao input auxiliar; comportamento hidden/autocomplete preservado. Reanálise pendente.",
+      "evidence": [
+        "docs/sonarqube/validation-NA-0175.md",
+        "apps/frontend/src/components/vault/PemKeyActions.vue"
+      ],
+      "branch": "feature/NA-0175-20261115-vaultnaccess",
+      "risk": "baixo; validação integral pendente",
+      "url": "http://localhost:9000/project/issues?id=nodeaccess&issues=977969d0-0128-4784-bbc3-4cc5845df3d2"
+    },
+    {
+      "issueId": "531986b2-99f2-4c52-9bc0-a08d68f10aed",
+      "id": "SQ-0571",
+      "rule": "Web:InputWithoutLabelCheck",
+      "type": "BUG",
+      "severity": "MAJOR",
+      "file": "apps/frontend/src/components/vault/SecretActions.vue",
+      "baselineLine": 382,
+      "domain": "Frontend",
+      "signature": "b5b41170d33cf51021a96079ced77bb73e605b4df71666ecc7b53c83cca220b3",
+      "status": "fixed",
+      "observed": "present",
+      "rationale": "Nome acessível adicionado ao input auxiliar; comportamento hidden/autocomplete preservado. Reanálise pendente.",
+      "evidence": [
+        "docs/sonarqube/validation-NA-0175.md",
+        "apps/frontend/src/components/vault/SecretActions.vue"
+      ],
+      "branch": "feature/NA-0175-20261115-vaultnaccess",
+      "risk": "baixo; validação integral pendente",
+      "url": "http://localhost:9000/project/issues?id=nodeaccess&issues=531986b2-99f2-4c52-9bc0-a08d68f10aed"
+    },
+    {
+      "issueId": "dce9b48d-d5f7-4339-a431-88d2757acb1f",
+      "id": "SQ-0572",
+      "rule": "Web:InputWithoutLabelCheck",
+      "type": "BUG",
+      "severity": "MAJOR",
+      "file": "apps/frontend/src/components/vault/SecretActions.vue",
+      "baselineLine": 389,
+      "domain": "Frontend",
+      "signature": "b5b41170d33cf51021a96079ced77bb73e605b4df71666ecc7b53c83cca220b3",
+      "status": "fixed",
+      "observed": "present",
+      "rationale": "Nome acessível adicionado ao input auxiliar; comportamento hidden/autocomplete preservado. Reanálise pendente.",
+      "evidence": [
+        "docs/sonarqube/validation-NA-0175.md",
+        "apps/frontend/src/components/vault/SecretActions.vue"
+      ],
+      "branch": "feature/NA-0175-20261115-vaultnaccess",
+      "risk": "baixo; validação integral pendente",
+      "url": "http://localhost:9000/project/issues?id=nodeaccess&issues=dce9b48d-d5f7-4339-a431-88d2757acb1f"
+    },
+    {
+      "issueId": "7a6ccd22-6e34-404f-8448-40763e5a02ad",
+      "id": "SQ-0573",
+      "rule": "Web:InputWithoutLabelCheck",
+      "type": "BUG",
+      "severity": "MAJOR",
+      "file": "apps/frontend/src/components/vault/SecretActions.vue",
+      "baselineLine": 484,
+      "domain": "Frontend",
+      "signature": "b5b41170d33cf51021a96079ced77bb73e605b4df71666ecc7b53c83cca220b3",
+      "status": "fixed",
+      "observed": "present",
+      "rationale": "Nome acessível adicionado ao input auxiliar; comportamento hidden/autocomplete preservado. Reanálise pendente.",
+      "evidence": [
+        "docs/sonarqube/validation-NA-0175.md",
+        "apps/frontend/src/components/vault/SecretActions.vue"
+      ],
+      "branch": "feature/NA-0175-20261115-vaultnaccess",
+      "risk": "baixo; validação integral pendente",
+      "url": "http://localhost:9000/project/issues?id=nodeaccess&issues=7a6ccd22-6e34-404f-8448-40763e5a02ad"
+    },
+    {
+      "issueId": "3b55d668-d574-4ec2-b531-98a43669716b",
+      "id": "SQ-0574",
+      "rule": "Web:InputWithoutLabelCheck",
+      "type": "BUG",
+      "severity": "MAJOR",
+      "file": "apps/frontend/src/components/vault/SecretActions.vue",
+      "baselineLine": 491,
+      "domain": "Frontend",
+      "signature": "b5b41170d33cf51021a96079ced77bb73e605b4df71666ecc7b53c83cca220b3",
+      "status": "fixed",
+      "observed": "present",
+      "rationale": "Nome acessível adicionado ao input auxiliar; comportamento hidden/autocomplete preservado. Reanálise pendente.",
+      "evidence": [
+        "docs/sonarqube/validation-NA-0175.md",
+        "apps/frontend/src/components/vault/SecretActions.vue"
+      ],
+      "branch": "feature/NA-0175-20261115-vaultnaccess",
+      "risk": "baixo; validação integral pendente",
+      "url": "http://localhost:9000/project/issues?id=nodeaccess&issues=3b55d668-d574-4ec2-b531-98a43669716b"
+    },
+    {
+      "issueId": "bc8eaa0e-51ac-4976-8884-e3be4c7116bd",
+      "id": "SQ-0575",
+      "rule": "javascript:S3403",
+      "type": "BUG",
+      "severity": "MAJOR",
+      "file": "tools/frontend/vault-catalog-playwright.cjs",
+      "baselineLine": 153,
+      "domain": "Ferramentas",
+      "signature": "4e70879944115d3dd00a397d313854016ec05471116dae2dc111a34d2566aa46",
+      "status": "fixed",
+      "observed": "present",
+      "rationale": "Helper exportado separado do executável CLI; removida comparação require.main/module. Reanálise pendente.",
+      "evidence": [
+        "docs/sonarqube/validation-NA-0175.md",
+        "tools/frontend/vault-catalog-playwright.cjs"
+      ],
+      "branch": "feature/NA-0175-20261115-vaultnaccess",
+      "risk": "baixo; validação integral pendente",
+      "url": "http://localhost:9000/project/issues?id=nodeaccess&issues=bc8eaa0e-51ac-4976-8884-e3be4c7116bd"
     }
   ],
   "authorizedReviewAnalysis": {

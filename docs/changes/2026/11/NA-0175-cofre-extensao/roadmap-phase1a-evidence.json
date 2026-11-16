@@ -1,0 +1,22 @@
+{
+  "date": "2026-11-15",
+  "change": "NA-0175",
+  "cells": [
+    "D18",
+    "D6",
+    "G18",
+    "G6",
+    "H6",
+    "I18",
+    "I6",
+    "J6",
+    "K18",
+    "K6"
+  ],
+  "revisionRow": 28,
+  "original2027AndOtherEntriesUnchanged": true,
+  "untouchedCellsAndPreviousRevisionsUnchanged": true,
+  "zipXmlValidation": "PASS",
+  "visualExcelValidation": "not run",
+  "sha256": "8f5cffff29dad8860cd077084524cd0e40bea00fd0bea1353031bff26de4e1aa"
+}

@@ -1,5 +1,10 @@
 # Manual integrado — piloto de 24/09/2026
 
+## Revalidação de 15/11/2026 — NA-0175 / VaultNAccess fase 1A
+
+Hosts documenta a entrada VaultNAccess, busca, ações específicas de Secrets/PEM, usos em hosts/snippets e recuperação de falha parcial. Incluídos os fontes do catálogo e editores no mapa editorial. Captura executada com frontend local5199 e versão9.8.7-manual-test; cinco imagens inspecionadas quanto a legibilidade/enquadramento, sem dados reais. Manual/captura verificou60 estados de compartilhamento e retorno de tenant em2 ciclos sem reconexão. `test:manual` passou (2 Node +18 Vitest); `test:terminal-experience:web` passou com transporte simulado. Sem mudança em resize/SSH/WebSocket, ensaio PTY real não aplicável a este incremento. Hash de Hosts recalculado por `loadManual()` após essas verificações; check-reviewed registrado no diário da frente. Demais capítulos mantêm procedimentos. Capturas geradas pelo helper legado inicialmente em /tmp, copiadas para public/manual-assets; evidências novas do trabalho em `.tmp/NA-0175`. Homologação humana e publicação ainda pendentes.
+
+
 ## Revalidação de 28/10/2026 — NA-0080 / Mouse do terminal
 
 Terminal e Compartilhamento mantêm os procedimentos. Corrigido encaminhamento de eventos binários de mouse, condicionado à conexão e à concessão de controle no participante. Testes de bytes e permissões, regressão Chromium, tipos e manual passaram. `manual:capture` passou com `MANUAL_EXPECTED_VERSION=dev` e frontend 5174 após ajustar a expectativa de versão do ensaio. As cinco capturas foram inspecionadas; evidências novas em `/tmp/nodeaccess-manual-review` e `/tmp/nodeaccess-shared-viewer-review`, mantendo imagens versionadas por não haver mudança visual. Hashes dos dois capítulos revalidados por `loadManual()` e `manual:check-reviewed` passou. HTTP/WebSocket simulados; naquele momento, PTY real estava pendente por ausência de `HOST_ID` descartável. Complemento de 29/10/2026: ensaio SSH descartável com top/htop e clique real no cabeçalho do htop passou antes da entrega, conforme diário e recibos privados preservados. Registro completo em `changes/2026/10/NA-0080-terminal-mouse/implementation.md`.

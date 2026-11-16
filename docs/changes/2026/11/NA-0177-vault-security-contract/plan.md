@@ -5,7 +5,7 @@ type: docs
 status: ready-for-review
 created_at: 2026-11-15T21:52:17-03:00
 base_branch: master
-base_sha: ae188983d061a7bb5e6aaf855fd9d2f92416f3b8
+base_sha: f5bf34b148e64f5f18c4752c95cacf88978e67b7
 branch: docs/NA-0177-20261115-vault-security-contract
 owner: unassigned
 planner: Codex
@@ -16,7 +16,7 @@ risk: medium
 
 ## Contexto e situação anterior
 
-NA-0175 entrega catálogo e editores; PR66 ainda aguarda fechamento. Adendos descrevem arquitetura híbrida, mas sessões, autorizações, revogação e auditoria precisam de contrato único verificável. A base foi atualizada por fetch; esta frente documental independente parte da master atual e será reconciliada após PR66.
+NA-0175 entregou catálogo e editores; PR66 integrada e master sincronizada. Adendos descrevem arquitetura híbrida, mas sessões, autorizações, revogação e auditoria precisam de contrato único verificável. Esta frente documental nasceu da base ae188983d e foi reconciliada com a master após PR66, preservando código e histórico de ambas as frentes.
 
 ## Problema e objetivo
 
@@ -57,7 +57,7 @@ Inventário focal de auth/secrets/PEM e documentos prévios. Escolhas próprias 
 | Contratos e ameaças | Revisão independente por cenário adversarial | Não é pentest/runtime |
 | Documentação | Links locais, estrutura, referências, diff/check, lifecycle | Não demonstra compatibilidade de navegador |
 | Roadmap | ZIP/XML, IDs e células preservadas | Sem Excel visual |
-| PR66 | Gates do SHA 0c805d425 e homologação humana | Não herdar como teste de implementação futura |
+| PR66 | Gates do SHA314e502e aprovados e homologação confirmada | Não herdar como teste de implementação futura |
 
 ## Baseline
 
@@ -77,3 +77,7 @@ IN_PLAN: usuário autorizou fechar itens 1 e 2 fim a fim. Item 2 significa defin
 - Aprovado por: usuário, pedido de fechamento dos itens 1 e 2 fim a fim.
 - Aprovado em: 2026-11-15T21:52:17-03:00
 - Revisão independente: PASS_WITH_WARNINGS após correções; execução runtime e fechamento de PR66 permanecem fora dessa aprovação documental.
+
+## Reconciliação de fechamento
+
+2026-11-15T22:56:39-03:00: PR66 MERGED/MASTER_SYNCED em f5bf34b148e64f5f18c4752c95cacf88978e67b7. Merge da base nesta branch documental, sem alterar código; união verificada do roadmap e atualização do registro da fase1A. Homologação confirmada pelo usuário. PR67 permanece sujeita à revisão e aos checks de seu novo SHA antes de merge.

@@ -1,7 +1,8 @@
 const { resolveExecutable } = require('../shared/trusted-executable.cjs')
 const { artifactPath } = require('../shared/private-artifacts.cjs')
+const { inspectFingerprint, waitForFingerprint } = require('./peer-certificate.cjs')
 /* Isolated opt-in: real Nginx, certificate worker, TLS, WebSocket and disposable SSH/PTTY. */
-const fs=require('node:fs'),os=require('node:os'),path=require('node:path'),http=require('node:http'),tls=require('node:tls'),crypto=require('node:crypto'),assert=require('node:assert/strict')
+const fs=require('node:fs'),os=require('node:os'),path=require('node:path'),http=require('node:http'),crypto=require('node:crypto'),assert=require('node:assert/strict')
 const {execFileSync,spawn}=require('node:child_process'),{WebSocketServer,WebSocket}=require('ws'),{Server:SSHServer,Client:SSHClient}=require('ssh2')
 const root=fs.mkdtempSync(path.join(os.tmpdir(),'nodeaccess-tls-integration-')),suffix=crypto.randomBytes(4).toString('hex'),front=`na-tls-front-${suffix}`,agent=`na-tls-agent-${suffix}`,pebble=`na-tls-pebble-${suffix}`
 const image=process.env.TLS_TEST_IMAGE||'nodeaccess-tls-agent:test',domain='tls.example.test',gatewayPath=`/ws/${crypto.randomUUID()}`,password=crypto.randomBytes(32).toString('hex')
@@ -45,7 +46,7 @@ async function main(){
  fs.writeFileSync(path.join(root,'nginx.conf'),config)
  docker('run','-d','--name',front,'--add-host','host.docker.internal:host-gateway','--add-host',`${domain}:127.0.0.1`,'-p','127.0.0.1::443','-p','127.0.0.1::80','-v',`${root}/certs:/etc/nginx/certs:ro`,'-v',`${root}/nginx.conf:/etc/nginx/nginx.conf:ro`,'-v',`${root}/challenge:/var/www/acme:ro`,'--entrypoint','nginx',image,'-g','daemon off;')
  const port=Number(docker('port',front,'443/tcp').split(':').pop()),httpPort=Number(docker('port',front,'80/tcp').split(':').pop())
- const inspect=()=>new Promise((resolve,reject)=>{const s=tls.connect({host:'127.0.0.1',port,servername:domain,ca:fs.existsSync(path.join(root,'trust.pem'))?fs.readFileSync(path.join(root,'trust.pem')):ca},()=>{resolve(s.getPeerCertificate().fingerprint256);s.end()});s.on('error',e=>{const c=s.getPeerCertificate();e.message+=' peer='+JSON.stringify({subject:c?.subject,issuer:c?.issuer});reject(e)})})
+ const inspect=(timeoutMs=2000)=>inspectFingerprint({host:'127.0.0.1',port,servername:domain,ca:fs.existsSync(path.join(root,'trust.pem'))?fs.readFileSync(path.join(root,'trust.pem')):ca,timeoutMs})
  try{execFileSync(resolveExecutable('openssl'),['verify','-CAfile',path.join(root,'ca.pem'),path.join(root,'old.pem')],{stdio:'pipe'})}catch(e){throw Error('Fixture CA validation: '+e.stderr)}
  const oldFingerprint=await until(inspect)
  fs.writeFileSync(path.join(root,'pebble.json'),JSON.stringify({pebble:{listenAddress:':14000',managementListenAddress:':15000',certificate:'/fixture/old.pem',privateKey:'/fixture/old.key',httpPort:80,tlsPort:443,ocspResponderURL:'',externalAccountBindingRequired:false}}))
@@ -70,7 +71,7 @@ async function main(){
  try{docker('exec',agent,'nginx','-t')}catch(e){throw Error('Worker nginx validation: '+e.stderr)}
  const submit=async body=>{const r=await request('POST','/operations',{requestId:crypto.randomUUID(),expectedFingerprint:await inspect(),...body});assert.equal(r.status,202,JSON.stringify(r));return until(async()=>{const state=(await request('GET','/status')).data;return state.job.id===r.data.id&&state.job.status!=='running'?state:null})}
  let state=await submit({action:'validate',certificate:fs.readFileSync(path.join(root,'new.pem'),'utf8')+ca.toString(),privateKey:fs.readFileSync(path.join(root,'new.key'),'utf8')});assert.equal(state.job.status,'succeeded',JSON.stringify(state.job));const candidate=state.candidate
- state=await submit({action:'apply',candidateId:candidate.id});assert.equal(state.job.status,'succeeded',JSON.stringify(state.job));assert.equal(await inspect(),candidate.fingerprint);assert.notEqual(candidate.fingerprint,oldFingerprint);await shellProbe();assert.equal(wsConnections,1);assert.equal(sshConnections,1)
+ state=await submit({action:'apply',candidateId:candidate.id});assert.equal(state.job.status,'succeeded',JSON.stringify(state.job));assert.equal(state.job.result.fingerprint,candidate.fingerprint);await waitForFingerprint(inspect,candidate.fingerprint);assert.notEqual(candidate.fingerprint,oldFingerprint);await shellProbe();assert.equal(wsConnections,1);assert.equal(sshConnections,1)
  state=await submit({action:'validate',certificate:oldCert.toString()+ca.toString(),privateKey:fs.readFileSync(path.join(root,'old.key'),'utf8')});assert.equal(state.job.status,'succeeded')
  // Inject a syntax error in the test-only config. Existing workers keep serving TLS and SSH.
  fs.appendFileSync(path.join(root,'nginx.conf'),'\ninvalid_test_directive;\n')
@@ -79,7 +80,7 @@ async function main(){
  docker('restart',agent);await grantRunnerControlAccess();await until(async()=>{const s=(await request('GET','/status')).data;return s.job.status==='failed'&&!s.recoveryRequired})
  assert.equal(await inspect(),candidate.fingerprint);await shellProbe()
  assert.equal(sshConnections,1);assert.equal(wsConnections,1)
- state=await submit({action:'automatic',email:'ops@example.test',agreeTerms:true});assert.equal(state.job.status,'succeeded',JSON.stringify(state.job));assert.equal(state.mode,'automatic');const issuedFingerprint=await inspect();assert.notEqual(issuedFingerprint,candidate.fingerprint);await shellProbe()
+ state=await submit({action:'automatic',email:'ops@example.test',agreeTerms:true});assert.equal(state.job.status,'succeeded',JSON.stringify(state.job));assert.equal(state.mode,'automatic');const issuedFingerprint=state.job.result.fingerprint;assert.notEqual(issuedFingerprint,candidate.fingerprint);await waitForFingerprint(inspect,issuedFingerprint);await shellProbe()
  state=await submit({action:'renew'});assert.equal(state.job.status,'succeeded',JSON.stringify(state.job));assert.equal(await inspect(),issuedFingerprint);await shellProbe()
  state=await submit({action:'simulate'});assert.equal(state.job.status,'succeeded',JSON.stringify(state.job));await shellProbe()
  fs.writeFileSync(path.join(root,'nginx.conf'),config.replace('try_files $uri =404;', 'return 404;'));docker('exec',front,'nginx','-s','reload');await wait(300)

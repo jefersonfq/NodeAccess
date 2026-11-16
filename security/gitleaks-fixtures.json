@@ -201,16 +201,16 @@
     {
       "path": "apps/frontend/src/locales/en.json",
       "rule": "private-key",
-      "line": 1050,
-      "fileSha256": "cbbcb30677a45be95db749f30b978a86a824fbf09a07061e8ee9db6d9e2e7629",
-      "reason": "Placeholder textual PEM com reticências, idêntico à base e na mesma linha; revisão independente NA-0172 após adição das traduções da Central de Segurança. Não contém chave privada."
+      "line": 1051,
+      "fileSha256": "7a48968c1f7f0be11e4a4a82977fadd17ec32e3d5525ea64e1aef15660958887",
+      "reason": "NA-0175: placeholder PEM com corpo de reticências idêntico à base ae188983d, deslocado uma linha por tradução do menu. Revisão independente confirmou ausência de material de chave; autorização restrita a regra, linha e hash integral."
     },
     {
       "path": "apps/frontend/src/locales/pt-BR.json",
       "rule": "private-key",
-      "line": 1053,
-      "fileSha256": "f377e32283df8b9e2ed9d08107a7d1003a90865a1cbe9fb3512db4aa829cc6c6",
-      "reason": "Placeholder textual PEM com reticências, idêntico à base e na mesma linha; revisão independente NA-0172 após adição das traduções da Central de Segurança. Não contém chave privada."
+      "line": 1054,
+      "fileSha256": "70fc4d84a597c2b414386c8359cdb6de98f91b3266ffc76d4d3cf85ae5e755b4",
+      "reason": "NA-0175: placeholder PEM com corpo de reticências idêntico à base ae188983d, deslocado uma linha por tradução do menu. Revisão independente confirmou ausência de material de chave; autorização restrita a regra, linha e hash integral."
     },
     {
       "path": "docs/DEPLOY-kubernetes-oidc-lite.md",
@@ -323,6 +323,13 @@
       "line": 19,
       "fileSha256": "906666bc8d5c7c9b1e98b3b4224d8a59410526f399401d6183534ebe3a97270f",
       "reason": "Segredo TACACS explicitamente descartável em harness opt-in RUN_NETWORK_ACCESS_LIVE; tenant e dispositivos temporários, listener loopback e limpeza finally. Não é credencial de rede real."
+    },
+    {
+      "path": "apps/frontend/src/components/vault/vault-actions.test.ts",
+      "rule": "private-key",
+      "line": 150,
+      "fileSha256": "ccd224062d5e21c44da48f38c7dfa695c92169c069618e296960595ae42a7bd5",
+      "reason": "NA-0175: marcador ENCRYPTED PRIVATE KEY com corpo literal fixture, sem PKCS8/DER válido; testa exigência de passphrase e payload em API mockada. Revisão independente confirmou material sintético sem chave utilizável; autorização restrita à ocorrência e hash integral."
     }
   ]
 }

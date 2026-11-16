@@ -89,7 +89,8 @@
     "aiAutomation": "AI and automation",
     "webhooks": "Webhooks",
     "emailConfig": "Email Config",
-    "activeTerminalShortcut": "Active terminals: {count}"
+    "activeTerminalShortcut": "Active terminals: {count}",
+    "vault": "VaultNAccess"
   },
   "aiHub": {
     "eyebrow": "Guided setup",
@@ -6770,5 +6771,30 @@
     "reviewedAt": "Editorial review on",
     "revision": "Content {revision}",
     "reviewScope": "This date identifies the content review, not an audit of your organization or a guarantee that vulnerabilities are absent."
+  },
+  "vault": {
+    "subtitle": "Manage your Secrets and SSH keys in one place.",
+    "allTypes": "All types",
+    "secretType": "Secret",
+    "pemType": "PEM key",
+    "name": "Name or alias",
+    "type": "Type",
+    "access": "Access",
+    "status": "Status",
+    "pemOwner": "Owner: user #{id}",
+    "withPassphrase": "Key passphrase set",
+    "withoutPassphrase": "No key passphrase",
+    "importPem": "Import PEM key",
+    "refresh": "Refresh",
+    "retry": "Try again",
+    "metadataOnly": "Saved values are not displayed in this catalogue. Existing permissions and uses still apply.",
+    "partialError": "Some vault records could not be loaded",
+    "secretError": "Secrets unavailable. The licence check or record request could not be completed.",
+    "pemError": "PEM keys could not be loaded.",
+    "search": "Search by name, alias or description",
+    "partialEmpty": "No records available from the loaded sources. Try again to retrieve the rest.",
+    "noResults": "No records match these filters.",
+    "empty": "No vault records are available for this access.",
+    "groupsError": "Groups could not be loaded. Try again before saving a group Secret."
   }
 }
