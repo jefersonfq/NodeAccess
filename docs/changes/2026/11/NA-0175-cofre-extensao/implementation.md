@@ -2,7 +2,7 @@
 
 ## Pedido e objetivo
 
-Implementar os itens 1/2/3 da fase 1A: consolidar plano/base, criar catálogo VaultNAccess e validar a entrega. Preservar autenticação central, SSH/RDP, auditoria, terminal e snippets. Usuário autorizou commit e abertura de PR após checks; merge não está autorizado nesta interação.
+Implementar os itens 1/2/3 da fase 1A: consolidar plano/base, criar catálogo VaultNAccess e validar a entrega. Preservar autenticação central, SSH/RDP, auditoria, terminal e snippets. Usuário autorizou commit/PR e posteriormente o fechamento fim a fim. Na interação atual confirmou a homologação solicitada; merge autorizado, condicionado aos checks aplicáveis. Não atribuir ao agente testes manuais humanos.
 
 ## Implementação
 
@@ -12,7 +12,7 @@ Base ae188983d061a7bb5e6aaf855fd9d2f92416f3b8 (PR65); branch feature/NA-0175-202
 
 Ran: baseline 54; testes focais 50 e snippets 66; typecheck/lint/build; Chromium; terminal-experience; manual/capturas. Gate integral no candidato 451e1ccbe2cda8a0b4c9a939a974ac3c9dea13d3 passou em 2026-11-15 23:57:13 UTC: Vitest 3832 PASS/124 pendentes, Node 701 PASS/11 skips, tooling 231 PASS/1 skip, TLS e cleanup aprovados, dez jornadas Chromium aprovadas. Cobertura Sonar 81,8%, diff local 86,71%; zero novas violações/hotspots; reconciliação verificada. Revisão independente PASS_WITH_WARNINGS pelos limites dos cenários simulados.
 
-Planned: reexecutar gate no novo SHA após esta correção documental. O resultado acima pertence exclusivamente a 451e1ccbe. PR66 aberta; check remoto de governança reprovou os títulos das seções deste registro, agora adequados ao template. O check static-and-secrets também reprovou três fixtures: dois placeholders PEM existentes e um marcador sintético no teste. Revisão independente aprovou somente atualização das duas ocorrências antigas e cadastro exato da nova por regra/linha/hash integral; nenhum segredo válido e nenhuma regra desativada. Outros checks remotos ainda em andamento. Manual: homologação funcional humana pendente. Skipped: PTY real (sem resize/transporte), pentest e Excel visual. Não afirmar aprovação do novo SHA antes da execução.
+Planned: reexecutar gate no novo SHA após esta correção documental. O resultado acima pertence exclusivamente a 451e1ccbe. PR66 aberta; check remoto de governança reprovou os títulos das seções deste registro, agora adequados ao template. O check static-and-secrets também reprovou três fixtures: dois placeholders PEM existentes e um marcador sintético no teste. Revisão independente aprovou somente atualização das duas ocorrências antigas e cadastro exato da nova por regra/linha/hash integral; nenhum segredo válido e nenhuma regra desativada. Outros checks remotos ainda em andamento. Manual: homologação funcional confirmada pelo usuário na interação atual; sem roteiro humano executado pelo agente. Skipped: PTY real (sem resize/transporte), pentest e Excel visual. Não afirmar aprovação do novo SHA antes da execução.
 
 ## Recuperação
 
@@ -20,7 +20,7 @@ Reverter os commits desta PR para restaurar UI/menu/rota/editores anteriores; se
 
 ## Pendências
 
-Revalidar correção documental e checks remotos no novo candidato; homologação humana e merge permanecem pendentes. Extensão, reveal, autofill, Hello/WebAuthn, agente e HPKE/E2EE são fases posteriores, não implementadas nesta fase 1A. Estado atingido: COMMITTED/PUSHED/PR_OPEN; LOCAL_WIP documental até o próximo commit; MERGED/MASTER_SYNCED pendentes. PR: https://github.com/jefersonfq/NodeAccess/pull/66.
+Revalidar correção documental e checks remotos no novo candidato; homologação humana confirmada; merge ainda depende dos checks do novo candidato. Extensão, reveal, autofill, Hello/WebAuthn, agente e HPKE/E2EE são fases posteriores, não implementadas nesta fase 1A. Estado atingido: COMMITTED/PUSHED/PR_OPEN; LOCAL_WIP documental até o próximo commit; MERGED/MASTER_SYNCED pendentes. PR: https://github.com/jefersonfq/NodeAccess/pull/66.
 
 ## Diário de interações
 
@@ -88,3 +88,11 @@ Gate integral e revisão técnica aprovaram 451e1ccbe; branch publicada e PR66 a
 Falha static-and-secrets tratada após revisão independente dos três exemplos e seus hashes. Locale placeholders idênticos à base; novo corpo literal fixture não constitui chave PKCS8/DER. Alteração restrita ao cadastro exato em security/gitleaks-fixtures.json, preservando regras e escopo. Validar scan-local e gate integral antes de publicar o próximo SHA.
 
 Validações locais após as correções: validateLifecycle sem erros (plano, três commits anteriores, corpo da PR e registro); scan-local PASS em 2026-11-16T00:03:04Z, 41 fixtures revisadas/zero não revisadas, Semgrep 918 alvos/zero achados/zero erros. Sem mudança de código de produto. Próximo candidato precisa repetir gate integral e checks remotos; resultados anteriores não substituem essa execução.
+
+### 2026-11-15T22:19:30-03:00 — Homologação confirmada e correção necessária do gate TLS
+
+Usuário confirmou a homologação solicitada e perguntou as próximas etapas. Merge dos itens 1/2 já autorizado; nenhuma nova autorização exigida. PR66 no SHA0c805d425: demais checks aprovados, upgrade-restore attempt1 falhou por rate limit externo ao baixar imagem SSH; attempt2 passou desse ponto, mas falhou no snapshot imediato de fingerprint após emissão ACME. Logs mostram worker verificando novo fingerprint e sonda externa vendo o anterior. Hipótese de corrida do reload, não causa comprovada.
+
+NECESSARY_CORRECTION restrita ao harness: post-apply/automatic aguardam exatamente o fingerprint esperado, prazo total5s e handshake com deadline2s; validação CA/SNI/authorized e divergência do certificado antigo mantidas. Sem mudança de worker TLS, timeouts operacionais ou assertivas SSH/WebSocket. Fonte primária consultada: https://nginx.org/en/docs/control.html. Revisão independente da proposta PASS_WITH_WARNINGS.
+
+Ran: ensaio original local PASS (falha de CI não reproduzida);11 testes novos PASS (identidade errada, atraso, erro e conexão travada); ensaio real corrigido PASS com SSH1/WebSocket1, PTY, troca e recuperação preservados. Logs .tmp/NA-0175/tls-baseline-closure.log e tls-fixed-closure.log. Planned: revisão final do delta, commit autorizado, Sonar integral no novo SHA e CI antes de merge. NA-0177/PR67 permanece publicada e preservada, dependente de integração/reconciliação apósPR66. Roadmap será reconciliado em uma escrita agrupada de fechamento, sem sobrescrever revisões de outras frentes.

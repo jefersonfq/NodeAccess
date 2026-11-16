@@ -71,3 +71,7 @@ Itens1/2 implementados e validação focal do item3 executada; resultados em pha
 
 ## Correção necessária do gate
 Primeiro candidato01f348977 falhou em timeout do bootstrap de fixtures, cobertura nova e cache local inacessível ao scanner. Ampliar testes comportamentais/SSR e reutilizar parsing porarquivo no harness é NECESSARY_CORRECTION da validação. Preservar timeout,44/10fixtures, denominador e threshold80%; produto permanece inalterado nesta remediação. Repetir gate integral em novo SHA; ver implementation.md.
+
+## Correção necessária do check de fechamento
+
+Após homologação confirmada, o check remoto de integração TLS expôs observação imediata do certificado durante reload assíncrono. Ajustar somente o harness para aguardar identidade exata dentro de5s, com handshake limitado, preservando validação CA/SNI, comparação com certificado anterior e sessãoSSH/WebSocket. Testes negativos e laboratório real obrigatórios; worker/produto inalterados. Classificação NECESSARY_CORRECTION do gate, revisão independente e nova validação do SHA antes do merge.

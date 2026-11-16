@@ -20,3 +20,7 @@ Gate integral obrigatório no próximo SHA; resultado final será vinculado na P
 ## Reanálise do candidato 451e1ccbe
 
 Gate integral PASS em 2026-11-15 23:57:13 UTC, análise f241f9ef-7340-4c41-856a-f7e9a0203f43. Cobertura Sonar 81,8%, diff 86,71%; zero violações novas, zero hotspots, nenhuma condição ignorada. Reconciliação verificada, 201 revisões inalteradas e zero inesperados. Os seis achados desta frente estão ausentes das violações abertas. Revisão técnica independente PASS_WITH_WARNINGS. PR66 registra a evidência sanitizada. Correção documental posterior exige nova execução no SHA correspondente; este resultado não é transferido automaticamente.
+
+## Correção de sincronização no ensaio TLS de fechamento
+
+O check remoto upgrade-restore attempt2 do SHA0c805d425 falhou em observação imediata do fingerprint após emissão automática, embora o worker tenha observado o novo certificado. Corrigido apenas o harness, com identidade esperada exata, espera total5s e handshakes limitados a2s. CA/hostname e continuidadeSSH/WebSocket preservados. Onze testes negativos/positivos e laboratório real passaram. Nenhum threshold/exclusão/regra ou timeout operacional alterado; próximo SHA exige novo gate integral. A causa do comportamento transitório não foi demonstrada.
