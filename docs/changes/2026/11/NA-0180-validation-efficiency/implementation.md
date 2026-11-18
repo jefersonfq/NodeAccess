@@ -2,10 +2,27 @@
 
 Base:2b980b9950ecbdb6f675a84c004dfd31981f999c. Branch:performance/NA-0180-20261116-validation-efficiency.
 
-## Resumo
-Usuário autorizou verificação rápida do ambiente, diagnóstico de falhas e eliminação de duplicações. Implementação local iniciada; commit local e gate final autorizados posteriormente, sem publicação. Produto e gates preservados.
+## Pedido e objetivo
 
-## Diário
+Usuário pediu validação mais eficiente sem reduzir garantias: verificação rápida do ambiente antes dos coletores caros, diagnóstico seguro de falhas e eliminação da execução duplicada da regressão terminal. Produto, regras, thresholds e gates preservados.
+
+## Implementação
+
+Base 2b980b9950ecbdb6f675a84c004dfd31981f999c. Commit de código 045337446: preflight de ambiente (tools/coverage/preflight.mjs, validate:environment) e Sonar somente leitura (tools/sonarqube/preflight.mjs); diagnóstico limitado de Vitest/CI (tools/sonarqube/vitest-diagnostics.mjs, ci-coverage-diagnostics.mjs); delegação do terminal do harness do cofre ao coletor geral apenas na mesma sessão de cobertura verificada (tools/coverage/run.mjs, browser.mjs, tools/vault-security/frontend-harness.mts); cache Vite isolado com redirect das URLs legadas. Commits seguintes apenas documentais.
+
+## Validação
+
+Ran: gate final npm run validate:sonar no 045337446 PASS (Vitest 4050, Node 778, Chromium 10, TLS; cobertura diferencial 87,84%; análise e revisões verificadas; terminal executado uma vez); evidência privada .tmp/NA-0180/final-evidence.json. Ran: revisão do último ajuste com testes focais de tools 97 PASS. Remoto: checks da PR70 registrados no PR. Commits posteriores alteram só documentação; nenhum novo gate local declarado para eles.
+
+## Recuperação
+
+Reversão por revert da PR (sem migração de banco, configuração ou artefato de release). Standalone do harness do cofre continua executando o terminal completo; desfazer a delegação restaura a execução dupla anterior. Recuperação geral: docs/DEVELOPMENT-recovery.md.
+
+## Pendências
+
+Homologação humana e merge da PR70. Check remoto upgrade-restore falha por vulnerabilidades em todas as imagens, inclusive de terceiros, sem alteração de Dockerfile nesta frente; tratar em frente própria. Deploy na VPS abortado, sem alteração remota. Roadmap ainda no checkpoint LOCAL_WIP.
+
+## Diário de interações
 ### 2026-11-16T13:40:32-03:00 — Planejamento e baseline
 Aplicada skill lifecycle. Lidos somente coletores, diagnóstico e contratos pertinentes. GO_WITH_RISKS independente; terminal geral obrigatório, standalone completo e logs públicos sem dados dinâmicos. Baseline focal em andamento. Próximo: implementação separada, testes negativos/focais, revisão independente e único gate completo com fontes congeladas após correções. Roadmap será consolidado uma vez no fechamento desta interação.
 
@@ -30,3 +47,23 @@ Primeiro gate WIP FAIL por fixtures antigas de validate-flow/trusted-git e impor
 Segundo gate WIP:4050VitestPASS,778NodePASS/11skips previstos, TLSlimpo,Chromium10PASS; cobertura diferencial87,84%, análise verificada, nenhum achado novo. Gate integral FAIL somente REVIEW_CHECKOUT_CHANGED na reconciliação das revisões, pois ainda não havia commit. Prova da deduplicação: sessãoaca36c12-0638-47b8-ba12-7074277cb8d5 compartilhada pelo vaultdelegated e coletor geral com exatamente1terminal/10roteiros. Evidências .tmp/NA-0179/frontend-uCAGKt/execution.json e .sonar-reports/validation-1794862066224-e09d3c71-7ac2-455f-bad0-50824054d354/validation.json.
 
 Usuário autorizou explicitamente commit local e gate final, sempush/PR/deploy, e solicitou otimização por créditos limitados. Próximo: único commit seguido de gate obrigatório noSHAfinal; não repetir focais nem delegar novo trabalho. Última revisão independente estática antecede as adequações de fixtures/redirect; tentativa adicional indisponível por limite do agente. Não afirmar revisão nova. Evidência final e estados serão entregues fora de commits recursivos. Roadmap mantém checkpoint anterior LOCAL_WIP e referência deste diário; nenhuma segunda escrita da planilha nesta consolidação.
+
+### 2026-11-16T18:37:24.296749-03:00 — Pedido de implantação na VPS
+
+Usuário autorizou implantar a versão mais atualizada na VPS. Gate final do commit045337446 PASS, análise/revisões verificadas, sem falhas/avisos; evidência privada .tmp/NA-0180/final-evidence.json. Esta atualização documental posterior não altera código nem representa novo gate. Revisados runbooks de atualização cloud e implantação2.1.0: preservar configuração, volumes e backups; conferir versões reais de MySQL/Redis antes de definir migração. Host/usuário SSH da VPS não identificados com segurança; solicitados ao usuário, sem pedir segredos. Nenhuma conexão ao destino, build de release ou alteração remota executada. Próximo: identificar VPS, inspecionar versão/recursos/sessões, definir candidato e preparar pacote verificável, backups e recuperação antes do corte. NA0180 permanece commitada localmente, sem push/PR/merge; revisão independente do último delta ainda pendente.
+
+### 2026-11-16T18:45:34.713309-03:00 — Acesso à VPS e preflight de release
+
+Usuário indicou documento/chave local de acesso. SSH autenticado usando host key já registrada e cópia temporária com CRLF normalizado; arquivos originais preservados e conteúdo sensível omitido. Ran: inspeção somente leitura da instalação nodeaccess-v2, versão2.1.0/Node24.21.0, API/gatewayreadyHTTP200; MySQL8.4.12/Redis8.2.10 existentes. VPScompartilhada:17GiBdisponíveis,1726MiBmemória disponível,24MiBswaplivre; build deve ocorrer localmente. Masterremoto confirmado2b980b995. Ran: preflight oficial prepare-agents--check FAIL por artefatos ausentes; validador de artefatos anteriores FAIL por versão1.4.0 versus2.1.0 esperada. Busca local encontrou apenas artefatos antigos; lista de releasesGitHub vazia. Solicitado local dos artefatos Windows2.1.0 assinados/chave pública ou ambiente Windows de geração. Nenhum build pesado, backup, migração, reinício ou alteração na VPS executado. Evidência privada .tmp/vps-deploy/preflight.json. Segredos não entram no Git ou contexto Docker; eventual pacote exige checkout limpo separado. Bloqueio operacional, não falta de autorização de deploy. Revisão independente final daNA0180 permanece pendente; não houve push/PR/merge. Próximo: obter artefatos válidos e preparar pacote/revisão/backups/cutover antes de tocar produção. Nenhuma entrega de roadmap alterada nesta inspeção.
+
+### 2026-11-17T09:00:45.726669-03:00 — Cancelamento do deploy e orientação de retomada
+
+Usuário determinou abortar o deploy caso os artefatos não estivessem no ambiente atual, para preservar créditos. Ausência já confirmada: implantação abortada, sem alteração remota; não retomar sem novo pedido. Usuário pediu estado e arquivos para reconstruir contexto. Ran apenas leituras de Git/documentação/evidência: HEAD045337446 local, master2b980b995 incluiPR68/69; gate final PASS noSHA045, revisão independente do último delta pendente. Checkout atual tem alterações documentais posteriores e documento de acesso não rastreado, que não deve ser incluído em commit/build. Próximos passos recomendados, não iniciados: finalizar revisão/integraçãoNA0180; homologar/ativar piloto do cofre de forma controlada; planejar extensão de descoberta e depois autofill/desbloqueioWebAuthn. Sem novos testes, agentes ou operações de publicação.
+
+### 2026-11-18T19:08:22-03:00 — Revisão do último ajuste e preparação da PR
+
+Usuário autorizou seguir: revisão do último ajuste, commit documental, push e PR (sem merge/deploy). Revisão (Claude Code, sessão distinta da implementação) restrita ao diff de fixtures/redirect/delegação no 045337446: redirect de dependências Vite só aceita nome sem barra e exclui ./.., destino dentro do cache isolado sob fs.allow; delegação do terminal só ocorre com NODEACCESS_COVERAGE_COLLECT=1 e sessão UUID validada, e o coletor geral exige a mesma sessão e relatório terminal completo (resultado, snippets, resiliência), removendo report.json antigo antes; fixtures injetam preflight sem afrouxar asserts (apenas leituras status/autenticação permitidas). Resultado: PASS sem achados que exijam código; observação não bloqueante: execução manual do Vitest com as variáveis de coleta marca o terminal como delegated, reportado explicitamente e nunca como PASS. Ran: node --test browser/trusted-git/validate-flow/preflight/run de tools — 97 PASS/0 FAIL. Sem alteração de código; gate final do 045337446 permanece válido. Arquivo local de acesso à VPS em docs/ mantido fora do Git. Próximo: push, PR, homologação humana e merge.
+
+### 2026-11-18T19:45:56-03:00 — Ajuste de governança da PR70
+
+Ran: checks remotos da PR70, 13 PASS, 1 skip, 2 FAIL. change-governance falhou por mensagem/trailers do commit documental, seções do PR e registro/plano fora do modelo; usuário autorizou ajustar tudo. Registro reestruturado nas seções obrigatórias, decisão GO_WITH_RISKS explicitada no plano, commit documental reescrito com force-with-lease e descrição do PR no modelo. upgrade-restore falha por vulnerabilidades em todas as imagens, inclusive de terceiros, sem Dockerfile alterado nesta frente; na PR69 o mesmo check passou. Fica registrado como frente própria, sem correção nesta PR. Sem alteração de código.

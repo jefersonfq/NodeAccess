@@ -54,6 +54,8 @@ Reverter apenas ferramentas/testes/documentação; nenhuma migração ou estado 
 Remover apenas duplicação comprovada do terminal; seleção por impacto e cache de validações ficam fora desta fase.
 
 ## Aprovação
+Decisão: `GO_WITH_RISKS`
+
 Usuário autorizou explicitamente as três melhorias. Revisão independente de viabilidade GO_WITH_RISKS: preservar coletor obrigatório e evidência da mesma execução. Implementação/revisão final ainda pendentes.
 
 ## Candidato para commit local
