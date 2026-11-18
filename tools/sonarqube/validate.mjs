@@ -10,6 +10,7 @@ import { validateCoverageMetadata } from './ci-policy.mjs'
 import { sourceInventory, sourceFingerprint } from '../coverage/inventory.mjs'
 import { parseLcov } from '../coverage/lcov.mjs'
 import { reconcile } from './reconcile.mjs'
+import { verifySonarEnvironment } from './preflight.mjs'
 
 export function validationOutcome({ toolingExit, coverageExit, scannerExit, comparison, gate, analysisVerified, hotspotsToReview, reviewsVerified = true }) {
   const failures = []
@@ -40,7 +41,7 @@ function command(root, env, args, logfile) {
     return result.status ?? 1
   } finally { closeSync(fd) }
 }
-export async function validate({ root = projectRoot, env = process.env, execute = command } = {}) {
+export async function validate({ root = projectRoot, env = process.env, execute = command, preflight = verifySonarEnvironment } = {}) {
   const [major, minor] = process.versions.node.split('.').map(Number)
   if (major !== 24 || minor < 21) throw new Error('Node24.21+ required')
   const server = localUrl(env.SONAR_HOST_URL)
@@ -48,6 +49,7 @@ export async function validate({ root = projectRoot, env = process.env, execute 
   if (env.SONAR_TOKEN === env.SONAR_REVIEW_TOKEN) throw new Error('Analysis and review tokens must be distinct')
   const baseline = JSON.parse(readFileSync(join(root, 'docs/sonarqube/accepted-findings.json'), 'utf8'))
   compareFindings([], baseline) // Validate reviewed policy before expensive work.
+  await preflight({ server, analysisToken: env.SONAR_TOKEN, reviewToken: env.SONAR_REVIEW_TOKEN })
   const git = args => execFileSync('/usr/bin/git', args, { cwd: root, encoding: 'utf8' }).trim()
   const head = git(['rev-parse', 'HEAD'])
   const requestedBase = env.SONAR_BASE_SHA ?? git(['merge-base', 'HEAD', 'origin/master'])
@@ -143,7 +145,8 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
       analysisVerified: result.analysisVerified, unexpected: result.comparison?.unexpected.length ?? null,
       evidence: '.sonar-reports/validation-*/validation.json (private)' }))
     process.exitCode = result.passed ? 0 : 1
-  } catch {
+  } catch (error) {
+    if (error.message === 'SONAR_PREFLIGHT_FAILED') console.error('SONAR_PREFLIGHT_FAILED: verify the local server is UP and both separate tokens are valid.')
     console.error('SonarQube validation could not start: check local server, Node24, separate env tokens, reviewed baseline and private directory/lock. No validation was approved.')
     process.exitCode = 1
   }

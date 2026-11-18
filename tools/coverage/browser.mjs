@@ -48,13 +48,13 @@ export function executeBrowserHarness(root, script, env, logfile, timeoutMs = 12
     })
   })
 }
-export async function waitForBrowserModules(base, { timeoutMs = 60_000, fetcher = fetch } = {}) {
+export async function waitForBrowserModules(base, { timeoutMs = 60_000, fetcher = fetch, modulePaths = ['vue.js', 'naive-ui.js'].map(name => `/node_modules/.vite/deps/${name}`) } = {}) {
   const deadline = performance.now() + timeoutMs
-  for (const module of ['vue.js', 'naive-ui.js']) {
+  for (const module of modulePaths) {
     let ready = false
     while (performance.now() < deadline) {
       try {
-        const response = await fetcher(`${base}/node_modules/.vite/deps/${module}`, { signal: AbortSignal.timeout(Math.max(1, Math.min(3000, Math.floor(deadline - performance.now())))) })
+        const response = await fetcher(`${base}${module}`, { signal: AbortSignal.timeout(Math.max(1, Math.min(3000, Math.floor(deadline - performance.now())))) })
         await response.arrayBuffer()
         if (response.ok) { ready = true; break }
       } catch { /* Bounded readiness retry while Vite prebundles dependencies. */ }
@@ -72,13 +72,21 @@ export async function collectBrowserCoverage({ root = projectRoot, env = process
   }
   chmodSync(output, 0o700)
   rmSync(join(output, 'chromium-v8'), { recursive: true, force: true })
-  const result = { status: 'failed', phase: 'setup', captureRunId: randomUUID(), startedAt: new Date().toISOString(), kind: 'real Chromium; Node and mapped browser coverage are collected separately', harnesses: [] }
+  const result = { status: 'failed', phase: 'setup', captureRunId: randomUUID(), coverageSession: env.NODEACCESS_COVERAGE_SESSION ?? null, startedAt: new Date().toISOString(), kind: 'real Chromium; Node and mapped browser coverage are collected separately', harnesses: [] }
   let server
   try {
     const executablePath = env.PLAYWRIGHT_EXECUTABLE_PATH || chromium.executablePath()
-    server = await create({ configFile: false, root: join(root, 'apps/frontend'), logLevel: 'error',
+    server = await create({ configFile: false, root: join(root, 'apps/frontend'), cacheDir: join(output, 'vite-cache'), logLevel: 'error',
       plugins: [vue(), { name: 'coverage-isolated-fixture', configureServer(vite) {
         vite.middlewares.use((request, response, next) => {
+          // Older fixtures import the default Vite URL explicitly. Redirect them to
+          // the same isolated dependency graph used by transformed application modules.
+          const dependency = /^\/node_modules\/\.vite\/deps\/([A-Za-z0-9_.-]+)(\?[^#]*)?$/.exec(request.url ?? '')
+          if (dependency && dependency[1] !== '.' && dependency[1] !== '..') {
+            response.statusCode = 302
+            response.setHeader('location', `/@fs${join(output, 'vite-cache/deps', dependency[1])}${dependency[2] ?? ''}`)
+            response.end(); return
+          }
           if (request.url === '/') { response.setHeader('content-type', 'text/html'); response.end('<!doctype html><html><body><main>Isolated coverage fixture</main></body></html>'); return }
           if (request.url?.startsWith('/api/')) { response.statusCode = 404; response.end('No backend in coverage fixture'); return }
           next()
@@ -96,7 +104,7 @@ export async function collectBrowserCoverage({ root = projectRoot, env = process
     const base = `http://127.0.0.1:${address.port}`
     result.origin = base
     result.phase = 'readiness'
-    await waitForBrowserModules(base)
+    await waitForBrowserModules(base, { modulePaths: ['vue.js', 'naive-ui.js'].map(name => `/@fs${join(output, 'vite-cache/deps', name)}`) })
     result.phase = 'harness'
     for (const [name, script] of requiredBrowserHarnesses) {
       const directory = join(output, name); mkdirSync(directory, { mode: 0o700, recursive: true })
@@ -124,12 +132,18 @@ export async function collectBrowserCoverage({ root = projectRoot, env = process
       }
       childEnv.PLAYWRIGHT_EXECUTABLE_PATH = executablePath
       childEnv.CHROMIUM_PATH = executablePath
-      if (name === 'flows') rmSync(join(directory, 'report.json'), { force: true })
+      if (name === 'flows' || name === 'terminal') rmSync(join(directory, 'report.json'), { force: true })
       const run = await execute(root, script, childEnv, join(output, `${name}.log`))
       const failure = name === 'flows' && (run.exitCode !== 0 || run.timedOut) ? readFlowFailure(directory) : undefined
       const diagnostic = run.exitCode !== 0 || run.timedOut ? readHarnessDiagnostic(join(output, `${name}.log`), script) : undefined
       result.harnesses.push({ name, coverageMode, ...run, ...(failure ? { failure } : {}), ...(diagnostic ? { diagnostic } : {}) })
       if (run.exitCode !== 0 || run.timedOut) throw new Error(`Browser coverage harness failed: ${name}`)
+      if (name === 'terminal') {
+        const terminal = JSON.parse(readFileSync(join(directory, 'report.json'), 'utf8'))
+        if (terminal?.result !== 'passed' || terminal.snippets?.refreshedOnOpen !== true || terminal.snippets?.transientFailureRecovered !== true || !terminal.resilience) {
+          throw new Error('Browser coverage harness incomplete: terminal')
+        }
+      }
       if (name === 'tacacs-tls') {
         let report
         try { report = JSON.parse(readFileSync(join(directory, 'report.json'), 'utf8')) } catch { /* Missing or malformed proof cannot pass. */ }

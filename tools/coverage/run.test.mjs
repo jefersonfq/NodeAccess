@@ -51,7 +51,7 @@ function fixture(t, options = {}) {
       const code = browserSource + '\n//# sourceMappingURL=data:application/json;base64,' + Buffer.from(JSON.stringify(sourceMap)).toString('base64')
       const capture = { captureRunId: '00000000-0000-4000-8000-000000000001', origin: 'http://127.0.0.1:1234', startedAt: new Date(Date.now() - 1000).toISOString(), finishedAt: new Date(Date.now() + 1000).toISOString() }
       writeFileSync(join(root, 'coverage/browser/chromium-v8/chromium-a.json'), JSON.stringify({ ...capture, root, schemaVersion: 1, fingerprint: sourceFingerprint(root, sourceInventory(root)), capturedAt: new Date().toISOString(), excluded: {}, scripts: [{ url: capture.origin + '/src/example.ts', source: code, codeSha256: createHash('sha256').update(code).digest('hex'), functions: [{ functionName: '', isBlockCoverage: true, ranges: [{ startOffset: 0, endOffset: code.length, count: 1 }] }] }] }))
-      writeFileSync(join(root, 'coverage/browser/summary.json'), JSON.stringify({ ...capture, status: options.browserFailure ? 'failed' : 'passed',
+      writeFileSync(join(root, 'coverage/browser/summary.json'), JSON.stringify({ ...capture, coverageSession: 'browserSession' in options ? options.browserSession : env.NODEACCESS_COVERAGE_SESSION, status: options.browserFailure ? 'failed' : 'passed',
         harnesses: options.invalidBrowser ? [] : requiredBrowserHarnesses.filter(([name]) => name !== options.missingHarness).map(([name]) => ({ name, exitCode: 0, timedOut: false })) }))
       return options.browserFailure ? 1 : 0
     }
@@ -65,7 +65,7 @@ function fixture(t, options = {}) {
     if (options.sourceDrift) writeFileSync(join(root, source), 'changed after collection\n')
     return options.nodeFailure ? 1 : 0
   }
-  return { root, execute, calls, source }
+  return { root, execute, calls, source, preflight: async () => ({ status: 'passed', failures: [] }) }
 }
 test('aggregate pipeline writes fresh LCOV, preserves legacy gates and strips Sonar credentials', async t => {
   const f = fixture(t)
@@ -127,7 +127,7 @@ test('missing Node suites and corrupted artifacts fail closed', async t => {
 test('real subprocess collector failures remain visible and produce a failure summary', async t => {
   const f = fixture(t)
   // No fake Vitest executable exists: the actual Node subprocess must fail.
-  const result = await runCoverage({ root: f.root })
+  const result = await runCoverage({ root: f.root, preflight: f.preflight })
   assert.equal(result.status, 'failed'); assert.equal(result.collectors.vitest.exitCode, 1)
   assert.ok(result.failures.includes('VITEST_TESTS_FAILED'))
   assert.match(readFileSync(join(f.root, 'coverage/vitest.log'), 'utf8'), /MODULE_NOT_FOUND/)
@@ -187,4 +187,37 @@ for (const [label, options] of [
 ]) test(`rejects Python coverage with ${label}`, async t => {
   const f = fixture(t, options), result = await runCoverage(f)
   assert.equal(result.status, 'failed'); assert.ok(result.failures.includes('PYTHON_COVERAGE_NOT_VERIFIED'))
+})
+
+for (const browserSession of [null, 'stale-run']) test(`delegated terminal requires current coverage session: ${browserSession}`, async t => {
+  const f = fixture(t, { browserSession })
+  const result = await runCoverage(f)
+  assert.equal(result.status, 'failed')
+  assert.ok(result.failures.includes('BROWSER_RESULT_NOT_VERIFIED'))
+})
+test('delegation does not permit omitting the terminal collector', async t => {
+  const f = fixture(t, { missingHarness: 'terminal' }), result = await runCoverage(f)
+  assert.equal(result.status, 'failed')
+  assert.ok(result.failures.includes('BROWSER_RESULT_NOT_VERIFIED'))
+})
+
+test('invalid environment stops before every expensive collector and preserves safe diagnostics', async t => {
+  const f = fixture(t)
+  const result = await runCoverage({ ...f, preflight: async () => ({ status: 'failed', failures: [{ code: 'PREFLIGHT_STORAGE', advice: 'Review permissions' }] }) })
+  assert.equal(result.status, 'failed')
+  assert.deepEqual(f.calls, [])
+  assert.ok(result.failures.includes('ENVIRONMENT_PREFLIGHT_FAILED'))
+  assert.equal(result.preflight.failures[0].code, 'PREFLIGHT_STORAGE')
+})
+
+test('preflight rejection does not require Git or writable coverage output', async t => {
+  const root = mkdtempSync(join(tmpdir(), 'na0180-denied-'))
+  mkdirSync(join(root, 'coverage')); chmodSync(join(root, 'coverage'), 0o500)
+  t.after(() => { chmodSync(join(root, 'coverage'), 0o700); rmSync(root, { recursive: true, force: true }) })
+  let calls = 0
+  const result = await runCoverage({ root, execute: () => { calls++; throw new Error('must not execute') },
+    preflight: async () => ({ status: 'failed', failures: [{ code: 'PREFLIGHT_STORAGE', advice: 'Review permissions' }] }) })
+  assert.equal(result.status, 'failed'); assert.equal(calls, 0)
+  if (process.getuid?.() !== 0) assert.equal(result.reportWritten, false)
+  assert.equal(result.preflight.failures[0].code, 'PREFLIGHT_STORAGE')
 })

@@ -1,18 +1,31 @@
 import { lstatSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { createRequire } from 'node:module'
+import { vitestDiagnostics } from './vitest-diagnostics.mjs'
 const { sanitizeFlowFailure } = createRequire(import.meta.url)('../frontend/sonar-flow-diagnostics.cjs')
 
 const { sanitizeHarnessDiagnostic } = createRequire(import.meta.url)('../coverage/harness-diagnostics.cjs')
 
 const failures = new Set([
-  'VITEST_TESTS_FAILED', 'NODE_TESTS_FAILED', 'BROWSER_TESTS_FAILED',
+  'VITEST_TESTS_FAILED', 'NODE_TESTS_FAILED', 'BROWSER_TESTS_FAILED', 'ENVIRONMENT_PREFLIGHT_FAILED',
   'BROWSER_RESULT_NOT_VERIFIED', 'VITEST_RESULT_NOT_VERIFIED', 'COVERAGE_PIPELINE_FAILED',
   'SOURCE_CHANGED_DURING_COVERAGE', 'LEGACY_SOURCE_SET_INCOMPLETE',
   'TLS_LABORATORY_NOT_VERIFIED', 'PYTHON_COVERAGE_NOT_VERIFIED',
   'LEGACY_LINES_BELOW_70', 'LEGACY_FUNCTIONS_BELOW_70', 'LEGACY_BRANCHES_BELOW_60',
   'SOURCE_COVERAGE_INCOMPLETE', 'UNEXPECTED_SOURCE_COVERAGE', 'NEW_COVERAGE_BELOW_80_OR_INCOMPLETE',
 ])
+const preflightFailures = new Set([
+  'PREFLIGHT_NODE', 'PREFLIGHT_GIT', 'PREFLIGHT_OPENSSL', 'PREFLIGHT_STORAGE',
+  'PREFLIGHT_LOOPBACK', 'PREFLIGHT_CHROMIUM', 'PREFLIGHT_CLEANUP',
+])
+function preflightDiagnostics(source) {
+  const codes = Array.isArray(source?.failures) ? source.failures.map(item => item?.code) : []
+  return {
+    status: ['passed', 'failed'].includes(source?.status) ? source.status : 'unknown',
+    failures: [...new Set(codes.filter(code => preflightFailures.has(code)))],
+    hasUnrecognizedFailures: codes.some(code => !preflightFailures.has(code)),
+  }
+}
 function artifact(file) {
   try {
     const stat = lstatSync(file)
@@ -88,6 +101,8 @@ export function coverageDiagnostics(root) {
       if (!collector || typeof collector !== 'object') continue
       result.collectors[name] = { ...collectorDiagnostics(collector), ...(name === 'browser' ? browserDiagnostics(collector) : {}) }
     }
+    if (result.failures.includes('VITEST_TESTS_FAILED') || result.collectors.vitest?.failed > 0) result.vitest = vitestDiagnostics(root)
+    if (source?.preflight !== undefined) result.preflight = preflightDiagnostics(source.preflight)
     if (source?.error !== undefined) result.errorCategory = errorCategory(source.error)
   } catch { result.summaryRead = 'invalid' }
   return result

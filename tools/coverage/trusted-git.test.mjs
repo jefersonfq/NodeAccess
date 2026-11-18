@@ -26,10 +26,10 @@ test('coverage inventory/diff/run and validation use system Git even with a host
     assert.deepEqual(sourceInventory(root), ['tools/example.mjs'])
     const lcov = 'SF:tools/example.mjs\nDA:1,1\nLF:1\nLH:1\nBRF:0\nBRH:0\nend_of_record\n'
     assert.equal(diffCoverage(root, base, base, lcov).status, 'passed')
-    const coverage = await runCoverage({ root, base, execute: () => { throw new Error('fixture collector reached') } })
+    const coverage = await runCoverage({ root, base, preflight: async () => ({ status: 'passed', failures: [] }), execute: () => { throw new Error('fixture collector reached') } })
     assert.equal(coverage.head, base); assert.equal(coverage.resolvedBase, base)
     assert.equal(coverage.error, 'fixture collector reached')
-    await assert.rejects(validate({ root, env: { SONAR_HOST_URL: 'http://127.0.0.1:9000', SONAR_TOKEN: 'synthetic-analysis', SONAR_REVIEW_TOKEN: 'synthetic-review', SONAR_BASE_SHA: base }, execute: () => { throw new Error('fixture validation reached') } }), /fixture validation reached/)
+    await assert.rejects(validate({ root, preflight: async () => {}, env: { SONAR_HOST_URL: 'http://127.0.0.1:9000', SONAR_TOKEN: 'synthetic-analysis', SONAR_REVIEW_TOKEN: 'synthetic-review', SONAR_BASE_SHA: base }, execute: () => { throw new Error('fixture validation reached') } }), /fixture validation reached/)
     assert.equal(existsSync(marker), false)
   } finally { if (originalPath === undefined) delete process.env.PATH; else process.env.PATH = originalPath }
 })

@@ -28,6 +28,14 @@ async function fixture(options = {}) {
  const server = http.createServer((req, res) => {
   assert.equal(req.method, 'GET', 'Local validation must never mutate Sonar decisions')
   const url = new URL(req.url, 'http://localhost'); requests.push(url.pathname)
+  if (url.pathname === '/api/system/status') {
+   assert.equal(req.headers.authorization, 'Bearer analysis-synthetic')
+   res.setHeader('content-type', 'application/json'); res.end(JSON.stringify({ status: options.preflightDown ? 'DOWN' : 'UP' })); return
+  }
+  if (url.pathname === '/api/authentication/validate') {
+   assert.ok(['Bearer analysis-synthetic', 'Bearer reader-synthetic'].includes(req.headers.authorization))
+   res.setHeader('content-type', 'application/json'); res.end(JSON.stringify({ valid: true })); return
+  }
   assert.equal(req.headers.authorization, url.pathname === '/api/ce/task' ? 'Bearer analysis-synthetic' : 'Bearer reader-synthetic')
   let data
   if (url.pathname === '/api/ce/task') data = { task: { status: options.failedTask ? 'FAILED' : 'SUCCESS', componentKey: 'nodeaccess', id: options.missingTaskId ? undefined : 'task-1', analysisId: 'analysis-1' } }
@@ -70,7 +78,7 @@ async function fixture(options = {}) {
   }
   return 0
  }
- return { root, env, execute, requests, close: async () => { server.closeAllConnections(); await new Promise(resolve => server.close(resolve)); rmSync(root, { recursive: true, force: true }) } }
+ return { root, env, execute, requests, get calls() { return calls }, close: async () => { server.closeAllConnections(); await new Promise(resolve => server.close(resolve)); rmSync(root, { recursive: true, force: true }) } }
 }
 
 test('full orchestration uses fresh artifacts and least-privilege tokens; real loopback export verifies reviewed findings', async () => {
@@ -85,7 +93,7 @@ for (const [name, options, failure] of [
  ['malformed metadata and compute response without task IDs cannot approve candidate', { missingTaskId: true }, 'ANALYSIS_NOT_VERIFIED'],
  ['failed compute task cannot approve candidate', { failedTask: true }, 'ANALYSIS_NOT_VERIFIED'],
  ['concurrent replacement during export invalidates result', { concurrent: true }, 'ANALYSIS_NOT_VERIFIED'],
-]) test(name, async () => { const f = await fixture(options); try { const r = await validate(f); assert.equal(r.passed, false); assert.ok(r.failures.includes(failure)); if (options.noTask) assert.equal(f.requests.length, 0) } finally { await f.close() } })
+]) test(name, async () => { const f = await fixture(options); try { const r = await validate(f); assert.equal(r.passed, false); assert.ok(r.failures.includes(failure)); if (options.noTask) assertPreflightOnly(f.requests) } finally { await f.close() } })
 test('same analysis/read token is rejected before executing tests', async () => {
  const f = await fixture()
  try { await assert.rejects(validate({ ...f, env: { ...f.env, SONAR_REVIEW_TOKEN: f.env.SONAR_TOKEN } }), /distinct/); assert.equal(f.requests.length, 0) } finally { await f.close() }
@@ -104,7 +112,7 @@ test('an invalid review manifest blocks local approval without granting or mutat
 for (const options of [{ staleCoverage: true }, { wrongFingerprint: true }, { pipelineError: true }, { invalidLcov: true }]) {
  test(`coverage integrity blocks scanner: ${JSON.stringify(options)}`, async () => {
   const f = await fixture(options)
-  try { await assert.rejects(validate(f)); assert.equal(f.requests.length, 0); assert.equal(existsSync(join(f.root, '.sonar-reports/validation.lock')), false) } finally { await f.close() }
+  try { await assert.rejects(validate(f)); assertPreflightOnly(f.requests); assert.equal(existsSync(join(f.root, '.sonar-reports/validation.lock')), false) } finally { await f.close() }
  })
 }
 
@@ -115,3 +123,12 @@ for (const options of [{ changedDuringScan: true }, { changedHead: true }]) {
    assert.equal(result.error, 'SOURCE_OR_HEAD_CHANGED_DURING_SCAN') } finally { await f.close() }
  })
 }
+
+function assertPreflightOnly(requests) {
+ // Readiness/authentication reads are allowed; no analysis, export or decision request may follow.
+ assert.deepEqual([...requests].sort(), ['/api/authentication/validate', '/api/authentication/validate', '/api/system/status'])
+}
+test('unavailable Sonar stops before tooling, coverage and scanner commands', async () => {
+ const f = await fixture({ preflightDown: true })
+ try { await assert.rejects(validate(f), /SONAR_PREFLIGHT_FAILED/); assert.equal(f.calls, 0); assertPreflightOnly(f.requests) } finally { await f.close() }
+})

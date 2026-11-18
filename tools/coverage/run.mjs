@@ -1,4 +1,4 @@
-import { mkdirSync, readFileSync, writeFileSync, rmSync, openSync, closeSync, existsSync, lstatSync, realpathSync, chmodSync } from 'node:fs'
+import { mkdirSync, readFileSync, writeFileSync, rmSync, openSync, closeSync, existsSync, lstatSync, realpathSync, chmodSync, constants } from 'node:fs'
 import { resolve, join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { spawnSync, execFileSync } from 'node:child_process'
@@ -11,6 +11,7 @@ import { nodeCoverageMap, normalizeBranchCounts } from './node-map.mjs'
 import { summarizeCoverage, mergeCollectorMaps } from './summary.mjs'
 import { browserCoverageRecords, overlayBrowserCoverage } from './browser-map.mjs'
 import { requiredBrowserHarnesses } from './browser.mjs'
+import { runEnvironmentPreflight } from './preflight.mjs'
 import { diffCoverage } from './lcov.mjs'
 
 const projectRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../..')
@@ -37,8 +38,26 @@ function verifiedPythonCoverage(root, output, proof) {
       && Number.isSafeInteger(proof.executedLines) && proof.executedLines > 0 && proof.executedLines <= proof.totalLines
   } catch { return false }
 }
-export async function runCoverage({ root = projectRoot, base, execute = command, env = process.env } = {}) {
-  const startedAt = new Date().toISOString()
+function recordPreflightFailure(root, result) {
+  // A permission failure may prevent writing any report. Return safe stdout diagnostics regardless.
+  let fd
+  try {
+    if (realpathSync(root) !== resolve(root)) return false
+    const output = join(root, 'coverage')
+    if (!existsSync(output)) mkdirSync(output, { mode: 0o700 })
+    if (!lstatSync(output).isDirectory() || realpathSync(output) !== resolve(output)) return false
+    fd = openSync(join(output, 'summary.json'), constants.O_WRONLY | constants.O_CREAT | constants.O_TRUNC | constants.O_NOFOLLOW | constants.O_NONBLOCK, 0o600)
+    writeFileSync(fd, JSON.stringify(result, null, 2) + '\n')
+    return true
+  } catch { return false } finally { if (fd !== undefined) closeSync(fd) }
+}
+export async function runCoverage({ root = projectRoot, base, execute = command, env = process.env, preflight = runEnvironmentPreflight } = {}) {
+  const startedAt = new Date().toISOString(), coverageSession = randomUUID()
+  const environment = await preflight({ root, env })
+  if (environment.status !== 'passed') {
+    const failed = { schemaVersion: 1, startedAt, finishedAt: new Date().toISOString(), status: 'failed', failures: ['ENVIRONMENT_PREFLIGHT_FAILED'], preflight: environment, collectors: {} }
+    return { ...failed, reportWritten: recordPreflightFailure(root, failed) }
+  }
   const files = sourceInventory(root), fingerprint = sourceFingerprint(root, files)
   const head = execFileSync('/usr/bin/git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim()
   const output = join(root, 'coverage')
@@ -50,14 +69,15 @@ export async function runCoverage({ root = projectRoot, base, execute = command,
   mkdirSync(join(output, 'node-v8'), { mode: 0o700 })
   const childEnv = { ...env }; delete childEnv.SONAR_TOKEN; delete childEnv.SONAR_REVIEW_TOKEN; delete childEnv.NODE_V8_COVERAGE
   delete childEnv.NODEACCESS_TLS_COVERAGE; delete childEnv.NODEACCESS_TLS_COVERAGE_RUN_ID; delete childEnv.NODEACCESS_TLS_COVERAGE_OUTPUT
-  const result = { schemaVersion: 1, startedAt, head, requestedBase: base ?? null, sourceFingerprint: fingerprint,
+  const result = { schemaVersion: 1, startedAt, coverageSession, head, requestedBase: base ?? null, sourceFingerprint: fingerprint,
     status: 'failed', failures: [], newCoverage: { status: 'not_requested' }, collectors: {} }
   try {
+    result.preflight = environment
     const version = process.versions.node.split('.').map(Number)
     if (version[0] !== 24 || version[1] < 21) throw new Error('Coverage requires Node 24.21+')
     if (base) result.resolvedBase = execFileSync('/usr/bin/git', ['rev-parse', '--verify', `${base}^{commit}`], { cwd: root, encoding: 'utf8' }).trim()
     const vitestExit = execute(root, [join(root, 'node_modules/vitest/vitest.mjs'), 'run', '--coverage', '--reporter=json', '--outputFile=coverage/vitest-tests.json'],
-      { ...childEnv, NODEACCESS_COVERAGE_COLLECT: '1', RUN_TUNNEL_REAL: 'true' }, join(output, 'vitest.log'))
+      { ...childEnv, NODEACCESS_COVERAGE_COLLECT: '1', NODEACCESS_COVERAGE_SESSION: coverageSession, RUN_TUNNEL_REAL: 'true' }, join(output, 'vitest.log'))
     result.collectors.vitest = { exitCode: vitestExit }
     if (vitestExit !== 0) result.failures.push('VITEST_TESTS_FAILED')
     const nodeTests = nodeTestFiles(root)
@@ -79,11 +99,11 @@ export async function runCoverage({ root = projectRoot, base, execute = command,
     result.collectors.node.pythonCoverageVerified = verifiedPythonCoverage(root, output, lab?.pythonCoverage)
     if (!result.collectors.node.pythonCoverageVerified) result.failures.push('PYTHON_COVERAGE_NOT_VERIFIED')
     const browserExit = execute(root, [join(root, 'tools/coverage/browser.mjs')],
-      { ...childEnv, NODE_V8_COVERAGE: join(output, 'node-v8') }, join(output, 'browser.log'))
+      { ...childEnv, NODEACCESS_COVERAGE_SESSION: coverageSession, NODE_V8_COVERAGE: join(output, 'node-v8') }, join(output, 'browser.log'))
     const browserReport = JSON.parse(readFileSync(join(output, 'browser/summary.json'), 'utf8'))
     result.collectors.browser = { exitCode: browserExit, ...browserReport }
     if (browserExit !== 0) result.failures.push('BROWSER_TESTS_FAILED')
-    if (browserReport.status !== 'passed' || !Array.isArray(browserReport.harnesses)
+    if (browserReport.coverageSession !== coverageSession || browserReport.status !== 'passed' || !Array.isArray(browserReport.harnesses)
       || browserReport.harnesses.length !== requiredBrowserHarnesses.length || !requiredBrowserHarnesses.map(([name]) => name).every(name => browserReport.harnesses.some(run => run.name === name && run.exitCode === 0 && run.timedOut === false))) {
       result.failures.push('BROWSER_RESULT_NOT_VERIFIED')
     }
@@ -129,7 +149,7 @@ export async function runCoverage({ root = projectRoot, base, execute = command,
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   try {
     const result = await runCoverage(argumentsForCoverage(process.argv.slice(2)))
-    console.log(JSON.stringify({ status: result.status, failures: result.failures, legacy: result.legacy,
+    console.log(JSON.stringify({ status: result.status, failures: result.failures, preflight: result.preflight, reportWritten: result.reportWritten, legacy: result.legacy,
       newCoverage: result.newCoverage, report: 'coverage/summary.json' }))
     process.exitCode = result.status === 'passed' ? 0 : 1
   } catch (error) { console.error(error instanceof Error ? error.message : 'Coverage failed'); process.exitCode = 1 }

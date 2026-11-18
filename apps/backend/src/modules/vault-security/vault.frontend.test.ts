@@ -21,18 +21,30 @@ describe.skipIf(!enabled)('Vault HTTPS browser integration with real backend and
     const head = execFileSync('/usr/bin/git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim()
     const { executeFrontendHarness } = await import('../../../../../tools/vault-security/frontend-harness.mts')
     expect(keys.every(key => process.env[key] === before[key])).toBe(true)
-    const { report, evidence } = await executeFrontendHarness()
+    const coverageSession = process.env.NODEACCESS_COVERAGE_COLLECT === '1' ? process.env.NODEACCESS_COVERAGE_SESSION : undefined
+    if (process.env.NODEACCESS_COVERAGE_COLLECT === '1') expect(coverageSession).toMatch(/^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/)
+    const { report, evidence } = await executeFrontendHarness({ coverageSession })
     expect(report, `Private evidence: ${evidence}`).toMatchObject({ status: 'passed', head, cleanup: true, sourcesUnchanged: true })
     expect(report.flow).toMatchObject({ status: 'passed', count: 19 })
     expect(report.httpBoundary).toEqual({ status: 'passed', reasonVisible: true, revealDisabled: true, copyDisabled: true, vaultRequests: 0 })
     expect(report.catalogue).toMatchObject({ status: 'passed' })
     expect(report.catalogue).toHaveProperty('scenarios.length', 14)
-    expect(report.terminal).toEqual({ exitCode: 0, timedOut: false })
-    expect(report.terminalSnippets).toMatchObject({ refreshedOnOpen: true, transientFailureRecovered: true })
+    if (coverageSession) {
+      expect(report.terminal).toEqual({ status: 'delegated', collector: 'browser', harness: 'terminal', coverageSession })
+      expect(report.terminalSnippets).toBeUndefined()
+    } else {
+      expect(report.terminal).toEqual({ exitCode: 0, timedOut: false })
+      expect(report.terminalSnippets).toMatchObject({ refreshedOnOpen: true, transientFailureRecovered: true })
+    }
     expect(report.fingerprintAfter).toBe(report.fingerprintBefore)
     expect(JSON.parse(readFileSync(evidence, 'utf8'))).toEqual(report)
     expect(keys.every(key => process.env[key] === before[key])).toBe(true)
     expect(process.umask()).toBe(mask)
     expect(process.exitCode).toBe(exitCode)
   }, 420000)
+})
+
+it('rejects a malformed delegated coverage session before starting resources', async () => {
+  const { executeFrontendHarness } = await import('../../../../../tools/vault-security/frontend-harness.mts')
+  await expect(executeFrontendHarness({ coverageSession: 'previous-run' })).rejects.toThrow('Invalid coverage session')
 })

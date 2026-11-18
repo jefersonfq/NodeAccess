@@ -133,3 +133,30 @@ test('security-center diagnostics preserve outcome and sanitize free text', t =>
     harnesses: [{ name: 'security-center', exitCode: 1, timedOut: false }],
   })
 })
+
+
+test('preflight failure remains actionable without LCOV and excludes untrusted advice', t => {
+  const f = fixture(t)
+  const codes = ['PREFLIGHT_NODE', 'PREFLIGHT_GIT', 'PREFLIGHT_OPENSSL', 'PREFLIGHT_STORAGE', 'PREFLIGHT_LOOPBACK', 'PREFLIGHT_CHROMIUM', 'PREFLIGHT_CLEANUP']
+  f.write({ status: 'failed', failures: ['ENVIRONMENT_PREFLIGHT_FAILED'], preflight: {
+    status: 'failed', failures: [...codes, 'PRIVATE-code', codes[0]].map(code => ({ code, advice: 'PRIVATE-advice', path: '/PRIVATE/path' })), stdout: 'PRIVATE-output',
+  } })
+  const result = coverageDiagnostics(f.root)
+  assert.equal(result.artifacts.lcov, 'missing')
+  assert.deepEqual(result.failures, ['ENVIRONMENT_PREFLIGHT_FAILED'])
+  assert.equal(result.hasUnrecognizedFailures, false)
+  assert.deepEqual(result.preflight, { status: 'failed', failures: codes, hasUnrecognizedFailures: true })
+  assert.doesNotMatch(JSON.stringify(result), /PRIVATE|advice|stdout/)
+})
+
+test('preflight projection rejects malicious status and malformed failure entries', t => {
+  const f = fixture(t)
+  f.write({ preflight: { status: 'PRIVATE', failures: [null, 'PREFLIGHT_NODE', { code: { PRIVATE: true } }, { code: 'PREFLIGHT_STORAGE', advice: 'PRIVATE' }] } })
+  assert.deepEqual(coverageDiagnostics(f.root).preflight, { status: 'unknown', failures: ['PREFLIGHT_STORAGE'], hasUnrecognizedFailures: true })
+  for (const preflight of [null, 'PRIVATE', { status: 'passed', failures: 'PRIVATE' }]) {
+    f.write({ preflight })
+    const result = coverageDiagnostics(f.root).preflight
+    assert.deepEqual(result.failures, [])
+    assert.doesNotMatch(JSON.stringify(result), /PRIVATE/)
+  }
+})
