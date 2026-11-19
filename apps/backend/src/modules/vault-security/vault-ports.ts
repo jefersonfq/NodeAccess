@@ -1,4 +1,4 @@
-import type { VaultAuthority, VaultEvent, VaultIdentity, VaultOrigin, VaultSecret, VaultAction, VaultChange } from './vault-domain.js'
+import type { VaultAuthMethod, VaultAuthority, VaultEvent, VaultIdentity, VaultOrigin, VaultSecret, VaultAction, VaultChange } from './vault-domain.js'
 export type RecordKind = 'client' | 'challenge' | 'session' | 'operation'
 export interface VaultTransaction {
   authority: VaultAuthority
@@ -17,7 +17,8 @@ export interface OriginVerifier {
   bind(token: string, identity: VaultIdentity): Promise<VaultOrigin>
   assert(origin: VaultOrigin, identity: VaultIdentity): Promise<void>
 }
-export interface Reauthentication { verify(password: string, otp: string, authority: VaultAuthority): Promise<boolean> }
+/** Step-up chosen by the signed method of the origin session, never by the client. */
+export interface Reauthentication { verify(password: string, otp: string, authority: VaultAuthority, method: VaultAuthMethod, identity: VaultIdentity): Promise<boolean> }
 export interface EnvelopeSealer {
   validate(key: { kty: 'RSA'; n: string; e: string }): Promise<string>
   seal(key: { kty: 'RSA'; n: string; e: string }, context: object, secret: VaultSecret): Promise<string>

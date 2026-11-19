@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { createHash, randomBytes } from 'node:crypto'
 import { VaultService } from './vault.service.js'
 import { VaultAdministrationService } from './vault-administration.service.js'
-import { assertPolicy, VaultError, type VaultAuthority, type VaultIdentity, type VaultEvent } from './vault-domain.js'
+import { assertPolicy, VaultError, type VaultAuthMethod, type VaultAuthority, type VaultIdentity, type VaultEvent } from './vault-domain.js'
 import type { VaultStore, VaultTransaction, EnvelopeSealer } from './vault-ports.js'
 
 const identity: VaultIdentity = { userId: 1, tenantId: 2, sessionVersion: 3 }
@@ -12,13 +12,15 @@ const entropy = { token: () => randomBytes(32).toString('base64url'), digest: (s
 function fixture() {
   let time = 1000, secretVersion = 'v1', originActive = true, auditFails = false, afterCommit: (() => void) | undefined
   let records = new Map<string, unknown>(), counts = new Map<string, number>(), events: VaultEvent[] = []
+  let originMethod: VaultAuthMethod = 'local'
   const authority: VaultAuthority = { policy: { version: 1, unlock: true, reveal: true, copy: true, localReauth: true, origin, tenantQuota: 100 },
-    validUntil: Number.MAX_SAFE_INTEGER, role: 'USER', passwordHash: 'hashed-password', mfaSecret: 'mfa-test', credentialVersion: 'credentials-v1' }
+    validUntil: Number.MAX_SAFE_INTEGER, role: 'USER', passwordHash: 'hashed-password', mfaSecret: 'mfa-test', credentialVersion: 'credentials-v1',
+    email: 'user@example.test', methods: { local: true, ldap: true, oidc: true, google: true } }
   const audit = vi.fn((e: VaultEvent) => { if (auditFails) throw new Error('audit unavailable'); events.push(e); return Promise.resolve() })
   const authorizeSecret = vi.fn(() => Promise.resolve({ version: secretVersion, encrypted: 'ciphertext', iv: 'iv' }))
   const reauth = { verify: vi.fn(() => Promise.resolve(true)) }
   const sealer = { validate: vi.fn(() => Promise.resolve('key-thumbprint')), seal: vi.fn<EnvelopeSealer['seal']>(() => Promise.resolve('ciphertext-envelope')) }
-  const verifier = { bind: vi.fn(() => Promise.resolve({ jti: 'origin', expiresAt: 2_000_000 })), assert: vi.fn(() => { if (!originActive) throw new VaultError('VAULT_ORIGIN_REVOKED',423); return Promise.resolve() }) }
+  const verifier = { bind: vi.fn(() => Promise.resolve({ jti: 'origin', expiresAt: 2_000_000, authMethod: originMethod })), assert: vi.fn(() => { if (!originActive) throw new VaultError('VAULT_ORIGIN_REVOKED',423); return Promise.resolve() }) }
   const propose = vi.fn(() => Promise.resolve()), approve = vi.fn(() => Promise.resolve({ change: { kind: 'item' as const, secretId: 4, enabled: true }, proposedBy: 9 }))
   let tail = Promise.resolve()
   const store: VaultStore = { transaction: async <T>(_i: VaultIdentity, run: (tx: VaultTransaction) => Promise<T>): Promise<T> => {
@@ -43,7 +45,7 @@ function fixture() {
     const s = await service.unlock(identity,c.clientId,origin,challenge.challengeId,'password','123456')
     return { c, s, request: () => service.request(identity,c.clientId,origin,s.sessionId,'reveal',4,key) }
   }
-  return { service, setup, authority, reauth, sealer, verifier, audit, authorizeSecret, propose, approve,
+  return { service, setup, authority, reauth, useMethod: (m: VaultAuthMethod) => { originMethod = m }, sealer, verifier, audit, authorizeSecret, propose, approve,
     records: () => records, events: () => events, counts: () => counts,
     advance: (ms: number) => { time+=ms }, revoke: () => { originActive=false }, rotate: () => { secretVersion='v2' },
     failAudit: (v: boolean) => { auditFails=v }, onCommit: (fn: () => void) => { afterCommit=fn } }
@@ -210,3 +212,27 @@ describe('policy fails closed',()=>{
     const p=fixture().authority.policy;expect(()=>assertPolicy({...p,...patch} as typeof p)).toThrow(VaultError)
   })
 })
+
+describe('vault step-up by login method (NA-0184)', () => {
+  it.each([['local', 'password_totp'], ['ldap', 'password_totp'], ['oidc', 'provider'], ['google', 'provider']] as const)(
+    '%s origin gets %s challenge and the signed method reaches the step-up adapter', async (method, stepUp) => {
+      const f = fixture(); f.useMethod(method)
+      const c = await f.service.register(identity, 'refresh', origin)
+      const p = await f.service.challenge(identity, c.clientId, origin)
+      expect(p.stepUp).toBe(stepUp)
+      await f.service.unlock(identity, c.clientId, origin, p.challengeId, 'password', '123456')
+      expect(f.reauth.verify).toHaveBeenCalledWith('password', '123456', expect.objectContaining({ email: 'user@example.test' }), method, identity)
+    })
+  it('denies registration for a method the tenant policy does not allow', async () => {
+    const f = fixture(); f.useMethod('ldap'); f.authority.methods.ldap = false
+    await expect(f.service.register(identity, 'refresh', origin)).rejects.toMatchObject({ status: 403 })
+  })
+  it('denies an existing client after the tenant disables its login method', async () => {
+    const f = fixture(); f.useMethod('ldap')
+    const { c, s } = await f.setup()
+    f.authority.methods.ldap = false
+    await expect(f.service.challenge(identity, c.clientId, origin)).rejects.toMatchObject({ status: 403 })
+    await expect(f.service.request(identity, c.clientId, origin, s.sessionId, 'reveal', 4, key)).rejects.toMatchObject({ status: 403 })
+  })
+})
+

@@ -3,7 +3,7 @@ import { VaultAdministrationService } from './modules/vault-security/vault-admin
 import { randomBytes, createHash } from 'node:crypto'
 import { VaultService } from './modules/vault-security/vault.service.js'
 import { SqlVaultStore } from './modules/vault-security/vault.repository.js'
-import { RedisVaultOrigin, LocalVaultReauthentication } from './modules/vault-security/vault-identity.js'
+import { RedisVaultOrigin, MethodVaultReauthentication } from './modules/vault-security/vault-identity.js'
 import { JweVaultEnvelope } from './modules/vault-security/vault-envelope.js'
 import { UserSessionRevocationService } from './modules/auth/user-session-revocation.service.js'
 import { configureCurrentSessionReader } from './modules/auth/current-session.js'
@@ -336,8 +336,8 @@ const localIdentityProvider = new LocalIdentityProvider(userRepository)
 const ldapIdentityProvider = new LdapIdentityProvider(integrationRepository, ldapIntegrationService, userRepository)
 const vaultEntropy = { token: (): string => randomBytes(32).toString('base64url'), digest: (value: string): string => createHash('sha256').update(value).digest('hex') }
 const vaultDatabase = new VaultDatabase(env.DATABASE_URL)
-const vaultSecurityService = new VaultService(new SqlVaultStore(() => vaultDatabase.client()), new RedisVaultOrigin(redis, env.JWT_SECRET),
-  new LocalVaultReauthentication(totpService), new JweVaultEnvelope(),
+const vaultSecurityService = new VaultService(new SqlVaultStore(() => vaultDatabase.client()), new RedisVaultOrigin(redis, env.JWT_SECRET, Date.now, 500, env.VAULT_STEP_UP_EXTERNAL_ENABLED),
+  new MethodVaultReauthentication(totpService, ldapIdentityProvider), new JweVaultEnvelope(),
   vaultEntropy)
 const vaultAdministrationService = new VaultAdministrationService(vaultSecurityService, vaultEntropy)
 const authService        = new AuthService(userRepository, totpService, redis, googleService, emailConfigService, emailService, localIdentityProvider, ldapIdentityProvider, tenantAuthPolicyService, appEventBus)

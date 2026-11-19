@@ -12,7 +12,7 @@ import { VaultService } from './vault.service.js'
 import { VaultAdministrationService } from './vault-administration.service.js'
 import { SqlVaultStore } from './vault.repository.js'
 import { VaultDatabase } from './vault.database.js'
-import { RedisVaultOrigin, LocalVaultReauthentication } from './vault-identity.js'
+import { RedisVaultOrigin, MethodVaultReauthentication } from './vault-identity.js'
 import { JweVaultEnvelope } from './vault-envelope.js'
 import { TotpService } from '../auth/totp.service.js'
 import { encrypt } from '../../shared/crypto.js'
@@ -75,7 +75,7 @@ describe.skipIf(!enabled)('Vault SQL/Redis isolated integration', () => {
     const advance = (milliseconds: number) => { clockOffset += milliseconds }
     const store = new SqlVaultStore(db, now), verifier = new RedisVaultOrigin(redis, signingKey, now), sealer = new JweVaultEnvelope()
     const makeService = (overrides: { store?: VaultStore; sealer?: EnvelopeSealer } = {}) => new VaultService(overrides.store ?? store, verifier,
-      new LocalVaultReauthentication(new TotpService()), overrides.sealer ?? sealer, entropy, now)
+      new MethodVaultReauthentication(new TotpService()), overrides.sealer ?? sealer, entropy, now)
     const service = makeService()
     const { clientId } = await service.register(identity, refresh, origin)
     const { challengeId } = await service.challenge(identity, clientId, origin)

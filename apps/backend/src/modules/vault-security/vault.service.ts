@@ -19,6 +19,8 @@ export class VaultService {
     if (origin !== tx.authority.policy.origin) denied()
     const client = await tx.get<VaultClient>('client', id)
     if (!client || client.id !== this.entropy.digest(id) || client.sessionVersion !== identity.sessionVersion || client.expiresAt <= tx.now() || client.policyVersion !== tx.authority.policy.version) throw new VaultError('VAULT_LOCKED', 423)
+    // Tenant login policy can disable a method after the client was registered.
+    if (tx.authority.methods[client.origin.authMethod] !== true) denied()
     await this.origin.assert(client.origin, identity)
     return client
   }
@@ -26,7 +28,7 @@ export class VaultService {
     const origin = await this.origin.bind(refreshToken, identity)
     return this.store.transaction(identity, async tx => {
       assertPolicy(tx.authority.policy)
-      if (requestOrigin !== tx.authority.policy.origin) denied()
+      if (requestOrigin !== tx.authority.policy.origin || tx.authority.methods[origin.authMethod] !== true) denied()
       await tx.limit('clients', 3_600_000, 10)
       const id = this.entropy.token(), expiresAt = Math.min(tx.now() + 1_800_000, origin.expiresAt, tx.authority.validUntil)
       await tx.put('client', id, { id: this.entropy.digest(id), sessionVersion: identity.sessionVersion, origin, policyVersion: tx.authority.policy.version, expiresAt }, expiresAt)
@@ -34,25 +36,26 @@ export class VaultService {
       return { clientId: id, expiresAt, serverNow: tx.now() }
     })
   }
-  async challenge(identity: VaultIdentity, clientId: string, origin: string): Promise<{ challengeId: string; expiresAt: number; serverNow: number }> {
+  async challenge(identity: VaultIdentity, clientId: string, origin: string): Promise<{ challengeId: string; expiresAt: number; serverNow: number; stepUp: 'password_totp' | 'provider' }> {
     return this.store.transaction(identity, async tx => {
       const client = await this.client(tx, clientId, identity, origin)
       await tx.limit('unlock', 300_000, 5)
       const challengeId = this.entropy.token(), expiresAt = Math.min(tx.now() + 120_000, client.expiresAt)
       await tx.put('challenge', challengeId, { clientId: client.id, credentialVersion: tx.authority.credentialVersion, expiresAt }, expiresAt)
-      return { challengeId, expiresAt, serverNow: tx.now() }
+      const stepUp = client.origin.authMethod === 'oidc' || client.origin.authMethod === 'google' ? 'provider' as const : 'password_totp' as const
+      return { challengeId, expiresAt, serverNow: tx.now(), stepUp }
     })
   }
   async unlock(identity: VaultIdentity, clientId: string, origin: string, challengeId: string, password: string, otp: string): Promise<{ sessionId: string; idleUntil: number; expiresAt: number; serverNow: number }> {
     // Burn each challenge before expensive verification; failures cannot replay it.
     const proof = await this.store.transaction(identity, async tx => {
-      await this.client(tx, clientId, identity, origin)
+      const client = await this.client(tx, clientId, identity, origin)
       const c = await tx.get<VaultChallenge>('challenge', challengeId)
       if (!c || c.clientId !== this.entropy.digest(clientId) || c.expiresAt <= tx.now() || c.credentialVersion !== tx.authority.credentialVersion) denied()
       await tx.remove('challenge', challengeId)
-      return { authority: tx.authority, expiresAt: c.expiresAt }
+      return { authority: tx.authority, expiresAt: c.expiresAt, method: client.origin.authMethod }
     })
-    if (!await this.reauth.verify(password, otp, proof.authority)) {
+    if (!await this.reauth.verify(password, otp, proof.authority, proof.method, identity)) {
       await this.store.transaction(identity, tx => tx.audit({ type: 'UNLOCK_DENIED', clientId, policyVersion: tx.authority.policy.version }))
       denied()
     }

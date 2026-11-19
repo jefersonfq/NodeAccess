@@ -6,7 +6,7 @@ import type { VaultChange } from './vault-domain.js'
 const actor={userId:1,tenantId:2,sessionVersion:3}
 function fixture() {
   const policy={unlock:true,reveal:true,copy:true,localReauth:true,origin:'https://vault.test',tenantQuota:100}
-  const state={tenant:true,user:{active:true,deletedAt:null as Date|null,version:3,role:'USER',passwordHash:'hash' as string|null,mfaSecret:'mfa' as string|null,mfaEnabled:true,forcePasswordChange:false,lockedUntil:null as Date|null},
+  const state={tenant:true,user:{active:true,deletedAt:null as Date|null,version:3,role:'USER',email:'user@example.test',passwordHash:'hash' as string|null,mfaSecret:'mfa' as string|null,mfaEnabled:true,forcePasswordChange:false,lockedUntil:null as Date|null},
     auth:[] as {local:boolean;sso:boolean}[],trials:[] as object[],features:{secrets:true},licenseActive:true,licenseExpires:null as Date|null,policy,policyVersion:1,
     grant:{enabled:true,grantedBy:2,approvedBy:3} as {enabled:boolean;grantedBy:number;approvedBy:number}|null,
     secret:{encrypted:'ciphertext',iv:'iv',scope:'PERSONAL',owner:1,groupId:null as number|null,revokedAt:null as Date|null} as {encrypted:string;iv:string;scope:string;owner:number|null;groupId:number|null;revokedAt:Date|null}|null,
@@ -44,7 +44,7 @@ describe('SQL vault adapter authorization and locking contract',()=>{
       expect(f.queries.some(q=>q.includes('FROM '+table)&&/FOR (SHARE|UPDATE)/.test(q))).toBe(true)
     expect(f.db.$transaction).toHaveBeenCalledWith(expect.any(Function),{isolationLevel:'Serializable',maxWait:500,timeout:2500})
   })
-  it.each(['tenant','inactive','deleted','version','password','mfa','mfa-disabled','password-change','locked','local-disabled','sso','trial','license','license-inactive','license-expired','policy'] as const)('denies %s authority',async mode=>{
+  it.each(['tenant','inactive','deleted','version','mfa','mfa-disabled','password-change','locked','trial','license','license-inactive','license-expired','policy'] as const)('denies %s authority',async mode=>{
     const f=fixture(),s=f.state
     if(mode==='tenant')s.tenant=false;if(mode==='inactive')s.user.active=false;if(mode==='deleted')s.user.deletedAt=new Date()
     if(mode==='version')s.user.version++;if(mode==='password')s.user.passwordHash=null;if(mode==='mfa')s.user.mfaSecret=null
@@ -52,6 +52,18 @@ describe('SQL vault adapter authorization and locking contract',()=>{
     if(mode==='local-disabled')s.auth=[{local:false,sso:false}];if(mode==='sso')s.auth=[{local:true,sso:true}];if(mode==='trial')s.trials=[{id:1}]
     if(mode==='license')s.features.secrets=false;if(mode==='license-inactive')s.licenseActive=false;if(mode==='license-expired')s.licenseExpires=new Date(1000);if(mode==='policy')s.policy.unlock=false
     await expect(f.store.transaction(actor,()=>Promise.resolve(true))).rejects.toMatchObject({status:403})
+  })
+  it.each([
+    ['no policy row', [], null, { local: true, ldap: true, oidc: true, google: true }],
+    ['standard', [{ local: true, sso: false }], 'hash', { local: true, ldap: true, oidc: true, google: true }],
+    ['local disabled', [{ local: false, sso: false }], 'hash', { local: false, ldap: true, oidc: true, google: true }],
+    ['sso required', [{ local: true, sso: true }], 'hash', { local: false, ldap: false, oidc: true, google: true }],
+    ['no local password', [{ local: true, sso: false }], null, { local: true, ldap: true, oidc: true, google: true }],
+  ] as const)('derives allowed vault methods for %s without denying the whole tenant (NA-0184)', async (_label, auth, passwordHash, methods) => {
+    const f=fixture(),s=f.state; s.auth=[...auth]; s.user.passwordHash=passwordHash
+    const authority=await f.store.transaction(actor,tx=>Promise.resolve(tx.authority))
+    expect(authority.methods).toEqual(methods)
+    expect(authority.passwordHash).toBe(passwordHash)
   })
   it.each(['no-grant','disabled-grant','self-grant','same-approver','no-secret','revoked','not-web','no-group','no-member','flag'] as const)('denies %s extraction',async mode=>{
     const f=fixture(),s=f.state
