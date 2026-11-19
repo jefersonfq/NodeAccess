@@ -39,7 +39,7 @@ export function createVaultProviderStepUp(deps: {
     { beginStepUp: (t, r, b) => deps.oidcFlow().beginStepUp(t, r, b), completeStepUp: (s, c, b) => deps.oidcFlow().completeStepUp(s, c, b) },
     deps.links,
     {
-      config: async tenantId => {
+      config: async (tenantId: number): Promise<{ clientId: string; domain?: string } | null> => {
         const config = await deps.google.getConfig(tenantId)
         return config ? { clientId: config.clientId, ...(config.domain ? { domain: config.domain } : {}) } : null
       },

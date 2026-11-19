@@ -92,3 +92,10 @@ Ran: `npm run validate:sonar` no 26dd8efb7: testes 4151 PASS/0 FAIL, análise ve
 ### 2026-11-19T22:55:00-03:00 — Gate Sonar aprovado
 
 Ran: `npm run validate:sonar` no 44d1c6ab6: PASS, 4164 testes, 0 achados inesperados, gate OK, cobertura diferencial 80,52%. Evidência em `docs/sonarqube/validation-NA-0184.md`. Status `ready-for-review`. Próximo: push, PR e checks remotos; homologação do responsável.
+
+### 2026-11-19T23:40:00-03:00 — Checks remotos da PR74
+
+Ran: checks da PR74 no 0d0bd8cf3: 8 PASS, 3 FAIL. Corrigido:
+- `static-quality`: aviso de tipo de retorno em `vault-provider.ts` (ESLint com zero avisos); só anotação de tipo.
+- `static-and-secrets`: os falsos positivos revisados de PEM em `locales/en.json` e `locales/pt-BR.json` (NA-0179) estão presos ao hash do arquivo inteiro; as linhas revisadas (1051/1054) não mudaram e o diff não toca linhas `BEGIN`. Atualizado só o `fileSha256` dos dois registros em `security/gitleaks-fixtures.json`. Ran: `npm run security:scan` PASS (0 não revisados, 0 achados Semgrep).
+- `manual`: o capítulo **hosts** acompanha o painel e o serviço do cofre. O texto afirmava que o cofre exige conta local; atualizado pelo procedimento da skill do manual (requisitos, passo 2 por método, tolerância de foco na confirmação, recuperações) e registrado em `docs/OPERATIONS-manual-pilot.md`. Capturas não refeitas (painel local inalterado; sem captura do diálogo do cofre). Ran: `npm run test:manual` PASS e `npm run manual:check-reviewed` PASS.
