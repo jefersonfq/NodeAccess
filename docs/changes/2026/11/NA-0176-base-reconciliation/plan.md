@@ -2,7 +2,7 @@
 change_id: NA-0176
 title: Reconciliar base integrada antes do VaultNAccess
 type: release
-status: in-development
+status: closed
 created_at: 2026-11-15T17:09:43-03:00
 base_branch: master
 base_sha: be4daff2e5a6d2a2ff7603df2ec676ec03f4156a

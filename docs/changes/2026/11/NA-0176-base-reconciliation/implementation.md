@@ -39,3 +39,7 @@ Necessário para concluir a unificação sem publicar artefatos brutos indiscrim
 
 ### 2026-11-15T18:20:01-03:00 — Validação documental antes do commit final
 Ran: revisão independente213/213artefatos iguais ao checkpoint; Markdown/planilhas preservados; diff limitado a docs/README. Scanner redigido do delta final92arquivos:0achados, sem nova exceção; git diff --check PASS. Planilha validada por ZIP/XML, demais células/abas/Original2027/revisões anteriores preservadas, sem renderização Excel. Commit final exclusivamente documental; validar governança e CI no novo SHA. Resultado do CI ficará na PR65, sem atribuir execução local afdc ao SHA novo.
+
+### 2026-11-19T16:10:00-03:00 — Encerramento do registro
+
+Ran: consulta à API do GitHub: PR65 MERGED em 2026-11-15T21:40:33Z, merge `ae188983d061a7bb5e6aaf855fd9d2f92416f3b8`. O registro estava com status desatualizado; evidências finais de checks e homologação ficam na PR. Status passou a `closed` (registro feito na NA-0183).

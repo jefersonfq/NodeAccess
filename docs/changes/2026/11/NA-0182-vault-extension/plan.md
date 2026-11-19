@@ -138,7 +138,7 @@ Documental nesta frente. Nas fatias: feature flags no servidor, revogação de c
 
 ## Mudanças de escopo e decisões
 
-2026-11-19: o responsável ampliou o objetivo de “descoberta sem segredos” (fase 2 da avaliação) para acesso e cadastro completos no nível de um gerenciador de senhas, com prioridade em segurança e evolutividade. A fase 2 vira E1, e as fases 3A/3B/4 da avaliação viram E2–E7. Plano aprovado no mesmo dia; adicionada a permissão por usuário `extension` para login na extensão.
+2026-11-19: o responsável ampliou o objetivo de “descoberta sem segredos” (fase 2 da avaliação) para acesso e cadastro completos no nível de um gerenciador de senhas, com prioridade em segurança e evolutividade. A fase 2 vira E1, e as fases 3A/3B/4 da avaliação viram E2–E7. Plano aprovado no mesmo dia; adicionada a permissão por usuário `extension` para login na extensão. Correção na NA-0183: no piloto vale o contrato NA-0177 (autorização de 30 min só em memória, sem refresh); a renovação vinculada à chave fica para depois do piloto, com revisão do contrato.
 
 ## Aprovação
 

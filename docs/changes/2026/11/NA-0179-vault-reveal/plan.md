@@ -2,7 +2,7 @@
 change_id: NA-0179
 title: Revelação e cópia autorizadas no frontend VaultNAccess
 type: feature
-status: ready-for-tests
+status: closed
 created_at: 2026-11-16T09:15:00-03:00
 base_branch: security/NA-0178-20261115-vault-delivery
 base_sha: 31a9f3601874ea2d0fa474972dc01a07e35f94b6
