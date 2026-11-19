@@ -36,6 +36,13 @@ export function forwardVaultStepUpReturn(state: string, code: string, channel: (
   return true
 }
 
+/** Decides how the OIDC callback page treats a return: never a central login for step-up states. */
+export function routeVaultStepUpReturn(query: { state?: unknown; code?: unknown; error?: unknown }, forward = forwardVaultStepUpReturn): 'not-step-up' | 'forwarded' | 'failed' {
+  if (!isVaultStepUpState(query.state)) return 'not-step-up'
+  if (typeof query.error === 'string' && query.error) return 'failed'
+  return typeof query.code === 'string' && forward(query.state, query.code) ? 'forwarded' : 'failed'
+}
+
 export function openVaultProviderWindow(authorizationUrl: string, signal: AbortSignal, deps: ProviderWindowDependencies = browser()): Promise<{ state: string; code: string }> {
   let url: URL
   try { url = new URL(authorizationUrl) } catch { return Promise.reject(new VaultClientError('unavailable')) }

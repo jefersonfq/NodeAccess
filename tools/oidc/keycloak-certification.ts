@@ -181,7 +181,7 @@ async function certify(): Promise<void> {
   if (!wrongBindingRejected) throw new Error('Step-up accepted a return bound to another challenge')
   const confirmed = await flow.completeStepUp(stepUp!.state, stepUp!.code, 'challenge-binding')
   const authTime = confirmed.identity.claims.auth_time
-  if (typeof authTime !== 'number' || Math.abs(Date.now() / 1000 - authTime) > 120) throw new Error(`Step-up auth_time is missing or stale: type=${typeof authTime} delta=${typeof authTime === 'number' ? Math.round(Date.now() / 1000 - authTime) : 'n/a'} claims=${Object.keys(confirmed.identity.claims).sort().join(',')}`)
+  if (typeof authTime !== 'number' || Math.abs(Date.now() / 1000 - authTime) > 120) throw new Error(`Step-up auth_time is missing or stale: type=${typeof authTime} delta=${typeof authTime === 'number' ? Math.round(Date.now() / 1000 - authTime) : 'n/a'} claims=${Object.keys(confirmed.identity.claims).sort((a, b) => a.localeCompare(b)).join(',')}`)
   if (confirmed.identity.subject !== completed.identity.subject || confirmed.tenantId !== 7) throw new Error('Step-up identity changed')
   const loginOnStepUp = await flow.begin(7, redirectUri)
   const [other] = await captureLoginThenStepUp(loginOnStepUp.authorizationUrl, [async () => (await flow.beginStepUp(7, redirectUri, 'challenge-binding-3')).authorizationUrl])

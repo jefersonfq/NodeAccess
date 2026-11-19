@@ -6,7 +6,7 @@ import { useI18n } from 'vue-i18n'
 import { authService } from '@/services/auth.service'
 import { getSafeRedirectTarget } from '@/services/auth-redirect.service'
 import { useAuthStore } from '@/stores/auth'
-import { forwardVaultStepUpReturn, isVaultStepUpState } from '@/services/vault-provider-confirm'
+import { routeVaultStepUpReturn } from '@/services/vault-provider-confirm'
 
 const route = useRoute()
 const router = useRouter()
@@ -21,12 +21,10 @@ onMounted(async () => {
   const code = typeof route.query.code === 'string' ? route.query.code : ''
   const providerError = typeof route.query.error === 'string' ? route.query.error : ''
   // NA-0184: vault step-up returns never complete a central login; forward them to the vault page.
-  if (isVaultStepUpState(state)) {
+  const stepUp = routeVaultStepUpReturn(route.query)
+  if (stepUp !== 'not-step-up') {
     loading.value = false
-    if (!providerError && code && forwardVaultStepUpReturn(state, code)) {
-      stepUpDone.value = true
-      window.close()
-    } else error.value = t('vaultDelivery.providerReturnError')
+    if (stepUp === 'forwarded') { stepUpDone.value = true; window.close() } else error.value = t('vaultDelivery.providerReturnError')
     return
   }
   if (providerError || !state || !code) {

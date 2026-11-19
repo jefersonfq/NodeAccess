@@ -162,6 +162,12 @@ describe('Vault step-up by login method', () => {
     const disabled = authority({ passwordHash: await bcrypt.hash(password, 4), methods: { ...allMethods, local: false } })
     expect(await provider.verify(password, otp(disabled), disabled, 'local', identity)).toBe(false)
   })
+  it('verifies only a valid six digit NodeAccess TOTP after a provider proof', () => {
+    const a = authority(), provider = new MethodVaultReauthentication(new TotpService())
+    expect(provider.verifySecondFactor(otp(a), a)).toBe(true)
+    expect(provider.verifySecondFactor('12345', a)).toBe(false)
+    expect(provider.verifySecondFactor('000000', authority())).toBe(false)
+  })
   it('does not evaluate MFA when the first factor fails', async () => {
     const totp = { verify: vi.fn().mockReturnValue(true) }
     const a = authority({ passwordHash: await bcrypt.hash(randomUUID(), 4) })
