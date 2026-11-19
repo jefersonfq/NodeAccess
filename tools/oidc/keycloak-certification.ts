@@ -77,6 +77,55 @@ async function captureAuthorizationCode(authorizationUrl: string): Promise<{ cod
   }
 }
 
+/**
+ * NA-0184: one browser session logs in, then follows a vault step-up URL. Keycloak must show the
+ * credential form again (prompt=login) even with an active SSO session; every callback is collected in order.
+ */
+async function captureLoginThenStepUp(loginUrl: string, stepUpUrls: (() => Promise<string>)[]): Promise<Array<{ code: string; state: string; formShown: boolean }>> {
+  const received: Array<{ code: string; state: string }> = []
+  let notify: (() => void) | null = null
+  const server = createServer((request, response) => {
+    const url = new URL(request.url ?? '/', redirectUri)
+    const code = url.searchParams.get('code'), state = url.searchParams.get('state')
+    response.writeHead(code && state ? 200 : 400, { 'Content-Type': 'text/plain' }); response.end('ok')
+    if (code && state) { received.push({ code, state }); notify?.() }
+  })
+  await new Promise<void>((resolve) => server.listen(18081, '127.0.0.1', resolve))
+  const next = async (count: number): Promise<void> => {
+    const deadline = Date.now() + 20_000
+    while (received.length < count) {
+      if (Date.now() > deadline) throw new Error('Keycloak callback timeout')
+      await new Promise<void>((resolve) => { notify = resolve; setTimeout(resolve, 250) })
+    }
+  }
+  const browser = await chromium.launch({ headless: true, executablePath })
+  const results: Array<{ code: string; state: string; formShown: boolean }> = []
+  try {
+    const page = await browser.newPage()
+    await page.goto(loginUrl, { waitUntil: 'domcontentloaded' })
+    await page.locator('#username').fill('oidc.user')
+    await page.locator('#password').fill('NodeAccess-Cert-2026!')
+    await page.locator('#kc-login').click()
+    await next(1)
+    for (const [index, makeUrl] of stepUpUrls.entries()) {
+      await page.goto(await makeUrl(), { waitUntil: 'domcontentloaded' })
+      const password = page.locator('#password')
+      const formShown = await password.isVisible({ timeout: 5_000 }).catch(() => false)
+      if (formShown) {
+        if (await page.locator('#username').isVisible().catch(() => false)) await page.locator('#username').fill('oidc.user')
+        await password.fill('NodeAccess-Cert-2026!')
+        await page.locator('#kc-login').click()
+      }
+      await next(index + 2)
+      results.push({ ...received[index + 1]!, formShown })
+    }
+    return results
+  } finally {
+    await browser.close()
+    await new Promise<void>((resolve, reject) => server.close((error) => error ? reject(error) : resolve()))
+  }
+}
+
 async function certify(): Promise<void> {
   process.env.NODE_ENV = 'test'
   const oidc = new OidcService()
@@ -115,8 +164,37 @@ async function certify(): Promise<void> {
   try { await flow.complete(callback.state, callback.code) } catch { replayRejected = true }
   if (!replayRejected) throw new Error('OIDC state replay was accepted')
 
+  // NA-0184 vault step-up: forced re-authentication, bound purpose and fresh auth_time.
+  const loginForStepUp = await flow.begin(7, redirectUri)
+  const stepUpUrls: string[] = []
+  const [stepUp, crossed] = await captureLoginThenStepUp(loginForStepUp.authorizationUrl, [
+    async () => { const u = (await flow.beginStepUp(7, redirectUri, 'challenge-binding')).authorizationUrl; stepUpUrls.push(u); return u },
+    async () => { const u = (await flow.beginStepUp(7, redirectUri, 'challenge-binding-2')).authorizationUrl; stepUpUrls.push(u); return u },
+  ])
+  const firstUrl = new URL(stepUpUrls[0]!)
+  if (firstUrl.searchParams.get('prompt') !== 'login' || firstUrl.searchParams.get('max_age') !== '0' || !stepUp!.state.startsWith('vsu.')) {
+    throw new Error('Step-up request did not force re-authentication')
+  }
+  if (!stepUp!.formShown || !crossed!.formShown) throw new Error('Keycloak reused the SSO session without prompting for credentials')
+  let wrongBindingRejected = false
+  try { await flow.completeStepUp(crossed!.state, crossed!.code, 'challenge-binding') } catch { wrongBindingRejected = true }
+  if (!wrongBindingRejected) throw new Error('Step-up accepted a return bound to another challenge')
+  const confirmed = await flow.completeStepUp(stepUp!.state, stepUp!.code, 'challenge-binding')
+  const authTime = confirmed.identity.claims.auth_time
+  if (typeof authTime !== 'number' || Math.abs(Date.now() / 1000 - authTime) > 120) throw new Error(`Step-up auth_time is missing or stale: type=${typeof authTime} delta=${typeof authTime === 'number' ? Math.round(Date.now() / 1000 - authTime) : 'n/a'} claims=${Object.keys(confirmed.identity.claims).sort().join(',')}`)
+  if (confirmed.identity.subject !== completed.identity.subject || confirmed.tenantId !== 7) throw new Error('Step-up identity changed')
+  const loginOnStepUp = await flow.begin(7, redirectUri)
+  const [other] = await captureLoginThenStepUp(loginOnStepUp.authorizationUrl, [async () => (await flow.beginStepUp(7, redirectUri, 'challenge-binding-3')).authorizationUrl])
+  let purposeSeparated = false
+  try { await flow.complete(other!.state, other!.code) } catch { purposeSeparated = true }
+  if (!purposeSeparated) throw new Error('Central login completed a vault step-up transaction')
+
   process.stdout.write(JSON.stringify({
     provider: 'keycloak',
+    vaultStepUpForcedLogin: true,
+    vaultStepUpFreshAuthTime: true,
+    vaultStepUpBindingEnforced: true,
+    vaultStepUpPurposeSeparated: true,
     discovery: true,
     authorizationCodePkce: true,
     jwksSignature: true,

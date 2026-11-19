@@ -6,6 +6,7 @@ import { useI18n } from 'vue-i18n'
 import { authService } from '@/services/auth.service'
 import { getSafeRedirectTarget } from '@/services/auth-redirect.service'
 import { useAuthStore } from '@/stores/auth'
+import { forwardVaultStepUpReturn, isVaultStepUpState } from '@/services/vault-provider-confirm'
 
 const route = useRoute()
 const router = useRouter()
@@ -13,11 +14,21 @@ const auth = useAuthStore()
 const { t } = useI18n()
 const loading = ref(true)
 const error = ref<string | null>(null)
+const stepUpDone = ref(false)
 
 onMounted(async () => {
   const state = typeof route.query.state === 'string' ? route.query.state : ''
   const code = typeof route.query.code === 'string' ? route.query.code : ''
   const providerError = typeof route.query.error === 'string' ? route.query.error : ''
+  // NA-0184: vault step-up returns never complete a central login; forward them to the vault page.
+  if (isVaultStepUpState(state)) {
+    loading.value = false
+    if (!providerError && code && forwardVaultStepUpReturn(state, code)) {
+      stepUpDone.value = true
+      window.close()
+    } else error.value = t('vaultDelivery.providerReturnError')
+    return
+  }
   if (providerError || !state || !code) {
     error.value = t('auth.login.oidcError')
     loading.value = false
@@ -48,10 +59,26 @@ onMounted(async () => {
 
 <template>
   <div class="rounded-2xl border border-white/10 bg-neutral-900/90 p-8 text-center">
-    <NSpin v-if="loading" size="large" :description="$t('auth.login.oidcCompleting')" />
+    <NSpin
+      v-if="loading"
+      size="large"
+      :description="$t('auth.login.oidcCompleting')"
+    />
+    <NAlert
+      v-else-if="stepUpDone"
+      type="success"
+      :title="$t('vaultDelivery.providerReturnDone')"
+    />
     <template v-else>
-      <NAlert type="error" :title="error || $t('auth.login.oidcError')" class="mb-5" />
-      <NButton type="primary" @click="router.replace({ name: 'login' })">
+      <NAlert
+        type="error"
+        :title="error || $t('auth.login.oidcError')"
+        class="mb-5"
+      />
+      <NButton
+        type="primary"
+        @click="router.replace({ name: 'login' })"
+      >
         {{ $t('auth.login.oidcBack') }}
       </NButton>
     </template>

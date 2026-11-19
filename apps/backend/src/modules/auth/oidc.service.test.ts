@@ -104,6 +104,8 @@ describe('OidcService', () => {
     const stepUp = new URL(service.createAuthorizationRequest({ ...input, reauthenticate: true }).url)
     expect(stepUp.searchParams.get('prompt')).toBe('login')
     expect(stepUp.searchParams.get('max_age')).toBe('0')
+    expect(stepUp.searchParams.get('state')).toMatch(/^vsu\.[A-Za-z0-9_-]{16,}$/)
+    expect(login.searchParams.get('state')).not.toContain('.')
   })
 
   it('creates a federated logout request only when announced by discovery', () => {

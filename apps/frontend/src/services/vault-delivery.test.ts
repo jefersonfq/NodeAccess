@@ -115,3 +115,57 @@ describe('Vault page-local delivery lifecycle', () => {
     const f=fixture(); f.identity(null); await unlock(f); expect(f.delivery.state.error).toBe('unsupported'); expect(f.post).not.toHaveBeenCalled()
   })
 })
+
+describe('Vault provider step-up in the portal (NA-0184)', () => {
+  function providerFixture(start: Record<string, unknown> = { kind: 'redirect', authorizationUrl: 'https://idp.example/authorize?state=vsu.abcdefghijklmnop' }, totpRequired = false) {
+    const f = fixture()
+    const base = f.post.getMockImplementation()!
+    f.post.mockImplementation(async (path: string, body: Record<string, unknown>) => {
+      if (path === 'clients') return { clientId, expiresAt: f.serverNow + 1800000, serverNow: f.serverNow, stepUp: 'provider' }
+      if (path === 'sessions/challenges') return { challengeId, expiresAt: f.serverNow + 120000, serverNow: f.serverNow, stepUp: 'provider' }
+      if (path === 'sessions/provider/begin') return start
+      if (path === 'sessions/provider/complete') return { totpRequired }
+      if (path === 'sessions/unlock-provider') return { sessionId, idleUntil: f.serverNow + 300000, expiresAt: f.serverNow + 1800000, serverNow: f.serverNow }
+      return base(path, body)
+    })
+    const confirm = {
+      redirect: vi.fn(() => Promise.resolve({ state: 'vsu.abcdefghijklmnop', code: 'provider-code' })),
+      google: vi.fn(() => Promise.resolve('g'.repeat(64))),
+      totp: vi.fn(() => Promise.resolve('123456')),
+    }
+    return { ...f, confirm }
+  }
+  it('prepare learns the expected confirmation without unlocking', async () => {
+    const f = providerFixture(); await f.delivery.prepare()
+    expect(f.delivery.state.stepUp).toBe('provider'); expect(f.delivery.state.phase).toBe('locked')
+    expect(f.post.mock.calls.map(c => c[0])).toEqual(['clients'])
+  })
+  it('unlocks through the provider window bound to the challenge, without TOTP when the provider proved MFA', async () => {
+    const f = providerFixture(); await f.delivery.unlockWithProvider(f.confirm)
+    expect(f.delivery.state.phase).toBe('unlocked'); expect(f.delivery.state.providerPending).toBe(false)
+    expect(f.confirm.totp).not.toHaveBeenCalled()
+    expect(f.post).toHaveBeenCalledWith('sessions/provider/complete', { challengeId, state: 'vsu.abcdefghijklmnop', code: 'provider-code' }, expect.anything(), clientId, expect.anything())
+    expect(f.post).toHaveBeenCalledWith('sessions/unlock-provider', { challengeId }, expect.anything(), clientId, expect.anything())
+  })
+  it('asks for TOTP when required and uses the Google adapter for Google sessions', async () => {
+    const f = providerFixture({ kind: 'google', clientId: 'google-client', nonce: 'nonce-value' }, true)
+    await f.delivery.unlockWithProvider(f.confirm)
+    expect(f.confirm.google).toHaveBeenCalledWith('google-client', 'nonce-value', expect.anything())
+    expect(f.post).toHaveBeenCalledWith('sessions/provider/complete', { challengeId, idToken: 'g'.repeat(64) }, expect.anything(), clientId, expect.anything())
+    expect(f.post).toHaveBeenCalledWith('sessions/unlock-provider', { challengeId, token: '123456' }, expect.anything(), clientId, expect.anything())
+    expect(f.delivery.state.phase).toBe('unlocked')
+  })
+  it('fails closed on an unknown provider start or invalid TOTP and clears the pending flag', async () => {
+    const f = providerFixture({ kind: 'other' }); await f.delivery.unlockWithProvider(f.confirm)
+    expect(f.delivery.state.phase).toBe('locked'); expect(f.delivery.state.providerPending).toBe(false)
+    const g = providerFixture(undefined, true); g.confirm.totp.mockResolvedValue('12'); await g.delivery.unlockWithProvider(g.confirm)
+    expect(g.delivery.state.phase).toBe('locked'); expect(g.post.mock.calls.some(c => c[0] === 'sessions/unlock-provider')).toBe(false)
+  })
+  it('refuses the password form for a provider session and the provider flow for a password session', async () => {
+    const f = providerFixture(); await f.delivery.prepare(); await unlock(f)
+    expect(f.delivery.state.phase).toBe('locked'); expect(f.delivery.state.error).toBe('unsupported')
+    const g = fixture(); const confirm = { redirect: vi.fn(), google: vi.fn(), totp: vi.fn() }
+    await g.delivery.unlockWithProvider(confirm)
+    expect(g.delivery.state.error).toBe('unsupported'); expect(confirm.redirect).not.toHaveBeenCalled()
+  })
+})

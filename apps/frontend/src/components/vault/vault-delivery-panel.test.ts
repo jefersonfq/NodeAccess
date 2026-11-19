@@ -3,8 +3,8 @@ import { createRenderer, createSSRApp, defineComponent, h, nextTick, reactive, s
 import { renderToString } from 'vue/server-renderer'
 import VaultDeliveryPanel from './VaultDeliveryPanel.vue'
 import type { VaultDeliveryDependencies } from '@/services/vault-delivery'
-const mocks = vi.hoisted(()=>({ create: vi.fn(), unlock: vi.fn(), deliver: vi.fn(), tick: vi.fn(), dismiss: vi.fn(), lock: vi.fn(), dispose: vi.fn(), confirmCopy: vi.fn() }))
-const state=reactive({phase:'locked',value:'',error:null as string|null,copied:false})
+const mocks = vi.hoisted(()=>({ create: vi.fn(), unlock: vi.fn(), deliver: vi.fn(), tick: vi.fn(), dismiss: vi.fn(), lock: vi.fn(), dispose: vi.fn(), confirmCopy: vi.fn(), prepare: vi.fn(), unlockWithProvider: vi.fn() }))
+const state=reactive({phase:'locked',value:'',error:null as string|null,copied:false,stepUp:null as string|null,providerPending:false})
 const auth=reactive({isManagingTenant:false,accessToken:'portal-fixture',refreshToken:'origin-fixture',user:{id:41,tenantId:7,actingTenantId:undefined as number|undefined}})
 vi.mock('@/services/vault-delivery',()=>({createVaultDelivery:mocks.create}))
 vi.mock('@/stores/auth',()=>({useAuthStore:()=>auth}))
@@ -32,10 +32,10 @@ function deferred(){let resolve!:()=>void;const promise=new Promise<void>(r=>{re
 let documentFixture:EventTarget & {visibilityState:string}
 beforeEach(()=>{
  vi.useFakeTimers();for(const mock of Object.values(mocks))mock.mockReset()
- Object.assign(state,{phase:'locked',value:'',error:null,copied:false});Object.assign(auth,{isManagingTenant:false,accessToken:'portal-fixture',refreshToken:'origin-fixture'});Object.assign(auth.user,{id:41,tenantId:7,actingTenantId:undefined})
+ Object.assign(state,{phase:'locked',value:'',error:null,copied:false,stepUp:null,providerPending:false});mocks.prepare.mockResolvedValue(undefined);Object.assign(auth,{isManagingTenant:false,accessToken:'portal-fixture',refreshToken:'origin-fixture'});Object.assign(auth.user,{id:41,tenantId:7,actingTenantId:undefined})
  mocks.lock.mockImplementation(()=>{state.phase='locked';state.value=''});mocks.dismiss.mockImplementation(()=>{state.value='';if(state.phase!=='locked')state.phase='unlocked'})
  mocks.unlock.mockImplementation(()=>{state.phase='unlocked';return Promise.resolve()});mocks.deliver.mockResolvedValue(undefined)
- mocks.create.mockReturnValue({state,unlock:mocks.unlock,deliver:mocks.deliver,tick:mocks.tick,dismiss:mocks.dismiss,lock:mocks.lock,dispose:mocks.dispose,confirmCopy:mocks.confirmCopy})
+ mocks.create.mockReturnValue({state,unlock:mocks.unlock,deliver:mocks.deliver,tick:mocks.tick,dismiss:mocks.dismiss,lock:mocks.lock,dispose:mocks.dispose,confirmCopy:mocks.confirmCopy,prepare:mocks.prepare,unlockWithProvider:mocks.unlockWithProvider})
  vi.stubGlobal('isSecureContext',true);vi.stubGlobal('window',Object.assign(new EventTarget(),{location:{protocol:'https:',origin:'https://vault.example'}}))
  documentFixture=Object.assign(new EventTarget(),{visibilityState:'visible'});vi.stubGlobal('document',documentFixture)
 })
@@ -102,4 +102,20 @@ describe('Vault delivery panel orchestration',()=>{
   f.panel.request('copy',9,'other');expect(mocks.deliver).not.toHaveBeenCalled();state.phase='unlocked';expect(f.panel.available).toBe(true);f.unmount()
  })
 
+ it('learns the expected confirmation when a locked dialog opens (NA-0184)',()=>{
+  const f=mount();f.panel.request('reveal',4,'db');expect(mocks.prepare).toHaveBeenCalledTimes(1);f.unmount()
+ })
+ it('renders the provider confirmation instead of the password form for SSO sessions',async()=>{
+  const f=mount();f.panel.request('reveal',4,'db');state.stepUp='provider'
+  const html=await f.html();expect(html).toContain('vault-provider-step-up');expect(html).toContain('vaultDelivery.providerConfirm');expect(html).not.toContain('vault-unlock-password');f.unmount()
+ })
+ it('keeps the dialog during the provider wait but still locks on blur otherwise',()=>{
+  const f=mount();f.panel.request('reveal',4,'db');state.phase='unlocking';state.providerPending=true
+  window.dispatchEvent(new Event('blur'));expect(mocks.lock).not.toHaveBeenCalled();expect(f.panel.dialog).toBe(true)
+  state.providerPending=false;window.dispatchEvent(new Event('blur'));expect(mocks.lock).toHaveBeenCalled();expect(f.panel.dialog).toBe(false);f.unmount()
+ })
+ it('still locks on pagehide during the provider wait',()=>{
+  const f=mount();f.panel.request('reveal',4,'db');state.providerPending=true
+  window.dispatchEvent(new Event('pagehide'));expect(mocks.lock).toHaveBeenCalled();f.unmount()
+ })
 })

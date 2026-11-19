@@ -21,7 +21,19 @@ Fase 2 (backend OIDC/Google):
 - `vault.service.ts`/`vault.routes.ts`: `sessions/provider/begin`, `sessions/provider/complete` (prova de uso único presa ao desafio; falha consome o desafio e audita `PROVIDER_PROOF_REJECTED`) e `sessions/unlock-provider`; registro e desafio informam `stepUp`.
 - Retorno OIDC usa o mesmo redirect já cadastrado (`/auth/oidc/callback`); a finalidade gravada no fluxo separa login e confirmação.
 
+Fase 2 (portal):
+- `vault-delivery.ts`: `prepare()` registra o cliente ao abrir o diálogo para saber o tipo de confirmação; `unlockWithProvider()` faz desafio → início no provedor → prova → TOTP quando exigido → `unlock-provider`. O formulário de senha é recusado para sessões de provedor e vice-versa.
+- `vault-provider-confirm.ts`: janela de confirmação OIDC com retorno por `BroadcastChannel` de mesma origem (funciona mesmo se o provedor cortar `window.opener` com COOP), sem gravar nada no navegador, limite de 5 min e cancelamento; botão Google (GIS) com `nonce`.
+- `oidc.service.ts`: `state` das confirmações com prefixo `vsu.` (o ponto não existe em base64url); `OidcCallbackView` encaminha esses retornos e nunca conclui login com eles; o roteador deixa a página de retorno abrir mesmo com usuário logado na janela.
+- `VaultDeliveryPanel.vue`: botão "Confirmar no provedor de login", campo de TOTP quando exigido e cancelamento. **Mudança de comportamento da NA-0179:** durante a espera pelo provedor (sem nenhum valor revelado), perder o foco ou ocultar a página não trava a sessão; saída da página, troca de tenant/identidade e o limite de 5 min continuam valendo. Fora dessa espera, a perda de foco trava como antes.
+- Textos pt-BR/en; `OidcCallbackView` também teve a formatação do template ajustada pelo lint (sem mudança funcional).
+- Harness real Keycloak (`tools/oidc/keycloak-certification.ts`) ganhou o cenário de confirmação: login, depois confirmação na mesma sessão do navegador, exigindo a tela de credenciais de novo, `auth_time` recente, vínculo com o desafio e separação de finalidade.
+
 ## Validação
+
+Ran (Keycloak real, `npm run test:oidc:keycloak`): PASS com `vaultStepUpForcedLogin`, `vaultStepUpFreshAuthTime`, `vaultStepUpBindingEnforced`, `vaultStepUpPurposeSeparated`, além dos itens anteriores (PKCE, nonce, MFA delegado, replay). A primeira execução falhou porque o Keycloak não enviava `auth_time`: desde a versão 25 o claim vem do escopo `basic`, ausente no realm de teste; o realm passou a incluí-lo. **Operação:** provedores OIDC precisam emitir `auth_time` quando há `max_age`, como pede a especificação; sem ele o cofre nega a confirmação.
+
+Ran (fase 2 portal): Vitest completo 4107 PASS/178 skipped, 0 falhas; typecheck e ESLint PASS. Testes novos: `prepare`, desbloqueio por janela e por Google, TOTP exigido/inválido, início desconhecido, formulário errado por método, janela (estado próprio, HTTPS, popup bloqueado, cancelamento, tempo), encaminhamento só de estados `vsu.`, painel (diálogo de provedor, foco tolerado só na espera, `pagehide` trava).
 
 Ran (fase 2 backend): Vitest de `vault-security`, auth e cofre do frontend 552 PASS/33 skipped; typecheck e ESLint PASS (corrigido também um `async` sem `await` preexistente em `oidc.service.test.ts`, arquivo tocado). Testes novos: adaptador do provedor (OIDC e Google, positivos e 18 negativas), separação login × confirmação no fluxo OIDC, `prompt`/`max_age` só na reautenticação, prova de uso único, desafio consumido em falha, TOTP quando o provedor não comprova MFA, métodos locais sem fluxo de provedor.
 
@@ -53,4 +65,8 @@ Planos aprovados; PR73 aberta com o plano da E1 e os encerramentos. Branch criad
 
 ### 2026-11-19T18:40:00-03:00 — Fase 2 no backend
 
-Responsável escolheu, para Google, novo token GIS ligado ao desafio + TOTP. Backend da fase 2 implementado; Vitest 552 PASS e `npm run test:vault:real` 32 PASS (limpeza confirmada). Pendente: portal (formulário por método, janela de confirmação OIDC, botão Google, retorno em `/auth/oidc/callback`), teste real com Keycloak, Sonar e revisão independente.
+Responsável escolheu, para Google, novo token GIS ligado ao desafio + TOTP. Backend da fase 2 implementado; Vitest 552 PASS e `npm run test:vault:real` 32 PASS (limpeza confirmada). Portal e Keycloak concluídos depois (ver Implementação/Validação). Pendente: Sonar e revisão independente.
+
+### 2026-11-19T20:10:00-03:00 — Portal e Keycloak
+
+Portal da fase 2 implementado (janela de confirmação, Google, TOTP quando exigido, tolerância a perda de foco só durante a espera). Vitest completo 4107 PASS; Keycloak real PASS depois de incluir o escopo `basic` no realm de teste. Próximo: gate Sonar e revisão independente de segurança; depois push/PR.

@@ -7,6 +7,7 @@ import { clearStaleReloadTarget, getStaleReloadTarget, markStaleReloadTarget } f
 import { recordClientUxEvent } from '@/services/client-ux-telemetry.service'
 import { recordScreenView } from '@/services/user-productivity-telemetry.service'
 import { setLocalAiLastScreen } from '@/services/local-ai-context.service'
+import { isVaultStepUpState } from '@/services/vault-provider-confirm'
 
 const router = createRouter({
   history: createWebHistory(),
@@ -175,7 +176,8 @@ router.beforeEach((to) => {
   }
 
   // Usuário já autenticado tentando acessar login
-  if (to.path.startsWith('/auth') && auth.isAuthenticated) {
+  // NA-0184: a vault step-up return must reach the callback page even when this window is signed in.
+  if (to.path.startsWith('/auth') && auth.isAuthenticated && !(to.name === 'oidc-callback' && isVaultStepUpState(to.query.state))) {
     return getSafeRedirectTarget(to.query)
   }
 
