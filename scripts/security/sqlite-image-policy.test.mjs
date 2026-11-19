@@ -58,17 +58,17 @@ for (const [name, ref, distro, selected, date] of [
   ['future guacd distro version', guacdImage, { name: 'alpine', version: '3.24.5' }, policy, now],
   ['missing distro', tlsImage, undefined, policy, now],
   ['prototype property image', 'toString', tlsDistro, policy, now],
-  ['expired', tlsImage, tlsDistro, policy, new Date('2026-11-18T00:00:00Z')],
+  ['expired', tlsImage, tlsDistro, policy, new Date(`${policy.expiresAt}T00:00:00Z`)],
   ['invalid expiry', tlsImage, tlsDistro, { ...policy, expiresAt: 'invalid' }, now],
   ['invalid clock', tlsImage, tlsDistro, policy, new Date('invalid')],
 ]) test(`${name} is not reviewed`, () => {
   assert.equal(reviewedSqliteImageFinding(ref, distro, fixture(), selected, date), null)
 })
 
-test('review pins exact image identities and original expiry', () => {
+test('review pins exact image identities and renewed expiry', () => {
   assert.deepEqual(policy.images, {
     [tlsImage]: { name: 'alpine', version: '3.24.4' },
     [guacdImage]: { name: 'alpine', version: '3.24.3' },
   })
-  assert.equal(policy.expiresAt, '2026-11-18')
+  assert.equal(policy.expiresAt, '2026-12-19')
 })

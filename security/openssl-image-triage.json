@@ -1,0 +1,38 @@
+{
+  "reviewedAt": "2026-11-19",
+  "expiresAt": "2026-12-19",
+  "evidence": "docs/changes/2026/11/NA-0181-image-vulnerability-gate/image-gate-review.md",
+  "images": {
+    "nodeaccess-backend:security-local": { "name": "alpine", "version": "3.24.4" },
+    "nodeaccess-frontend:security-local": { "name": "alpine", "version": "3.24.4" },
+    "nodeaccess-frontend-k8s:security-local": { "name": "alpine", "version": "3.24.4" },
+    "nodeaccess-tls-agent:security-local": { "name": "alpine", "version": "3.24.4" },
+    "nodeaccess-guacd:1.6.0-1": { "name": "alpine", "version": "3.24.3" },
+    "nodeaccess-redis:8.2.10-1": { "name": "alpine", "version": "3.22.8" }
+  },
+  "packages": ["libssl3", "libcrypto3", "openssl"],
+  "version": "3.5.9-r0",
+  "namespace": "nvd:cpe",
+  "searchedPackage": "openssl",
+  "searchedCpe": "cpe:2.3:a:openssl:openssl:3.5.9:*:*:*:*:*:*:*",
+  "foundCpe": "cpe:2.3:a:openssl:openssl:*:*:*:*:*:*:*:*",
+  "findings": [
+    {
+      "id": "CVE-2026-88823",
+      "versionConstraint": ">= 3.5.0, < 3.5.10||>= 4.0.0, < 4.0.4||>= 4.1.0, < 4.1.1 (unknown)"
+    },
+    {
+      "id": "CVE-2026-95691",
+      "versionConstraint": ">= 3.5.0, < 3.5.10||>= 4.0.0, < 4.0.4||>= 4.1.0, < 4.1.1 (unknown)"
+    },
+    {
+      "id": "CVE-2026-95692",
+      "versionConstraint": ">= 3.5.0, < 3.5.10||>= 4.0.0, < 4.0.4||>= 4.1.0, < 4.1.1 (unknown)"
+    },
+    {
+      "id": "CVE-2026-107496",
+      "versionConstraint": ">= 1.0.2, < 1.0.2zt||>= 1.1.1, < 1.1.1zk||>= 3.0.0, < 3.0.24||>= 3.5.0, < 3.5.10||>= 4.0.0, < 4.0.4||>= 4.1.0, < 4.1.1 (unknown)"
+    }
+  ],
+  "reason": "Real upstream vulnerability, not a false positive: fixed in OpenSSL 3.5.10, but Alpine has not published a package newer than 3.5.9-r0 (checked 2026-11-19). Temporary risk acceptance by the owner until an Alpine fix exists or the expiry date; any other version, CVE, image or distro stays blocked."
+}

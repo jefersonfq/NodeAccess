@@ -34,6 +34,17 @@ incorretas, com pacote/versão/CPE/fonte/distro/tag exatos e expiração curta.
 Não cobre ALSA nem achados novos; os resultados brutos são preservados.
 Provas RDP/VNC e scanner são obrigatórios em cada atualização.
 
+## Triagens temporárias do gate de imagens
+
+`npm run security:images` só aprova High/Critical/Unknown cobertos por uma triagem exata e com validade em `security/*-triage.json`, aplicada por `scripts/security/*-image-policy.mjs` (com testes `*.test.mjs`). Quando a validade termina, o achado volta a bloquear sozinho.
+
+Estado atual (NA-0181, decisão do responsável em 2026-11-19, validade até **2026-12-19**):
+
+- `openssl-image-triage.json`: quatro CVEs **reais** do OpenSSL 3.5.9-r0 em seis imagens Alpine. A correção existe upstream (3.5.10), mas o Alpine ainda não publicou o pacote. É aceitação de risco temporária, não falso positivo.
+- `sqlite-image-triage.json`, `image-triage.json` (MySQL/FIPS, Oracle Linux 9.9) e `guacd-image-triage.json`: falsos positivos já revisados; só a validade foi renovada.
+
+Antes ou ao vencer, siga `docs/changes/2026/11/NA-0181-image-vulnerability-gate/image-gate-review.md`: verificar se há pacote corrigido e reconstruir/remover a triagem. Não renovar apenas trocando a data.
+
 ## Antes de liberar uma versão
 
 - Auditoria de dependências e scanners aprovados, com exceções específicas documentadas.

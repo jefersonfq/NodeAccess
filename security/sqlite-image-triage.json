@@ -1,7 +1,7 @@
 {
-  "reviewedAt": "2026-11-05",
-  "expiresAt": "2026-11-18",
-  "evidence": "docs/changes/2026/11/NA-0162-sqlite-image-security/sqlite-review.md",
+  "reviewedAt": "2026-11-19",
+  "expiresAt": "2026-12-19",
+  "evidence": "docs/changes/2026/11/NA-0181-image-vulnerability-gate/image-gate-review.md",
   "images": {
     "nodeaccess-tls-agent:security-local": {
       "name": "alpine",
