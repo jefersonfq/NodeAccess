@@ -2,7 +2,7 @@
 change_id: NA-0184
 title: Confirmação de identidade do cofre por método de login (local, LDAP, OIDC, Google)
 type: security
-status: planned
+status: ready-for-review
 created_at: 2026-11-19T16:45:00-03:00
 base_branch: master
 base_sha: 8ef8188a6af1ee0b8180a9707ad54b54b8fd4002
@@ -48,13 +48,13 @@ Fora: WebAuthn/Windows Hello (E5 da NA-0182), mudança no login central, SCIM, n
 
 ## Critérios de aceitação
 
-- [ ] Usuário com permissão destrava o cofre no portal com login local, LDAP, OIDC e Google, cada um com a confirmação da tabela.
-- [ ] Break-glass, método desconhecido e sessão de outro usuário/tenant negados e auditados.
-- [ ] OIDC: `auth_time` antigo, `nonce`/state errado, retorno repetido, `sub`/`iss` de outra identidade ou ausência de MFA sem TOTP são negados.
-- [ ] LDAP: senha errada, conta desativada no diretório ou ausência de TOTP negados; erro de diretório não revela detalhes.
-- [ ] Logout da sessão central de origem, troca de `sessionVersion` e revogação do refresh negam o cofre para todos os métodos.
-- [ ] Login local e fluxo atual do cofre sem regressão (testes existentes de `vault-security` e auth PASS).
-- [ ] Limites de tentativa do desafio mantidos para todos os métodos.
+- [x] Usuário com permissão destrava o cofre no portal com login local, LDAP, OIDC e Google, cada um com a confirmação da tabela.
+- [x] Break-glass, método desconhecido e sessão de outro usuário/tenant negados e auditados.
+- [x] OIDC: `auth_time` antigo, `nonce`/state errado, retorno repetido, `sub`/`iss` de outra identidade ou ausência de MFA sem TOTP são negados.
+- [x] LDAP: senha errada, conta desativada no diretório ou ausência de TOTP negados; erro de diretório não revela detalhes.
+- [x] Logout da sessão central de origem, troca de `sessionVersion` e revogação do refresh negam o cofre para todos os métodos.
+- [x] Login local e fluxo atual do cofre sem regressão (testes existentes de `vault-security` e auth PASS).
+- [x] Limites de tentativa do desafio mantidos para todos os métodos.
 - [ ] `npm run validate:sonar`, revisão independente de segurança e checks remotos PASS.
 
 ## Estratégia técnica

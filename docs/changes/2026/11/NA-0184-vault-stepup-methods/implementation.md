@@ -47,7 +47,7 @@ Documental até a aprovação; depois flag `vault-step-up-external` e revert da 
 
 ## Pendências
 
-Depois: baseline, implementação, Sonar, revisão independente.
+Homologação humana e checks remotos da PR. Planilha de metas (META-005) após o merge, no master, para não divergir da revisão 37. Ensaio com LDAP real não feito (adaptador coberto por testes de unidade; o provedor LDAP é o mesmo do login central). Operação: provedores OIDC precisam emitir `auth_time`.
 
 ## Diário de interações
 
@@ -88,3 +88,7 @@ Ran: `npm run validate:sonar` no db0b30739 FAIL, com quatro causas: (1) `tools/v
 ### 2026-11-19T22:15:00-03:00 — Segundo gate Sonar e cobertura
 
 Ran: `npm run validate:sonar` no 26dd8efb7: testes 4151 PASS/0 FAIL, análise verificada, 0 achados inesperados, gate do servidor OK (cobertura nova 82%, 0 violações); reprovado só pela cobertura diferencial local (linhas + condições) em 74% (< 80%). Ajustes: montagem do adaptador do provedor saiu de `container.ts` para `createVaultProviderStepUp` (testada); testes de estados do template do painel, ramos de erro do serviço do cofre e da janela, casos de borda do serviço (sem adaptador, prova de outro cliente, desafio inexistente/vencido) e teste novo da `OidcCallbackView` (retorno de confirmação nunca vira login). Ran: suítes do frontend e do cofre/auth 1577 PASS; lint e typecheck PASS.
+
+### 2026-11-19T22:55:00-03:00 — Gate Sonar aprovado
+
+Ran: `npm run validate:sonar` no 44d1c6ab6: PASS, 4164 testes, 0 achados inesperados, gate OK, cobertura diferencial 80,52%. Evidência em `docs/sonarqube/validation-NA-0184.md`. Status `ready-for-review`. Próximo: push, PR e checks remotos; homologação do responsável.
