@@ -18,7 +18,7 @@ usando seu transporte separado.
   O Dockerfile fixa os bytes revisados com `ADD --checksum` e preserva LICENSE/NOTICE
   da distribuição em `/opt/guacamole/licenses/`.
 - Base Alpine 3.24.3 por digest no Dockerfile; bibliotecas FreeRDP 3.32.2-r0,
-  libvncserver 0.9.15-r0 e OpenSSL 3.5.9-r0 provenientes do APK oficial.
+  libvncserver 0.9.15-r0 e OpenSSL 3.5.9-r1 (build; corrige os CVEs da NA-0181) provenientes do APK oficial.
   Desenvolvimento e runtime fixam a mesma revisão FreeRDP: dependências por SONAME
   sozinhas não invalidam uma camada runtime antiga no cache Docker.
   O mirror oficial `dl-4.alpinelinux.org` mantém verificação normal de assinaturas.

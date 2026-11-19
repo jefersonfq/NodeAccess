@@ -4,7 +4,7 @@ ARG BASE=alpine:3.24.3@sha256:be2656061b536c1883c4034790e21d0a09c5aaaf51968b8936
 FROM ${BASE} AS build
 RUN sed -i s/dl-cdn.alpinelinux.org/dl-4.alpinelinux.org/g /etc/apk/repositories && apk add --no-cache \
     "zlib-dev>=1.4-r0" build-base autoconf automake libtool pkgconf cairo-dev cunit-dev freerdp-dev=3.32.2-r0 \
-    libjpeg-turbo-dev libpng-dev libwebp-dev libvncserver-dev=0.9.15-r0 openssl-dev=3.5.9-r0 \
+    libjpeg-turbo-dev libpng-dev libwebp-dev libvncserver-dev=0.9.15-r0 openssl-dev=3.5.9-r1 \
     pango-dev libssh2-dev libwebsockets-dev pulseaudio-dev util-linux-dev
 ADD --checksum=sha256:8bc45675da96d7b6f39728160181e3d4ff3c08f460f6d26de5805b642bf13f2b https://downloads.apache.org/guacamole/1.6.0/source/guacamole-server-1.6.0.tar.gz /tmp/guacamole-server.tar.gz
 RUN mkdir /src && tar -xzf /tmp/guacamole-server.tar.gz --strip-components=1 -C /src && rm /tmp/guacamole-server.tar.gz
