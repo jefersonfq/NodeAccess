@@ -168,4 +168,34 @@ describe('Vault provider step-up in the portal (NA-0184)', () => {
     await g.delivery.unlockWithProvider(confirm)
     expect(g.delivery.state.error).toBe('unsupported'); expect(confirm.redirect).not.toHaveBeenCalled()
   })
+  it('treats a missing totpRequired as required and ignores repeated or late prepare calls', async () => {
+    const f = providerFixture()
+    f.post.mockImplementation((path: string) => Promise.resolve((() => {
+      if (path === 'clients') return { clientId, expiresAt: f.serverNow + 1800000, serverNow: f.serverNow, stepUp: 'provider' }
+      if (path === 'sessions/challenges') return { challengeId, expiresAt: f.serverNow + 120000, serverNow: f.serverNow, stepUp: 'provider' }
+      if (path === 'sessions/provider/begin') return { kind: 'redirect', authorizationUrl: 'https://idp.example/a' }
+      if (path === 'sessions/provider/complete') return {}
+      return { sessionId, idleUntil: f.serverNow + 300000, expiresAt: f.serverNow + 1800000, serverNow: f.serverNow }
+    })()))
+    await f.delivery.prepare(); await f.delivery.prepare()
+    expect(f.post.mock.calls.filter(c => c[0] === 'clients')).toHaveLength(1)
+    await f.delivery.unlockWithProvider(f.confirm)
+    expect(f.confirm.totp).toHaveBeenCalledTimes(1); expect(f.delivery.state.phase).toBe('unlocked')
+    await f.delivery.prepare(); expect(f.post.mock.calls.filter(c => c[0] === 'clients')).toHaveLength(1)
+  })
+  it('fails closed without identity, with a non-provider challenge, and ignores calls while busy or disposed', async () => {
+    const f = providerFixture(); f.identity(null)
+    await f.delivery.unlockWithProvider(f.confirm); expect(f.delivery.state.error).toBe('unsupported')
+    await f.delivery.prepare(); expect(f.post).not.toHaveBeenCalled()
+    const g = providerFixture(); const base = g.post.getMockImplementation()!
+    g.post.mockImplementation((path: string, body: Record<string, unknown>) => path === 'sessions/challenges'
+      ? Promise.resolve({ challengeId, expiresAt: g.serverNow + 120000, serverNow: g.serverNow, stepUp: 'password_totp' }) : base(path, body))
+    await g.delivery.unlockWithProvider(g.confirm); expect(g.delivery.state.phase).toBe('locked'); expect(g.confirm.redirect).not.toHaveBeenCalled()
+    const h = providerFixture(); const slow = deferred<{ state: string; code: string }>(); h.confirm.redirect.mockReturnValue(slow.promise)
+    const first = h.delivery.unlockWithProvider(h.confirm); await until(() => h.delivery.state.providerPending)
+    await h.delivery.unlockWithProvider(h.confirm); expect(h.confirm.redirect).toHaveBeenCalledTimes(1)
+    h.delivery.dispose(); slow.resolve({ state: 'vsu.abcdefghijklmnop', code: 'c' }); await first
+    expect(h.post.mock.calls.some(c => c[0] === 'sessions/provider/complete')).toBe(false)
+    await h.delivery.unlockWithProvider(h.confirm); await h.delivery.prepare(); expect(h.confirm.redirect).toHaveBeenCalledTimes(1)
+  })
 })

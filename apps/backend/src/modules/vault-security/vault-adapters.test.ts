@@ -111,6 +111,9 @@ describe('Vault reference to the central refresh session', () => {
     expect(vaultAuthMethod('ldap', false)).toBeNull()
     expect(vaultAuthMethod('oidc', true)).toBe('oidc')
     expect(vaultAuthMethod('break_glass', true)).toBeNull()
+    expect(vaultAuthMethod('google', false)).toBeNull()
+    expect(vaultAuthMethod('ldap', true)).toBe('ldap')
+    expect(vaultAuthMethod('google', true)).toBe('google')
   })
   it('rejects a bad signature and an absent expiry', async () => {
     const verifier = new RedisVaultOrigin({ get: vi.fn().mockResolvedValue('7') }, signingKey)

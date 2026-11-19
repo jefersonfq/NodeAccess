@@ -46,7 +46,7 @@ function fixture() {
     const s = await service.unlock(identity,c.clientId,origin,challenge.challengeId,'password','123456')
     return { c, s, request: () => service.request(identity,c.clientId,origin,s.sessionId,'reveal',4,key) }
   }
-  return { service, setup, authority, reauth, provider, useMethod: (m: VaultAuthMethod) => { originMethod = m }, sealer, verifier, audit, authorizeSecret, propose, approve,
+  return { service, store, setup, authority, reauth, provider, useMethod: (m: VaultAuthMethod) => { originMethod = m }, sealer, verifier, audit, authorizeSecret, propose, approve,
     records: () => records, events: () => events, counts: () => counts,
     advance: (ms: number) => { time+=ms }, revoke: () => { originActive=false }, rotate: () => { secretVersion='v2' },
     failAudit: (v: boolean) => { auditFails=v }, onCommit: (fn: () => void) => { afterCommit=fn } }
@@ -299,6 +299,32 @@ describe('vault provider step-up flow (NA-0184)', () => {
     const { f, c, p } = await pending('oidc')
     f.reauth.verify.mockResolvedValue(false)
     await expect(f.service.unlock(identity, c.clientId, origin, p.challengeId, 'password', '123456')).rejects.toMatchObject({ status: 403 })
+  })
+})
+
+describe('vault provider step-up edge cases (NA-0184)', () => {
+  it('is unavailable when no provider adapter is configured', async () => {
+    const f = fixture(); f.useMethod('oidc')
+    const service = new VaultService(f.store, f.verifier, f.reauth, f.sealer, entropy, () => 1_000_000)
+    const c = await service.register(identity, 'refresh', origin), p = await service.challenge(identity, c.clientId, origin)
+    await expect(service.providerBegin(identity, c.clientId, origin, p.challengeId)).rejects.toMatchObject({ status: 409 })
+    await expect(service.providerComplete(identity, c.clientId, origin, p.challengeId, {})).rejects.toMatchObject({ status: 409 })
+  })
+  it('rejects a provider proof stored for another client', async () => {
+    const f = fixture(); f.useMethod('oidc')
+    const c = await f.service.register(identity, 'refresh', origin), p = await f.service.challenge(identity, c.clientId, origin)
+    await f.service.providerComplete(identity, c.clientId, origin, p.challengeId, { state: 's', code: 'c' })
+    const stored = [...f.records().entries()].find(([k]) => k.startsWith('provider'))
+    expect(stored).toBeDefined()
+    f.records().set(stored![0], { ...(stored![1] as object), clientId: 'other-client' })
+    await expect(f.service.unlockProvider(identity, c.clientId, origin, p.challengeId, '123456')).rejects.toMatchObject({ status: 403 })
+  })
+  it('rejects provider calls for an unknown or expired challenge', async () => {
+    const f = fixture(); f.useMethod('google')
+    const c = await f.service.register(identity, 'refresh', origin)
+    await expect(f.service.providerBegin(identity, c.clientId, origin, 'x'.repeat(43))).rejects.toMatchObject({ status: 403 })
+    const p = await f.service.challenge(identity, c.clientId, origin); f.advance(120_001)
+    await expect(f.service.providerBegin(identity, c.clientId, origin, p.challengeId)).rejects.toMatchObject({ status: 403 })
   })
 })
 

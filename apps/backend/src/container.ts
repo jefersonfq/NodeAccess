@@ -4,7 +4,7 @@ import { randomBytes, createHash } from 'node:crypto'
 import { VaultService } from './modules/vault-security/vault.service.js'
 import { SqlVaultStore } from './modules/vault-security/vault.repository.js'
 import { RedisVaultOrigin, MethodVaultReauthentication } from './modules/vault-security/vault-identity.js'
-import { VaultProviderStepUp } from './modules/vault-security/vault-provider.js'
+import { createVaultProviderStepUp } from './modules/vault-security/vault-provider.js'
 import { JweVaultEnvelope } from './modules/vault-security/vault-envelope.js'
 import { UserSessionRevocationService } from './modules/auth/user-session-revocation.service.js'
 import { configureCurrentSessionReader } from './modules/auth/current-session.js'
@@ -339,22 +339,9 @@ const vaultEntropy = { token: (): string => randomBytes(32).toString('base64url'
 const vaultDatabase = new VaultDatabase(env.DATABASE_URL)
 const vaultSecurityService = new VaultService(new SqlVaultStore(() => vaultDatabase.client()), new RedisVaultOrigin(redis, env.JWT_SECRET, Date.now, 500, env.VAULT_STEP_UP_EXTERNAL_ENABLED),
   new MethodVaultReauthentication(totpService, ldapIdentityProvider), new JweVaultEnvelope(),
-  vaultEntropy, Date.now, new VaultProviderStepUp(
-    // Lazy: the OIDC flow service is created later in this module.
-    {
-      beginStepUp: (t: number, r: string, b: string): ReturnType<OidcFlowService['beginStepUp']> => oidcFlowService.beginStepUp(t, r, b),
-      completeStepUp: (s: string, c: string, b: string): ReturnType<OidcFlowService['completeStepUp']> => oidcFlowService.completeStepUp(s, c, b),
-    },
-    externalIdentityRepository,
-    {
-      config: async (t: number): Promise<{ clientId: string; domain?: string } | null> => {
-        const c = await googleService.getConfig(t)
-        return c ? { clientId: c.clientId, ...(c.domain ? { domain: c.domain } : {}) } : null
-      },
-      verify: (token: string, clientId: string, t: number): ReturnType<GoogleService['verifyIdToken']> => googleService.verifyIdToken(token, clientId, t),
-      userIdByGoogleId: async (sub: string, t: number): Promise<number | null> => (await userRepository.findByGoogleId(sub, t))?.id ?? null,
-    },
-    oidcCallbackUrl))
+  vaultEntropy, Date.now, createVaultProviderStepUp({
+    oidcFlow: () => oidcFlowService, links: externalIdentityRepository, google: googleService, users: userRepository, redirectUri: oidcCallbackUrl,
+  }))
 const vaultAdministrationService = new VaultAdministrationService(vaultSecurityService, vaultEntropy)
 const authService        = new AuthService(userRepository, totpService, redis, googleService, emailConfigService, emailService, localIdentityProvider, ldapIdentityProvider, tenantAuthPolicyService, appEventBus)
 const authRateLimitService = new AuthRateLimitService(redis, {

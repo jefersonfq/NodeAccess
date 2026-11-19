@@ -24,6 +24,31 @@ export interface GoogleStepUp {
   userIdByGoogleId(sub: string, tenantId: number): Promise<number | null>
 }
 
+/** Adapts the central auth services; the OIDC flow is resolved lazily because it is created later in the container. */
+export function createVaultProviderStepUp(deps: {
+  oidcFlow: () => OidcStepUpFlow
+  links: OidcIdentityLinks
+  google: {
+    getConfig(tenantId: number): Promise<{ clientId: string; domain?: string } | null>
+    verifyIdToken(idToken: string, clientId: string, tenantId: number): Promise<{ sub: string; hd?: string; nonce?: string; iat?: string | number }>
+  }
+  users: { findByGoogleId(googleId: string, tenantId: number): Promise<{ id: number } | null> }
+  redirectUri: () => string
+}): VaultProviderStepUp {
+  return new VaultProviderStepUp(
+    { beginStepUp: (t, r, b) => deps.oidcFlow().beginStepUp(t, r, b), completeStepUp: (s, c, b) => deps.oidcFlow().completeStepUp(s, c, b) },
+    deps.links,
+    {
+      config: async tenantId => {
+        const config = await deps.google.getConfig(tenantId)
+        return config ? { clientId: config.clientId, ...(config.domain ? { domain: config.domain } : {}) } : null
+      },
+      verify: (idToken, clientId, tenantId) => deps.google.verifyIdToken(idToken, clientId, tenantId),
+      userIdByGoogleId: async (sub, tenantId) => (await deps.users.findByGoogleId(sub, tenantId))?.id ?? null,
+    },
+    deps.redirectUri)
+}
+
 /** Nonce sent to Google, derived from the secret challenge binding; never stored. */
 export function googleStepUpNonce(binding: string): string {
   return createHash('sha256').update(`nodeaccess-vault-google-step-up:${binding}`).digest('base64url')

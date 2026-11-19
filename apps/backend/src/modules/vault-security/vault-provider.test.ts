@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { googleStepUpNonce, VaultProviderStepUp } from './vault-provider.js'
+import { createVaultProviderStepUp, googleStepUpNonce, VaultProviderStepUp } from './vault-provider.js'
 
 const identity = { userId: 42, tenantId: 7, sessionVersion: 3 }
 const now = 1_800_000_000_000
@@ -87,3 +87,25 @@ describe('vault provider step-up: Google', () => {
     await expect(f.provider.complete(identity, 'google', 'binding', input ?? { idToken: 'google-id-token' })).rejects.toMatchObject({ status: 403 })
   })
 })
+
+describe('vault provider adapter wiring', () => {
+  it('resolves the OIDC flow lazily and maps Google config and linked users', async () => {
+    const flow = { beginStepUp: vi.fn().mockResolvedValue({ authorizationUrl: 'https://idp/a' }), completeStepUp: vi.fn().mockRejectedValue(new Error('x')) }
+    let resolved = false
+    const google = {
+      getConfig: vi.fn().mockResolvedValueOnce({ clientId: 'gc', domain: 'example.test' }).mockResolvedValueOnce({ clientId: 'gc' }).mockResolvedValueOnce(null),
+      verifyIdToken: vi.fn().mockResolvedValue({ sub: 's', hd: 'example.test', nonce: googleStepUpNonce('b'), iat: String(Math.floor(Date.now() / 1000)) }),
+    }
+    const users = { findByGoogleId: vi.fn().mockResolvedValueOnce({ id: 42 }).mockResolvedValueOnce(null) }
+    const adapter = createVaultProviderStepUp({ oidcFlow: () => { resolved = true; return flow }, links: { findUser: vi.fn(), isRevoked: vi.fn() }, google, users, redirectUri: () => 'https://portal/cb' })
+    expect(resolved).toBe(false)
+    await expect(adapter.begin(identity, 'oidc', 'b')).resolves.toEqual({ kind: 'redirect', authorizationUrl: 'https://idp/a' })
+    expect(flow.beginStepUp).toHaveBeenCalledWith(7, 'https://portal/cb', 'b')
+    await expect(adapter.complete(identity, 'oidc', 'b', { state: 'vsu.s', code: 'c' })).rejects.toThrow('x')
+    await expect(adapter.complete(identity, 'google', 'b', { idToken: 'token' })).resolves.toEqual({ mfa: false })
+    expect(google.verifyIdToken).toHaveBeenCalledWith('token', 'gc', 7)
+    await expect(adapter.complete(identity, 'google', 'b', { idToken: 'token' })).rejects.toMatchObject({ status: 403 })
+    await expect(adapter.begin(identity, 'google', 'b')).rejects.toMatchObject({ status: 403 })
+  })
+})
+

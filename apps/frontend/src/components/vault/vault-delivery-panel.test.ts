@@ -152,4 +152,12 @@ describe('Vault delivery panel orchestration',()=>{
   await f.panel.confirmProvider();expect(pending).toBeDefined()
   f.panel.reset();await expect(pending).rejects.toMatchObject({reason:'locked'});expect(f.panel.totpPending).toBe(false);f.unmount()
  })
+ it('renders provider TOTP, Google target and cancel states without the password form',async()=>{
+  const f=mount();f.panel.request('reveal',4,'db');state.stepUp='provider';state.phase='unlocking';state.providerPending=true
+  let html=await f.html();expect(html).toContain('vaultDelivery.providerCancel');expect(html).not.toContain('vault-unlock-password')
+  f.panel.totpPending=true;f.panel.googlePending=true
+  html=await f.html();expect(html).toContain('vault-provider-otp');expect(html).not.toContain('vaultDelivery.providerConfirm')
+  state.stepUp='password_totp';state.phase='locked';f.panel.totpPending=false
+  html=await f.html();expect(html).toContain('vault-unlock-password');expect(html).toContain('vaultDelivery.policyHint');f.unmount()
+ })
 })

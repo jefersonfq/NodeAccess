@@ -116,3 +116,19 @@ describe('vault Google step-up button (NA-0184)', () => {
   })
 })
 
+describe('vault provider window edge cases (NA-0184)', () => {
+  it('rejects an already aborted request and ignores malformed or oversized returns', async () => {
+    const f = deps(), done = new AbortController(); done.abort()
+    await expect(openVaultProviderWindow(`https://idp.example/a?state=${state}`, done.signal, f.d)).rejects.toMatchObject({ reason: 'locked' })
+    await expect(openVaultProviderWindow('not a url', new AbortController().signal, f.d)).rejects.toMatchObject({ reason: 'unavailable' })
+    const g = deps(), pending = openVaultProviderWindow(`https://idp.example/a?state=${state}`, new AbortController().signal, g.d)
+    g.channel.onmessage?.(message(null))
+    g.channel.onmessage?.(message({ type: 'vault-step-up-return', state, code: '' }))
+    g.channel.onmessage?.(message({ type: 'vault-step-up-return', state, code: 'x'.repeat(4097) }))
+    g.channel.onmessage?.(message({ type: 'vault-step-up-return', state, code: 'ok' }))
+    await expect(pending).resolves.toEqual({ state, code: 'ok' })
+    const channel = { postMessage: vi.fn(), close: vi.fn(), onmessage: null }
+    expect(forwardVaultStepUpReturn(state, 'x'.repeat(4097), () => channel)).toBe(false)
+  })
+})
+
