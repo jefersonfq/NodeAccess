@@ -108,6 +108,8 @@ export class OidcService {
     clientId: string
     redirectUri: string
     scopes?: string[]
+    /** Re-authentication (vault step-up): force a new login at the provider. */
+    reauthenticate?: boolean
   }): OidcAuthorizationRequest {
     const redirectUri = requireHttpsUrl(input.redirectUri, 'Redirect URI OIDC', true).toString()
     const state = randomUrlSafeValue()
@@ -124,6 +126,7 @@ export class OidcService {
       nonce,
       code_challenge: codeChallenge,
       code_challenge_method: 'S256',
+      ...(input.reauthenticate ? { prompt: 'login', max_age: '0' } : {}),
     }).toString()
     return { url: url.toString(), state, nonce, codeVerifier }
   }

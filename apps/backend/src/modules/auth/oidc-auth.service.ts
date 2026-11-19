@@ -72,7 +72,8 @@ export class OidcAuthService {
   }
 }
 
-function callbackUrl(): string {
+/** Same registered redirect URI for login and vault step-up; the stored flow purpose separates them. */
+export function callbackUrl(): string {
   if (!env.APP_FRONTEND_URL) throw new Error('APP_FRONTEND_URL obrigatório para OIDC')
   const url = new URL('/auth/oidc/callback', env.APP_FRONTEND_URL)
   if (process.env.NODE_ENV === 'production' && url.protocol !== 'https:') {

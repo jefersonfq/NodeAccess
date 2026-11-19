@@ -36,7 +36,7 @@ Separar **quem pode** (permissões do cofre, sem mudança) de **como confirmar a
 | `local` | Senha local + TOTP (comportamento atual, sem mudança) |
 | `ldap` | Bind LDAP com a senha + TOTP do NodeAccess; sem TOTP cadastrado → negado com orientação |
 | `oidc` | Reautenticação no provedor: novo fluxo com `prompt=login` e `max_age=0`, propósito `vault-step-up` ligado a usuário/tenant/cliente/desafio; aceitar só se `iss`/`sub` forem os da identidade vinculada, `nonce` correto e `auth_time` ≤ 5 min. MFA: `amr`/`acr` aceitos pela configuração do tenant; senão TOTP do NodeAccess |
-| `google` | Mesmo fluxo OIDC (sem `amr` confiável: TOTP do NodeAccess obrigatório) |
+| `google` | Novo token do Google (GIS) com `nonce` derivado do desafio, emitido há no máximo 5 min, da conta Google já vinculada ao usuário, mais TOTP do NodeAccess obrigatório (decisão do responsável em 2026-11-19; o login Google não tem fluxo no servidor nem client secret) |
 | `break_glass` | Negado (`VAULT_FORBIDDEN`), auditado |
 
 2. `RedisVaultOrigin.bind`: trocar a exigência `local` pela lista `local | ldap | oidc | google`; break-glass e método ausente/desconhecido negados. Registrar o método e a classe de garantia na sessão do cofre e na auditoria.
@@ -85,6 +85,8 @@ Unitários por adaptador e negativa; integração com MySQL/Redis; OIDC com Keyc
 Flag `vault-step-up-external` desligada volta ao comportamento atual (só local). Sem migração destrutiva; revert da PR.
 
 ## Mudanças de escopo e decisões
+
+2026-11-19: Google confirmado por novo token GIS + TOTP (opção recomendada aceita pelo responsável); limite registrado: com sessão Google ativa no navegador, o Google pode não pedir a senha de novo, e o TOTP garante o segundo fator.
 
 2026-11-19: implementação em duas fases na mesma frente. Fase 1: porta por método, LDAP, política de métodos por tenant (espelho de `canRefreshSession`, sem break-glass), flag `VAULT_STEP_UP_EXTERNAL_ENABLED`. Fase 2: reautenticação no provedor para OIDC/Google.
 

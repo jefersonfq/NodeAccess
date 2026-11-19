@@ -13,6 +13,8 @@ interface GoogleTokenInfo {
   hd?:             string   // hosted domain (Google Workspace)
   aud:             string
   email_verified?: string
+  nonce?:          string   // vault step-up binding (NA-0184)
+  iat?:            string
 }
 
 interface ServiceAccountKey {

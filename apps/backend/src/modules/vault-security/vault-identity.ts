@@ -61,4 +61,7 @@ export class MethodVaultReauthentication implements Reauthentication {
     }
     return firstFactor && this.totp.verify(authority.mfaSecret, otp)
   }
+  verifySecondFactor(otp: string, authority: VaultAuthority): boolean {
+    return /^\d{6}$/.test(otp) && this.totp.verify(authority.mfaSecret, otp)
+  }
 }

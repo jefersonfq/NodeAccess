@@ -47,6 +47,13 @@ export function vaultRoutes(app: FastifyInstance, service: VaultService, adminis
   post('/sessions/challenges', empty, (i,c,o) => service.challenge(i,c,o))
   post('/sessions/unlock', z.object({ challengeId: opaque, password: z.string().min(1).max(1024), token: z.string().regex(/^\d{6}$/) }).strict(),
     (i,c,o,b) => service.unlock(i,c,o,b.challengeId,b.password,b.token))
+  // NA-0184: OIDC/Google sessions confirm identity at the provider, bound to one challenge.
+  post('/sessions/provider/begin', z.object({ challengeId: opaque }).strict(), (i,c,o,b) => service.providerBegin(i,c,o,b.challengeId))
+  post('/sessions/provider/complete', z.object({ challengeId: opaque, state: z.string().regex(/^[A-Za-z0-9_-]{16,512}$/).optional(),
+    code: z.string().min(1).max(4096).optional(), idToken: z.string().min(32).max(8192).optional() }).strict(),
+    (i,c,o,b) => service.providerComplete(i,c,o,b.challengeId,{ state: b.state, code: b.code, idToken: b.idToken }))
+  post('/sessions/unlock-provider', z.object({ challengeId: opaque, token: z.string().regex(/^\d{6}$/).optional() }).strict(),
+    (i,c,o,b) => service.unlockProvider(i,c,o,b.challengeId,b.token))
   post('/sessions/lock', empty, (i,c,o) => service.lock(i,c,o).then(() => ({ state: 'LOCKED' })))
   post('/sessions/current', empty, (i,c,o) => service.current(i,c,o))
   post('/operations', session.extend({ action: z.enum(['reveal','copy']), secretId: z.number().int().positive(), recipient }).strict(),
