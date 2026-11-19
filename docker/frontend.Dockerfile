@@ -1,4 +1,4 @@
-FROM node:24.22.1-alpine@sha256:06d7adf3e0ef61a13f1d28682726366f97a15aa1888c934d3ecec86c33918b53 AS node-runtime
+FROM node:24.22.3-alpine@sha256:116b800c3754b440ee0aa3ed2f20f5bf3d99a554bfd9adeea09ea8017f6e85f5 AS node-runtime
 # CPython 3.14.10 has a FIPS regression; use the unaffected stable official runtime.
 FROM python:3.15.2-alpine3.24@sha256:0f9552bb28711333da16915ec146f5e6bb44a7fdac9ced15dc17c2e0206346dd AS python-runtime
 FROM node-runtime AS base
@@ -24,7 +24,7 @@ RUN npm run build -w packages/shared
 RUN npm run build -w apps/frontend
 
 # ── Prod — serve estático via Nginx ───────────────────────────
-FROM nginx:1.30.6-alpine@sha256:47928bf67eb62a1863cb08d9ecb52d3e704304ba614eaee17884204677702951 AS prod
+FROM nginx:1.30.7-alpine@sha256:bef154735288bc38d99fac41ae63730684bcc661503673a04a0f9bc526ba8598 AS prod
 ARG APP_VERSION=dev
 LABEL org.opencontainers.image.version="${APP_VERSION}"
 # Static serving and the Python/Node TLS worker do not use curl or libcurl.
@@ -43,9 +43,13 @@ ARG APP_VERSION=dev
 LABEL org.opencontainers.image.version="${APP_VERSION}"
 USER root
 # Static serving and the Python/Node TLS worker do not use curl or libcurl.
+# nginx-unprivileged 1.30.7 ainda não publicado: nginx corrigido do repositório oficial nginx.org (chave já presente na base).
 RUN sed -i 's/dl-cdn.alpinelinux.org/dl-4.alpinelinux.org/g' /etc/apk/repositories \
   && apk --no-network del nginx-module-image-filter curl libcurl \
   && apk --timeout 30 upgrade --no-cache \
+  && apk --timeout 30 add --no-cache --repository https://nginx.org/packages/alpine/v3.24/main \
+    "nginx~1.30.7" "nginx-module-geoip~1.30.7" "nginx-module-njs~1.30.7" "nginx-module-xslt~1.30.7" \
+  && apk info -e "nginx>=1.30.7-r1" \
   && apk --timeout 30 add --no-cache "zlib>=1.4-r0" "libxslt>=1.1.43-r4"
 USER 101
 ENV API_UPSTREAM=api:3000
@@ -55,7 +59,7 @@ COPY docker/nginx.k8s.conf.template /etc/nginx/templates/default.conf.template
 EXPOSE 8080
 
 # Optional certificate worker. Same Nginx base as prod; no frontend assets needed.
-FROM nginx:1.30.6-alpine@sha256:47928bf67eb62a1863cb08d9ecb52d3e704304ba614eaee17884204677702951 AS tls-agent
+FROM nginx:1.30.7-alpine@sha256:bef154735288bc38d99fac41ae63730684bcc661503673a04a0f9bc526ba8598 AS tls-agent
 ARG APP_VERSION=dev
 LABEL org.opencontainers.image.version="${APP_VERSION}"
 COPY --from=python-runtime /usr/local /usr/local

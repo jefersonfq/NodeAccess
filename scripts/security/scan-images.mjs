@@ -6,6 +6,7 @@ import { tmpdir } from 'node:os'
 import { reviewedImageFinding } from './image-policy.mjs'
 import { reviewedSqliteImageFinding } from './sqlite-image-policy.mjs'
 import { reviewedGuacdImageFinding } from './guacd-image-policy.mjs'
+import { reviewedOpensslImageFinding } from './openssl-image-policy.mjs'
 
 const images = process.argv.slice(2)
 if (!images.length || images.some(image => image.startsWith('-'))) {
@@ -19,6 +20,7 @@ mkdirSync(output, { recursive: true }); mkdirSync(cache, { recursive: true })
 const triage = JSON.parse(readFileSync(new URL('../../security/image-triage.json', import.meta.url)))
 const guacdTriage = JSON.parse(readFileSync(new URL('../../security/guacd-image-triage.json', import.meta.url)))
 const sqliteTriage = JSON.parse(readFileSync(new URL('../../security/sqlite-image-triage.json', import.meta.url)))
+const opensslTriage = JSON.parse(readFileSync(new URL('../../security/openssl-image-triage.json', import.meta.url)))
 const summary = { scanner, at: new Date().toISOString(), policy: 'Block unreviewed High/Critical/Unknown. Exact, expiring component and FIPS-channel false positives remain in the raw report.', images: [], passed: true }
 function docker(args) {
   return execFileSync(resolveExecutable('docker'), args, { encoding: 'utf8', timeout: 300_000, maxBuffer: 128 * 1024 * 1024, stdio: ['ignore', 'pipe', 'pipe'] })
@@ -45,6 +47,10 @@ for (const ref of images) {
       if (!reviewed) {
         selectedPolicy = sqliteTriage
         reviewed = reviewedSqliteImageFinding(ref, report.distro, match, sqliteTriage)
+      }
+      if (!reviewed) {
+        selectedPolicy = opensslTriage
+        reviewed = reviewedOpensslImageFinding(ref, report.distro, match, opensslTriage)
       }
       return { package: a.name, version: a.version, id: v.id, severity: v.severity, fix: v.fix, source: v.dataSource,
         ...(reviewed && { triage: { reason: reviewed.reason, expiresAt: selectedPolicy.expiresAt, evidence: selectedPolicy.evidence } }) }

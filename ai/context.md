@@ -37,3 +37,4 @@ Regra de contexto:
 - use este arquivo como base curta
 - leia modulos de `ai/modules/*` so quando a tarefa tocar esse dominio
 - consulte `docs/PRD.txt` apenas para regra de negocio detalhada
+- gate de vulnerabilidades das imagens e triagens com validade: `security/README.md` (aceite temporario de OpenSSL da NA-0181 vence em 2026-12-19)

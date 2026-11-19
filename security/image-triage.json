@@ -1,11 +1,11 @@
 {
-  "reviewedAt": "2026-11-15",
-  "expiresAt": "2026-11-29",
-  "evidence": "docs/changes/2026/11/NA-0172-security-center/image-gate-review.md",
+  "reviewedAt": "2026-11-19",
+  "expiresAt": "2026-12-19",
+  "evidence": "docs/changes/2026/11/NA-0181-image-vulnerability-gate/image-gate-review.md",
   "image": "nodeaccess-mysql:8.4.12-1",
   "distro": {
     "name": "oraclelinux",
-    "version": "9.8"
+    "version": "9.9"
   },
   "namespace": "oracle:distro:oraclelinux:9",
   "findings": [

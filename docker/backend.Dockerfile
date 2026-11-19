@@ -9,7 +9,7 @@ RUN --network=none CGO_ENABLED=0 GOTOOLCHAIN=local GOPROXY=off GOFLAGS=-trimpath
     sh scripts/build/binary \
     && cp build/docker /usr/local/bin/docker
 
-FROM node:24.22.1-alpine@sha256:06d7adf3e0ef61a13f1d28682726366f97a15aa1888c934d3ecec86c33918b53 AS base
+FROM node:24.22.3-alpine@sha256:116b800c3754b440ee0aa3ed2f20f5bf3d99a554bfd9adeea09ea8017f6e85f5 AS base
 WORKDIR /app
 # Docker CLI is needed inside the API container by the observability collector.
 # The release CLI is rebuilt with patched Go; daemon access stays deployment-controlled.
@@ -52,7 +52,7 @@ RUN --mount=type=secret,id=nodeaccess_release_public_key,required=true \
   node scripts/release/validate-agents.mjs
 
 # ── Prod ───────────────────────────────────────────────────────
-FROM node:24.22.1-alpine@sha256:06d7adf3e0ef61a13f1d28682726366f97a15aa1888c934d3ecec86c33918b53 AS runtime
+FROM node:24.22.3-alpine@sha256:116b800c3754b440ee0aa3ed2f20f5bf3d99a554bfd9adeea09ea8017f6e85f5 AS runtime
 ARG APP_VERSION=dev
 WORKDIR /app
 ENV NODE_ENV=production
