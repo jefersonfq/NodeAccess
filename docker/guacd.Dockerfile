@@ -18,7 +18,7 @@ FROM ${BASE}
 RUN sed -i s/dl-cdn.alpinelinux.org/dl-4.alpinelinux.org/g /etc/apk/repositories
 COPY --from=build /opt/guacamole /opt/guacamole
 COPY --from=build /usr/lib/freerdp3/*guac*.so /usr/lib/freerdp3/
-RUN apk add --no-cache "zlib>=1.4-r0" freerdp-libs=3.32.2-r0 ca-certificates font-noto-cjk ghostscript netcat-openbsd shadow terminus-font ttf-dejavu ttf-liberation util-linux-login && \
+RUN apk add --no-cache "zlib>=1.4-r0" "libssl3>=3.5.9-r1" "libcrypto3>=3.5.9-r1" freerdp-libs=3.32.2-r0 ca-certificates font-noto-cjk ghostscript netcat-openbsd shadow terminus-font ttf-dejavu ttf-liberation util-linux-login && \
     xargs apk add --no-cache < /opt/guacamole/DEPENDENCIES && \
     groupadd --gid 1000 guacd && useradd --system --create-home --shell /sbin/nologin --uid 1000 --gid 1000 guacd
 ADD --checksum=sha256:e9d92102c6537a036cc3f4e27f97fe860f944f3b26565d9991bfdbe21c2a4caa https://dl-4.alpinelinux.org/alpine/edge/main/x86_64/alsa-lib-1.2.16.1-r0.apk /tmp/alsa-lib-1.2.16.1-r0.apk
