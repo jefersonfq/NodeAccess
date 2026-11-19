@@ -75,11 +75,15 @@ export class VaultService {
     return { method, client, challenge }
   }
   async providerBegin(identity: VaultIdentity, clientId: string, origin: string, challengeId: string): Promise<ProviderStart> {
-    const { method } = await this.store.transaction(identity, tx => this.providerContext(tx, identity, clientId, origin, challengeId))
+    const { method } = await this.store.transaction(identity, async tx => {
+      const context = await this.providerContext(tx, identity, clientId, origin, challengeId)
+      await tx.limit('provider', 300_000, 5)
+      return context
+    })
     if (!this.provider) unavailable()
     return this.provider.begin(identity, method, this.entropy.digest(challengeId))
   }
-  /** Verifies the provider return outside any transaction; a failed proof burns the challenge. */
+  /** Verifies the provider return outside any transaction; a failed or unavailable proof burns the challenge (fail closed). */
   async providerComplete(identity: VaultIdentity, clientId: string, origin: string, challengeId: string, input: ProviderProofInput): Promise<{ totpRequired: boolean }> {
     const { method } = await this.store.transaction(identity, tx => this.providerContext(tx, identity, clientId, origin, challengeId))
     if (!this.provider) unavailable()
@@ -88,7 +92,7 @@ export class VaultService {
     if (!proof) {
       await this.store.transaction(identity, async tx => {
         await tx.remove('challenge', challengeId)
-        await tx.audit({ type: 'UNLOCK_DENIED', clientId, policyVersion: tx.authority.policy.version, reasonCode: 'PROVIDER_PROOF_REJECTED' })
+        await tx.audit({ type: 'UNLOCK_DENIED', clientId, policyVersion: tx.authority.policy.version, reasonCode: 'PROVIDER_PROOF_FAILED' })
       })
       denied()
     }

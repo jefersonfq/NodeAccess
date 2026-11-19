@@ -100,6 +100,12 @@ describe('Vault reference to the central refresh session', () => {
     await expect(verifier.bind(token({ authMethod: method }), identity)).rejects.toMatchObject({ status: 423, code: 'VAULT_ORIGIN_INVALID' })
     expect(get).not.toHaveBeenCalled()
   })
+  it.each([['ldap', false], ['oidc', false], ['break_glass', true], [undefined, true]] as const)(
+    'rejects on every use an origin with method %s when external step-up is %s', async (method, external) => {
+      const get = vi.fn().mockResolvedValue('7'); const verifier = new RedisVaultOrigin({ get }, signingKey, () => now, 500, external)
+      await expect(verifier.assert({ jti, expiresAt: now + 60_000, authMethod: method as never }, identity)).rejects.toMatchObject({ status: 423, code: 'VAULT_ORIGIN_INVALID' })
+      expect(get).not.toHaveBeenCalled()
+    })
   it('maps methods without trusting unknown values', () => {
     expect(vaultAuthMethod('local', false)).toBe('local')
     expect(vaultAuthMethod('ldap', false)).toBeNull()

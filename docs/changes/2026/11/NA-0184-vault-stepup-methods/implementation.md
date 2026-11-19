@@ -70,3 +70,13 @@ Responsável escolheu, para Google, novo token GIS ligado ao desafio + TOTP. Bac
 ### 2026-11-19T20:10:00-03:00 — Portal e Keycloak
 
 Portal da fase 2 implementado (janela de confirmação, Google, TOTP quando exigido, tolerância a perda de foco só durante a espera). Vitest completo 4107 PASS; Keycloak real PASS depois de incluir o escopo `basic` no realm de teste. Próximo: gate Sonar e revisão independente de segurança; depois push/PR.
+
+### 2026-11-19T20:40:00-03:00 — Revisão independente e correções
+
+Ran: revisão independente estática do intervalo 8ef8188a6..bc591536e: PASS_WITH_WARNINGS, sem desvio de autenticação; confirmou método vindo do token assinado, separação senha × provedor, separação login × confirmação, vínculo sem e-mail e consumo do desafio antes da decisão. Corrigido:
+- (média) a flag só barrava registro novo: `RedisVaultOrigin.assert` agora nega em cada uso método externo com a flag desligada e origem sem método (clientes antigos, negados até novo registro).
+- (baixa-média) `auth_time` precisa ser posterior ao início da confirmação (`startedAt` gravado no fluxo), além do limite de 5 min: provedor que ignore `prompt=login` não reaproveita o login original.
+- (baixa) limite de 5 inícios de confirmação por 5 min por usuário.
+- (baixa) falha de provedor ou prova inválida auditadas como `PROVIDER_PROOF_FAILED` (rótulo neutro; continua negando).
+- Lacunas de teste cobertas: flag desligada com cliente existente, login anterior ao início, limite de inícios, esquema das rotas novas (prefixo de `state`, campos extras, TOTP inválido).
+Aceito e registrado, sem mudança: Google prova "sessão Google no navegador + TOTP", sem forçar nova senha (decisão do responsável); o token Google da confirmação poderia ser reapresentado ao login Google enquanto válido, no mesmo navegador do usuário (impacto mínimo). Testes de unidade do cofre/auth 453 PASS (+ rotas 23 PASS); Keycloak real PASS; `npm run test:vault:real` 32 PASS.

@@ -237,9 +237,10 @@ describe('OidcFlowService vault step-up (NA-0184)', () => {
     expect(oidc.createAuthorizationRequest).toHaveBeenCalledWith(expect.objectContaining({ reauthenticate: true }))
     const saved = JSON.parse(redis.set.mock.calls[0]?.[1] as string) as Record<string, unknown>
     expect(saved).toMatchObject({ purpose: 'vault-step-up', binding: 'challenge-digest' })
+    expect(typeof saved.startedAt).toBe('number')
   })
   it('central login never completes a step-up transaction (and burns it)', async () => {
-    const f = exchangeFixture(stored({ purpose: 'vault-step-up', binding: 'challenge-digest' }))
+    const f = exchangeFixture(stored({ purpose: 'vault-step-up', binding: 'challenge-digest', startedAt: 1 }))
     await expect(f.service.complete('state', 'code')).rejects.toThrow('expirada ou já utilizada')
     expect(f.oidc.verifyIdToken).not.toHaveBeenCalled()
   })
@@ -248,13 +249,17 @@ describe('OidcFlowService vault step-up (NA-0184)', () => {
     await expect(f.service.completeStepUp('state', 'code', 'challenge-digest')).rejects.toThrow('expirada ou já utilizada')
     expect(f.oidc.verifyIdToken).not.toHaveBeenCalled()
   })
-  it('rejects a step-up return bound to another challenge', async () => {
+  it('rejects a step-up transaction without a start time', async () => {
     const f = exchangeFixture(stored({ purpose: 'vault-step-up', binding: 'challenge-digest' }))
+    await expect(f.service.completeStepUp('state', 'code', 'challenge-digest')).rejects.toThrow('expirada ou já utilizada')
+  })
+  it('rejects a step-up return bound to another challenge', async () => {
+    const f = exchangeFixture(stored({ purpose: 'vault-step-up', binding: 'challenge-digest', startedAt: 1 }))
     await expect(f.service.completeStepUp('state', 'code', 'other-digest')).rejects.toThrow('expirada ou já utilizada')
   })
   it('returns the verified identity and issuer for the bound challenge', async () => {
-    const f = exchangeFixture(stored({ purpose: 'vault-step-up', binding: 'challenge-digest' }))
-    await expect(f.service.completeStepUp('state', 'code', 'challenge-digest')).resolves.toMatchObject({ tenantId: 7, issuer: config.issuer, identity: f.identity })
+    const f = exchangeFixture(stored({ purpose: 'vault-step-up', binding: 'challenge-digest', startedAt: 1 }))
+    await expect(f.service.completeStepUp('state', 'code', 'challenge-digest')).resolves.toMatchObject({ tenantId: 7, issuer: config.issuer, startedAt: 1, identity: f.identity })
   })
 })
 

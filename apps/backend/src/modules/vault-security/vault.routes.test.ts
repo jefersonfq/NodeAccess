@@ -60,6 +60,11 @@ describe('Vault private HTTP adapter', () => {
     ['/operations', { sessionId: 'x'.repeat(43), action: 'fill', secretId: 1, recipient: { kty: 'RSA', n: 'x'.repeat(342), e: 'AQAB' } }],
     ['/operations', { sessionId: 'x'.repeat(43), action: 'copy', secretId: 1, recipient: { kty: 'RSA', n: 'x'.repeat(342), e: 'AQAB', d: 'private-key-rejected' } }],
     ['/operations/consume', { sessionId: 'x'.repeat(43), operationId: 'x'.repeat(43), recipient: {} }],
+    ['/sessions/provider/begin', { challengeId: 'x'.repeat(43), method: 'oidc' }],
+    ['/sessions/provider/complete', { challengeId: 'x'.repeat(43), state: 'plainloginstate123456', code: 'c' }],
+    ['/sessions/provider/complete', { challengeId: 'x'.repeat(43), idToken: 'g'.repeat(64), userId: 9 }],
+    ['/sessions/unlock-provider', { challengeId: 'x'.repeat(43), token: '12' }],
+    ['/sessions/unlock-provider', { challengeId: 'x'.repeat(43), password: 'not-accepted' }],
   ])('rejects unknown or unsupported body fields for %s', async (path, body) => {
     const h = await harness()
     try {

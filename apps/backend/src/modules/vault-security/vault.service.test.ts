@@ -270,7 +270,7 @@ describe('vault provider step-up flow (NA-0184)', () => {
     const { f, c, p } = await pending()
     f.provider.complete.mockRejectedValue(new Error('private provider diagnostic'))
     await expect(f.service.providerComplete(identity, c.clientId, origin, p.challengeId, { state: 's', code: 'c' })).rejects.toMatchObject({ status: 403 })
-    expect(f.events().some(e => e.type === 'UNLOCK_DENIED' && e.reasonCode === 'PROVIDER_PROOF_REJECTED')).toBe(true)
+    expect(f.events().some(e => e.type === 'UNLOCK_DENIED' && e.reasonCode === 'PROVIDER_PROOF_FAILED')).toBe(true)
     await expect(f.service.providerBegin(identity, c.clientId, origin, p.challengeId)).rejects.toMatchObject({ status: 403 })
   })
   it('denies unlock without a provider proof and burns the challenge', async () => {
@@ -283,6 +283,11 @@ describe('vault provider step-up flow (NA-0184)', () => {
     await f.service.providerComplete(identity, c.clientId, origin, p.challengeId, { state: 's', code: 'c' })
     await f.service.unlockProvider(identity, c.clientId, origin, p.challengeId, undefined)
     await expect(f.service.unlockProvider(identity, c.clientId, origin, p.challengeId, undefined)).rejects.toMatchObject({ status: 403 })
+  })
+  it('limits provider starts per user', async () => {
+    const { f, c, p } = await pending()
+    for (let i = 0; i < 5; i++) await f.service.providerBegin(identity, c.clientId, origin, p.challengeId)
+    await expect(f.service.providerBegin(identity, c.clientId, origin, p.challengeId)).rejects.toMatchObject({ status: 429 })
   })
   it.each(['local', 'ldap'] as const)('rejects provider step-up for %s sessions', async method => {
     const { f, c, p } = await pending(method)

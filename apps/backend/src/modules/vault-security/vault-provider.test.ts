@@ -5,11 +5,11 @@ const identity = { userId: 42, tenantId: 7, sessionVersion: 3 }
 const now = 1_800_000_000_000
 const seconds = (ms: number): number => Math.floor(ms / 1000)
 
-function fixture(patch: { claims?: Record<string, unknown>; tenantId?: number; mfa?: boolean; linked?: number | null; revoked?: boolean } = {}) {
+function fixture(patch: { claims?: Record<string, unknown>; startedAt?: number; tenantId?: number; mfa?: boolean; linked?: number | null; revoked?: boolean } = {}) {
   const oidc = {
     beginStepUp: vi.fn().mockResolvedValue({ authorizationUrl: 'https://idp.example.test/authorize?state=s' }),
     completeStepUp: vi.fn().mockResolvedValue({
-      tenantId: patch.tenantId ?? 7, issuer: 'https://idp.example.test',
+      tenantId: patch.tenantId ?? 7, issuer: 'https://idp.example.test', startedAt: patch.startedAt ?? now - 60_000,
       identity: { subject: 'subject-1', claims: patch.claims ?? { auth_time: seconds(now - 30_000) } },
       mfaAssurance: { satisfied: patch.mfa ?? true },
     }),
@@ -46,6 +46,7 @@ describe('vault provider step-up: OIDC', () => {
     ['old login', { claims: { auth_time: seconds(now - 6 * 60_000) } }, undefined],
     ['future login', { claims: { auth_time: seconds(now + 5 * 60_000) } }, undefined],
     ['no auth_time', { claims: {} }, undefined],
+    ['login reused from before the step-up started', { claims: { auth_time: seconds(now - 3 * 60_000) }, startedAt: now - 30_000 }, undefined],
     ['non numeric auth_time', { claims: { auth_time: 'recent' } }, undefined],
     ['revoked identity', { revoked: true }, undefined],
     ['other user', { linked: 43 }, undefined],

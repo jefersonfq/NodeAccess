@@ -86,6 +86,8 @@ Flag `vault-step-up-external` desligada volta ao comportamento atual (só local)
 
 ## Mudanças de escopo e decisões
 
+2026-11-19: a revisão independente lembrou que o contrato NA-0177 §5 não aceita TOTP sozinho como substituto automático. No Google a prova é novo token ligado ao desafio (sessão Google ativa) + TOTP, não TOTP sozinho; a diferença em relação ao OIDC (sem nova senha no provedor) fica aceita pelo responsável e registrada aqui.
+
 2026-11-19: Google confirmado por novo token GIS + TOTP (opção recomendada aceita pelo responsável); limite registrado: com sessão Google ativa no navegador, o Google pode não pedir a senha de novo, e o TOTP garante o segundo fator.
 
 2026-11-19: implementação em duas fases na mesma frente. Fase 1: porta por método, LDAP, política de métodos por tenant (espelho de `canRefreshSession`, sem break-glass), flag `VAULT_STEP_UP_EXTERNAL_ENABLED`. Fase 2: reautenticação no provedor para OIDC/Google.

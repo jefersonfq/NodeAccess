@@ -9,7 +9,7 @@ const SKEW_MS = 60_000
 export interface OidcStepUpFlow {
   beginStepUp(tenantId: number, redirectUri: string, binding: string): Promise<{ authorizationUrl: string }>
   completeStepUp(state: string, code: string, binding: string): Promise<{
-    tenantId: number; issuer: string
+    tenantId: number; issuer: string; startedAt: number
     identity: { subject: string; claims: Record<string, unknown> }
     mfaAssurance: { satisfied: boolean }
   }>
@@ -58,7 +58,9 @@ export class VaultProviderStepUp implements ProviderStepUp {
     if (method === 'oidc') {
       if (!input.state || !input.code) denied()
       const result = await this.oidc.completeStepUp(input.state, input.code, binding)
-      if (result.tenantId !== identity.tenantId || !recent(result.identity.claims.auth_time, this.now())) denied()
+      const authTime = result.identity.claims.auth_time
+      // A provider that ignores prompt=login/max_age cannot reuse a login older than this step-up.
+      if (result.tenantId !== identity.tenantId || !recent(authTime, this.now()) || (authTime as number) * 1000 < result.startedAt - SKEW_MS) denied()
       if (await this.links.isRevoked(identity.tenantId, result.issuer, result.identity.subject)) denied()
       const user = await this.links.findUser(identity.tenantId, result.issuer, result.identity.subject)
       if (user?.id !== identity.userId) denied()

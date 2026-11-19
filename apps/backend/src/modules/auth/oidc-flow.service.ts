@@ -16,11 +16,14 @@ interface StoredOidcFlow {
   /** Vault step-up flows never complete a central login, and vice versa. */
   purpose?: 'vault-step-up'
   binding?: string
+  /** Epoch ms when the step-up started; the provider login must happen after it. */
+  startedAt?: number
 }
 
 export interface OidcStepUpResult {
   tenantId: number
   issuer: string
+  startedAt: number
   identity: VerifiedOidcIdentity
   mfaAssurance: OidcMfaAssurance
 }
@@ -59,7 +62,7 @@ export class OidcFlowService {
       codeVerifier: request.codeVerifier,
       redirectUri,
       issuer: discovery.issuer,
-      ...(binding !== undefined ? { purpose: 'vault-step-up' as const, binding } : {}),
+      ...(binding !== undefined ? { purpose: 'vault-step-up' as const, binding, startedAt: Date.now() } : {}),
     }
     const stored = await this.redis.set(
       `${FLOW_KEY_PREFIX}${request.state}`,
@@ -85,9 +88,9 @@ export class OidcFlowService {
 
   async completeStepUp(state: string, code: string, binding: string): Promise<OidcStepUpResult> {
     const flow = await this.take(state)
-    if (flow.purpose !== 'vault-step-up' || flow.binding !== binding) throw new Error('Transação OIDC inválida, expirada ou já utilizada')
+    if (flow.purpose !== 'vault-step-up' || flow.binding !== binding || typeof flow.startedAt !== 'number') throw new Error('Transação OIDC inválida, expirada ou já utilizada')
     const { identity, mfaAssurance } = await this.exchange(flow, code)
-    return { tenantId: flow.tenantId, issuer: flow.issuer, identity, mfaAssurance }
+    return { tenantId: flow.tenantId, issuer: flow.issuer, startedAt: flow.startedAt, identity, mfaAssurance }
   }
 
   private async take(state: string): Promise<StoredOidcFlow> {
