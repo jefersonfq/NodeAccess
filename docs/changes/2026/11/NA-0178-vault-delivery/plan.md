@@ -2,7 +2,7 @@
 change_id: NA-0178
 title: Sessão isolada e entrega cifrada por operação do VaultNAccess
 type: security
-status: in-development
+status: closed
 created_at: 2026-11-15T23:32:58-03:00
 base_branch: master
 base_sha: bf122f141029244b0687f549353d79b4dcbaa506
