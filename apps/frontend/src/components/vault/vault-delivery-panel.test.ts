@@ -3,10 +3,12 @@ import { createRenderer, createSSRApp, defineComponent, h, nextTick, reactive, s
 import { renderToString } from 'vue/server-renderer'
 import VaultDeliveryPanel from './VaultDeliveryPanel.vue'
 import type { VaultDeliveryDependencies } from '@/services/vault-delivery'
-const mocks = vi.hoisted(()=>({ create: vi.fn(), unlock: vi.fn(), deliver: vi.fn(), tick: vi.fn(), dismiss: vi.fn(), lock: vi.fn(), dispose: vi.fn(), confirmCopy: vi.fn() }))
-const state=reactive({phase:'locked',value:'',error:null as string|null,copied:false})
+const mocks = vi.hoisted(()=>({ create: vi.fn(), unlock: vi.fn(), deliver: vi.fn(), tick: vi.fn(), dismiss: vi.fn(), lock: vi.fn(), dispose: vi.fn(), confirmCopy: vi.fn(), prepare: vi.fn(), unlockWithProvider: vi.fn() }))
+const state=reactive({phase:'locked',value:'',error:null as string|null,copied:false,stepUp:null as string|null,providerPending:false})
 const auth=reactive({isManagingTenant:false,accessToken:'portal-fixture',refreshToken:'origin-fixture',user:{id:41,tenantId:7,actingTenantId:undefined as number|undefined}})
 vi.mock('@/services/vault-delivery',()=>({createVaultDelivery:mocks.create}))
+const confirmMocks=vi.hoisted(()=>({openWindow:vi.fn(),google:vi.fn()}))
+vi.mock('@/services/vault-provider-confirm',()=>({openVaultProviderWindow:confirmMocks.openWindow,requestGoogleIdToken:confirmMocks.google}))
 vi.mock('@/stores/auth',()=>({useAuthStore:()=>auth}))
 vi.mock('vue-i18n',()=>({useI18n:()=>({t:(key:string)=>key})}))
 vi.mock('naive-ui',()=>({
@@ -19,6 +21,7 @@ interface HostNode { parent:HostNode|null; children:HostNode[] }
 function node():HostNode {return {parent:null,children:[]}}
 interface Panel {
  available:boolean; dialog:boolean; password:string; token:string; itemName:string; busy:boolean; secure:boolean; title:string
+ confirmProvider():Promise<void>;submitTotp():void;totpPending:boolean;googlePending:boolean
  request(action:'reveal'|'copy',id:number,name:string):void;unlock():Promise<void>;close():void;reset():void;visibility():void
 }
 function mount() {
@@ -32,10 +35,10 @@ function deferred(){let resolve!:()=>void;const promise=new Promise<void>(r=>{re
 let documentFixture:EventTarget & {visibilityState:string}
 beforeEach(()=>{
  vi.useFakeTimers();for(const mock of Object.values(mocks))mock.mockReset()
- Object.assign(state,{phase:'locked',value:'',error:null,copied:false});Object.assign(auth,{isManagingTenant:false,accessToken:'portal-fixture',refreshToken:'origin-fixture'});Object.assign(auth.user,{id:41,tenantId:7,actingTenantId:undefined})
+ Object.assign(state,{phase:'locked',value:'',error:null,copied:false,stepUp:null,providerPending:false});mocks.prepare.mockResolvedValue(undefined);Object.assign(auth,{isManagingTenant:false,accessToken:'portal-fixture',refreshToken:'origin-fixture'});Object.assign(auth.user,{id:41,tenantId:7,actingTenantId:undefined})
  mocks.lock.mockImplementation(()=>{state.phase='locked';state.value=''});mocks.dismiss.mockImplementation(()=>{state.value='';if(state.phase!=='locked')state.phase='unlocked'})
  mocks.unlock.mockImplementation(()=>{state.phase='unlocked';return Promise.resolve()});mocks.deliver.mockResolvedValue(undefined)
- mocks.create.mockReturnValue({state,unlock:mocks.unlock,deliver:mocks.deliver,tick:mocks.tick,dismiss:mocks.dismiss,lock:mocks.lock,dispose:mocks.dispose,confirmCopy:mocks.confirmCopy})
+ mocks.create.mockReturnValue({state,unlock:mocks.unlock,deliver:mocks.deliver,tick:mocks.tick,dismiss:mocks.dismiss,lock:mocks.lock,dispose:mocks.dispose,confirmCopy:mocks.confirmCopy,prepare:mocks.prepare,unlockWithProvider:mocks.unlockWithProvider})
  vi.stubGlobal('isSecureContext',true);vi.stubGlobal('window',Object.assign(new EventTarget(),{location:{protocol:'https:',origin:'https://vault.example'}}))
  documentFixture=Object.assign(new EventTarget(),{visibilityState:'visible'});vi.stubGlobal('document',documentFixture)
 })
@@ -102,4 +105,59 @@ describe('Vault delivery panel orchestration',()=>{
   f.panel.request('copy',9,'other');expect(mocks.deliver).not.toHaveBeenCalled();state.phase='unlocked';expect(f.panel.available).toBe(true);f.unmount()
  })
 
+ it('learns the expected confirmation when a locked dialog opens (NA-0184)',()=>{
+  const f=mount();f.panel.request('reveal',4,'db');expect(mocks.prepare).toHaveBeenCalledTimes(1);f.unmount()
+ })
+ it('renders the provider confirmation instead of the password form for SSO sessions',async()=>{
+  const f=mount();f.panel.request('reveal',4,'db');state.stepUp='provider'
+  const html=await f.html();expect(html).toContain('vault-provider-step-up');expect(html).toContain('vaultDelivery.providerConfirm');expect(html).not.toContain('vault-unlock-password');f.unmount()
+ })
+ it('keeps the dialog during the provider wait but still locks on blur otherwise',()=>{
+  const f=mount();f.panel.request('reveal',4,'db');state.phase='unlocking';state.providerPending=true
+  window.dispatchEvent(new Event('blur'));expect(mocks.lock).not.toHaveBeenCalled();expect(f.panel.dialog).toBe(true)
+  state.providerPending=false;window.dispatchEvent(new Event('blur'));expect(mocks.lock).toHaveBeenCalled();expect(f.panel.dialog).toBe(false);f.unmount()
+ })
+ it('still locks on pagehide during the provider wait',()=>{
+  const f=mount();f.panel.request('reveal',4,'db');state.providerPending=true
+  window.dispatchEvent(new Event('pagehide'));expect(mocks.lock).toHaveBeenCalled();f.unmount()
+ })
+ it('confirms with the provider window, collects TOTP when required, then delivers the selected intent once',async()=>{
+  type Confirm={redirect(u:string,s:AbortSignal):Promise<unknown>;google(c:string,n:string,s:AbortSignal):Promise<string>;totp(s:AbortSignal):Promise<string>}
+  confirmMocks.openWindow.mockResolvedValue({state:'vsu.x',code:'c'})
+  const f=mount();f.panel.request('copy',9,'db');state.stepUp='provider'
+  mocks.unlockWithProvider.mockImplementation(async(confirm:Confirm)=>{
+   const signal=new AbortController().signal
+   await confirm.redirect('https://idp.example/a',signal);expect(confirmMocks.openWindow).toHaveBeenCalledWith('https://idp.example/a',signal)
+   const totp=confirm.totp(signal);expect(f.panel.totpPending).toBe(true)
+   f.panel.token='123456';f.panel.submitTotp();expect(await totp).toBe('123456');expect(f.panel.token).toBe('')
+   state.phase='unlocked'
+  })
+  await f.panel.confirmProvider()
+  expect(mocks.deliver).toHaveBeenCalledTimes(1);expect(mocks.deliver).toHaveBeenCalledWith('copy',9);expect(f.panel.totpPending).toBe(false);f.unmount()
+ })
+ it('uses the Google button target and clears its pending flag even when it fails',async()=>{
+  type Confirm={google(c:string,n:string,s:AbortSignal):Promise<string>}
+  confirmMocks.google.mockResolvedValue('g'.repeat(64))
+  const f=mount();f.panel.request('reveal',4,'db');state.stepUp='provider'
+  let outcome:unknown
+  mocks.unlockWithProvider.mockImplementation(async(confirm:Confirm)=>{ outcome=await confirm.google('client','nonce',new AbortController().signal).catch((e:unknown)=>e) })
+  await f.panel.confirmProvider()
+  expect(outcome==='g'.repeat(64)||outcome instanceof Error).toBe(true);expect(f.panel.googlePending).toBe(false);f.unmount()
+ })
+ it('rejects a pending TOTP request when the dialog is reset',async()=>{
+  type Confirm={totp(s:AbortSignal):Promise<string>}
+  const f=mount();f.panel.request('reveal',4,'db');state.stepUp='provider'
+  let pending:Promise<string>|undefined
+  mocks.unlockWithProvider.mockImplementation((confirm:Confirm)=>{ pending=confirm.totp(new AbortController().signal);return Promise.resolve() })
+  await f.panel.confirmProvider();expect(pending).toBeDefined()
+  f.panel.reset();await expect(pending).rejects.toMatchObject({reason:'locked'});expect(f.panel.totpPending).toBe(false);f.unmount()
+ })
+ it('renders provider TOTP, Google target and cancel states without the password form',async()=>{
+  const f=mount();f.panel.request('reveal',4,'db');state.stepUp='provider';state.phase='unlocking';state.providerPending=true
+  let html=await f.html();expect(html).toContain('vaultDelivery.providerCancel');expect(html).not.toContain('vault-unlock-password')
+  f.panel.totpPending=true;f.panel.googlePending=true
+  html=await f.html();expect(html).toContain('vault-provider-otp');expect(html).not.toContain('vaultDelivery.providerConfirm')
+  state.stepUp='password_totp';state.phase='locked';f.panel.totpPending=false
+  html=await f.html();expect(html).toContain('vault-unlock-password');expect(html).toContain('vaultDelivery.policyHint');f.unmount()
+ })
 })

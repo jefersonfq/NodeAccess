@@ -8,7 +8,7 @@ import speakeasy from 'speakeasy'
 import { VaultService } from '../../apps/backend/src/modules/vault-security/vault.service.js'
 import { vaultRoutes } from '../../apps/backend/src/modules/vault-security/vault.routes.js'
 import { JweVaultEnvelope } from '../../apps/backend/src/modules/vault-security/vault-envelope.js'
-import { RedisVaultOrigin, LocalVaultReauthentication } from '../../apps/backend/src/modules/vault-security/vault-identity.js'
+import { RedisVaultOrigin, MethodVaultReauthentication } from '../../apps/backend/src/modules/vault-security/vault-identity.js'
 import { VaultError, type VaultAuthority, type VaultEvent } from '../../apps/backend/src/modules/vault-security/vault-domain.js'
 import type { VaultStore } from '../../apps/backend/src/modules/vault-security/vault-ports.js'
 import { configureCurrentSessionReader } from '../../apps/backend/src/modules/auth/current-session.js'
@@ -23,6 +23,7 @@ export async function createFrontendFixture() {
   const authority: VaultAuthority = {
     policy: { version: 1, unlock: true, reveal: true, copy: true, localReauth: true, origin: '', tenantQuota: 300 },
     validUntil: Number.MAX_SAFE_INTEGER, role: 'ADMIN', passwordHash: await bcrypt.hash(password, 4), mfaSecret, credentialVersion: 'synthetic-v1',
+    email: 'vault-fixture@example.test', methods: { local: true, ldap: false, oidc: false, google: false },
   }
   const now = () => Date.now() + timeOffset, encrypted = encrypt(value)
   const store: VaultStore = { async transaction(identity, run) {
@@ -48,7 +49,7 @@ export async function createFrontendFixture() {
   } }
   const service = new VaultService(store,
     new RedisVaultOrigin({ get: async id => originActive && id === `refresh:${jti}` ? '7' : null }, key, now),
-    new LocalVaultReauthentication(new TotpService()), new JweVaultEnvelope(),
+    new MethodVaultReauthentication(new TotpService()), new JweVaultEnvelope(),
     { token: () => randomBytes(32).toString('base64url'), digest: text => createHash('sha256').update(text).digest('hex') }, now)
   configureCurrentSessionReader(async () => ({ tenantId: 7, active: true, deletedAt: null, tenantActive: true,
     targetTenantActive: true, sessionVersion: 3, role: 'ADMIN', isPlatformAdmin: false, canManageHosts: false, canViewLiveSessions: false }))

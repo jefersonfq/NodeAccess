@@ -3,7 +3,8 @@ import { VaultAdministrationService } from './modules/vault-security/vault-admin
 import { randomBytes, createHash } from 'node:crypto'
 import { VaultService } from './modules/vault-security/vault.service.js'
 import { SqlVaultStore } from './modules/vault-security/vault.repository.js'
-import { RedisVaultOrigin, LocalVaultReauthentication } from './modules/vault-security/vault-identity.js'
+import { RedisVaultOrigin, MethodVaultReauthentication } from './modules/vault-security/vault-identity.js'
+import { createVaultProviderStepUp } from './modules/vault-security/vault-provider.js'
 import { JweVaultEnvelope } from './modules/vault-security/vault-envelope.js'
 import { UserSessionRevocationService } from './modules/auth/user-session-revocation.service.js'
 import { configureCurrentSessionReader } from './modules/auth/current-session.js'
@@ -179,7 +180,7 @@ import { ExternalIdentityAdminController } from './modules/auth/external-identit
 import { OidcGroupMappingRepository } from './modules/auth/oidc-group-mapping.repository.js'
 import { OidcGroupMappingService } from './modules/auth/oidc-group-mapping.service.js'
 import { OidcGroupMappingController } from './modules/auth/oidc-group-mapping.controller.js'
-import { OidcAuthService } from './modules/auth/oidc-auth.service.js'
+import { OidcAuthService, callbackUrl as oidcCallbackUrl } from './modules/auth/oidc-auth.service.js'
 import { OidcAuthController } from './modules/auth/oidc-auth.controller.js'
 import { ScimService } from './modules/auth/scim.service.js'
 import { SessionAuditPublisher }    from './modules/session-audit/session-audit.publisher.js'
@@ -336,9 +337,11 @@ const localIdentityProvider = new LocalIdentityProvider(userRepository)
 const ldapIdentityProvider = new LdapIdentityProvider(integrationRepository, ldapIntegrationService, userRepository)
 const vaultEntropy = { token: (): string => randomBytes(32).toString('base64url'), digest: (value: string): string => createHash('sha256').update(value).digest('hex') }
 const vaultDatabase = new VaultDatabase(env.DATABASE_URL)
-const vaultSecurityService = new VaultService(new SqlVaultStore(() => vaultDatabase.client()), new RedisVaultOrigin(redis, env.JWT_SECRET),
-  new LocalVaultReauthentication(totpService), new JweVaultEnvelope(),
-  vaultEntropy)
+const vaultSecurityService = new VaultService(new SqlVaultStore(() => vaultDatabase.client()), new RedisVaultOrigin(redis, env.JWT_SECRET, Date.now, 500, env.VAULT_STEP_UP_EXTERNAL_ENABLED),
+  new MethodVaultReauthentication(totpService, ldapIdentityProvider), new JweVaultEnvelope(),
+  vaultEntropy, Date.now, createVaultProviderStepUp({
+    oidcFlow: () => oidcFlowService, links: externalIdentityRepository, google: googleService, users: userRepository, redirectUri: oidcCallbackUrl,
+  }))
 const vaultAdministrationService = new VaultAdministrationService(vaultSecurityService, vaultEntropy)
 const authService        = new AuthService(userRepository, totpService, redis, googleService, emailConfigService, emailService, localIdentityProvider, ldapIdentityProvider, tenantAuthPolicyService, appEventBus)
 const authRateLimitService = new AuthRateLimitService(redis, {

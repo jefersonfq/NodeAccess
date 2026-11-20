@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { createHash, randomBytes } from 'node:crypto'
 import { VaultService } from './vault.service.js'
 import { VaultAdministrationService } from './vault-administration.service.js'
-import { assertPolicy, VaultError, type VaultAuthority, type VaultIdentity, type VaultEvent } from './vault-domain.js'
+import { assertPolicy, VaultError, type VaultAuthMethod, type VaultAuthority, type VaultIdentity, type VaultEvent } from './vault-domain.js'
 import type { VaultStore, VaultTransaction, EnvelopeSealer } from './vault-ports.js'
 
 const identity: VaultIdentity = { userId: 1, tenantId: 2, sessionVersion: 3 }
@@ -12,13 +12,16 @@ const entropy = { token: () => randomBytes(32).toString('base64url'), digest: (s
 function fixture() {
   let time = 1000, secretVersion = 'v1', originActive = true, auditFails = false, afterCommit: (() => void) | undefined
   let records = new Map<string, unknown>(), counts = new Map<string, number>(), events: VaultEvent[] = []
+  let originMethod: VaultAuthMethod = 'local'
   const authority: VaultAuthority = { policy: { version: 1, unlock: true, reveal: true, copy: true, localReauth: true, origin, tenantQuota: 100 },
-    validUntil: Number.MAX_SAFE_INTEGER, role: 'USER', passwordHash: 'hashed-password', mfaSecret: 'mfa-test', credentialVersion: 'credentials-v1' }
+    validUntil: Number.MAX_SAFE_INTEGER, role: 'USER', passwordHash: 'hashed-password', mfaSecret: 'mfa-test', credentialVersion: 'credentials-v1',
+    email: 'user@example.test', methods: { local: true, ldap: true, oidc: true, google: true } }
   const audit = vi.fn((e: VaultEvent) => { if (auditFails) throw new Error('audit unavailable'); events.push(e); return Promise.resolve() })
   const authorizeSecret = vi.fn(() => Promise.resolve({ version: secretVersion, encrypted: 'ciphertext', iv: 'iv' }))
-  const reauth = { verify: vi.fn(() => Promise.resolve(true)) }
+  const reauth = { verify: vi.fn(() => Promise.resolve(true)), verifySecondFactor: vi.fn(() => true) }
+  const provider = { begin: vi.fn(() => Promise.resolve({ kind: 'redirect' as const, authorizationUrl: 'https://idp.example.test/authorize' })), complete: vi.fn(() => Promise.resolve({ mfa: true })) }
   const sealer = { validate: vi.fn(() => Promise.resolve('key-thumbprint')), seal: vi.fn<EnvelopeSealer['seal']>(() => Promise.resolve('ciphertext-envelope')) }
-  const verifier = { bind: vi.fn(() => Promise.resolve({ jti: 'origin', expiresAt: 2_000_000 })), assert: vi.fn(() => { if (!originActive) throw new VaultError('VAULT_ORIGIN_REVOKED',423); return Promise.resolve() }) }
+  const verifier = { bind: vi.fn(() => Promise.resolve({ jti: 'origin', expiresAt: 2_000_000, authMethod: originMethod })), assert: vi.fn(() => { if (!originActive) throw new VaultError('VAULT_ORIGIN_REVOKED',423); return Promise.resolve() }) }
   const propose = vi.fn(() => Promise.resolve()), approve = vi.fn(() => Promise.resolve({ change: { kind: 'item' as const, secretId: 4, enabled: true }, proposedBy: 9 }))
   let tail = Promise.resolve()
   const store: VaultStore = { transaction: async <T>(_i: VaultIdentity, run: (tx: VaultTransaction) => Promise<T>): Promise<T> => {
@@ -36,14 +39,14 @@ function fixture() {
       afterCommit?.(); return result
     } catch (e) { records=before; counts=previousCounts;events=previousEvents;throw e } finally { done() }
   } }
-  const service = new VaultService(store, verifier, reauth, sealer, entropy, () => time)
+  const service = new VaultService(store, verifier, reauth, sealer, entropy, () => time, provider)
   async function setup() {
     const c = await service.register(identity, 'refresh', origin)
     const challenge = await service.challenge(identity,c.clientId,origin)
     const s = await service.unlock(identity,c.clientId,origin,challenge.challengeId,'password','123456')
     return { c, s, request: () => service.request(identity,c.clientId,origin,s.sessionId,'reveal',4,key) }
   }
-  return { service, setup, authority, reauth, sealer, verifier, audit, authorizeSecret, propose, approve,
+  return { service, store, setup, authority, reauth, provider, useMethod: (m: VaultAuthMethod) => { originMethod = m }, sealer, verifier, audit, authorizeSecret, propose, approve,
     records: () => records, events: () => events, counts: () => counts,
     advance: (ms: number) => { time+=ms }, revoke: () => { originActive=false }, rotate: () => { secretVersion='v2' },
     failAudit: (v: boolean) => { auditFails=v }, onCommit: (fn: () => void) => { afterCommit=fn } }
@@ -210,3 +213,118 @@ describe('policy fails closed',()=>{
     const p=fixture().authority.policy;expect(()=>assertPolicy({...p,...patch} as typeof p)).toThrow(VaultError)
   })
 })
+
+describe('vault step-up by login method (NA-0184)', () => {
+  it.each([['local', 'password_totp'], ['ldap', 'password_totp'], ['oidc', 'provider'], ['google', 'provider']] as const)(
+    '%s origin gets %s challenge and the signed method reaches the step-up adapter', async (method, stepUp) => {
+      const f = fixture(); f.useMethod(method)
+      const c = await f.service.register(identity, 'refresh', origin)
+      expect(c.stepUp).toBe(stepUp)
+      const p = await f.service.challenge(identity, c.clientId, origin)
+      expect(p.stepUp).toBe(stepUp)
+      await f.service.unlock(identity, c.clientId, origin, p.challengeId, 'password', '123456')
+      expect(f.reauth.verify).toHaveBeenCalledWith('password', '123456', expect.objectContaining({ email: 'user@example.test' }), method, identity)
+    })
+  it('denies registration for a method the tenant policy does not allow', async () => {
+    const f = fixture(); f.useMethod('ldap'); f.authority.methods.ldap = false
+    await expect(f.service.register(identity, 'refresh', origin)).rejects.toMatchObject({ status: 403 })
+  })
+  it('denies an existing client after the tenant disables its login method', async () => {
+    const f = fixture(); f.useMethod('ldap')
+    const { c, s } = await f.setup()
+    f.authority.methods.ldap = false
+    await expect(f.service.challenge(identity, c.clientId, origin)).rejects.toMatchObject({ status: 403 })
+    await expect(f.service.request(identity, c.clientId, origin, s.sessionId, 'reveal', 4, key)).rejects.toMatchObject({ status: 403 })
+  })
+})
+
+describe('vault provider step-up flow (NA-0184)', () => {
+  async function pending(method: VaultAuthMethod = 'oidc') {
+    const f = fixture(); f.useMethod(method)
+    const c = await f.service.register(identity, 'refresh', origin)
+    const p = await f.service.challenge(identity, c.clientId, origin)
+    return { f, c, p }
+  }
+  it('binds the provider to the challenge digest and unlocks with provider MFA', async () => {
+    const { f, c, p } = await pending()
+    await expect(f.service.providerBegin(identity, c.clientId, origin, p.challengeId)).resolves.toMatchObject({ kind: 'redirect' })
+    const binding = createHash('sha256').update(p.challengeId).digest('hex')
+    expect(f.provider.begin).toHaveBeenCalledWith(identity, 'oidc', binding)
+    await expect(f.service.providerComplete(identity, c.clientId, origin, p.challengeId, { state: 's', code: 'c' })).resolves.toEqual({ totpRequired: false })
+    expect(f.provider.complete).toHaveBeenCalledWith(identity, 'oidc', binding, { state: 's', code: 'c' })
+    const s = await f.service.unlockProvider(identity, c.clientId, origin, p.challengeId, undefined)
+    expect(s.sessionId).toMatch(/^[A-Za-z0-9_-]{43}$/)
+    expect(f.reauth.verifySecondFactor).not.toHaveBeenCalled()
+    expect(f.reauth.verify).not.toHaveBeenCalled()
+  })
+  it('requires NodeAccess TOTP when the provider did not assert MFA', async () => {
+    const { f, c, p } = await pending('google')
+    f.provider.complete.mockResolvedValue({ mfa: false })
+    await expect(f.service.providerComplete(identity, c.clientId, origin, p.challengeId, { idToken: 'token' })).resolves.toEqual({ totpRequired: true })
+    f.reauth.verifySecondFactor.mockReturnValue(false)
+    await expect(f.service.unlockProvider(identity, c.clientId, origin, p.challengeId, '000000')).rejects.toMatchObject({ status: 403 })
+    f.reauth.verifySecondFactor.mockReturnValue(true)
+    await expect(f.service.unlockProvider(identity, c.clientId, origin, p.challengeId, '123456')).rejects.toMatchObject({ status: 403 })
+  })
+  it('burns the challenge and audits when the provider proof is rejected', async () => {
+    const { f, c, p } = await pending()
+    f.provider.complete.mockRejectedValue(new Error('private provider diagnostic'))
+    await expect(f.service.providerComplete(identity, c.clientId, origin, p.challengeId, { state: 's', code: 'c' })).rejects.toMatchObject({ status: 403 })
+    expect(f.events().some(e => e.type === 'UNLOCK_DENIED' && e.reasonCode === 'PROVIDER_PROOF_FAILED')).toBe(true)
+    await expect(f.service.providerBegin(identity, c.clientId, origin, p.challengeId)).rejects.toMatchObject({ status: 403 })
+  })
+  it('denies unlock without a provider proof and burns the challenge', async () => {
+    const { f, c, p } = await pending()
+    await expect(f.service.unlockProvider(identity, c.clientId, origin, p.challengeId, '123456')).rejects.toMatchObject({ status: 403 })
+    await expect(f.service.providerComplete(identity, c.clientId, origin, p.challengeId, { state: 's', code: 'c' })).rejects.toMatchObject({ status: 403 })
+  })
+  it('does not let one proof unlock twice', async () => {
+    const { f, c, p } = await pending()
+    await f.service.providerComplete(identity, c.clientId, origin, p.challengeId, { state: 's', code: 'c' })
+    await f.service.unlockProvider(identity, c.clientId, origin, p.challengeId, undefined)
+    await expect(f.service.unlockProvider(identity, c.clientId, origin, p.challengeId, undefined)).rejects.toMatchObject({ status: 403 })
+  })
+  it('limits provider starts per user', async () => {
+    const { f, c, p } = await pending()
+    for (let i = 0; i < 5; i++) await f.service.providerBegin(identity, c.clientId, origin, p.challengeId)
+    await expect(f.service.providerBegin(identity, c.clientId, origin, p.challengeId)).rejects.toMatchObject({ status: 429 })
+  })
+  it.each(['local', 'ldap'] as const)('rejects provider step-up for %s sessions', async method => {
+    const { f, c, p } = await pending(method)
+    await expect(f.service.providerBegin(identity, c.clientId, origin, p.challengeId)).rejects.toMatchObject({ status: 403 })
+    await expect(f.service.unlockProvider(identity, c.clientId, origin, p.challengeId, '123456')).rejects.toMatchObject({ status: 403 })
+    expect(f.provider.begin).not.toHaveBeenCalled()
+  })
+  it('a provider session cannot unlock with a password form', async () => {
+    const { f, c, p } = await pending('oidc')
+    f.reauth.verify.mockResolvedValue(false)
+    await expect(f.service.unlock(identity, c.clientId, origin, p.challengeId, 'password', '123456')).rejects.toMatchObject({ status: 403 })
+  })
+})
+
+describe('vault provider step-up edge cases (NA-0184)', () => {
+  it('is unavailable when no provider adapter is configured', async () => {
+    const f = fixture(); f.useMethod('oidc')
+    const service = new VaultService(f.store, f.verifier, f.reauth, f.sealer, entropy, () => 1_000_000)
+    const c = await service.register(identity, 'refresh', origin), p = await service.challenge(identity, c.clientId, origin)
+    await expect(service.providerBegin(identity, c.clientId, origin, p.challengeId)).rejects.toMatchObject({ status: 409 })
+    await expect(service.providerComplete(identity, c.clientId, origin, p.challengeId, {})).rejects.toMatchObject({ status: 409 })
+  })
+  it('rejects a provider proof stored for another client', async () => {
+    const f = fixture(); f.useMethod('oidc')
+    const c = await f.service.register(identity, 'refresh', origin), p = await f.service.challenge(identity, c.clientId, origin)
+    await f.service.providerComplete(identity, c.clientId, origin, p.challengeId, { state: 's', code: 'c' })
+    const stored = [...f.records().entries()].find(([k]) => k.startsWith('provider'))
+    expect(stored).toBeDefined()
+    f.records().set(stored![0], { ...(stored![1] as object), clientId: 'other-client' })
+    await expect(f.service.unlockProvider(identity, c.clientId, origin, p.challengeId, '123456')).rejects.toMatchObject({ status: 403 })
+  })
+  it('rejects provider calls for an unknown or expired challenge', async () => {
+    const f = fixture(); f.useMethod('google')
+    const c = await f.service.register(identity, 'refresh', origin)
+    await expect(f.service.providerBegin(identity, c.clientId, origin, 'x'.repeat(43))).rejects.toMatchObject({ status: 403 })
+    const p = await f.service.challenge(identity, c.clientId, origin); f.advance(120_001)
+    await expect(f.service.providerBegin(identity, c.clientId, origin, p.challengeId)).rejects.toMatchObject({ status: 403 })
+  })
+})
+

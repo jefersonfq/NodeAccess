@@ -3,7 +3,7 @@
     "id": "hosts",
     "title": "Hosts e sessões abertas",
     "summary": "Encontre o equipamento certo e retome seu trabalho com segurança.",
-    "reviewedAt": "2026-11-16",
+    "reviewedAt": "2026-11-19",
     "sourceFiles": [
       "apps/frontend/src/views/HostsView.vue",
       "apps/frontend/src/components/TrialResourcesPanel.vue",
@@ -48,7 +48,7 @@
       "Conferir o destino",
       "Conectar ou retomar"
     ],
-    "reviewedSourceHash": "54d5c853bffc43fe6c54b4e07ac1990aaa21326717103f9117139d3ce3102904"
+    "reviewedSourceHash": "f272d43910980fdfc2a4253d2f9615bc626e8601c4b7a9fb48fb00679060513c"
   },
   {
     "id": "terminal",

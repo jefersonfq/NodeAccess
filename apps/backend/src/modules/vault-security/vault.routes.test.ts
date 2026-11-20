@@ -25,6 +25,9 @@ async function harness(patch: Partial<JwtPayload> = {}, withAdministration = fal
     request: vi.fn().mockResolvedValue({ operationId: opaque(), expiresAt: 123, state: 'AUTHORIZED' }),
     consume: vi.fn().mockResolvedValue({ envelope: 'opaque.encrypted.envelope' }),
     operation: vi.fn().mockResolvedValue({ state: 'AUTHORIZED' }),
+    providerBegin: vi.fn().mockResolvedValue({ kind: 'redirect', authorizationUrl: 'https://idp.example.test/authorize' }),
+    providerComplete: vi.fn().mockResolvedValue({ totpRequired: true }),
+    unlockProvider: vi.fn().mockResolvedValue({ sessionId: opaque(), idleUntil: 123, expiresAt: 456 }),
   }
   const administration = { propose: vi.fn().mockResolvedValue({ proposalId: opaque() }), approve: vi.fn().mockResolvedValue({ state: 'APPLIED' }) }
   configureCurrentSessionReader(() => Promise.resolve({ tenantId: 7, active: true, deletedAt: null, tenantActive: true, targetTenantActive: true,
@@ -40,6 +43,23 @@ async function harness(patch: Partial<JwtPayload> = {}, withAdministration = fal
   const post = (path: string, body: object = {}, customHeaders: Record<string,string> = headers) => app.inject({ method: 'POST', url: `/api/v1/vault-security${path}`, headers: customHeaders, payload: body })
   return { app, service, administration, headers, clientId, post }
 }
+
+describe('Vault provider step-up routes (NA-0184)', () => {
+  it('forwards validated provider requests with the verified identity and client', async () => {
+    const h = await harness()
+    try {
+      const identity = { userId: 42, tenantId: 7, sessionVersion: 3 }, challengeId = opaque()
+      expect((await h.post('/sessions/provider/begin', { challengeId })).statusCode).toBe(200)
+      expect(h.service.providerBegin).toHaveBeenCalledWith(identity, h.clientId, origin, challengeId)
+      const state = `vsu.${'s'.repeat(43)}`
+      expect((await h.post('/sessions/provider/complete', { challengeId, state, code: 'provider-code' })).json()).toEqual({ totpRequired: true })
+      expect(h.service.providerComplete).toHaveBeenCalledWith(identity, h.clientId, origin, challengeId, { state, code: 'provider-code', idToken: undefined })
+      const unlocked = await h.post('/sessions/unlock-provider', { challengeId, token: '123456' })
+      expect(unlocked.statusCode).toBe(200); expect(unlocked.headers['cache-control']).toBe('no-store')
+      expect(h.service.unlockProvider).toHaveBeenCalledWith(identity, h.clientId, origin, challengeId, '123456')
+    } finally { await h.app.close() }
+  })
+})
 
 describe('Vault private HTTP adapter', () => {
   it('binds registration to the verified central identity and never returns the refresh credential', async () => {
@@ -60,6 +80,11 @@ describe('Vault private HTTP adapter', () => {
     ['/operations', { sessionId: 'x'.repeat(43), action: 'fill', secretId: 1, recipient: { kty: 'RSA', n: 'x'.repeat(342), e: 'AQAB' } }],
     ['/operations', { sessionId: 'x'.repeat(43), action: 'copy', secretId: 1, recipient: { kty: 'RSA', n: 'x'.repeat(342), e: 'AQAB', d: 'private-key-rejected' } }],
     ['/operations/consume', { sessionId: 'x'.repeat(43), operationId: 'x'.repeat(43), recipient: {} }],
+    ['/sessions/provider/begin', { challengeId: 'x'.repeat(43), method: 'oidc' }],
+    ['/sessions/provider/complete', { challengeId: 'x'.repeat(43), state: 'plainloginstate123456', code: 'c' }],
+    ['/sessions/provider/complete', { challengeId: 'x'.repeat(43), idToken: 'g'.repeat(64), userId: 9 }],
+    ['/sessions/unlock-provider', { challengeId: 'x'.repeat(43), token: '12' }],
+    ['/sessions/unlock-provider', { challengeId: 'x'.repeat(43), password: 'not-accepted' }],
   ])('rejects unknown or unsupported body fields for %s', async (path, body) => {
     const h = await harness()
     try {

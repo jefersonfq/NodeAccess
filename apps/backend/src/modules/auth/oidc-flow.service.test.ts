@@ -209,3 +209,57 @@ describe('OidcFlowService', () => {
     fetchMock.mockRestore()
   })
 })
+
+describe('OidcFlowService vault step-up (NA-0184)', () => {
+  const stored = (patch: Record<string, unknown> = {}) => JSON.stringify({
+    tenantId: 7, nonce: 'original-nonce', codeVerifier: 'original-verifier',
+    redirectUri: 'https://nodeaccess.example.test/auth/oidc/callback', issuer: config.issuer, ...patch,
+  })
+  function exchangeFixture(flow: string) {
+    const redis = { call: vi.fn().mockResolvedValue(flow) }
+    const configs = { getEnabled: vi.fn().mockResolvedValue(config), decryptClientSecret: vi.fn().mockReturnValue('client-secret') }
+    const identity = { subject: 'subject-1', email: null, emailVerified: false, name: null, groups: [], claims: { auth_time: 1 } }
+    const oidc = {
+      discover: vi.fn().mockResolvedValue({ issuer: config.issuer, token_endpoint: `${config.issuer}/token` }),
+      verifyIdToken: vi.fn().mockResolvedValue(identity),
+    }
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(JSON.stringify({ id_token: 'signed-id-token' }), { status: 200, headers: { 'Content-Type': 'application/json' } }))
+    return { service: new OidcFlowService(redis as never, configs as never, oidc as never), identity, oidc }
+  }
+  it('forces re-authentication and stores the purpose and binding', async () => {
+    const redis = { set: vi.fn().mockResolvedValue('OK') }
+    const oidc = {
+      discover: vi.fn().mockResolvedValue({ issuer: config.issuer, authorization_endpoint: `${config.issuer}/authorize` }),
+      createAuthorizationRequest: vi.fn().mockReturnValue({ url: `${config.issuer}/authorize?state=s`, state: 's', nonce: 'n', codeVerifier: 'v' }),
+    }
+    const service = new OidcFlowService(redis as never, { getEnabled: vi.fn().mockResolvedValue(config) } as never, oidc as never)
+    await service.beginStepUp(7, 'https://nodeaccess.example.test/auth/oidc/callback', 'challenge-digest')
+    expect(oidc.createAuthorizationRequest).toHaveBeenCalledWith(expect.objectContaining({ reauthenticate: true }))
+    const saved = JSON.parse(redis.set.mock.calls[0]?.[1] as string) as Record<string, unknown>
+    expect(saved).toMatchObject({ purpose: 'vault-step-up', binding: 'challenge-digest' })
+    expect(typeof saved.startedAt).toBe('number')
+  })
+  it('central login never completes a step-up transaction (and burns it)', async () => {
+    const f = exchangeFixture(stored({ purpose: 'vault-step-up', binding: 'challenge-digest', startedAt: 1 }))
+    await expect(f.service.complete('state', 'code')).rejects.toThrow('expirada ou já utilizada')
+    expect(f.oidc.verifyIdToken).not.toHaveBeenCalled()
+  })
+  it('step-up never completes a central login transaction', async () => {
+    const f = exchangeFixture(stored())
+    await expect(f.service.completeStepUp('state', 'code', 'challenge-digest')).rejects.toThrow('expirada ou já utilizada')
+    expect(f.oidc.verifyIdToken).not.toHaveBeenCalled()
+  })
+  it('rejects a step-up transaction without a start time', async () => {
+    const f = exchangeFixture(stored({ purpose: 'vault-step-up', binding: 'challenge-digest' }))
+    await expect(f.service.completeStepUp('state', 'code', 'challenge-digest')).rejects.toThrow('expirada ou já utilizada')
+  })
+  it('rejects a step-up return bound to another challenge', async () => {
+    const f = exchangeFixture(stored({ purpose: 'vault-step-up', binding: 'challenge-digest', startedAt: 1 }))
+    await expect(f.service.completeStepUp('state', 'code', 'other-digest')).rejects.toThrow('expirada ou já utilizada')
+  })
+  it('returns the verified identity and issuer for the bound challenge', async () => {
+    const f = exchangeFixture(stored({ purpose: 'vault-step-up', binding: 'challenge-digest', startedAt: 1 }))
+    await expect(f.service.completeStepUp('state', 'code', 'challenge-digest')).resolves.toMatchObject({ tenantId: 7, issuer: config.issuer, startedAt: 1, identity: f.identity })
+  })
+})
+

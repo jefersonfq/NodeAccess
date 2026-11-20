@@ -1,10 +1,13 @@
 /** Vault policy is independent of HTTP, storage and operational credential consumers. */
 export type VaultAction = 'reveal' | 'copy'
 export interface VaultIdentity { userId: number; tenantId: number; sessionVersion: number }
-export interface VaultOrigin { jti: string; expiresAt: number }
+/** Central login methods that may unlock the vault; break-glass and unknown methods never do. */
+export type VaultAuthMethod = 'local' | 'ldap' | 'oidc' | 'google'
+export interface VaultOrigin { jti: string; expiresAt: number; authMethod: VaultAuthMethod }
 export interface VaultPolicy { version: number; unlock: boolean; reveal: boolean; copy: boolean; localReauth: boolean; origin: string; tenantQuota: number }
 export interface VaultAuthority {
-  policy: VaultPolicy; validUntil: number; role: 'ADMIN' | 'USER'; passwordHash: string; mfaSecret: string; credentialVersion: string
+  policy: VaultPolicy; validUntil: number; role: 'ADMIN' | 'USER'; passwordHash: string | null; mfaSecret: string; credentialVersion: string
+  email: string; methods: Record<VaultAuthMethod, boolean>
 }
 export interface VaultClient { id: string; sessionVersion: number; origin: VaultOrigin; policyVersion: number; expiresAt: number }
 export interface VaultChallenge { clientId: string; credentialVersion: string; expiresAt: number }

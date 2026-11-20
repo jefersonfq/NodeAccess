@@ -211,7 +211,8 @@
   },
   "overrides": {
     "@prisma/config": {
-      "deepmerge-ts": "8.0.2"
+      "deepmerge-ts": "8.0.2",
+      "effect": "3.22.4"
     },
     "minimatch": "11.0.1",
     "@fastify/static": {

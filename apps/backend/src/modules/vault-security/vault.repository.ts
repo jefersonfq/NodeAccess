@@ -9,7 +9,7 @@ const hash = (s: string): string => createHash('sha256').update(s).digest('hex')
 const truth = (x: unknown): boolean => x === true || x === 1 || x === 1n
 function json<T>(x: unknown): T { return (typeof x === 'string' ? JSON.parse(x) : x) as T }
 type Tx = Prisma.TransactionClient
-interface UserState { active: boolean; deletedAt: Date | null; version: number; role: 'ADMIN' | 'USER'; passwordHash: string | null; mfaSecret: string | null; mfaEnabled: boolean; forcePasswordChange: boolean; lockedUntil: Date | null }
+interface UserState { active: boolean; deletedAt: Date | null; version: number; role: 'ADMIN' | 'USER'; email: string; passwordHash: string | null; mfaSecret: string | null; mfaEnabled: boolean; forcePasswordChange: boolean; lockedUntil: Date | null }
 
 /** Locking reads share the same rows mutated by existing writers; no event-cache authorization. */
 export class SqlVaultStore implements VaultStore {
@@ -25,14 +25,17 @@ export class SqlVaultStore implements VaultStore {
 async function readAuthority(db: Tx, identity: VaultIdentity, now: number): Promise<VaultAuthority> {
   const { userId, tenantId } = identity
   const tenants = await db.$queryRaw<Array<{ active: boolean }>>`SELECT active FROM tenants WHERE id=${tenantId} FOR SHARE`
-  const users = await db.$queryRaw<UserState[]>`SELECT active, deleted_at AS deletedAt, session_version AS version, role,
+  const users = await db.$queryRaw<UserState[]>`SELECT active, deleted_at AS deletedAt, session_version AS version, role, email,
     password_hash AS passwordHash, mfa_secret AS mfaSecret, mfa_enabled AS mfaEnabled,
     force_password_change AS forcePasswordChange, locked_until AS lockedUntil FROM users WHERE id=${userId} AND tenant_id=${tenantId} FOR UPDATE`
   const u = users[0]
   if (!truth(tenants[0]?.active) || !u || !truth(u.active) || u.deletedAt || u.version !== identity.sessionVersion) denied()
-  if (!u.passwordHash || !u.mfaSecret || !truth(u.mfaEnabled) || truth(u.forcePasswordChange) || (u.lockedUntil && u.lockedUntil.getTime() > now)) denied()
+  // Every method needs NodeAccess TOTP; a local password is required only by the local step-up adapter.
+  if (!u.mfaSecret || !truth(u.mfaEnabled) || truth(u.forcePasswordChange) || (u.lockedUntil && u.lockedUntil.getTime() > now)) denied()
   const auth = await db.$queryRaw<Array<{ local: boolean; sso: boolean }>>`SELECT local_login_enabled AS local, sso_required AS sso FROM tenant_auth_policies WHERE tenant_id=${tenantId} FOR SHARE`
-  if (auth[0] && (!truth(auth[0].local) || truth(auth[0].sso))) denied()
+  // Mirrors TenantAuthPolicyService.canRefreshSession without break-glass: SSO-required tenants keep only provider methods.
+  const row = auth[0], sso = row ? truth(row.sso) : false, local = row ? truth(row.local) && !sso : true
+  const methods = { local, ldap: !sso, oidc: true, google: true }
   const trials = await db.$queryRaw<Array<{ id: number }>>`SELECT id FROM trial_registrations WHERE tenant_id=${tenantId} FOR SHARE`
   if (trials.length) denied() // Trial rollout is a separate capability gate.
   const licenses = await db.$queryRaw<Array<{ features: unknown; active: boolean; expiresAt: Date | null }>>`SELECT feature_entitlements_json AS features,active,expires_at AS expiresAt FROM licenses WHERE tenant_id=${tenantId} FOR SHARE`
@@ -42,7 +45,7 @@ async function readAuthority(db: Tx, identity: VaultIdentity, now: number): Prom
   const policies = await db.$queryRaw<Array<{ version: number; config: unknown }>>`SELECT version, config FROM vault_policies WHERE tenant_id=${tenantId} FOR SHARE`
   const policy = { ...json<Omit<VaultPolicy, 'version'>>(policies[0]?.config ?? {}), version: policies[0]?.version ?? 0 }
   assertPolicy(policy)
-  return { policy, validUntil: license.expiresAt?.getTime() ?? Number.MAX_SAFE_INTEGER, role: u.role, passwordHash: u.passwordHash, mfaSecret: u.mfaSecret,
+  return { policy, validUntil: license.expiresAt?.getTime() ?? Number.MAX_SAFE_INTEGER, role: u.role, email: u.email, methods, passwordHash: u.passwordHash, mfaSecret: u.mfaSecret,
     credentialVersion: hash(JSON.stringify([u.passwordHash, u.mfaSecret, u.version])) }
 }
 class SqlVaultTransaction implements VaultTransaction {

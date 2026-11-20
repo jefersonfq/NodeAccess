@@ -30,6 +30,8 @@ export interface OidcAuthorizationRequest {
   codeVerifier: string
 }
 
+export const VAULT_STEP_UP_STATE_PREFIX = 'vsu.'
+
 export interface VerifiedOidcIdentity {
   subject: string
   email: string | null
@@ -108,9 +110,12 @@ export class OidcService {
     clientId: string
     redirectUri: string
     scopes?: string[]
+    /** Re-authentication (vault step-up): force a new login at the provider. */
+    reauthenticate?: boolean
   }): OidcAuthorizationRequest {
     const redirectUri = requireHttpsUrl(input.redirectUri, 'Redirect URI OIDC', true).toString()
-    const state = randomUrlSafeValue()
+    // Step-up states carry a prefix impossible in base64url so the callback page can route them without storage.
+    const state = `${input.reauthenticate ? VAULT_STEP_UP_STATE_PREFIX : ''}${randomUrlSafeValue()}`
     const nonce = randomUrlSafeValue()
     const codeVerifier = randomUrlSafeValue(48)
     const codeChallenge = createHash('sha256').update(codeVerifier).digest('base64url')
@@ -124,6 +129,7 @@ export class OidcService {
       nonce,
       code_challenge: codeChallenge,
       code_challenge_method: 'S256',
+      ...(input.reauthenticate ? { prompt: 'login', max_age: '0' } : {}),
     }).toString()
     return { url: url.toString(), state, nonce, codeVerifier }
   }

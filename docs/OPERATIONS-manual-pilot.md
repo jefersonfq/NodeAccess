@@ -337,3 +337,7 @@ não configurada. Builds/configuração corrigidos, asserções preservadas. Nã
 de interface ou procedimento dos demais três capítulos. Hash/data Hosts/SFTP atualizados
 após captura/revisão. PTY real da aplicação/SSH descartáveis também PASS top/htop; evidência
 da frente NA-0174. Não representa homologação humana nem execução em produção.
+
+## NA-0184 — confirmação do cofre por método de login (19/11/2026)
+Capítulo **hosts**, seção "Revelar ou copiar uma senha": requisitos e passo 2 atualizados (local/LDAP com senha + TOTP; OIDC/Google com **Confirmar no provedor de login** e TOTP quando pedido; break-glass nunca destrava), tolerância de foco durante a confirmação no provedor e novas recuperações (pop-up bloqueado, confirmação não concluída). Validado por testes do painel e do serviço do cofre, teste real no navegador (`npm run test:vault:frontend`) e Keycloak real. `npm run test:manual` PASS. Capturas não refeitas: o painel do login local não mudou e o botão do provedor só aparece para sessões SSO; não há captura do diálogo do cofre no conjunto demonstrativo. `reviewedSourceHash` atualizado pelo `loadManual()` após a revisão do texto.
+

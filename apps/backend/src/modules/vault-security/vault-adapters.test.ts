@@ -5,7 +5,7 @@ import bcrypt from 'bcrypt'
 import * as speakeasy from 'speakeasy'
 import { compactDecrypt } from 'jose'
 import { JweVaultEnvelope } from './vault-envelope.js'
-import { RedisVaultOrigin, LocalVaultReauthentication } from './vault-identity.js'
+import { RedisVaultOrigin, MethodVaultReauthentication, vaultAuthMethod } from './vault-identity.js'
 import { TotpService } from '../auth/totp.service.js'
 import { encrypt } from '../../shared/crypto.js'
 import type { VaultAuthority, VaultOperation } from './vault-domain.js'
@@ -78,17 +78,42 @@ describe('Vault reference to the central refresh session', () => {
   it('binds only the signed subject/version and the current Redis tenant; never returns the refresh token', async () => {
     const get = vi.fn().mockResolvedValue('7'); const verifier = new RedisVaultOrigin({ get }, signingKey, () => now)
     const raw = token(); const bound = await verifier.bind(raw, identity)
-    expect(bound).toEqual({ jti, expiresAt: (Math.floor(now / 1000) + 120) * 1000 })
+    expect(bound).toEqual({ jti, expiresAt: (Math.floor(now / 1000) + 120) * 1000, authMethod: 'local' })
     expect(get).toHaveBeenCalledWith(`refresh:${jti}`)
     expect(JSON.stringify(bound)).not.toContain(raw)
   })
   it.each([
     { sub: '43' }, { stage: 'authenticated' }, { sessionVersion: 4 }, { authMethod: 'oidc' },
-    { authMethod: 'ldap' }, { jti: 'untrusted' }, { exp: Math.floor(now / 1000) - 1 },
+    { authMethod: 'ldap' }, { authMethod: 'google' }, { authMethod: 'break_glass' }, { authMethod: undefined },
+    { jti: 'untrusted' }, { exp: Math.floor(now / 1000) - 1 },
   ])('rejects invalid signed context %j before consulting Redis', async patch => {
     const get = vi.fn().mockResolvedValue('7'); const verifier = new RedisVaultOrigin({ get }, signingKey, () => now)
     await expect(verifier.bind(token(patch), identity)).rejects.toMatchObject({ status: 423, code: 'VAULT_ORIGIN_INVALID' })
     expect(get).not.toHaveBeenCalled()
+  })
+  it.each(['ldap', 'oidc', 'google'])('binds the signed external method %s only when external step-up is enabled', async method => {
+    const get = vi.fn().mockResolvedValue('7'); const verifier = new RedisVaultOrigin({ get }, signingKey, () => now, 500, true)
+    await expect(verifier.bind(token({ authMethod: method }), identity)).resolves.toMatchObject({ jti, authMethod: method })
+  })
+  it.each(['break_glass', 'saml', 'LOCAL', '', null])('never binds method %j even with external step-up enabled', async method => {
+    const get = vi.fn().mockResolvedValue('7'); const verifier = new RedisVaultOrigin({ get }, signingKey, () => now, 500, true)
+    await expect(verifier.bind(token({ authMethod: method }), identity)).rejects.toMatchObject({ status: 423, code: 'VAULT_ORIGIN_INVALID' })
+    expect(get).not.toHaveBeenCalled()
+  })
+  it.each([['ldap', false], ['oidc', false], ['break_glass', true], [undefined, true]] as const)(
+    'rejects on every use an origin with method %s when external step-up is %s', async (method, external) => {
+      const get = vi.fn().mockResolvedValue('7'); const verifier = new RedisVaultOrigin({ get }, signingKey, () => now, 500, external)
+      await expect(verifier.assert({ jti, expiresAt: now + 60_000, authMethod: method as never }, identity)).rejects.toMatchObject({ status: 423, code: 'VAULT_ORIGIN_INVALID' })
+      expect(get).not.toHaveBeenCalled()
+    })
+  it('maps methods without trusting unknown values', () => {
+    expect(vaultAuthMethod('local', false)).toBe('local')
+    expect(vaultAuthMethod('ldap', false)).toBeNull()
+    expect(vaultAuthMethod('oidc', true)).toBe('oidc')
+    expect(vaultAuthMethod('break_glass', true)).toBeNull()
+    expect(vaultAuthMethod('google', false)).toBeNull()
+    expect(vaultAuthMethod('ldap', true)).toBe('ldap')
+    expect(vaultAuthMethod('google', true)).toBe('google')
   })
   it('rejects a bad signature and an absent expiry', async () => {
     const verifier = new RedisVaultOrigin({ get: vi.fn().mockResolvedValue('7') }, signingKey)
@@ -103,7 +128,7 @@ describe('Vault reference to the central refresh session', () => {
     vi.useFakeTimers()
     try {
       const verifier = new RedisVaultOrigin({ get: vi.fn(() => new Promise<string | null>(() => {})) }, signingKey, () => now, 10)
-      const rejected = expect(verifier.assert({ jti, expiresAt: now + 60_000 }, identity)).rejects.toMatchObject({ status: 503, code: 'VAULT_DEPENDENCY_UNAVAILABLE' })
+      const rejected = expect(verifier.assert({ jti, expiresAt: now + 60_000, authMethod: 'local' }, identity)).rejects.toMatchObject({ status: 503, code: 'VAULT_DEPENDENCY_UNAVAILABLE' })
       await vi.advanceTimersByTimeAsync(10)
       await rejected
       expect(vi.getTimerCount()).toBe(0)
@@ -112,27 +137,75 @@ describe('Vault reference to the central refresh session', () => {
   it('distinguishes storage outage from revocation and checks the absolute deadline', async () => {
     const get = vi.fn().mockRejectedValue(new Error('private storage diagnostic'))
     const verifier = new RedisVaultOrigin({ get }, signingKey, () => now)
-    await expect(verifier.assert({ jti, expiresAt: now + 1 }, identity)).rejects.toMatchObject({ status: 503, message: 'VAULT_DEPENDENCY_UNAVAILABLE' })
+    await expect(verifier.assert({ jti, expiresAt: now + 1, authMethod: 'local' }, identity)).rejects.toMatchObject({ status: 503, message: 'VAULT_DEPENDENCY_UNAVAILABLE' })
     get.mockResolvedValue('7')
-    await expect(verifier.assert({ jti, expiresAt: now }, identity)).rejects.toMatchObject({ status: 423 })
-    await expect(verifier.assert({ jti, expiresAt: now + 1 }, identity)).resolves.toBeUndefined()
+    await expect(verifier.assert({ jti, expiresAt: now, authMethod: 'local' }, identity)).rejects.toMatchObject({ status: 423 })
+    await expect(verifier.assert({ jti, expiresAt: now + 1, authMethod: 'local' }, identity)).resolves.toBeUndefined()
   })
 })
 
-describe('Vault local reauthentication', () => {
-  it('requires both the actual password hash and a valid TOTP', async () => {
-    const password = `synthetic-${randomUUID()}`; const mfaSecret = speakeasy.generateSecret().base32
-    const authority = { passwordHash: await bcrypt.hash(password, 4), mfaSecret } as VaultAuthority
-    const provider = new LocalVaultReauthentication(new TotpService())
-    const token = speakeasy.totp({ secret: mfaSecret, encoding: 'base32' })
-    expect(await provider.verify(password, token, authority)).toBe(true)
-    expect(await provider.verify('wrong-password', token, authority)).toBe(false)
-    expect(await provider.verify(password, 'not-a-totp', authority)).toBe(false)
+describe('Vault step-up by login method', () => {
+  const identity = { userId: 42, tenantId: 7, sessionVersion: 3 }
+  const allMethods = { local: true, ldap: true, oidc: true, google: true }
+  function authority(patch: Partial<VaultAuthority> = {}): VaultAuthority {
+    return { passwordHash: null, mfaSecret: speakeasy.generateSecret().base32, email: 'user@example.test', methods: { ...allMethods }, ...patch } as VaultAuthority
+  }
+  const otp = (a: VaultAuthority): string => speakeasy.totp({ secret: a.mfaSecret, encoding: 'base32' })
+  it('local requires both the actual password hash and a valid TOTP', async () => {
+    const password = `synthetic-${randomUUID()}`; const a = authority({ passwordHash: await bcrypt.hash(password, 4) })
+    const provider = new MethodVaultReauthentication(new TotpService())
+    expect(await provider.verify(password, otp(a), a, 'local', identity)).toBe(true)
+    expect(await provider.verify('wrong-password', otp(a), a, 'local', identity)).toBe(false)
+    expect(await provider.verify(password, 'not-a-totp', a, 'local', identity)).toBe(false)
   })
-  it('does not evaluate MFA when password verification fails', async () => {
+  it('local without a password hash and a method disabled by the tenant are denied', async () => {
+    const provider = new MethodVaultReauthentication(new TotpService())
+    const noHash = authority(); expect(await provider.verify('any', otp(noHash), noHash, 'local', identity)).toBe(false)
+    const password = `synthetic-${randomUUID()}`
+    const disabled = authority({ passwordHash: await bcrypt.hash(password, 4), methods: { ...allMethods, local: false } })
+    expect(await provider.verify(password, otp(disabled), disabled, 'local', identity)).toBe(false)
+  })
+  it('verifies only a valid six digit NodeAccess TOTP after a provider proof', () => {
+    const a = authority(), provider = new MethodVaultReauthentication(new TotpService())
+    expect(provider.verifySecondFactor(otp(a), a)).toBe(true)
+    expect(provider.verifySecondFactor('12345', a)).toBe(false)
+    expect(provider.verifySecondFactor('000000', authority())).toBe(false)
+  })
+  it('does not evaluate MFA when the first factor fails', async () => {
     const totp = { verify: vi.fn().mockReturnValue(true) }
-    const authority = { passwordHash: await bcrypt.hash(randomUUID(), 4), mfaSecret: 'not-used' } as VaultAuthority
-    expect(await new LocalVaultReauthentication(totp).verify('wrong', '123456', authority)).toBe(false)
+    const a = authority({ passwordHash: await bcrypt.hash(randomUUID(), 4) })
+    expect(await new MethodVaultReauthentication(totp).verify('wrong', '123456', a, 'local', identity)).toBe(false)
     expect(totp.verify).not.toHaveBeenCalled()
+  })
+  it('ldap checks the directory password for the same user plus NodeAccess TOTP', async () => {
+    const a = authority()
+    const directory = { authenticate: vi.fn().mockResolvedValue({ user: { id: 42 }, passwordValid: true }) }
+    const provider = new MethodVaultReauthentication(new TotpService(), directory)
+    expect(await provider.verify('directory-password', otp(a), a, 'ldap', identity)).toBe(true)
+    expect(directory.authenticate).toHaveBeenCalledWith({ tenantId: 7, email: 'user@example.test', password: 'directory-password' })
+    expect(await provider.verify('directory-password', 'not-a-totp', a, 'ldap', identity)).toBe(false)
+  })
+  it.each([
+    ['invalid password', { user: { id: 42 }, passwordValid: false }],
+    ['other user', { user: { id: 43 }, passwordValid: true }],
+    ['unknown user', { user: null, passwordValid: true }],
+  ])('ldap denies %s', async (_label, result) => {
+    const a = authority()
+    const provider = new MethodVaultReauthentication(new TotpService(), { authenticate: vi.fn().mockResolvedValue(result) })
+    expect(await provider.verify('directory-password', otp(a), a, 'ldap', identity)).toBe(false)
+  })
+  it('ldap fails closed on directory errors, missing adapter or tenant policy', async () => {
+    const a = authority()
+    const failing = new MethodVaultReauthentication(new TotpService(), { authenticate: vi.fn().mockRejectedValue(new Error('private directory diagnostic')) })
+    expect(await failing.verify('p', otp(a), a, 'ldap', identity)).toBe(false)
+    expect(await new MethodVaultReauthentication(new TotpService()).verify('p', otp(a), a, 'ldap', identity)).toBe(false)
+    const blocked = authority({ methods: { ...allMethods, ldap: false } })
+    const directory = { authenticate: vi.fn().mockResolvedValue({ user: { id: 42 }, passwordValid: true }) }
+    expect(await new MethodVaultReauthentication(new TotpService(), directory).verify('p', otp(blocked), blocked, 'ldap', identity)).toBe(false)
+    expect(directory.authenticate).not.toHaveBeenCalled()
+  })
+  it.each(['oidc', 'google'] as const)('%s cannot be confirmed with a password and TOTP', async method => {
+    const password = `synthetic-${randomUUID()}`; const a = authority({ passwordHash: await bcrypt.hash(password, 4) })
+    expect(await new MethodVaultReauthentication(new TotpService()).verify(password, otp(a), a, method, identity)).toBe(false)
   })
 })

@@ -6,9 +6,23 @@ type Action = 'reveal' | 'copy'
 interface Deadline { mono: number; wall: number }
 interface Clock { mono(): number; wall(): number }
 interface SessionReply { sessionId: string; idleUntil: number; expiresAt: number; serverNow: number }
-interface ClientReply { clientId: string; expiresAt: number; serverNow: number }
+export type VaultStepUp = 'password_totp' | 'provider'
+interface ClientReply { clientId: string; expiresAt: number; serverNow: number; stepUp?: unknown }
+type ProviderStart = { kind: 'redirect'; authorizationUrl: string } | { kind: 'google'; clientId: string; nonce: string }
+/** UI adapters for NA-0184 provider step-up; they never see vault capabilities. */
+export interface VaultProviderConfirmation {
+  redirect(authorizationUrl: string, signal: AbortSignal): Promise<{ state: string; code: string }>
+  google(clientId: string, nonce: string, signal: AbortSignal): Promise<string>
+  totp(signal: AbortSignal): Promise<string>
+}
 interface Authorization { operationId: string; expiresAt: number; serverNow: number; state: string; context: unknown }
-interface DeliveryState { phase: 'locked' | 'unlocking' | 'unlocked' | 'delivering' | 'revealed' | 'copy-ready' | 'copying'; value: string; error: VaultFailure | null; copied: boolean }
+interface DeliveryState {
+  phase: 'locked' | 'unlocking' | 'unlocked' | 'delivering' | 'revealed' | 'copy-ready' | 'copying'; value: string; error: VaultFailure | null; copied: boolean
+  /** Confirmation the server expects for this session's login method; null until known. */
+  stepUp: VaultStepUp | null
+  /** True only while waiting on the provider window/Google/TOTP; no plaintext exists in this phase. */
+  providerPending: boolean
+}
 export interface VaultDeliveryDependencies {
   identity(): VaultPortalIdentity | null
   transport?: VaultTransport
@@ -26,6 +40,8 @@ function sameIdentity(a: VaultPortalIdentity | null, b: VaultPortalIdentity | nu
 export interface VaultDelivery {
   state: DeepReadonly<DeliveryState>
   unlock(password: string, token: string): Promise<void>
+  prepare(): Promise<void>
+  unlockWithProvider(confirm: VaultProviderConfirmation): Promise<void>
   deliver(action: Action, secretId: number): Promise<void>
   confirmCopy(): Promise<void>
   dismiss(): void; lock(): void; tick(): void; dispose(): void
@@ -35,7 +51,7 @@ export function createVaultDelivery(deps: VaultDeliveryDependencies): VaultDeliv
   const clock = deps.clock ?? { mono: (): number => performance.now(), wall: Date.now }
   const recipient = deps.recipient ?? createVaultRecipient, open = deps.open ?? openVaultEnvelope
   const clipboard = deps.clipboard ?? ((value: string): Promise<void> => navigator.clipboard.writeText(value))
-  const state = shallowReactive<DeliveryState>({ phase: 'locked', value: '', error: null, copied: false })
+  const state = shallowReactive<DeliveryState>({ phase: 'locked', value: '', error: null, copied: false, stepUp: null, providerPending: false })
   let epoch = 0, disposed = false, abort = new AbortController()
   let owner: VaultPortalIdentity | null = null, clientId = '', sessionId = '', operationId = '', pendingCopy = ''
   let clientUntil: Deadline | null = null, sessionUntil: Deadline | null = null, proofUntil: Deadline | null = null, valueUntil: Deadline | null = null
@@ -56,7 +72,7 @@ export function createVaultDelivery(deps: VaultDeliveryDependencies): VaultDeliv
   function lock(): void {
     const old = owner, client = clientId, operation = operationId
     invalidate(); owner = null; clientId = ''; sessionId = ''; clientUntil = null; sessionUntil = null; proofUntil = null
-    state.phase = 'locked'; state.error = null
+    state.phase = 'locked'; state.error = null; state.stepUp = null; state.providerPending = false
     cleanup(old, client, operation, true)
   }
   function guard(version: number, identity: VaultPortalIdentity): void {
@@ -70,6 +86,65 @@ export function createVaultDelivery(deps: VaultDeliveryDependencies): VaultDeliv
     const reason = error instanceof VaultClientError ? error.reason : 'unavailable'
     lock(); state.error = reason
   }
+  async function ensureClient(identity: VaultPortalIdentity, version: number, signal: AbortSignal): Promise<void> {
+    if (!clientId) {
+      const at = start(), reply = await transport.post<ClientReply>('clients', { refreshToken: identity.refreshToken }, identity, undefined, signal)
+      if (!opaque(reply.clientId)) fail()
+      try { guard(version, identity) } catch (error) { cleanup(identity, reply.clientId, '', true); throw error }
+      clientId = reply.clientId; clientUntil = deadline(at, reply.serverNow, reply.expiresAt, 1800000)
+      state.stepUp = reply.stepUp === 'provider' ? 'provider' : 'password_totp'
+    }
+    guard(version, identity)
+  }
+  function begin(): { identity: VaultPortalIdentity; version: number; signal: AbortSignal } | null {
+    if (disposed || state.phase === 'unlocking' || state.phase === 'delivering' || state.phase === 'copying') return null
+    const identity = deps.identity()
+    if (!identity) { lock(); state.error = 'unsupported'; return null }
+    if (!sameIdentity(identity, owner) || !live(clientUntil)) lock()
+    invalidate(); owner = identity
+    return { identity, version: epoch, signal: abort.signal }
+  }
+  /** Registers the client early so the panel renders the confirmation the server expects. */
+  async function prepare(): Promise<void> {
+    if (state.phase !== 'locked' || (state.stepUp && live(clientUntil))) return
+    const ctx = begin(); if (!ctx) return
+    try { await ensureClient(ctx.identity, ctx.version, ctx.signal) } catch (error) { failure(error, ctx.version) }
+  }
+  async function unlockWithProvider(confirm: VaultProviderConfirmation): Promise<void> {
+    const ctx = begin(); if (!ctx) return
+    const { identity, version, signal } = ctx
+    state.phase = 'unlocking'; state.error = null
+    try {
+      await ensureClient(identity, version, signal)
+      if (state.stepUp !== 'provider') fail('unsupported')
+      const challenge = await transport.post<{ challengeId: string; stepUp?: unknown }>('sessions/challenges', {}, identity, clientId, signal)
+      guard(version, identity); if (!opaque(challenge.challengeId) || challenge.stepUp !== 'provider') fail()
+      const challengeId = challenge.challengeId
+      const started = await transport.post<ProviderStart>('sessions/provider/begin', { challengeId }, identity, clientId, signal)
+      guard(version, identity)
+      state.providerPending = true
+      const proof: { state: string; code: string } | { idToken: string } =
+        started.kind === 'redirect' && typeof started.authorizationUrl === 'string' ? await confirm.redirect(started.authorizationUrl, signal)
+          : started.kind === 'google' && typeof started.clientId === 'string' && typeof started.nonce === 'string' ? { idToken: await confirm.google(started.clientId, started.nonce, signal) }
+            : fail()
+      state.providerPending = false
+      guard(version, identity)
+      const done = await transport.post<{ totpRequired?: unknown }>('sessions/provider/complete', { challengeId, ...proof }, identity, clientId, signal)
+      guard(version, identity)
+      let token = ''
+      if (done.totpRequired !== false) {
+        state.providerPending = true; token = await confirm.totp(signal); state.providerPending = false
+        guard(version, identity); if (!/^\d{6}$/.test(token)) fail('denied')
+      }
+      const at = start(), reply = await transport.post<SessionReply>('sessions/unlock-provider', token ? { challengeId, token } : { challengeId }, identity, clientId, signal)
+      token = ''
+      guard(version, identity); if (!opaque(reply.sessionId)) fail()
+      sessionUntil = deadline(at, reply.serverNow, Math.min(reply.expiresAt, reply.idleUntil), 300000)
+      proofUntil = deadline(at, reply.serverNow, reply.serverNow + 60000, 60000)
+      if (!live(sessionUntil) || !live(clientUntil) || !live(proofUntil)) fail('expired')
+      sessionId = reply.sessionId; state.phase = 'unlocked'
+    } catch (error) { state.providerPending = false; failure(error, version) }
+  }
   async function unlock(password: string, token: string): Promise<void> {
     if (disposed || state.phase === 'unlocking' || state.phase === 'delivering' || state.phase === 'copying') return
     const identity = deps.identity()
@@ -78,13 +153,8 @@ export function createVaultDelivery(deps: VaultDeliveryDependencies): VaultDeliv
     invalidate(); const version = epoch, signal = abort.signal
     owner = identity; state.phase = 'unlocking'; state.error = null
     try {
-      if (!clientId) {
-        const at = start(), reply = await transport.post<ClientReply>('clients', { refreshToken: identity.refreshToken }, identity, undefined, signal)
-        if (!opaque(reply.clientId)) fail()
-        try { guard(version, identity) } catch (error) { cleanup(identity, reply.clientId, '', true); throw error }
-        clientId = reply.clientId; clientUntil = deadline(at, reply.serverNow, reply.expiresAt, 1800000)
-      }
-      guard(version, identity)
+      await ensureClient(identity, version, signal)
+      if (state.stepUp === 'provider') fail('unsupported')
       const challenge = await transport.post<{ challengeId: string }>('sessions/challenges', {}, identity, clientId, signal)
       guard(version, identity); if (!opaque(challenge.challengeId)) fail()
       const at = start(), reply = await transport.post<SessionReply>('sessions/unlock', { challengeId: challenge.challengeId, password, token }, identity, clientId, signal)
@@ -161,5 +231,5 @@ export function createVaultDelivery(deps: VaultDeliveryDependencies): VaultDeliv
     if (valueUntil && !live(valueUntil)) dismiss()
   }
   function dispose(): void { lock(); disposed = true }
-  return { state: readonly(state), unlock, deliver, confirmCopy, dismiss, lock, tick, dispose }
+  return { state: readonly(state), unlock, prepare, unlockWithProvider, deliver, confirmCopy, dismiss, lock, tick, dispose }
 }

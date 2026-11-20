@@ -93,6 +93,8 @@ export const envSchema = z.object({
 
   // Public trial onboarding; existing and administratively-created tenants are unchanged.
   TRIAL_REGISTRATION_ENABLED: booleanEnv(false),
+  // NA-0184: vault step-up for LDAP/OIDC/Google sessions. Local sessions are unaffected.
+  VAULT_STEP_UP_EXTERNAL_ENABLED: booleanEnv(false),
   TRIAL_PUBLIC_URL: z.string().url().refine(value => {
     const url = new URL(value)
     return url.protocol === 'https:' && !url.username && !url.password && !url.search && !url.hash

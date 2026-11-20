@@ -73,7 +73,7 @@ describe('OidcService', () => {
     expect(identity.email).toBeNull()
     expect(identity.emailVerified).toBe(false)
   })
-  it('rejects insecure issuer and endpoint URLs', async () => {
+  it('rejects insecure issuer and endpoint URLs', () => {
     expect(() => service.normalizeIssuer('http://idp.example.test')).toThrow('HTTPS')
     expect(() => service.normalizeIssuer('https://user:pass@idp.example.test')).toThrow('credenciais')
   })
@@ -94,6 +94,18 @@ describe('OidcService', () => {
     expect(url.searchParams.get('code_challenge_method')).toBe('S256')
     expect(url.searchParams.get('code_challenge')).toMatch(/^[A-Za-z0-9_-]{43}$/)
     expect(request.codeVerifier.length).toBeGreaterThan(43)
+  })
+
+  it('forces a new provider login only for re-authentication (NA-0184)', () => {
+    const input = { discovery, clientId: 'nodeaccess', redirectUri: 'https://nodeaccess.example.test/auth/oidc/callback' }
+    const login = new URL(service.createAuthorizationRequest(input).url)
+    expect(login.searchParams.has('prompt')).toBe(false)
+    expect(login.searchParams.has('max_age')).toBe(false)
+    const stepUp = new URL(service.createAuthorizationRequest({ ...input, reauthenticate: true }).url)
+    expect(stepUp.searchParams.get('prompt')).toBe('login')
+    expect(stepUp.searchParams.get('max_age')).toBe('0')
+    expect(stepUp.searchParams.get('state')).toMatch(/^vsu\.[A-Za-z0-9_-]{16,}$/)
+    expect(login.searchParams.get('state')).not.toContain('.')
   })
 
   it('creates a federated logout request only when announced by discovery', () => {

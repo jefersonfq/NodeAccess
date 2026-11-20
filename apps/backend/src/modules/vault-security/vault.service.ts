@@ -1,12 +1,17 @@
 import { assertPolicy, assertSession, denied, grantDeadline, unavailable, vaultEnvelopeContext, VaultError } from './vault-domain.js'
-import type { VaultEnvelopeContext, VaultAction, VaultChallenge, VaultClient, VaultIdentity, VaultOperation, VaultSession } from './vault-domain.js'
-import type { EnvelopeSealer, OriginVerifier, Reauthentication, VaultEntropy, VaultStore, VaultTransaction } from './vault-ports.js'
+import type { VaultAuthMethod, VaultEnvelopeContext, VaultAction, VaultChallenge, VaultClient, VaultIdentity, VaultOperation, VaultSession } from './vault-domain.js'
+import type { EnvelopeSealer, OriginVerifier, ProviderMethod, ProviderProofInput, ProviderStart, ProviderStepUp, Reauthentication, VaultEntropy, VaultStore, VaultTransaction } from './vault-ports.js'
+
+/** Kind of confirmation the portal must render; derived from the signed origin method. */
+function stepUpOf(method: VaultAuthMethod): 'password_totp' | 'provider' {
+  return method === 'oidc' || method === 'google' ? 'provider' : 'password_totp'
+}
 
 export class VaultService {
   private active = 0
   constructor(private readonly store: VaultStore, private readonly origin: OriginVerifier,
     private readonly reauth: Reauthentication, private readonly envelope: EnvelopeSealer,
-    private readonly entropy: VaultEntropy, private readonly now = Date.now) {}
+    private readonly entropy: VaultEntropy, private readonly now = Date.now, private readonly provider?: ProviderStepUp) {}
 
   /** Bounded admission: no unbounded queue in the shared application process. */
   async admitted<T>(run: () => Promise<T>): Promise<T> {
@@ -19,43 +24,101 @@ export class VaultService {
     if (origin !== tx.authority.policy.origin) denied()
     const client = await tx.get<VaultClient>('client', id)
     if (!client || client.id !== this.entropy.digest(id) || client.sessionVersion !== identity.sessionVersion || client.expiresAt <= tx.now() || client.policyVersion !== tx.authority.policy.version) throw new VaultError('VAULT_LOCKED', 423)
+    // Tenant login policy can disable a method after the client was registered.
+    if (tx.authority.methods[client.origin.authMethod] !== true) denied()
     await this.origin.assert(client.origin, identity)
     return client
   }
-  async register(identity: VaultIdentity, refreshToken: string, requestOrigin: string): Promise<{ clientId: string; expiresAt: number; serverNow: number }> {
+  async register(identity: VaultIdentity, refreshToken: string, requestOrigin: string): Promise<{ clientId: string; expiresAt: number; serverNow: number; stepUp: 'password_totp' | 'provider' }> {
     const origin = await this.origin.bind(refreshToken, identity)
     return this.store.transaction(identity, async tx => {
       assertPolicy(tx.authority.policy)
-      if (requestOrigin !== tx.authority.policy.origin) denied()
+      if (requestOrigin !== tx.authority.policy.origin || tx.authority.methods[origin.authMethod] !== true) denied()
       await tx.limit('clients', 3_600_000, 10)
       const id = this.entropy.token(), expiresAt = Math.min(tx.now() + 1_800_000, origin.expiresAt, tx.authority.validUntil)
       await tx.put('client', id, { id: this.entropy.digest(id), sessionVersion: identity.sessionVersion, origin, policyVersion: tx.authority.policy.version, expiresAt }, expiresAt)
       await tx.audit({ type: 'CLIENT_REGISTERED', clientId: id, policyVersion: tx.authority.policy.version })
-      return { clientId: id, expiresAt, serverNow: tx.now() }
+      return { clientId: id, expiresAt, serverNow: tx.now(), stepUp: stepUpOf(origin.authMethod) }
     })
   }
-  async challenge(identity: VaultIdentity, clientId: string, origin: string): Promise<{ challengeId: string; expiresAt: number; serverNow: number }> {
+  async challenge(identity: VaultIdentity, clientId: string, origin: string): Promise<{ challengeId: string; expiresAt: number; serverNow: number; stepUp: 'password_totp' | 'provider' }> {
     return this.store.transaction(identity, async tx => {
       const client = await this.client(tx, clientId, identity, origin)
       await tx.limit('unlock', 300_000, 5)
       const challengeId = this.entropy.token(), expiresAt = Math.min(tx.now() + 120_000, client.expiresAt)
       await tx.put('challenge', challengeId, { clientId: client.id, credentialVersion: tx.authority.credentialVersion, expiresAt }, expiresAt)
-      return { challengeId, expiresAt, serverNow: tx.now() }
+      return { challengeId, expiresAt, serverNow: tx.now(), stepUp: stepUpOf(client.origin.authMethod) }
     })
   }
   async unlock(identity: VaultIdentity, clientId: string, origin: string, challengeId: string, password: string, otp: string): Promise<{ sessionId: string; idleUntil: number; expiresAt: number; serverNow: number }> {
     // Burn each challenge before expensive verification; failures cannot replay it.
     const proof = await this.store.transaction(identity, async tx => {
-      await this.client(tx, clientId, identity, origin)
+      const client = await this.client(tx, clientId, identity, origin)
       const c = await tx.get<VaultChallenge>('challenge', challengeId)
       if (!c || c.clientId !== this.entropy.digest(clientId) || c.expiresAt <= tx.now() || c.credentialVersion !== tx.authority.credentialVersion) denied()
       await tx.remove('challenge', challengeId)
-      return { authority: tx.authority, expiresAt: c.expiresAt }
+      return { authority: tx.authority, expiresAt: c.expiresAt, method: client.origin.authMethod }
     })
-    if (!await this.reauth.verify(password, otp, proof.authority)) {
+    if (!await this.reauth.verify(password, otp, proof.authority, proof.method, identity)) {
       await this.store.transaction(identity, tx => tx.audit({ type: 'UNLOCK_DENIED', clientId, policyVersion: tx.authority.policy.version }))
       denied()
     }
+    return this.openSession(identity, clientId, origin, proof)
+  }
+  /** Challenge still pending for this client and a provider method (OIDC/Google); nothing is burned here. */
+  private async providerContext(tx: VaultTransaction, identity: VaultIdentity, clientId: string, origin: string, challengeId: string): Promise<{ method: ProviderMethod; client: VaultClient; challenge: VaultChallenge }> {
+    const client = await this.client(tx, clientId, identity, origin)
+    const method = client.origin.authMethod
+    if (method !== 'oidc' && method !== 'google') denied()
+    const challenge = await tx.get<VaultChallenge>('challenge', challengeId)
+    if (!challenge || challenge.clientId !== client.id || challenge.expiresAt <= tx.now() || challenge.credentialVersion !== tx.authority.credentialVersion) denied()
+    return { method, client, challenge }
+  }
+  async providerBegin(identity: VaultIdentity, clientId: string, origin: string, challengeId: string): Promise<ProviderStart> {
+    const { method } = await this.store.transaction(identity, async tx => {
+      const context = await this.providerContext(tx, identity, clientId, origin, challengeId)
+      await tx.limit('provider', 300_000, 5)
+      return context
+    })
+    if (!this.provider) unavailable()
+    return this.provider.begin(identity, method, this.entropy.digest(challengeId))
+  }
+  /** Verifies the provider return outside any transaction; a failed or unavailable proof burns the challenge (fail closed). */
+  async providerComplete(identity: VaultIdentity, clientId: string, origin: string, challengeId: string, input: ProviderProofInput): Promise<{ totpRequired: boolean }> {
+    const { method } = await this.store.transaction(identity, tx => this.providerContext(tx, identity, clientId, origin, challengeId))
+    if (!this.provider) unavailable()
+    let proof: { mfa: boolean } | null = null
+    try { proof = await this.provider.complete(identity, method, this.entropy.digest(challengeId), input) } catch { proof = null }
+    if (!proof) {
+      await this.store.transaction(identity, async tx => {
+        await tx.remove('challenge', challengeId)
+        await tx.audit({ type: 'UNLOCK_DENIED', clientId, policyVersion: tx.authority.policy.version, reasonCode: 'PROVIDER_PROOF_FAILED' })
+      })
+      denied()
+    }
+    const mfa = proof.mfa
+    await this.store.transaction(identity, async tx => {
+      const { client, challenge } = await this.providerContext(tx, identity, clientId, origin, challengeId)
+      await tx.put('provider', challengeId, { clientId: client.id, mfa }, challenge.expiresAt)
+    })
+    return { totpRequired: !mfa }
+  }
+  async unlockProvider(identity: VaultIdentity, clientId: string, origin: string, challengeId: string, otp: string | undefined): Promise<{ sessionId: string; idleUntil: number; expiresAt: number; serverNow: number }> {
+    const proof = await this.store.transaction(identity, async tx => {
+      const { client, challenge } = await this.providerContext(tx, identity, clientId, origin, challengeId)
+      const stored = await tx.get<{ clientId: string; mfa: boolean }>('provider', challengeId)
+      // Burn challenge and proof in a committed transaction before deciding; failures cannot be replayed.
+      await tx.remove('challenge', challengeId)
+      if (stored) await tx.remove('provider', challengeId)
+      return { authority: tx.authority, expiresAt: challenge.expiresAt, valid: stored?.clientId === client.id, mfa: stored?.mfa === true }
+    })
+    if (!proof.valid || (!proof.mfa && !this.reauth.verifySecondFactor(otp ?? '', proof.authority))) {
+      await this.store.transaction(identity, tx => tx.audit({ type: 'UNLOCK_DENIED', clientId, policyVersion: tx.authority.policy.version }))
+      denied()
+    }
+    return this.openSession(identity, clientId, origin, proof)
+  }
+  private async openSession(identity: VaultIdentity, clientId: string, origin: string, proof: { authority: VaultTransaction['authority']; expiresAt: number }): Promise<{ sessionId: string; idleUntil: number; expiresAt: number; serverNow: number }> {
     return this.store.transaction(identity, async tx => {
       const client = await this.client(tx, clientId, identity, origin)
       if (proof.expiresAt <= tx.now() || proof.authority.credentialVersion !== tx.authority.credentialVersion) denied()

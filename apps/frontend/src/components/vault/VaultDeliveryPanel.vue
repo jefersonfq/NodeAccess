@@ -1,10 +1,11 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { NAlert, NButton, NCard, NFormItem, NInput, NModal, NSpace, NText } from 'naive-ui'
 import { useI18n } from 'vue-i18n'
 import { useAuthStore } from '@/stores/auth'
 import { createVaultDelivery } from '@/services/vault-delivery'
-import type { VaultPortalIdentity } from '@/services/vault-http'
+import { VaultClientError, type VaultPortalIdentity } from '@/services/vault-http'
+import { openVaultProviderWindow, requestGoogleIdToken } from '@/services/vault-provider-confirm'
 
 const { t } = useI18n(), auth = useAuthStore()
 const secure = computed(() => globalThis.isSecureContext === true && typeof window !== 'undefined' && window.location?.protocol === 'https:')
@@ -17,9 +18,18 @@ const delivery = createVaultDelivery({ identity }), state = delivery.state
 const dialog = ref(false), password = ref(''), token = ref(''), itemName = ref(''), action = ref<'reveal' | 'copy'>('reveal')
 let itemId = 0, intent = 0, ticker: ReturnType<typeof setInterval> | undefined
 const busy = computed(() => ['unlocking', 'delivering', 'copying'].includes(state.phase))
+// NA-0184: OIDC/Google sessions confirm identity at the provider instead of the password form.
+const provider = computed(() => state.stepUp === 'provider')
+const googleTarget = ref<HTMLElement | null>(null), googlePending = ref(false), totpPending = ref(false)
+let totpWaiter: { resolve(value: string): void; reject(error: unknown): void } | null = null
 const available = computed(() => secure.value && !busy.value)
 const title = computed(() => `${t(`vaultDelivery.${action.value}`)}: ${itemName.value}`)
-function clearForm(): void { password.value = ''; token.value = '' }
+function cancelProvider(): void {
+  const waiter = totpWaiter; totpWaiter = null
+  totpPending.value = false; googlePending.value = false
+  waiter?.reject(new VaultClientError('locked'))
+}
+function clearForm(): void { password.value = ''; token.value = ''; cancelProvider() }
 function reset(): void { ++intent; clearForm(); dialog.value = false; itemId = 0; itemName.value = ''; delivery.lock() }
 function close(): void { ++intent; clearForm(); dialog.value = false; itemId = 0; itemName.value = ''; delivery.dismiss() }
 function request(nextAction: 'reveal' | 'copy', id: number, name: string): void {
@@ -27,6 +37,32 @@ function request(nextAction: 'reveal' | 'copy', id: number, name: string): void 
   delivery.dismiss(); ++intent; clearForm(); itemId = id; itemName.value = name; action.value = nextAction; dialog.value = true
   delivery.tick()
   if (state.phase === 'unlocked') void delivery.deliver(nextAction, id)
+  else if (state.phase === 'locked') void delivery.prepare()
+}
+async function confirmProvider(): Promise<void> {
+  const current = intent, selected = itemId, nextAction = action.value
+  await delivery.unlockWithProvider({
+    redirect: (url, signal) => openVaultProviderWindow(url, signal),
+    google: async (clientId, nonce, signal) => {
+      googlePending.value = true
+      await nextTick()
+      try {
+        if (!googleTarget.value) throw new VaultClientError('unavailable')
+        return await requestGoogleIdToken(googleTarget.value, clientId, nonce, signal)
+      } finally { googlePending.value = false }
+    },
+    totp: signal => new Promise<string>((resolve, reject) => {
+      token.value = ''; totpPending.value = true; totpWaiter = { resolve, reject }
+      signal.addEventListener('abort', cancelProvider, { once: true })
+    }),
+  })
+  token.value = ''; totpPending.value = false; googlePending.value = false
+  if (current === intent && dialog.value && state.phase === 'unlocked') await delivery.deliver(nextAction, selected)
+}
+function submitTotp(): void {
+  const waiter = totpWaiter, value = token.value
+  totpWaiter = null; totpPending.value = false; token.value = ''
+  waiter?.resolve(value)
 }
 async function unlock(): Promise<void> {
   const current = intent, selected = itemId, nextAction = action.value
@@ -35,18 +71,20 @@ async function unlock(): Promise<void> {
   await pending
   if (current === intent && dialog.value && state.phase === 'unlocked') await delivery.deliver(nextAction, selected)
 }
-function visibility(): void { if (document.visibilityState !== 'visible') reset(); else delivery.tick() }
+// The provider window/Google prompt takes focus; no plaintext exists while waiting, so only that wait is exempt.
+function blurred(): void { if (!state.providerPending) reset() }
+function visibility(): void { if (document.visibilityState !== 'visible') blurred(); else delivery.tick() }
 watch(() => [auth.user?.id, auth.user?.tenantId, auth.user?.actingTenantId, auth.refreshToken, auth.isManagingTenant], reset, { flush: 'sync' })
 onMounted(() => {
   ticker = setInterval(() => delivery.tick(), 250)
-  window.addEventListener('blur', reset)
+  window.addEventListener('blur', blurred)
   window.addEventListener('pagehide', reset)
   window.addEventListener('nodeaccess:tenant-context-changed', reset)
   document.addEventListener('visibilitychange', visibility)
 })
 onBeforeUnmount(() => {
   reset(); delivery.dispose(); clearInterval(ticker)
-  window.removeEventListener('blur', reset)
+  window.removeEventListener('blur', blurred)
   window.removeEventListener('pagehide', reset)
   window.removeEventListener('nodeaccess:tenant-context-changed', reset)
   document.removeEventListener('visibilitychange', visibility)
@@ -95,7 +133,7 @@ defineExpose({ request, lock: reset, available })
         @close="close"
       >
         <p class="mb-4 text-sm text-gray-400">
-          {{ t('vaultDelivery.policyHint') }}
+          {{ t(provider ? 'vaultDelivery.providerPolicyHint' : 'vaultDelivery.policyHint') }}
         </p>
         <NAlert
           v-if="state.error"
@@ -105,8 +143,56 @@ defineExpose({ request, lock: reset, available })
         >
           {{ t(`vaultDelivery.errors.${state.error}`) }}
         </NAlert>
+        <div
+          v-if="provider && (state.phase === 'locked' || state.phase === 'unlocking')"
+          data-testid="vault-provider-step-up"
+        >
+          <div
+            v-show="googlePending"
+            ref="googleTarget"
+            class="mb-3"
+          />
+          <form
+            v-if="totpPending"
+            autocomplete="off"
+            @submit.prevent="submitTotp"
+          >
+            <NFormItem
+              :label="t('vaultDelivery.otp')"
+              :label-props="{ for: 'vault-provider-otp' }"
+            >
+              <NInput
+                v-model:value="token"
+                :input-props="{ id: 'vault-provider-otp', inputmode: 'numeric', autocomplete: 'off', maxlength: 6 }"
+              />
+            </NFormItem>
+            <NButton
+              attr-type="submit"
+              type="primary"
+              :disabled="!/^\d{6}$/.test(token)"
+            >
+              {{ t('vaultDelivery.unlock') }}
+            </NButton>
+          </form>
+          <NSpace v-else>
+            <NButton
+              type="primary"
+              :loading="state.phase === 'unlocking'"
+              :disabled="state.phase === 'unlocking'"
+              @click="confirmProvider"
+            >
+              {{ t('vaultDelivery.providerConfirm') }}
+            </NButton>
+            <NButton
+              v-if="state.providerPending"
+              @click="reset"
+            >
+              {{ t('vaultDelivery.providerCancel') }}
+            </NButton>
+          </NSpace>
+        </div>
         <form
-          v-if="state.phase === 'locked' || state.phase === 'unlocking'"
+          v-else-if="state.phase === 'locked' || state.phase === 'unlocking'"
           autocomplete="off"
           @submit.prevent="unlock"
         >
