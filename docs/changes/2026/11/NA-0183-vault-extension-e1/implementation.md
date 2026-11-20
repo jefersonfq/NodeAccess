@@ -20,7 +20,7 @@ Reverter o commit desta frente; nenhuma alteração de código ou banco até a a
 
 ## Pendências
 
-NA-0184 integrada (pré-requisito). Depois: baseline, implementação, Sonar e revisão independente.
+NA-0184 integrada (PR74, `b4e8cccab`). Baseline, implementação, Sonar e revisão independente. Planilha: META-005 (NA-0184 entregue) e META-017 (E1 em desenvolvimento) pendentes por falta de ferramenta de `.xlsx`; uma escrita única quando houver.
 
 ## Diário de interações
 
@@ -35,3 +35,7 @@ Responsável definiu que o uso da extensão depende só da permissão, não do m
 ### 2026-11-19T17:00:00-03:00 — Plano aprovado
 
 Responsável aprovou o plano; status `planned`. Começa após a NA-0184 integrada.
+
+### 2026-11-20T15:00:00-03:00 — Início da implementação
+
+NA-0184 mergeada (PR74) e encerrada. Branch avançada por fast-forward até o master `b4e8cccab`; status `in-development`. Roadmap pendente (sem ferramenta de `.xlsx`; decisão do responsável). Próximo: baseline (testes de `vault-security`, auth e VaultView; `validate:sonar` na base).

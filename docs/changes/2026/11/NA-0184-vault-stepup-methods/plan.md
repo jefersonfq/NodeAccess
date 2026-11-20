@@ -2,7 +2,7 @@
 change_id: NA-0184
 title: Confirmação de identidade do cofre por método de login (local, LDAP, OIDC, Google)
 type: security
-status: ready-for-review
+status: closed
 created_at: 2026-11-19T16:45:00-03:00
 base_branch: master
 base_sha: 8ef8188a6af1ee0b8180a9707ad54b54b8fd4002
