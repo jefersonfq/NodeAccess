@@ -25,7 +25,7 @@ export class DpopNonces {
   valid(nonce: unknown): boolean {
     if (typeof nonce !== 'string' || !/^[0-9a-z]{1,12}\.[A-Za-z0-9_-]{32}$/.test(nonce)) return false
     const [raw, mac] = nonce.split('.') as [string, string]
-    const w = parseInt(raw, 36), current = Math.floor(this.now() / NONCE_WINDOW_MS)
+    const w = Number.parseInt(raw, 36), current = Math.floor(this.now() / NONCE_WINDOW_MS)
     if (w !== current && w !== current - 1) return false
     const expected = Buffer.from(this.mac(w)), given = Buffer.from(mac)
     return expected.length === given.length && timingSafeEqual(expected, given)

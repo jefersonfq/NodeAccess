@@ -8,6 +8,7 @@ import { createServer } from 'node:https'
 import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { chromium } from 'playwright'
+import { resolveExecutable } from '../shared/trusted-executable.cjs'
 
 const ROOT = resolve(import.meta.dirname, '../..')
 const PORTAL = 'https://vault.example.test'
@@ -26,7 +27,7 @@ const seen = { token: 0, items: 0, consentQuery: null, urls: [], id: '' }
 let context, server
 try {
   // Disposable self-signed certificate; the browser is told to trust it only for this run.
-  execFileSync('openssl', ['req', '-x509', '-newkey', 'ec', '-pkeyopt', 'ec_paramgen_curve:P-256', '-nodes', '-days', '1', '-subj', '/CN=vault.example.test',
+  execFileSync(resolveExecutable('openssl'), ['req', '-x509', '-newkey', 'ec', '-pkeyopt', 'ec_paramgen_curve:P-256', '-nodes', '-days', '1', '-subj', '/CN=vault.example.test',
     '-addext', 'subjectAltName=DNS:vault.example.test', '-keyout', join(profile, 'key.pem'), '-out', join(profile, 'cert.pem')], { stdio: 'ignore' })
   server = createServer({ key: readFileSync(join(profile, 'key.pem')), cert: readFileSync(join(profile, 'cert.pem')) }, (req, res) => {
     let raw = ''
@@ -87,7 +88,7 @@ try {
     key: await new Promise(done => { const r = indexedDB.open('vaultnaccess'); r.onsuccess = () => { const g = r.result.transaction('device').objectStore('device').get('current'); g.onsuccess = () => done({ extractable: g.result?.privateKey?.extractable, hasD: 'd' in (g.result?.publicJwk ?? {}) }) } }),
   }))
   check('no-local-or-sync-storage', Object.keys(storage.local).length === 0 && Object.keys(storage.sync).length === 0, JSON.stringify({ local: Object.keys(storage.local), sync: Object.keys(storage.sync) }))
-  check('session-holds-only-authorization', JSON.stringify(Object.keys(storage.session).sort()) === '["authorization"]' && storage.session.authorization.accessToken === access)
+  check('session-holds-only-authorization', JSON.stringify(Object.keys(storage.session).sort((a, b) => a.localeCompare(b))) === '["authorization"]' && storage.session.authorization.accessToken === access)
   check('device-key-non-extractable', storage.key.extractable === false && storage.key.hasD === false, JSON.stringify(storage.key))
   check('no-token-in-urls', !seen.urls.some(u => u.includes(access)) && !seen.urls.some(u => u.includes('code=') && !u.startsWith('/vault/extension/connect')))
 

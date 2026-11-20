@@ -6,7 +6,10 @@ export function base64url(bytes: ArrayBuffer | Uint8Array): string {
   const view = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes)
   let binary = ''
   for (const byte of view) binary += String.fromCharCode(byte)
-  return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
+  // Linear padding trim (at most two '='); no backtracking regex.
+  let text = btoa(binary).replaceAll('+', '-').replaceAll('/', '_')
+  while (text.endsWith('=')) text = text.slice(0, -1)
+  return text
 }
 export function randomToken(bytes = 32): string {
   return base64url(crypto.getRandomValues(new Uint8Array(bytes)))

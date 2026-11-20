@@ -9,12 +9,12 @@ function fakeChrome() {
     runtime: { id: 'a'.repeat(32), getManifest: () => ({ version: '0.1.0' }) },
     identity: { getRedirectURL: () => `https://${'a'.repeat(32)}.chromiumapp.org/`, launchWebAuthFlow: vi.fn() },
     storage: { session: {
-      get: vi.fn(async (key: string) => (session.has(key) ? { [key]: session.get(key) } : {})),
-      set: vi.fn(async (value: Record<string, unknown>) => { for (const [k, v] of Object.entries(value)) session.set(k, v) }),
-      remove: vi.fn(async (keys: string[]) => { for (const k of keys) session.delete(k) }),
-      setAccessLevel: vi.fn(async () => undefined),
+      get: vi.fn((key: string) => Promise.resolve(session.has(key) ? { [key]: session.get(key) } : {})),
+      set: vi.fn((value: Record<string, unknown>) => { for (const [k, v] of Object.entries(value)) session.set(k, v); return Promise.resolve() }),
+      remove: vi.fn((keys: string[]) => { for (const k of keys) session.delete(k); return Promise.resolve() }),
+      setAccessLevel: vi.fn(() => Promise.resolve()),
     } },
-    tabs: { create: vi.fn(async (value: unknown) => value) },
+    tabs: { create: vi.fn((value: unknown) => Promise.resolve(value)) },
   }
   return { api, session }
 }
@@ -81,7 +81,8 @@ describe('Chromium adapter', () => {
     expect([...chromeDouble.session.keys()]).toEqual([])
     await restrictSession()
     expect(chromeDouble.api.storage.session.setAccessLevel).toHaveBeenCalledWith({ accessLevel: 'TRUSTED_CONTEXTS' })
-    const { setAccessLevel: _omit, ...withoutLevel } = chromeDouble.api.storage.session
+    const withoutLevel: Partial<typeof chromeDouble.api.storage.session> = { ...chromeDouble.api.storage.session }
+    delete withoutLevel.setAccessLevel
     vi.stubGlobal('chrome', { ...chromeDouble.api, storage: { session: withoutLevel } })
     await expect(restrictSession()).resolves.toBeUndefined()
   })
@@ -121,7 +122,7 @@ describe('service worker', () => {
   }
   afterEach(() => { vi.doUnmock('../core/client') })
   it('accepts connect only from this extension and answers once the flow ends', async () => {
-    const connect = vi.fn(async () => undefined)
+    const connect = vi.fn(() => Promise.resolve())
     const listener = await load(connect)
     expect(chromeDouble.api.storage.session.setAccessLevel).toHaveBeenCalled()
     expect(listener({ type: 'connect' }, { id: 'b'.repeat(32) }, vi.fn())).toBeUndefined()

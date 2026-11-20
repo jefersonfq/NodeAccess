@@ -10,8 +10,8 @@ function database(rows: unknown[][] = [], changed: number[] = []) {
   const calls: Call[] = []
   const record = (strings: TemplateStringsArray, values: unknown[]): void => { calls.push({ sql: strings.join('?').replace(/\s+/g, ' ').trim(), values }) }
   const db = {
-    $queryRaw: async (strings: TemplateStringsArray, ...values: unknown[]) => { record(strings, values); return rows.shift() ?? [] },
-    $executeRaw: async (strings: TemplateStringsArray, ...values: unknown[]) => { record(strings, values); return changed.shift() ?? 0 },
+    $queryRaw: (strings: TemplateStringsArray, ...values: unknown[]) => { record(strings, values); return Promise.resolve(rows.shift() ?? []) },
+    $executeRaw: (strings: TemplateStringsArray, ...values: unknown[]) => { record(strings, values); return Promise.resolve(changed.shift() ?? 0) },
   }
   return { db, calls }
 }
