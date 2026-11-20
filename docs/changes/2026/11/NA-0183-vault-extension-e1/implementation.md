@@ -8,19 +8,31 @@ Primeira fatia (E1) da extensão VaultNAccess aprovada na NA-0182: permissão `e
 
 ## Implementação
 
-Plano em rascunho; nenhuma alteração de aplicação. Também encerrados os registros desatualizados da NA-0176, NA-0178 e NA-0179 (status `closed` com o merge de cada PR).
+Backend (`apps/backend/src/modules/vault-security`): migração aditiva `20261120150000_vault_extension` (grant `extension` no CHECK; `vault_extension_devices`, `vault_extension_tokens` só com hash), `vault-extension-domain/dpop/repository/service/routes`, `VaultService.confirmed` (step-up < 60 s reutilizado pela administração), revogação de dispositivos e autorizações ao retirar a permissão, flag `VAULT_EXTENSION_ENABLED` (desligada), `VAULT_EXTENSION_IDS`, `VAULT_EXTENSION_MIN_VERSION`. Contratos em `packages/shared/src/schemas/vault-extension.schema.ts`.
+Portal: `/vault/extension/connect` (`ExtensionConnectView`, `vault-extension-consent`, `authorizeExtension` em `vault-delivery`), seção de dispositivos com revogação (`ExtensionDevices`, só em HTTPS), foco do item aberto pela extensão em `/vault?kind=&id=`, textos pt-BR/en.
+Extensão (`apps/extension`, sem `package.json` próprio): `core` sem API do navegador (WebCrypto, PKCE, DPoP, cliente validado por Zod), adaptador Chromium, service worker, popup Vue, manifest mínimo, build reproduzível (`build:extension`), smoke `test:extension:web`. Lint, `lint:changed`, Sonar e cobertura passam a incluir `apps/extension/src`.
+Docs: `docs/OPERATIONS-vault-extension.md`, capítulo hosts do manual, decisões no `plan.md`.
 
 ## Validação
 
-Ran: leitura do módulo `vault-security` (rotas, portas, identidade de origem, concessões e migração), do catálogo do portal e do contrato NA-0177 §4; consulta das PRs 65/68/69 na API do GitHub (MERGED). Planned: baseline e testes descritos no plano.
+Execução final em 2026-11-20 sobre a árvore do commit de revisão (backend, portal e extensão):
+- Ran: `lint:changed` PASS (inclui 12 arquivos da extensão); `tsc` backend, `vue-tsc` frontend e extensão PASS.
+- Ran: `vitest run` completo 4211 PASS / 1 FAIL / 184 skipped; a falha é `tacacs-tls.test.ts` (timeout), reproduzida no master sem alterações.
+- Ran: `test:vault:real` 38 PASS (32 do cofre + 6 da extensão, sobre as duas migrações); `test:vault:frontend` PASS; `test:extension:web` 12/12 PASS (Chromium, `launchWebAuthFlow` real, portal simulado em HTTPS local); `security:scan` PASS; `test:manual` e `manual:check-reviewed` PASS; `change-governance` local PASS.
+- Ran: revisão independente de segurança (subagente): APROVADO COM AJUSTES, ajustes aplicados.
+- Skipped: `validate:sonar` (Node 24 e tokens do responsável); fluxo com backend real no navegador (homologação); `test:terminal-experience:web` (terminal não tocado).
 
 ## Recuperação
 
-Reverter o commit desta frente; nenhuma alteração de código ou banco até a aprovação do plano.
+`VAULT_EXTENSION_ENABLED=false` corta tudo de imediato. Desfazer a migração: remover linhas `extension` de `vault_entitlements`, apagar as duas tabelas novas e restaurar o CHECK (`docs/OPERATIONS-vault-extension.md`). Revert dos commits da frente.
 
 ## Pendências
 
-NA-0184 integrada (PR74, `b4e8cccab`). Baseline, implementação, Sonar e revisão independente. Planilha: META-005 (NA-0184 entregue) e META-017 (E1 em desenvolvimento) pendentes por falta de ferramenta de `.xlsx`; uma escrita única quando houver.
+- `npm run validate:sonar` no candidato: exige Node 24 e os tokens digitados pelo responsável (bloqueio, não aprovação).
+- Homologação com o backend real no navegador (conexão, negação sem permissão, revogação); o ensaio automatizado usa portal simulado.
+- Planilha: META-005 (NA-0184 entregue) e META-017 (E1) sem ferramenta de `.xlsx` no ambiente; uma escrita única quando houver.
+- Push, PR e checks remotos com autorização do responsável.
+- Fora da frente: `tacacs-tls.test.ts` (timeout) falha também no master sem alterações; `npm run lint` completo estoura memória do V8 localmente (o gate da CI é `lint:changed`, PASS).
 
 ## Diário de interações
 
@@ -39,3 +51,9 @@ Responsável aprovou o plano; status `planned`. Começa após a NA-0184 integrad
 ### 2026-11-20T15:00:00-03:00 — Início da implementação
 
 NA-0184 mergeada (PR74) e encerrada. Branch avançada por fast-forward até o master `b4e8cccab`; status `in-development`. Roadmap pendente (sem ferramenta de `.xlsx`; decisão do responsável). Próximo: baseline (testes de `vault-security`, auth e VaultView; `validate:sonar` na base).
+
+### 2026-11-20T17:40:00-03:00 — Implementação fim a fim da E1
+
+Pedido: seguir a frente fim a fim. Backend, portal e extensão implementados em commits separados (`ee4620d5e`, `ec6e055c1`, `de461d295`, `67cb7832d` e o commit desta entrada). O ensaio em Chromium real mostrou que o Chromium não envia `Origin` nos GET da extensão; corrigido no backend (obrigatório no POST, opcional e validado no GET). Revisão independente de segurança (subagente, somente leitura): APROVADO COM AJUSTES, sem achados críticos/altos/médios; aplicados: código do dispositivo exibido na extensão e conferido no portal, dispositivo ativado só na troca concluída, sessão do cofre encerrada no servidor após o consentimento, limpeza de tokens expirados, hash de auditoria com domínio separado. INFO mantidos como decisão: GET sem `Origin`, reativação de dispositivo revogado por novo consentimento com step-up, código queimado em tentativa inválida.
+Também: HTTPS exigido na lista de dispositivos (o harness `test:vault:frontend` acusou requisição em HTTP); hashes dos falsos positivos revisados em `security/gitleaks-fixtures.json` atualizados para os locales e o harness MySQL (linhas revisadas inalteradas).
+Validações: ver a seção Validação (execução final sobre o SHA do commit).

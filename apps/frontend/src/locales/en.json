@@ -6836,7 +6836,7 @@
   },
   "vaultExtension": {
     "connectTitle": "Connect the VaultNAccess extension",
-    "connectIntro": "A browser extension asked for read access to your vault metadata. Confirm only if you started this connection.",
+    "connectIntro": "A browser extension asked for read access to your vault metadata. Continue only if you started this connection and the device below matches the one shown in the extension.",
     "extensionId": "Extension",
     "device": "Device",
     "account": "Account",

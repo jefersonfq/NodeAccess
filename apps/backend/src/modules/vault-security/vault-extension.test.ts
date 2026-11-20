@@ -156,7 +156,7 @@ function harness(options: { entitled?: boolean; role?: 'ADMIN' | 'USER' } = {}) 
   const authority = (): VaultAuthority => ({ policy: { version: state.policyVersion, unlock: true, reveal: true, copy: true, localReauth: true, origin: PORTAL, tenantQuota: 300 },
     validUntil: Number.MAX_SAFE_INTEGER, role: options.role ?? 'USER', passwordHash: null, mfaSecret: 's', credentialVersion: 'c', email: 'u@example.test', methods: state.methods })
   const store: VaultStore = { transaction: async <T>(i: VaultIdentity, run: (tx: VaultTransaction) => Promise<T>): Promise<T> => {
-    const tx = { authority: authority(), now: Date.now, extension: records(i), limit: () => Promise.resolve(),
+    const tx = { authority: authority(), now: Date.now, extension: records(i), limit: () => Promise.resolve(), remove: () => Promise.resolve(),
       audit: (e: { type: string; reasonCode?: string }) => { audits.push({ type: e.type, reasonCode: e.reasonCode }); return Promise.resolve() } } as unknown as VaultTransaction
     return run(tx)
   } }
@@ -281,8 +281,15 @@ describe('NA-0183 extension service', () => {
     const { accessToken } = await c.exchange()
     await expect(call(h, c.device, accessToken, 'https://other.example.test/api/v1/vault-security/extension/items')).rejects.toMatchObject({ code: 'EXTENSION_UNAUTHORIZED' })
   })
+  it('activates the device only after its key completes the exchange', async () => {
+    const h = harness(), c = await connect(h)
+    expect(h.devices.size).toBe(0)
+    await expect(c.exchange({ key: await deviceKey() })).rejects.toMatchObject({ code: 'EXTENSION_GRANT_INVALID' })
+    expect(h.devices.size).toBe(0)
+  })
   it('lists and revokes only the caller devices, from the portal origin', async () => {
     const h = harness(), c = await connect(h)
+    await c.exchange()
     await expect(h.service.devices(identity, PORTAL)).resolves.toEqual({ devices: [expect.objectContaining({ jkt: c.device.jkt, state: 'ACTIVE' })] })
     await expect(h.service.devices(identity, 'https://evil.example')).rejects.toMatchObject({ code: 'VAULT_FORBIDDEN' })
     await expect(h.service.revokeDevice({ ...identity, userId: 99 }, PORTAL, c.device.jkt)).rejects.toMatchObject({ code: 'VAULT_FORBIDDEN' })

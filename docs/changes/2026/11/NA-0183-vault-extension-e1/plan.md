@@ -2,7 +2,7 @@
 change_id: NA-0183
 title: Extensão VaultNAccess E1 — permissão por usuário, conexão segura e busca de metadados
 type: feature
-status: in-development
+status: ready-for-tests
 created_at: 2026-11-19T16:15:00-03:00
 base_branch: master
 base_sha: 8ef8188a6af1ee0b8180a9707ad54b54b8fd4002
@@ -98,6 +98,16 @@ Flag `vault-extension` desligada nega autorizações e invalida clientes da exte
 2026-11-19: uso da extensão depende só da permissão, não do método de login (decisão do responsável); confirmação por método na NA-0184, pré-requisito; break-glass negado.
 
 2026-11-19: o contrato NA-0177 prevalece sobre a NA-0182 na renovação: no piloto não há refresh, e a autorização vence em 30 min (o plano da NA-0182 citava refresh vinculado à chave).
+
+2026-11-20 (implementação, sem mudar o escopo aprovado):
+- Armazenamento próprio (`vault_extension_devices`, `vault_extension_tokens`), porque as rotas públicas da extensão não conhecem o usuário antes de localizar o token; `vault_records` exige identidade. Só o hash dos tokens é guardado.
+- O step-up do consentimento reutiliza a sessão desbloqueada do portal com prova < 60 s (`VaultService.confirmed`, o mesmo critério da administração).
+- O dispositivo nasce ACTIVE no consentimento: o estado PENDING existe só na página, sem registro no servidor.
+- Toda mudança de política aprovada invalida as autorizações em uso (mesma regra das sessões do cofre).
+- `Origin` é obrigatório no POST `/token` e opcional nos GET, porque o Chromium não o envia em GET de extensão com host permission (achado do ensaio em Chromium real). Quando presente, precisa ser uma extensão permitida.
+- `apps/extension` sem `package.json`: usa `vite`, `vue` e `zod` da raiz; nenhuma dependência nova e nenhuma alteração do lockfile. Manifest sem `activeTab`, que não é necessário.
+- Item 8 (permissão "Usar extensão" na administração): o portal não tem tela de concessões; a permissão entra na mesma API de administração de revelar/copiar.
+- E2E: o ensaio automatizado roda a extensão desempacotada em Chromium com `launchWebAuthFlow` real contra um portal simulado em HTTPS local. O fluxo com o backend real no navegador fica para a homologação.
 
 ## Aprovação
 

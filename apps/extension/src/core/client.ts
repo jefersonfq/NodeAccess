@@ -22,6 +22,8 @@ export interface ExtensionClient {
   remember(key: string): Promise<void>
   recents(): Promise<string[]>
   portalUrl(path: string): string
+  /** Short device fingerprint, identical to the one the consent page shows. */
+  fingerprint(): Promise<string>
 }
 /** Connection, DPoP-signed calls and metadata search. Holds the authorization only in the session store. */
 export function createExtensionClient(deps: Deps): ExtensionClient {
@@ -129,6 +131,10 @@ export function createExtensionClient(deps: Deps): ExtensionClient {
         if (!parsed.success) throw new ExtensionError('unavailable')
         return parsed.data
       })
+    },
+    async fingerprint(): Promise<string> {
+      const { jkt } = await deviceKey()
+      return (jkt.slice(0, 16).match(/.{1,4}/g) ?? []).join('-')
     },
     /** Recently opened items: only `kind:id` keys, in session memory, at most 8. */
     async remember(key: string): Promise<void> {

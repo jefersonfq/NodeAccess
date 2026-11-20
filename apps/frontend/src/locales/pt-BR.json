@@ -6860,7 +6860,7 @@
   },
   "vaultExtension": {
     "connectTitle": "Conectar a extensão VaultNAccess",
-    "connectIntro": "Uma extensão do navegador pediu acesso de leitura aos metadados do seu cofre. Confirme somente se foi você quem iniciou esta conexão.",
+    "connectIntro": "Uma extensão do navegador pediu acesso de leitura aos metadados do seu cofre. Prossiga somente se foi você quem iniciou esta conexão e se o dispositivo abaixo for igual ao mostrado na extensão.",
     "extensionId": "Extensão",
     "device": "Dispositivo",
     "account": "Conta",

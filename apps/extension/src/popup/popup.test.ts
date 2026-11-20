@@ -22,7 +22,7 @@ function fakeClient(connected: boolean) {
   return {
     connect: vi.fn(), connected: vi.fn().mockResolvedValue(connected), disconnect: vi.fn().mockResolvedValue(undefined), capabilities: vi.fn(),
     search: vi.fn().mockResolvedValue({ items: [item], nextCursor: '50' }), remember: vi.fn().mockResolvedValue(undefined),
-    recents: vi.fn().mockResolvedValue(['secret:3']), portalUrl: vi.fn((p: string) => `https://vault.example.test${p}`),
+    recents: vi.fn().mockResolvedValue(['secret:3']), fingerprint: vi.fn().mockResolvedValue('abcd-efgh-ijkl-mnop'), portalUrl: vi.fn((p: string) => `https://vault.example.test${p}`),
   }
 }
 const asClient = (c: ReturnType<typeof fakeClient>): ExtensionClient => c

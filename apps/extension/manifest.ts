@@ -1,6 +1,8 @@
 /** NA-0183 — MV3 manifest: identity, storage and the configured NodeAccess origin only. */
-export function manifest(origin: string, extensionVersion: string): Record<string, unknown> {
+/** `key` (public key, base64 DER) pins the extension ID across installs so the server allowlist stays valid. */
+export function manifest(origin: string, extensionVersion: string, key?: string): Record<string, unknown> {
   return {
+    ...(key ? { key } : {}),
     manifest_version: 3,
     name: 'VaultNAccess',
     description: 'Busca de itens do cofre NodeAccess (somente metadados).',

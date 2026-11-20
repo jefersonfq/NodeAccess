@@ -45,6 +45,8 @@ export class SqlVaultExtension implements ExtensionRecords {
     return rows.map(toDevice)
   }
   async put(kind: ExtensionTokenKind, token: string, jkt: string, value: ExtensionCode | ExtensionAccess, expiresAt: number): Promise<void> {
+    // Opportunistic cleanup, bounded to this user: expired codes and authorizations never accumulate.
+    await this.db.$executeRaw`DELETE FROM vault_extension_tokens WHERE tenant_id=${this.identity.tenantId} AND user_id=${this.identity.userId} AND expires_at <= ${new Date(this.now())}`
     await this.db.$executeRaw`INSERT INTO vault_extension_tokens(token_hash,kind,tenant_id,user_id,jkt,payload,expires_at)
       VALUES(${hash(token)},${kind},${this.identity.tenantId},${this.identity.userId},${jkt},${JSON.stringify(value)},${new Date(expiresAt)})`
   }

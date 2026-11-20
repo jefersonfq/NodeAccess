@@ -3,7 +3,7 @@
     "id": "hosts",
     "title": "Hosts e sessões abertas",
     "summary": "Encontre o equipamento certo e retome seu trabalho com segurança.",
-    "reviewedAt": "2026-11-19",
+    "reviewedAt": "2026-11-20",
     "sourceFiles": [
       "apps/frontend/src/views/HostsView.vue",
       "apps/frontend/src/components/TrialResourcesPanel.vue",
@@ -39,6 +39,9 @@
       "apps/frontend/src/services/vault-delivery.ts",
       "apps/frontend/src/services/vault-envelope.ts",
       "apps/frontend/src/services/vault-http.ts",
+      "apps/frontend/src/views/ExtensionConnectView.vue",
+      "apps/frontend/src/components/vault/ExtensionDevices.vue",
+      "apps/frontend/src/services/vault-extension-consent.ts",
       "apps/backend/src/modules/pem-keys/pem-key.repository.ts",
       "apps/backend/src/modules/pem-keys/pem-key.service.ts",
       "packages/shared/src/schemas/pem-key.schema.ts"
@@ -48,7 +51,7 @@
       "Conferir o destino",
       "Conectar ou retomar"
     ],
-    "reviewedSourceHash": "f272d43910980fdfc2a4253d2f9615bc626e8601c4b7a9fb48fb00679060513c"
+    "reviewedSourceHash": "3e860cd0b7fbe650330aefd687e28f8a3ceaabf8e58459877f198ee3dac8d1a9"
   },
   {
     "id": "terminal",

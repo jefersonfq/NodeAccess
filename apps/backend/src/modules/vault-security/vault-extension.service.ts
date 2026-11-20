@@ -88,7 +88,8 @@ export class VaultExtensionService {
     const result = await this.vault.confirmed(identity, clientId, origin, input.sessionId, 'extension-authorize', async (tx, client) => {
       const ext = this.records(tx)
       if (!await ext.entitled()) return null
-      await ext.activateDevice(input.deviceJkt, input.extensionId)
+      // One consent per step-up: the portal vault session ends here, server side, whatever the client does next.
+      await tx.remove('session', client.id)
       const code = this.entropy.token(), expiresAt = Math.min(tx.now() + CODE_TTL_MS, client.origin.expiresAt, tx.authority.validUntil)
       const value: ExtensionCode = { sessionVersion: identity.sessionVersion, extensionId: input.extensionId, redirectUri: input.redirectUri,
         codeChallenge: input.codeChallenge, origin: client.origin, policyVersion: tx.authority.policy.version, expiresAt }
@@ -117,13 +118,15 @@ export class VaultExtensionService {
     }
     try {
       return await this.store.transaction(identity, async tx => {
+        // The device becomes ACTIVE only when its own key completes the exchange, not at consent.
+        await this.records(tx).activateDevice(jkt, code.extensionId)
         await this.admit(tx, identity, code, jkt, req.url)
         await tx.limit('extension-token', 3_600_000, 20)
         const accessToken = this.entropy.token()
         const expiresAt = Math.min(tx.now() + ACCESS_TTL_MS, code.origin.expiresAt, tx.authority.validUntil)
         const access: ExtensionAccess = { sessionVersion: identity.sessionVersion, extensionId: code.extensionId, origin: code.origin, policyVersion: code.policyVersion, expiresAt }
         await this.records(tx).put('access', accessToken, jkt, access, expiresAt)
-        await tx.audit({ type: 'EXTENSION_CLIENT_REGISTERED', clientId: accessToken, device: jkt, policyVersion: tx.authority.policy.version })
+        await tx.audit({ type: 'EXTENSION_CLIENT_REGISTERED', clientId: `extension-access:${this.entropy.digest(accessToken)}`, device: jkt, policyVersion: tx.authority.policy.version })
         return { accessToken, tokenType: 'DPoP' as const, expiresAt, serverNow: tx.now() }
       })
     } catch (error) { return this.denied(identity, error, jkt) }

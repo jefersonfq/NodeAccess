@@ -13,10 +13,12 @@ const parsed = new URL(portal)
 if (parsed.protocol !== 'https:' || parsed.origin !== portal) throw new Error('VAULTNACCESS_PORTAL_ORIGIN must be an https origin without path')
 const version = process.env.VAULTNACCESS_VERSION ?? '0.1.0'
 if (!/^\d{1,4}\.\d{1,4}\.\d{1,4}$/.test(version)) throw new Error('VAULTNACCESS_VERSION must be x.y.z')
+const key = process.env.VAULTNACCESS_MANIFEST_KEY
+if (key !== undefined && !/^[A-Za-z0-9+/]{100,800}={0,2}$/.test(key)) throw new Error('VAULTNACCESS_MANIFEST_KEY must be a base64 public key')
 
 function manifestPlugin(): Plugin {
   return { name: 'vaultnaccess-manifest', generateBundle() {
-    this.emitFile({ type: 'asset', fileName: 'manifest.json', source: `${JSON.stringify(manifest(portal, version), null, 2)}\n` })
+    this.emitFile({ type: 'asset', fileName: 'manifest.json', source: `${JSON.stringify(manifest(portal, version, key), null, 2)}\n` })
   } }
 }
 export default defineConfig({

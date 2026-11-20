@@ -96,6 +96,13 @@ describe('NA-0183 extension devices', () => {
     expect(post).toHaveBeenCalledWith('extension/devices/revoke', { jkt: device.jkt }, expect.objectContaining({ userId: 41 }))
     f.unmount()
   })
+  it('sends nothing from an insecure page', async () => {
+    vi.stubGlobal('isSecureContext', false)
+    const post = vi.fn()
+    const f = mount<Devices>(ExtensionDevices, { transport: { post } as unknown as VaultTransport }); await flush()
+    expect(post).not.toHaveBeenCalled(); expect(f.state.available).toBe(false)
+    f.unmount()
+  })
   it('stays hidden when the server has the extension disabled, and reports other failures', async () => {
     const { VaultClientError } = await import('@/services/vault-http')
     const post = vi.fn().mockRejectedValueOnce(new VaultClientError('unsupported')).mockRejectedValueOnce(new VaultClientError('unavailable'))

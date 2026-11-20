@@ -8,6 +8,7 @@ const props = defineProps<{ client: ExtensionClient; requestConnection: () => Pr
 const t = message(typeof navigator === 'undefined' ? 'pt-BR' : navigator.language)
 const phase = ref<'loading' | 'disconnected' | 'connecting' | 'connected'>('loading')
 const query = ref(''), kind = ref<VaultItemKind | ''>(''), items = ref<VaultItemSummary[]>([]), next = ref<string | null>(null)
+const fingerprint = ref('')
 const recents = ref<string[]>([]), error = ref<ExtensionFailure | ''>(''), searching = ref(false)
 const recentItems = computed(() => recents.value.map(key => items.value.find(i => `${i.kind}:${i.sourceId}` === key)).filter((i): i is VaultItemSummary => !!i))
 let generation = 0
@@ -29,6 +30,7 @@ async function search(more = false): Promise<void> {
 }
 async function connect(): Promise<void> {
   phase.value = 'connecting'; error.value = ''
+  fingerprint.value = await props.client.fingerprint().catch(() => '')
   const reply = await props.requestConnection().catch(() => ({ ok: false, reason: 'unavailable' as const }))
   if (!reply.ok) { phase.value = 'disconnected'; error.value = reply.reason ?? 'unavailable'; return }
   phase.value = 'connected'
@@ -91,6 +93,12 @@ defineExpose({ search, connect, disconnect, openItem })
       >
         {{ phase === 'connecting' ? t.connecting : t.connect }}
       </button>
+      <p
+        v-if="phase === 'connecting' && fingerprint"
+        data-testid="vaultnaccess-fingerprint"
+      >
+        {{ t.compare }} <code>{{ fingerprint }}</code>
+      </p>
     </section>
     <section v-else-if="phase === 'connected'">
       <form

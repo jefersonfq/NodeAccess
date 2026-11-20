@@ -15,7 +15,9 @@ const devices = ref<VaultExtensionDevice[]>([]), available = ref(false), error =
 const active = computed(() => devices.value.filter(device => device.state === 'ACTIVE'))
 function identity(): VaultPortalIdentity | null {
   const u = auth.user
-  if (!u || u.actingTenantId !== undefined || auth.isManagingTenant || !auth.accessToken || !auth.refreshToken) return null
+  // Same HTTPS requirement as every vault request: nothing is sent from an insecure page.
+  const secure = globalThis.isSecureContext === true && typeof window !== 'undefined' && window.location?.protocol === 'https:'
+  if (!secure || !u || u.actingTenantId !== undefined || auth.isManagingTenant || !auth.accessToken || !auth.refreshToken) return null
   return { userId: u.id, tenantId: u.tenantId, accessToken: auth.accessToken, refreshToken: auth.refreshToken, origin: window.location.origin }
 }
 async function load(): Promise<void> {

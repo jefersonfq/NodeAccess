@@ -96,6 +96,7 @@ describe('NA-0183 extension client', () => {
     expect(p.calls.at(-1)!.url).toBe(`${API}/items?q=db`)
     expect(p.calls.at(-1)!.init).toMatchObject({ credentials: 'omit', cache: 'no-store', redirect: 'error' })
     await expect(c.capabilities()).resolves.toMatchObject({ features: { reveal: false } })
+    expect(await c.fingerprint()).toBe((s.peek().key!.jkt.slice(0, 16).match(/.{4}/g) ?? []).join('-'))
   })
   it('reuses one device key across connections', async () => {
     const s = stores()
@@ -161,5 +162,7 @@ describe('NA-0183 extension manifest', () => {
     expect(m.host_permissions).toEqual([`${PORTAL}/*`])
     for (const forbidden of ['content_scripts', 'externally_connectable', 'web_accessible_resources', 'optional_permissions']) expect(m).not.toHaveProperty(forbidden)
     expect(JSON.stringify(m)).not.toMatch(/unsafe-eval|<all_urls>|\*:\/\//)
+    expect(m).not.toHaveProperty('key')
+    expect(manifest(PORTAL, '0.1.0', 'K'.repeat(120))).toMatchObject({ key: 'K'.repeat(120) })
   })
 })

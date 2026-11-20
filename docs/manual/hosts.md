@@ -88,7 +88,21 @@ A prova de identidade precisa ser renovada após aproximadamente um minuto. Sem 
 
 **Acesso negado:** consulte os gestores do cofre; ser administrador não contorna a política. **Autorização expirada ou resposta perdida:** não há repetição automática da entrega; feche a janela e solicite uma nova operação. **Autenticação do portal precisa ser renovada:** renove sua sessão do portal antes de tentar novamente. **Janela do provedor não abriu:** permita pop-ups do portal e selecione **Confirmar no provedor de login** de novo. **Confirmação não concluída:** feche a janela do provedor e tente novamente; cada tentativa vale uma vez. Falhas do cofre não iniciam recuperação global do terminal.
 
-A área de transferência pertence ao dispositivo e pode ser acessada por outros aplicativos. O cofre não garante apagamento posterior nem revogação de uma senha já entregue. Gerencie a área de transferência e rotacione a senha no destino quando necessário. Windows Hello e extensão ainda não fazem parte desta entrega.
+A área de transferência pertence ao dispositivo e pode ser acessada por outros aplicativos. O cofre não garante apagamento posterior nem revogação de uma senha já entregue. Gerencie a área de transferência e rotacione a senha no destino quando necessário. Windows Hello ainda não faz parte desta entrega.
+
+### Conectar a extensão do navegador (piloto)
+A extensão VaultNAccess para Chrome e Edge busca, pelo navegador, os nomes e tipos dos itens que você já pode ver no portal e abre o item no NodeAccess. Ela não recebe valores, senhas nem chaves; revelar e copiar continuam no portal. O recurso fica desligado por padrão: o operador da instalação precisa habilitá-lo e informar o identificador da extensão permitida, e dois gestores do cofre precisam conceder a você a permissão **Usar extensão** (quem concede não pode ser você nem o mesmo gestor que aprova). Valem os mesmos requisitos do cofre: HTTPS, autenticador TOTP e confirmação de identidade do seu tipo de login.
+
+1. Na extensão, selecione **Conectar ao NodeAccess**. O navegador abre a página **Conectar a extensão VaultNAccess** do portal; se pedido, entre no portal primeiro.
+2. Confira a extensão, o dispositivo e a conta exibidos. O código do dispositivo precisa ser igual ao que a extensão mostra enquanto aguarda a confirmação. Prossiga somente se foi você quem iniciou a conexão e os códigos coincidem; caso contrário, selecione **Negar**.
+3. Confirme sua identidade como no cofre (senha e código do autenticador, ou **Confirmar no provedor e permitir**). A janela volta sozinha para a extensão.
+4. Na extensão, busque pelo nome, filtre por tipo e selecione um item para abri-lo no portal. O portal mostra só esse item; use **Mostrar todos** para voltar à lista completa.
+
+A conexão vale por até 30 minutos, sem renovação automática, e termina antes se você sair do portal (logout), se a permissão for retirada, se o dispositivo for revogado ou se os gestores mudarem a política do cofre. Fechar o navegador também apaga a conexão. Depois disso, conecte de novo. **Negar** devolve a extensão sem conexão.
+
+Em **VaultNAccess**, a seção **Extensão do navegador: dispositivos conectados** lista os seus dispositivos; use **Revogar** para cortar o acesso de um deles imediatamente. A seção não aparece quando o recurso está desligado na instalação.
+
+**Acesso negado:** peça aos gestores do cofre a permissão **Usar extensão**. **Pedido de conexão inválido:** inicie a conexão de novo pela extensão. **A conexão expirou:** conecte novamente. **Atualize a extensão:** a instalação exige uma versão mais nova.
 
 ## Entenda os indicadores
 - Cards e listas reutilizam os ícones de protocolo do acesso rápido. O ícone da rota informa acesso direto, automático ou por Agent/conector. Passe o mouse, toque ou use **Tab** para consultar a descrição e a disponibilidade; **Esc** fecha a dica. O botão **Conectar** informa o motivo quando uma rota obrigatória não está disponível.
