@@ -19,6 +19,9 @@ vi.mock('@/services/pem-key.service', () => ({ pemKeyService: { list: mocks.pem 
 vi.mock('@/services/group.service', () => ({ groupService: { list: mocks.groups } }))
 vi.mock('@/components/vault/SecretActions.vue', () => ({ default: defineComponent({ render: () => null }) }))
 vi.mock('@/components/vault/PemKeyActions.vue', () => ({ default: defineComponent({ render: () => null }) }))
+vi.mock('@/components/vault/ExtensionDevices.vue', () => ({ default: defineComponent({ render: () => null }) }))
+const route = reactive({ query: {} })
+vi.mock('vue-router', () => ({ useRoute: () => route, useRouter: () => ({ replace: vi.fn() }) }))
 vi.mock('naive-ui', () => ({ ...Object.fromEntries(['NAlert','NButton','NDropdown','NEmpty','NInput','NSelect','NTag','NText','NSpace'].map(name => [name, defineComponent({ inheritAttrs: false, setup: (_, { attrs, slots }) => () => h(name, attrs, slots.default?.()) })])),
  NModal: defineComponent({ props: ['show'], setup: (props, { slots }) => () => props.show ? slots.default?.() : null }),
  NDataTable: defineComponent({ props: ['data','columns'], setup: props => () => h('table', (props.data as unknown[]).map(row => h('tr', (props.columns as Column[]).map(col => h('td', col.render?.(row)))))) }) }))
@@ -72,6 +75,13 @@ describe('Unified vault presentation and context',()=>{
   mocks.secrets.mockResolvedValue({data:[revoked.record]});mocks.pem.mockResolvedValue({data:[{...pemFixture,hasPassphrase:false}]});await s.reload()
   html=await f.html();expect(html).toContain('secrets.status.revoked');expect(html).toContain('#8');expect(html).toContain('vault.withoutPassphrase')
   f.unmount()
+ })
+ it('shows only the item opened from the extension until the filter is cleared (NA-0183)',async()=>{
+  route.query={kind:'pem',id:String(pemFixture.id)}
+  const f=mount<VaultState>(VaultView);await flush()
+  expect(f.state.filtered.map(e=>e.key)).toEqual([`pem:${pemFixture.id}`])
+  route.query={kind:'secret',id:'abc'};expect(f.state.filtered).toHaveLength(2)
+  route.query={};f.unmount()
  })
  it('shows the PEM owner supplied by the authorized listing and falls back to the ID label',async()=>{
   mocks.pem.mockResolvedValue({data:[{...pemFixture,createdByName:'actual-owner'}]})

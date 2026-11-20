@@ -36,6 +36,8 @@ const fail = (reason: VaultFailure = 'unavailable'): never => { throw new VaultC
 function sameIdentity(a: VaultPortalIdentity | null, b: VaultPortalIdentity | null): boolean {
   return !!a && !!b && a.userId === b.userId && a.tenantId === b.tenantId && a.refreshToken === b.refreshToken && a.origin === b.origin
 }
+/** Public parameters the extension sent to the consent page; the code is bound to them server side. */
+export interface ExtensionConsent { extensionId: string; redirectUri: string; state: string; codeChallenge: string; deviceJkt: string }
 /** Page-local capabilities and plaintext; never Pinia, browser storage, catalog, or error payloads. */
 export interface VaultDelivery {
   state: DeepReadonly<DeliveryState>
@@ -43,6 +45,8 @@ export interface VaultDelivery {
   prepare(): Promise<void>
   unlockWithProvider(confirm: VaultProviderConfirmation): Promise<void>
   deliver(action: Action, secretId: number): Promise<void>
+  /** NA-0183: consent for the browser extension inside the unlocked session; returns the one-time code. */
+  authorizeExtension(request: ExtensionConsent): Promise<string | null>
   confirmCopy(): Promise<void>
   dismiss(): void; lock(): void; tick(): void; dispose(): void
 }
@@ -200,6 +204,24 @@ export function createVaultDelivery(deps: VaultDeliveryDependencies): VaultDeliv
       if (action === 'reveal') { state.value = value; state.phase = 'revealed' } else { pendingCopy = value; state.phase = 'copy-ready' }
     } catch (error) { failure(error, version) }
   }
+  async function authorizeExtension(request: ExtensionConsent): Promise<string | null> {
+    tick()
+    if (disposed || state.phase !== 'unlocked') return null
+    const identity = deps.identity()
+    if (!identity || !sameIdentity(identity, owner)) { lock(); return null }
+    invalidate(); const version = epoch, signal = abort.signal
+    state.phase = 'delivering'; state.error = null
+    try {
+      requireProof()
+      const reply = await transport.post<{ code?: unknown }>('extension/authorize', { ...request, sessionId }, identity, clientId, signal)
+      guard(version, identity)
+      const code = reply.code
+      if (!opaque(code)) return fail()
+      // One consent per unlock: the session is locked again so the page holds no vault capability afterwards.
+      lock()
+      return code
+    } catch (error) { failure(error, version); return null }
+  }
   async function confirmCopy(): Promise<void> {
     tick()
     if (disposed || state.phase !== 'copy-ready') return
@@ -231,5 +253,5 @@ export function createVaultDelivery(deps: VaultDeliveryDependencies): VaultDeliv
     if (valueUntil && !live(valueUntil)) dismiss()
   }
   function dispose(): void { lock(); disposed = true }
-  return { state: readonly(state), unlock, prepare, unlockWithProvider, deliver, confirmCopy, dismiss, lock, tick, dispose }
+  return { state: readonly(state), unlock, prepare, unlockWithProvider, deliver, authorizeExtension, confirmCopy, dismiss, lock, tick, dispose }
 }

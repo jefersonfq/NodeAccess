@@ -6833,5 +6833,25 @@
       "clipboard": "Could not confirm the copy. The value was discarded; check browser permissions before requesting another operation.",
       "unsupported": "This flow requires HTTPS and an eligible local session, without delegated tenant management."
     }
+  },
+  "vaultExtension": {
+    "connectTitle": "Connect the VaultNAccess extension",
+    "connectIntro": "A browser extension asked for read access to your vault metadata. Confirm only if you started this connection.",
+    "extensionId": "Extension",
+    "device": "Device",
+    "account": "Account",
+    "scopeHint": "The extension will be able to search names and types of the items you can already see in the portal, for up to 30 minutes. Values, passwords and keys are never sent.",
+    "allow": "Confirm identity and allow",
+    "allowProvider": "Confirm with the login provider and allow",
+    "deny": "Deny",
+    "denied": "Access denied. Ask the vault managers about the \"Use extension\" permission.",
+    "invalidRequest": "Invalid connection request. Start the connection again from the extension.",
+    "returning": "Connection authorized. Returning to the extension…",
+    "devicesTitle": "Browser extension: connected devices",
+    "noDevices": "No connected devices.",
+    "connectedAt": "Connected on {date}",
+    "revoke": "Revoke",
+    "focused": "Showing the item opened from the extension.",
+    "showAll": "Show all"
   }
 }
