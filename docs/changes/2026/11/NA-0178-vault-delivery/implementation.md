@@ -79,3 +79,7 @@ Gate integral c3e754dd0 encerrou 2026-11-16T14:33:22Z exit1: única falha REVIEW
 Revisor independente API_tests confirmou SQ-0437/438/439: IPs sintéticos e fronteira FakeWebSocket intactos. Autorizado atualizar apenas três sourceSha256 e documentação/evidência individual; plano registrado antes. Commit/push metadata autorizado, PR68 draft e novo gate pendente; sem merge/deploy, sem novo coletor até liberação. Nenhuma mudança de produto/roadmap.
 
 Ran: teste focal tools/sonarqube/reconcile.test.mjs PASS; comparação estrutural confirmou somente três sourceSha256 e metadados/quantidade restantes intactos; diff-check PASS. Evidência .tmp/c3-review-reconcile-tests.log. Gate integral do novo SHA continua Planned.
+
+### 2026-11-19T16:10:00-03:00 — Encerramento do registro
+
+Ran: consulta à API do GitHub: PR68 MERGED em 2026-11-16T15:01:14Z, merge `8406393d743f13b83572db9e595c5ea1ef99d077`. O registro estava com status desatualizado; evidências finais de checks e homologação ficam na PR. Status passou a `closed` (registro feito na NA-0183).
