@@ -1,4 +1,5 @@
 import { SqlVaultAdministration } from './vault-administration.repository.js'
+import { SqlVaultExtension } from './vault-extension.repository.js'
 import { Prisma, type PrismaClient } from '@prisma/client'
 import { createHash, randomUUID } from 'node:crypto'
 import { assertPolicy, denied, VaultError } from './vault-domain.js'
@@ -49,7 +50,10 @@ async function readAuthority(db: Tx, identity: VaultIdentity, now: number): Prom
     credentialVersion: hash(JSON.stringify([u.passwordHash, u.mfaSecret, u.version])) }
 }
 class SqlVaultTransaction implements VaultTransaction {
-  constructor(private readonly db: Tx, private readonly identity: VaultIdentity, readonly authority: VaultAuthority, readonly now: () => number) {}
+  readonly extension: SqlVaultExtension
+  constructor(private readonly db: Tx, private readonly identity: VaultIdentity, readonly authority: VaultAuthority, readonly now: () => number) {
+    this.extension = new SqlVaultExtension(db, identity, now)
+  }
   async get<T>(kind: RecordKind, token: string): Promise<T | null> {
     const rows = await this.db.$queryRaw<Array<{ payload: unknown }>>`SELECT payload FROM vault_records WHERE tenant_id=${this.identity.tenantId}
       AND user_id=${this.identity.userId} AND kind=${kind} AND token_hash=${hash(token)} FOR UPDATE`

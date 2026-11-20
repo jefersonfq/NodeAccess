@@ -63,7 +63,7 @@ export function vaultRoutes(app: FastifyInstance, service: VaultService, adminis
   post('/operations/cancel', z.object({ operationId: opaque }).strict(), (i,c,o,b) => service.operation(i,c,o,b.operationId,true))
   if (administration) {
     const change = z.discriminatedUnion('kind', [
-      z.object({ kind: z.literal('grant'), userId: z.number().int().positive(), action: z.enum(['reveal','copy']), enabled: z.boolean() }).strict(),
+      z.object({ kind: z.literal('grant'), userId: z.number().int().positive(), action: z.enum(['reveal','copy','extension']), enabled: z.boolean() }).strict(),
       z.object({ kind: z.literal('item'), secretId: z.number().int().positive(), enabled: z.boolean() }).strict(),
       z.object({ kind: z.literal('policy'), reveal: z.boolean(), copy: z.boolean(), tenantQuota: z.number().int().min(1).max(300) }).strict(),
     ])

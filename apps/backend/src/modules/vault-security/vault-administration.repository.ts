@@ -32,6 +32,12 @@ export class SqlVaultAdministration {
       await this.db.$executeRaw`INSERT INTO vault_entitlements(tenant_id,user_id,action,granted_by,approved_by,enabled)
         VALUES(${this.actor.tenantId},${change.userId},${change.action},${p.proposedBy},${this.actor.userId},${change.enabled})
         ON DUPLICATE KEY UPDATE granted_by=VALUES(granted_by),approved_by=VALUES(approved_by),enabled=VALUES(enabled)`
+      if (change.action === 'extension' && !change.enabled) {
+        // NA-0183: removing the permission revokes every device and authorization of that user at once.
+        await this.db.$executeRaw`UPDATE vault_extension_devices SET state='REVOKED',revoked_at=${new Date(this.now())}
+          WHERE tenant_id=${this.actor.tenantId} AND user_id=${change.userId} AND state='ACTIVE'`
+        await this.db.$executeRaw`DELETE FROM vault_extension_tokens WHERE tenant_id=${this.actor.tenantId} AND user_id=${change.userId}`
+      }
     } else if (change.kind === 'item') {
       const items = await this.db.$queryRaw<Array<{ id: number }>>`SELECT id FROM secrets WHERE id=${change.secretId} AND tenant_id=${this.actor.tenantId} AND revoked_at IS NULL FOR SHARE`
       if (!items.length) denied()

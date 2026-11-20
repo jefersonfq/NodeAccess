@@ -1,0 +1,178 @@
+import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { PrismaClient } from '@prisma/client'
+import { Redis } from 'ioredis'
+import jwt from 'jsonwebtoken'
+import bcrypt from 'bcrypt'
+import * as speakeasy from 'speakeasy'
+import { createHash, randomBytes, randomUUID } from 'node:crypto'
+import { calculateJwkThumbprint, exportJWK, generateKeyPair, SignJWT, type CryptoKey, type JWK } from 'jose'
+import { VaultService } from './vault.service.js'
+import { VaultAdministrationService } from './vault-administration.service.js'
+import { SqlVaultStore } from './vault.repository.js'
+import { RedisVaultOrigin, MethodVaultReauthentication } from './vault-identity.js'
+import { JweVaultEnvelope } from './vault-envelope.js'
+import { SqlExtensionLocator } from './vault-extension.repository.js'
+import { DpopNonces, DpopVerifier, sha256b64 } from './vault-extension-dpop.js'
+import { catalogSummaries, VaultExtensionService } from './vault-extension.service.js'
+import { extensionRedirectUri } from './vault-extension-domain.js'
+import { TotpService } from '../auth/totp.service.js'
+import { SecretService } from '../secrets/secret.service.js'
+import { SecretRepository } from '../secrets/secret.repository.js'
+import { PemKeyService } from '../pem-keys/pem-key.service.js'
+import { PemKeyRepository } from '../pem-keys/pem-key.repository.js'
+import { LogRepository } from '../logs/log.repository.js'
+import { LicenseEntitlementService } from '../license/license-entitlement.service.js'
+import { encrypt } from '../../shared/crypto.js'
+import type { VaultIdentity } from './vault-domain.js'
+
+/** NA-0183: extension E1 against the disposable MySQL/Redis of the vault harness (RUN_VAULT_MYSQL=true). */
+const enabled = process.env.RUN_VAULT_MYSQL === 'true'
+const origin = 'https://vault.example.test'
+const EXT = 'abcdefghijklmnopabcdefghijklmnop'
+const BASE = `${origin}/api/v1/vault-security/extension`
+const entropy = { token: () => randomBytes(32).toString('base64url'), digest: (v: string) => createHash('sha256').update(v).digest('hex') }
+const policy = { unlock: true, reveal: true, copy: true, localReauth: true, origin, tenantQuota: 300 }
+
+describe.skipIf(!enabled)('Vault extension E1 SQL/Redis integration', () => {
+  let db: PrismaClient
+  const connections: Redis[] = []
+  beforeAll(async () => {
+    const target = new URL(process.env.DATABASE_URL ?? '')
+    if (target.hostname !== '127.0.0.1' || !target.pathname.startsWith('/na0178_') || !/^[a-f0-9]{24}$/.test(process.env.VAULT_DISPOSABLE_NONCE ?? '')) {
+      throw new Error('Requires the disposable Vault harness; refusing an unverified database')
+    }
+    db = new PrismaClient(); await db.$connect()
+  })
+  afterAll(async () => { for (const r of connections) r.disconnect(); await db?.$disconnect() })
+
+  async function fixture() {
+    const suffix = randomUUID(), password = `test-only-${suffix}`, mfaSecret = speakeasy.generateSecret().base32
+    const redis = new Redis(process.env.REDIS_URL!, { maxRetriesPerRequest: 1, enableOfflineQueue: false }); connections.push(redis)
+    if (redis.status !== 'ready') await new Promise<void>((resolve, reject) => { redis.once('ready', resolve); redis.once('error', reject) })
+    const secure = { passwordHash: await bcrypt.hash(password, 4), mfaSecret, mfaEnabled: true, forcePasswordChange: false, sessionVersion: 1 }
+    async function tenant(label: string) {
+      const t = await db.tenant.create({ data: { name: `Extension ${label}`, slug: `na0183-${label}-${suffix}` } })
+      await db.license.create({ data: { tenantId: t.id, maxUsers: 10, featureEntitlementsJson: { secrets: true } } })
+      await db.tenantAuthPolicy.create({ data: { tenantId: t.id } })
+      await db.$executeRaw`INSERT INTO vault_policies(tenant_id,version,config) VALUES(${t.id},1,${JSON.stringify(policy)})`
+      return t
+    }
+    const a = await tenant('a'), b = await tenant('b')
+    const user = await db.user.create({ data: { name: 'Owner', email: `u-${suffix}@example.test`, tenantId: a.id, ...secure } })
+    const peer = await db.user.create({ data: { name: 'Peer', email: `p-${suffix}@example.test`, tenantId: a.id, ...secure } })
+    const outsider = await db.user.create({ data: { name: 'Other tenant', email: `o-${suffix}@example.test`, tenantId: b.id, ...secure } })
+    const m1 = await db.user.create({ data: { name: 'Manager A', email: `m1-${suffix}@example.test`, tenantId: a.id, role: 'ADMIN', ...secure } })
+    const m2 = await db.user.create({ data: { name: 'Manager B', email: `m2-${suffix}@example.test`, tenantId: a.id, role: 'ADMIN', ...secure } })
+    for (const m of [m1, m2]) await db.$executeRaw`INSERT INTO vault_managers(tenant_id,user_id,enabled) VALUES(${a.id},${m.id},TRUE)`
+    const group = await db.group.create({ data: { name: 'Ops', tenantId: a.id } })
+    await db.userGroup.create({ data: { userId: user.id, groupId: group.id } })
+    const value = encrypt(`never-leaves-${suffix}`)
+    const secret = (tenantId: number, alias: string, extra: object) => db.secret.create({ data: { tenantId, alias, encryptedValue: value.encrypted, iv: value.iv, ...extra } })
+    await secret(a.id, 'mine', { scope: 'PERSONAL', ownerUserId: user.id })
+    await secret(a.id, 'peer-only', { scope: 'PERSONAL', ownerUserId: peer.id })
+    await secret(a.id, 'tenant-shared', { scope: 'TENANT' })
+    await secret(a.id, 'ops-group', { scope: 'GROUP', groupId: group.id })
+    await secret(b.id, 'other-tenant', { scope: 'TENANT' })
+    const keyBody = encrypt('PRIVATE KEY BODY')
+    await db.pemKey.create({ data: { name: 'my-key', encryptedKey: keyBody.encrypted, iv: keyBody.iv, createdById: user.id } })
+    await db.pemKey.create({ data: { name: 'peer-key', encryptedKey: keyBody.encrypted, iv: keyBody.iv, createdById: peer.id } })
+    await db.$executeRaw`INSERT INTO vault_entitlements(tenant_id,user_id,action,granted_by,approved_by,enabled) VALUES(${a.id},${user.id},'extension',${m1.id},${m2.id},TRUE)`
+
+    const signingKey = process.env.JWT_SECRET!
+    const store = new SqlVaultStore(db), originVerifier = new RedisVaultOrigin(redis, signingKey)
+    const vault = new VaultService(store, originVerifier, new MethodVaultReauthentication(new TotpService()), new JweVaultEnvelope(), entropy)
+    const nonces = new DpopNonces(`test-${suffix}`)
+    const replay = { claim: async (key: string, ttl: number) => (await redis.set(`vault-ext-dpop:${createHash('sha256').update(key).digest('hex')}`, '1', 'PX', ttl, 'NX')) === 'OK' }
+    const prismaCatalog = { secrets: new SecretService(new SecretRepository(db), new LogRepository(db), new LicenseEntitlementService(db)), pems: new PemKeyService(new PemKeyRepository(db), new LogRepository(db)) }
+    const service = new VaultExtensionService(vault, store, new SqlExtensionLocator(db), originVerifier, new DpopVerifier(nonces, replay), nonces, entropy, {
+      list: async (i: VaultIdentity, admin: boolean) => catalogSummaries(await prismaCatalog.secrets.list(i.userId, i.tenantId, admin ? 'admin' : 'user'),
+        await prismaCatalog.pems.list(i.userId, i.tenantId, admin), i.userId),
+    }, { enabled: true, extensionIds: [EXT], minVersion: '0.1.0' })
+
+    async function portal(u: { id: number; tenantId: number }) {
+      const identity: VaultIdentity = { userId: u.id, tenantId: u.tenantId, sessionVersion: 1 }, jti = randomUUID()
+      await redis.set(`refresh:${jti}`, String(u.tenantId), 'EX', 600)
+      const refresh = jwt.sign({ sub: String(u.id), sessionVersion: 1, authMethod: 'local', stage: 'refresh', jti }, signingKey, { expiresIn: 600 })
+      const { clientId } = await vault.register(identity, refresh, origin)
+      const { challengeId } = await vault.challenge(identity, clientId, origin)
+      const { sessionId } = await vault.unlock(identity, clientId, origin, challengeId, password, speakeasy.totp({ secret: mfaSecret, encoding: 'base32' }))
+      return { identity, clientId, sessionId, jti }
+    }
+    return { a, b, user, peer, outsider, m1, m2, redis, vault, service, nonces, portal }
+  }
+  type F = Awaited<ReturnType<typeof fixture>>
+  async function device(): Promise<{ privateKey: CryptoKey; jwk: JWK; jkt: string }> {
+    const { privateKey, publicKey } = await generateKeyPair('ES256')
+    const jwk = await exportJWK(publicKey)
+    return { privateKey, jwk, jkt: await calculateJwkThumbprint(jwk, 'sha256') }
+  }
+  const proof = (f: F, key: { privateKey: CryptoKey; jwk: JWK }, claims: object) => new SignJWT({ jti: randomBytes(16).toString('base64url'), iat: Math.floor(Date.now() / 1000), nonce: f.nonces.issue(), ...claims })
+    .setProtectedHeader({ alg: 'ES256', typ: 'dpop+jwt', jwk: key.jwk }).sign(key.privateKey)
+  async function connect(f: F, u: { id: number; tenantId: number }) {
+    const session = await f.portal(u), key = await device()
+    const verifier = randomBytes(48).toString('base64url')
+    const { code } = await f.service.authorize(session.identity, session.clientId, origin, { extensionId: EXT, redirectUri: extensionRedirectUri(EXT), state: randomBytes(24).toString('base64url'),
+      codeChallenge: createHash('sha256').update(verifier).digest('base64url'), deviceJkt: key.jkt, sessionId: session.sessionId })
+    const exchange = async () => f.service.token({ requestOrigin: `chrome-extension://${EXT}`, version: '0.1.0', url: `${BASE}/token`, proof: await proof(f, key, { htm: 'POST', htu: `${BASE}/token` }) },
+      { code, codeVerifier: verifier, redirectUri: extensionRedirectUri(EXT), extensionId: EXT })
+    return { session, key, code, exchange }
+  }
+  async function items(f: F, key: { privateKey: CryptoKey; jwk: JWK }, access: string, fixedProof?: string) {
+    const p = fixedProof ?? await proof(f, key, { htm: 'GET', htu: `${BASE}/items`, ath: sha256b64(access) })
+    return f.service.items({ requestOrigin: `chrome-extension://${EXT}`, version: '0.1.0', url: `${BASE}/items`, proof: p }, `DPoP ${access}`, {})
+  }
+  const audits = async (f: F, type: string) => Number((await db.$queryRaw<Array<{ n: bigint }>>`SELECT COUNT(*) AS n FROM vault_audit WHERE tenant_id=${f.a.id} AND event_type=${type}`)[0]!.n)
+
+  it('lists only ACL-visible metadata across users and tenants, never a value', async () => {
+    const f = await fixture(), c = await connect(f, f.user)
+    const { accessToken } = await c.exchange()
+    const page = await items(f, c.key, accessToken)
+    expect(page.items.map(i => `${i.kind}:${i.label}:${i.scope}`).sort()).toEqual(['pem:my-key:personal', 'secret:mine:personal', 'secret:ops-group:shared', 'secret:tenant-shared:shared'])
+    expect(JSON.stringify(page)).not.toMatch(/never-leaves|PRIVATE|encrypted|iv"/)
+    const stored = await db.$queryRaw<Array<{ payload: string }>>`SELECT CAST(payload AS CHAR) AS payload FROM vault_extension_tokens WHERE tenant_id=${f.a.id}`
+    expect(stored.map(s => s.payload).join()).not.toContain(accessToken)
+    expect(await audits(f, 'EXTENSION_AUTHORIZED')).toBe(1); expect(await audits(f, 'EXTENSION_CLIENT_REGISTERED')).toBe(1)
+  }, 20_000)
+  it('denies consent to a user without the permission and to the other tenant', async () => {
+    const f = await fixture()
+    await expect(connect(f, f.peer)).rejects.toMatchObject({ code: 'EXTENSION_FORBIDDEN' })
+    expect(await audits(f, 'EXTENSION_DENIED')).toBe(1)
+    await expect(connect(f, f.outsider)).rejects.toMatchObject({ code: 'EXTENSION_FORBIDDEN' })
+    expect(Number((await db.$queryRaw<Array<{ n: bigint }>>`SELECT COUNT(*) AS n FROM vault_extension_tokens WHERE tenant_id IN (${f.a.id},${f.b.id})`)[0]!.n)).toBe(0)
+  }, 20_000)
+  it('accepts each code and each DPoP proof once', async () => {
+    const f = await fixture(), c = await connect(f, f.user)
+    const { accessToken } = await c.exchange()
+    await expect(c.exchange()).rejects.toMatchObject({ code: 'EXTENSION_GRANT_INVALID' })
+    const p = await proof(f, c.key, { htm: 'GET', htu: `${BASE}/items`, ath: sha256b64(accessToken) })
+    await items(f, c.key, accessToken, p)
+    await expect(items(f, c.key, accessToken, p)).rejects.toMatchObject({ code: 'EXTENSION_DPOP_INVALID' })
+  }, 20_000)
+  it('cuts access on central logout and on device revocation', async () => {
+    const f = await fixture(), c = await connect(f, f.user)
+    const { accessToken } = await c.exchange()
+    await f.redis.del(`refresh:${c.session.jti}`)
+    await expect(items(f, c.key, accessToken)).rejects.toMatchObject({ code: 'EXTENSION_UNAUTHORIZED' })
+    const d = await connect(f, f.user), second = await d.exchange()
+    await f.service.revokeDevice(d.session.identity, origin, d.key.jkt)
+    await expect(items(f, d.key, second.accessToken)).rejects.toMatchObject({ code: 'EXTENSION_UNAUTHORIZED' })
+    expect(await audits(f, 'DEVICE_REVOKED')).toBe(1)
+  }, 20_000)
+  it('revoking the permission through two managers revokes devices and authorizations', async () => {
+    const f = await fixture(), c = await connect(f, f.user)
+    const { accessToken } = await c.exchange()
+    const admin = new VaultAdministrationService(f.vault, entropy), p1 = await f.portal(f.m1), p2 = await f.portal(f.m2)
+    const { proposalId } = await admin.propose(p1.identity, p1.clientId, origin, p1.sessionId, { kind: 'grant', userId: f.user.id, action: 'extension', enabled: false })
+    await admin.approve(p2.identity, p2.clientId, origin, p2.sessionId, proposalId)
+    await expect(items(f, c.key, accessToken)).rejects.toMatchObject({ status: 401 })
+    const rows = await db.$queryRaw<Array<{ state: string }>>`SELECT state FROM vault_extension_devices WHERE tenant_id=${f.a.id} AND user_id=${f.user.id}`
+    expect(rows.map(r => r.state)).toEqual(['REVOKED'])
+    expect(Number((await db.$queryRaw<Array<{ n: bigint }>>`SELECT COUNT(*) AS n FROM vault_extension_tokens WHERE tenant_id=${f.a.id} AND user_id=${f.user.id}`)[0]!.n)).toBe(0)
+  }, 30_000)
+  it('keeps the grant CHECK and two-person separation for extension', async () => {
+    const f = await fixture()
+    await expect(db.$executeRaw`INSERT INTO vault_entitlements(tenant_id,user_id,action,granted_by,approved_by,enabled) VALUES(${f.a.id},${f.peer.id},'autofill',${f.m1.id},${f.m2.id},TRUE)`).rejects.toThrow()
+    await expect(db.$executeRaw`INSERT INTO vault_entitlements(tenant_id,user_id,action,granted_by,approved_by,enabled) VALUES(${f.a.id},${f.peer.id},'extension',${f.m1.id},${f.m1.id},TRUE)`).rejects.toThrow()
+    await expect(db.$executeRaw`INSERT INTO vault_extension_devices(tenant_id,user_id,jkt,extension_id,state) VALUES(${f.a.id},${f.peer.id},${'x'.repeat(43)},${EXT},'PENDING')`).rejects.toThrow()
+  })
+})

@@ -1,4 +1,5 @@
 import type { VaultAuthMethod, VaultAuthority, VaultEvent, VaultIdentity, VaultOrigin, VaultSecret, VaultAction, VaultChange } from './vault-domain.js'
+import type { ExtensionRecords } from './vault-extension-domain.js'
 export type RecordKind = 'client' | 'challenge' | 'session' | 'operation' | 'provider'
 export interface VaultTransaction {
   authority: VaultAuthority
@@ -11,6 +12,8 @@ export interface VaultTransaction {
   propose(id: string, change: VaultChange): Promise<void>
   approve(id: string): Promise<{ change: VaultChange; proposedBy: number }>
   audit(event: VaultEvent): Promise<void>
+  /** NA-0183 extension records, in the same locked transaction as the authority read. */
+  extension?: ExtensionRecords
 }
 export interface VaultStore { transaction<T>(identity: VaultIdentity, run: (tx: VaultTransaction) => Promise<T>): Promise<T> }
 export interface OriginVerifier {

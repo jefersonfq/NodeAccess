@@ -83,7 +83,11 @@ Unitários do domínio e `core` da extensão; integração Fastify + MySQL + Red
 
 ## Baseline
 
-A registrar antes da primeira alteração de aplicação.
+Registrada em 2026-11-20 sobre o master `b4e8cccab` (branch em `f15da8517`, só documentos acima da base):
+- Ran: `vitest run` de `apps/backend/src/modules/vault-security`, `apps/backend/src/modules/auth` e `apps/frontend/src/views/vault-views.test.ts`: 36 arquivos, 471 PASS / 0 FAIL (33 skipped, reais opt-in).
+- Ran: `npm run test:vault:real` (MySQL + Redis reais): 32 PASS / 0 FAIL.
+- Ran: `npm run test:vault:frontend` (Chromium HTTPS): PASS (como root exige `PLAYWRIGHT_BROWSERS_PATH=/home/jeferson/.cache/ms-playwright`).
+- Sonar: `npm run validate:sonar` PASS em `723b80dc0` (NA-0184; 4164 testes, gate OK, 0 achados inesperados). Diff de `apps/ packages/ tools/ scripts/` entre `723b80dc0` e `b4e8cccab` vazio, então vale como baseline. Nova execução exige Node 24 e os tokens digitados pelo responsável; fica para o candidato da E1.
 
 ## Rollback ou recuperação
 
