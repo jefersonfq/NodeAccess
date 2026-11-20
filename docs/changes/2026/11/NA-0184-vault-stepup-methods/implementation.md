@@ -99,3 +99,11 @@ Ran: checks da PR74 no 0d0bd8cf3: 8 PASS, 3 FAIL. Corrigido:
 - `static-quality`: aviso de tipo de retorno em `vault-provider.ts` (ESLint com zero avisos); só anotação de tipo.
 - `static-and-secrets`: os falsos positivos revisados de PEM em `locales/en.json` e `locales/pt-BR.json` (NA-0179) estão presos ao hash do arquivo inteiro; as linhas revisadas (1051/1054) não mudaram e o diff não toca linhas `BEGIN`. Atualizado só o `fileSha256` dos dois registros em `security/gitleaks-fixtures.json`. Ran: `npm run security:scan` PASS (0 não revisados, 0 achados Semgrep).
 - `manual`: o capítulo **hosts** acompanha o painel e o serviço do cofre. O texto afirmava que o cofre exige conta local; atualizado pelo procedimento da skill do manual (requisitos, passo 2 por método, tolerância de foco na confirmação, recuperações) e registrado em `docs/OPERATIONS-manual-pilot.md`. Capturas não refeitas (painel local inalterado; sem captura do diálogo do cofre). Ran: `npm run test:manual` PASS e `npm run manual:check-reviewed` PASS.
+
+### 2026-11-20T01:45:00-03:00 — Aprovação do merge e atualização da branch
+
+Pedido: o usuário aprovou o merge da PR74. O GitHub exigiu a branch atualizada com master; o merge de master trouxe só documentos (diff de `apps/ packages/ tools/` contra 723b80dc0 vazio) e a mensagem foi ajustada ao padrão de governança.
+Nos checks seguintes, `dependencies` falhou por um alerta publicado em 2026-11-19 (GHSA-7589-6fvf-x4pw, ReDoS em `effect` <= 3.22.0, dependência transitiva de `prisma` via `@prisma/config`; afeta também master). Correção mínima: override `effect` 3.22.4 sob `@prisma/config` (mesmo padrão do override existente; 3.22.4 tem a correção e foi publicada há mais de duas semanas; 3.22.5 é de ontem e foi evitada).
+Ran: `npm audit` 0 vulnerabilidades; `prisma validate` e `prisma generate` OK com o override.
+Skipped: `npm run security:check` local falha no `npm sbom` do npm 11 local por overrides antigos (glob, minimatch, magicast), não relacionados; o CI usa npm 12.2.1 e é a referência. `validate:sonar` não reexecutado: a mudança é só de versão de dependência de ferramenta (sem código da aplicação).
+Próximo: checks remotos e merge.
