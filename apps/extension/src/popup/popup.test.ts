@@ -1,0 +1,70 @@
+import { describe, expect, it, vi } from 'vitest'
+import { createRenderer, createSSRApp, nextTick, ssrContextKey, type Component } from 'vue'
+import { renderToString } from 'vue/server-renderer'
+import App from './App.vue'
+import { ExtensionError, type ExtensionClient } from '../core/client'
+import { message } from './messages'
+
+interface HostNode { parent: HostNode | null; children: HostNode[] }
+const node = (): HostNode => ({ parent: null, children: [] })
+interface Popup { phase: string; items: unknown[]; error: string; query: string; next: string | null; recents: string[]
+  search(more?: boolean): Promise<void>; connect(): Promise<void>; disconnect(): Promise<void>; openItem(item: unknown): Promise<void> }
+function mount(props: Record<string, unknown>) {
+  const renderer = createRenderer<HostNode, HostNode>({ createElement: node, createText: node, createComment: node, setText: () => {}, setElementText: () => {}, patchProp: () => {},
+    parentNode: n => n.parent, nextSibling: () => null, insert: (n, p) => { n.parent = p; p.children.push(n) }, remove: n => { if (n.parent) n.parent.children = n.parent.children.filter(c => c !== n) } })
+  const app = renderer.createApp({ ...(App as Component), render: () => null }, props); app.provide(ssrContextKey, { modules: new Set() })
+  const vm = app.mount(node()), state = (vm.$ as unknown as { setupState: Popup }).setupState
+  return { state, unmount: () => app.unmount(), html: () => renderToString(createSSRApp({ ...(App as Component), setup: () => state }, props)) }
+}
+const flush = async (): Promise<void> => { for (let i = 0; i < 6; i++) { await Promise.resolve(); await nextTick() } }
+const item = { kind: 'secret' as const, sourceId: 3, label: 'db', description: null, scope: 'shared' as const, portalPath: '/vault?kind=secret&id=3' }
+function fakeClient(connected: boolean) {
+  return {
+    connect: vi.fn(), connected: vi.fn().mockResolvedValue(connected), disconnect: vi.fn().mockResolvedValue(undefined), capabilities: vi.fn(),
+    search: vi.fn().mockResolvedValue({ items: [item], nextCursor: '50' }), remember: vi.fn().mockResolvedValue(undefined),
+    recents: vi.fn().mockResolvedValue(['secret:3']), portalUrl: vi.fn((p: string) => `https://vault.example.test${p}`),
+  }
+}
+const asClient = (c: ReturnType<typeof fakeClient>): ExtensionClient => c
+
+describe('NA-0183 extension popup', () => {
+  it('offers to connect and lists metadata once the service worker connects', async () => {
+    const client = fakeClient(false), requestConnection = vi.fn().mockResolvedValue({ ok: true }), open = vi.fn().mockResolvedValue(undefined)
+    const f = mount({ client: asClient(client), requestConnection, open }); await flush()
+    expect(f.state.phase).toBe('disconnected')
+    expect(await f.html()).toContain('vaultnaccess-connect')
+    await f.state.connect()
+    expect(requestConnection).toHaveBeenCalled(); expect(f.state.phase).toBe('connected'); expect(f.state.items).toEqual([item])
+    const html = await f.html()
+    expect(html).toContain('db'); expect(html).not.toMatch(/accessToken|DPoP/)
+    await f.state.search(true)
+    expect(client.search).toHaveBeenLastCalledWith('', undefined, '50')
+    await f.state.openItem(item)
+    expect(client.remember).toHaveBeenCalledWith('secret:3'); expect(open).toHaveBeenCalledWith('https://vault.example.test/vault?kind=secret&id=3')
+    await f.state.disconnect()
+    expect(f.state.phase).toBe('disconnected'); expect(f.state.items).toEqual([])
+    f.unmount()
+  })
+  it('resumes a live session and drops back to connect when the server refuses', async () => {
+    const client = fakeClient(true)
+    const f = mount({ client: asClient(client), requestConnection: vi.fn(), open: vi.fn() }); await flush()
+    expect(f.state.phase).toBe('connected'); expect(f.state.recents).toEqual(['secret:3'])
+    client.search.mockRejectedValueOnce(new ExtensionError('denied'))
+    await f.state.search()
+    expect(f.state.phase).toBe('disconnected'); expect(f.state.error).toBe('denied')
+    f.unmount()
+  })
+  it('reports a failed or cancelled connection', async () => {
+    const f = mount({ client: asClient(fakeClient(false)), requestConnection: vi.fn().mockResolvedValue({ ok: false, reason: 'cancelled' }), open: vi.fn() }); await flush()
+    await f.state.connect()
+    expect(f.state.phase).toBe('disconnected'); expect(f.state.error).toBe('cancelled')
+    const g = mount({ client: asClient(fakeClient(false)), requestConnection: vi.fn().mockRejectedValue(new Error('gone')), open: vi.fn() }); await flush()
+    await g.state.connect(); expect(g.state.error).toBe('unavailable')
+    f.unmount(); g.unmount()
+  })
+  it('has every message in both languages', () => {
+    const pt = message('pt-BR'), en = message('en-US')
+    expect(Object.keys(pt.errors)).toEqual(Object.keys(en.errors))
+    expect(pt.connect).not.toBe(en.connect)
+  })
+})
