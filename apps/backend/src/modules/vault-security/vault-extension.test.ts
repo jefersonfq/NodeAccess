@@ -264,6 +264,18 @@ describe('NA-0183 extension service', () => {
     await expect(h.service.items({ requestOrigin: `chrome-extension://${EXT}`, version: '0.1.0', url: ITEMS_URL, proof: 'x' }, `Bearer ${accessToken}`, {}))
       .rejects.toMatchObject({ code: 'EXTENSION_UNAUTHORIZED' })
   })
+  it('accepts resource GETs without Origin (Chromium omits it) but never a foreign one', async () => {
+    const h = harness(), c = await connect(h)
+    const { accessToken } = await c.exchange()
+    const request = async (requestOrigin: unknown) => h.service.items({ requestOrigin, version: '0.1.0', url: ITEMS_URL,
+      proof: await proof(c.device, { htm: 'GET', htu: ITEMS_URL, nonce: h.nonces.issue(), ath: sha256b64(accessToken) }) }, `DPoP ${accessToken}`, {})
+    await expect(request(undefined)).resolves.toMatchObject({ items: [expect.anything()] })
+    await expect(request('https://evil.example')).rejects.toMatchObject({ code: 'EXTENSION_CLIENT_INVALID' })
+    await expect(request(`chrome-extension://${'p'.repeat(32)}`)).rejects.toMatchObject({ code: 'EXTENSION_CLIENT_INVALID' })
+    const fresh = await connect(h)
+    await expect(h.service.token({ requestOrigin: undefined, version: '0.1.0', url: TOKEN_URL, proof: await proof(fresh.device, { htm: 'POST', htu: TOKEN_URL, nonce: h.nonces.issue() }) },
+      { code: fresh.code, codeVerifier: fresh.verifier, redirectUri: extensionRedirectUri(EXT), extensionId: EXT })).rejects.toMatchObject({ code: 'EXTENSION_CLIENT_INVALID' })
+  })
   it('refuses a request addressed to another portal origin', async () => {
     const h = harness(), c = await connect(h)
     const { accessToken } = await c.exchange()

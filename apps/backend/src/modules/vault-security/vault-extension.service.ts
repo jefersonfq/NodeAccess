@@ -58,12 +58,17 @@ export class VaultExtensionService {
   private allowed(extensionId: string, redirectUri: string): void {
     if (!this.config.extensionIds.includes(extensionId) || redirectUri !== extensionRedirectUri(extensionId)) throw new VaultError('EXTENSION_CLIENT_INVALID', 400)
   }
-  /** Origin and minimum version are checked before any token is looked up. */
-  private client(req: ExtensionRequest): string {
+  /**
+   * Origin and minimum version are checked before any token is looked up. Chromium sends `Origin` on the
+   * extension's POSTs but omits it on GETs made with host permissions, so it is optional only on GET; when
+   * present it must be an allowed extension. The binding itself is DPoP + authorization + device.
+   */
+  private client(req: ExtensionRequest, originRequired: boolean): string | null {
     this.enabled()
+    if (!versionAtLeast(typeof req.version === 'string' ? req.version : undefined, this.config.minVersion)) throw new VaultError('EXTENSION_UPGRADE_REQUIRED', 426)
+    if (req.requestOrigin === undefined && !originRequired) return null
     const match = typeof req.requestOrigin === 'string' ? /^chrome-extension:\/\/([a-p]{32})$/.exec(req.requestOrigin) : null
     if (!match?.[1] || !this.config.extensionIds.includes(match[1])) throw new VaultError('EXTENSION_CLIENT_INVALID', 400)
-    if (!versionAtLeast(typeof req.version === 'string' ? req.version : undefined, this.config.minVersion)) throw new VaultError('EXTENSION_UPGRADE_REQUIRED', 426)
     return match[1]
   }
   private records(tx: VaultTransaction): ExtensionRecords { return tx.extension ?? unavailable() }
@@ -97,7 +102,7 @@ export class VaultExtensionService {
 
   /** Public code exchange. The code is burned in its own committed transaction before any other check. */
   async token(req: ExtensionRequest, input: TokenInput): Promise<{ accessToken: string; tokenType: 'DPoP'; expiresAt: number; serverNow: number }> {
-    const extensionId = this.client(req)
+    const extensionId = this.client(req, true)
     if (extensionId !== input.extensionId) throw new VaultError('EXTENSION_CLIENT_INVALID', 400)
     this.allowed(input.extensionId, input.redirectUri)
     const jkt = await this.dpop.verify(req.proof, { method: 'POST', url: req.url })
@@ -144,7 +149,7 @@ export class VaultExtensionService {
 
   /** DPoP-bound authorization for one API request; returns the authority only to build the response. */
   private async resource(req: ExtensionRequest, authorization: unknown): Promise<{ identity: VaultIdentity; authority: VaultAuthority; access: ExtensionAccess }> {
-    const extensionId = this.client(req)
+    const extensionId = this.client(req, false)
     const match = typeof authorization === 'string' ? /^DPoP ([A-Za-z0-9_-]{43})$/.exec(authorization) : null
     if (!match?.[1]) throw new VaultError('EXTENSION_UNAUTHORIZED', 401)
     const token = match[1]
@@ -154,7 +159,7 @@ export class VaultExtensionService {
     try {
       return await this.store.transaction(identity, async tx => {
         const row = await this.records(tx).get<ExtensionAccess>('access', token)
-        if (!row || row.jkt !== jkt || row.value.expiresAt <= tx.now() || row.value.extensionId !== extensionId) throw new VaultError('EXTENSION_UNAUTHORIZED', 401)
+        if (!row || row.jkt !== jkt || row.value.expiresAt <= tx.now() || (extensionId !== null && row.value.extensionId !== extensionId)) throw new VaultError('EXTENSION_UNAUTHORIZED', 401)
         await this.admit(tx, identity, row.value, jkt, req.url)
         await tx.limit('extension-api', 60_000, 120)
         const device = await this.records(tx).device(jkt)
