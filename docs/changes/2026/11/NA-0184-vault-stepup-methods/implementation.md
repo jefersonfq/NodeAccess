@@ -107,3 +107,12 @@ Nos checks seguintes, `dependencies` falhou por um alerta publicado em 2026-11-1
 Ran: `npm audit` 0 vulnerabilidades; `prisma validate` e `prisma generate` OK com o override.
 Skipped: `npm run security:check` local falha no `npm sbom` do npm 11 local por overrides antigos (glob, minimatch, magicast), não relacionados; o CI usa npm 12.2.1 e é a referência. `validate:sonar` não reexecutado: a mudança é só de versão de dependência de ferramenta (sem código da aplicação).
 Próximo: checks remotos e merge.
+
+### 2026-11-20T14:20:00-03:00 — Realinhamento da branch e gate de imagens
+
+Pedido: retomar a frente da extensão. Como a NA-0183 depende desta frente, o primeiro passo foi concluir a PR74. A branch local tinha divergido do remoto: o merge local `fbdfadf98` está no padrão de governança e o remoto tinha `33ca0ff22` com o mesmo conteúdo. O realinhamento ao remoto reintroduziu esse merge fora do padrão e o `change-governance` falhou no `7293031f1`; a branch voltou para `fbdfadf98` + `66d8529b7` (governance local PASS), e o push forçado com lease foi aprovado pelo responsável.
+No mesmo run, `upgrade-restore` reprovou a imagem mysql: o OL 9.9 trouxe `openssl-libs` 1:3.5.9-1.0.1.el9_9 e a triagem FIPS (ELSA-2026-50075/500448) estava presa à 3.5.8-2. O responsável escolheu renovar só a versão das duas entradas, com evidência e lacuna (CVE-2026-84782 sem errata el9_9 explícita) em `NA-0181-image-vulnerability-gate/image-gate-review.md`.
+Ran: rebuild local das 7 imagens (mysql sem cache) e `npm run security:images`, 7/7 PASS; `node --test scripts/security/*policy.test.mjs` 159 PASS; `node scripts/change-governance.mjs` local PASS. Os demais checks do `7293031f1` (conteúdo de aplicação idêntico) passaram, incluindo `sonar-real`.
+Revisão independente (subagente): aprovada com ajustes; corrigidas a afirmação sobre CVEs no changelog e a leitura do Grype, e `reviewedAt` atualizado. Pendência fora do escopo: `image-gate-review.md` (Garantias) diz que a triagem compara faixa de versões e CPEs, mas `reviewedImageFinding` não compara isso.
+Skipped: `validate:sonar` (sem código de aplicação; só triagem e documentos).
+Próximo: revisão independente da triagem, push, checks e merge; depois, META-005 no master e a E1 (NA-0183).
