@@ -11,7 +11,8 @@ import { chromium } from 'playwright'
 
 const ROOT = resolve(import.meta.dirname, '../..')
 const PORTAL = 'https://vault.example.test'
-const OUT = resolve(ROOT, '.tmp/NA-0183/extension-smoke')
+// Coverage runs (tools/coverage/browser.mjs) supply a private artifacts directory and the pinned Chromium.
+const OUT = process.env.ARTIFACTS_DIR ? resolve(process.env.ARTIFACTS_DIR) : resolve(ROOT, '.tmp/NA-0183/extension-smoke')
 mkdirSync(OUT, { recursive: true })
 const result = { startedAt: new Date().toISOString(), checks: {}, status: 'failed' }
 const check = (name, ok, detail = '') => { result.checks[name] = ok ? 'PASS' : `FAIL ${detail}`.trim(); if (!ok) throw new Error(`${name} ${detail}`) }
@@ -60,7 +61,7 @@ try {
   })
   await new Promise(done => server.listen(0, '127.0.0.1', done))
   const port = server.address().port
-  context = await chromium.launchPersistentContext(join(profile, 'browser'), { channel: 'chromium', headless: true,
+  context = await chromium.launchPersistentContext(join(profile, 'browser'), { channel: 'chromium', headless: true, ...(process.env.PLAYWRIGHT_EXECUTABLE_PATH ? { executablePath: process.env.PLAYWRIGHT_EXECUTABLE_PATH } : {}),
     args: [`--disable-extensions-except=${dist}`, `--load-extension=${dist}`, `--host-resolver-rules=MAP vault.example.test:443 127.0.0.1:${port}`, '--ignore-certificate-errors'] })
   const worker = context.serviceWorkers()[0] ?? await context.waitForEvent('serviceworker', { timeout: 15_000 })
   const id = new URL(worker.url()).host

@@ -109,7 +109,7 @@ export async function run({ root = resolve(fileURLToPath(new URL('../..', import
     // Same scanner configuration and rules for both source snapshots, even when
     // the repository base predates adoption of Sonar (explicit bootstrap).
     const configuration = materializeBaseConfiguration(root, baseRoot)
-    summary.scannerConfiguration = { sha256: configuration.sha256 }
+    summary.scannerConfiguration = { sha256: configuration.sha256, baseBootstrapped: configuration.bootstrapped ?? [] }
     const scanSnapshot = async (directory, settings, revision, stage) => {
       const analysis = await analyze({ root: directory, settings, settingsHash: configuration.sha256, revision, instance, tokens, output, stage,
         onConfiguration: evidence => { summary.scannerConfiguration[stage] = evidence } })

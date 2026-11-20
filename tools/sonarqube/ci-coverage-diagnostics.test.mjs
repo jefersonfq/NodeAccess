@@ -98,7 +98,7 @@ test('CI revalidates generic stack coordinates and keeps structured flow failure
 
 test('additional harness diagnostics preserve exact names and capture modes only', t => {
   const f = fixture(t)
-  for (const name of ['ha', 'audit-input', 'tacacs-tls', 'highlight-budget']) {
+  for (const name of ['ha', 'audit-input', 'tacacs-tls', 'highlight-budget', 'vault-extension']) {
     f.write({ collectors: { browser: { error: `Browser coverage harness failed: ${name}`, harnesses: [
       { name, exitCode: 7, timedOut: false, coverageMode: 'node-only', diagnostic: { category: 'ASSERTION', line: 2, column: 3, raw: 'PRIVATE' } },
       { name: `${name}-PRIVATE`, coverageMode: 'PRIVATE' },

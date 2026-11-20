@@ -82,6 +82,55 @@ describe('NA-0183 extension consent page', () => {
     expect(await f.html()).toContain('vaultExtension.invalidRequest')
     f.unmount()
   })
+  it('derives the vault identity only from a secure, non-delegated portal session', async () => {
+    const f = mount<Connect>(ExtensionConnectView); await flush()
+    const options = (n: number) => mocks.create.mock.calls[n]?.[0] as { identity: () => unknown }
+    const identity = options(0).identity
+    expect(identity()).toEqual({ userId: 41, tenantId: 7, accessToken: 'portal-fixture', refreshToken: 'origin-fixture', origin: 'https://vault.example' })
+    auth.user.actingTenantId = 9; expect(identity()).toBeNull(); auth.user.actingTenantId = undefined
+    auth.isManagingTenant = true; expect(identity()).toBeNull(); auth.isManagingTenant = false
+    f.unmount()
+    vi.stubGlobal('isSecureContext', false)
+    const insecure = mount<Connect>(ExtensionConnectView); await flush()
+    expect(options(1).identity()).toBeNull()
+    expect(await insecure.html()).toContain('vaultDelivery.https')
+    insecure.unmount()
+  })
+  it('renders the refusal, server errors and the returning state', async () => {
+    const f = mount<Connect>(ExtensionConnectView); await flush()
+    state.error = 'denied'; expect(await f.html()).toContain('vaultExtension.denied')
+    state.error = 'unavailable'; expect(await f.html()).toContain('vaultDelivery.errors.unavailable')
+    state.error = null; f.state.password = 'pw'; f.state.token = '123456'; await f.state.allow()
+    expect(await f.html()).toContain('vaultExtension.returning')
+    await f.state.allow(); expect(mocks.unlock).toHaveBeenCalledTimes(2)
+    f.unmount()
+  })
+  it('drives the provider step-up callbacks: redirect, Google target, TOTP prompt and cancel', async () => {
+    const { openVaultProviderWindow } = await import('@/services/vault-provider-confirm')
+    state.stepUp = 'provider'
+    type Steps = { redirect(url: string, signal: AbortSignal): unknown; google(clientId: string, nonce: string, signal: AbortSignal): Promise<string>; totp(signal: AbortSignal): Promise<string> }
+    let steps: Steps | undefined
+    mocks.provider.mockImplementation((options: Steps) => { steps = options; return Promise.resolve() })
+    const f = mount<Connect & { totpPending: boolean; googlePending: boolean; submitTotp(): void; cancelProvider(): void }>(ExtensionConnectView); await flush()
+    expect(await f.html()).toContain('vault-extension-provider')
+    await f.state.allowWithProvider()
+    const abort = new AbortController()
+    steps!.redirect('https://idp.example/start', abort.signal)
+    expect(openVaultProviderWindow).toHaveBeenCalledWith('https://idp.example/start', abort.signal)
+    await expect(steps!.google('client', 'nonce', abort.signal)).rejects.toMatchObject({ reason: 'unavailable' })
+    expect(f.state.googlePending).toBe(false)
+    const code = steps!.totp(abort.signal)
+    expect(f.state.totpPending).toBe(true)
+    expect(await f.html()).toContain('vaultDelivery.unlock')
+    f.state.token = '654321'; f.state.submitTotp()
+    await expect(code).resolves.toBe('654321')
+    expect(f.state.token).toBe(''); expect(f.state.totpPending).toBe(false)
+    const cancelled = steps!.totp(abort.signal)
+    abort.abort()
+    await expect(cancelled).rejects.toMatchObject({ reason: 'locked' })
+    f.state.submitTotp()
+    f.unmount()
+  })
 })
 
 interface Devices { available: boolean; devices: unknown[]; error: string; revoke(jkt: string): Promise<void>; load(): Promise<void> }
