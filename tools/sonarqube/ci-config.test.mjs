@@ -65,5 +65,5 @@ test('effective context proves configured scope and discards every non-allowlist
 test('current repository scanner settings satisfy the strict CI contract', () => {
   const config = readConfiguration(new URL('../../sonar-project.properties', import.meta.url))
   assert.equal(config.properties['sonar.python.coverage.reportPaths'], 'coverage/python.xml')
-  assert.equal(config.properties['sonar.typescript.tsconfigPaths'], 'apps/backend/tsconfig.json,apps/frontend/tsconfig.json,packages/shared/tsconfig.json')
+  assert.equal(config.properties['sonar.typescript.tsconfigPaths'], 'apps/backend/tsconfig.json,apps/frontend/tsconfig.json,apps/extension/tsconfig.json,packages/shared/tsconfig.json')
 })
