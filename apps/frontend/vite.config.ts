@@ -2,8 +2,17 @@ import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
 import { resolve } from 'node:path'
 import { createRequire } from 'node:module'
+import { readFileSync } from 'node:fs'
 const { manualPlugin } = createRequire(import.meta.url)('../../tools/manual/build.cjs')
 const { securityCenterPlugin } = createRequire(import.meta.url)('../../tools/security-center/build.cjs')
+
+// Opt-in local HTTPS (NA-0183 homologation: the vault and the extension refuse plain HTTP). Only when both
+// paths are set; the API sees the browser's scheme/host through forwarded headers (backend TRUST_PROXY=true).
+const devCert = process.env.NODEACCESS_DEV_HTTPS_CERT, devKey = process.env.NODEACCESS_DEV_HTTPS_KEY
+const devHttps = devCert && devKey ? { cert: readFileSync(devCert), key: readFileSync(devKey) } : undefined
+const forwarded = devHttps
+  ? { headers: { 'x-forwarded-proto': 'https', 'x-forwarded-host': process.env.NODEACCESS_DEV_HTTPS_HOST ?? '127.0.0.1:5173' } }
+  : {}
 
 export default defineConfig({
   plugins: [vue(), manualPlugin(), securityCenterPlugin()],
@@ -50,6 +59,7 @@ export default defineConfig({
   },
   server: {
     port: 5173,
+    ...(devHttps ? { https: devHttps } : {}),
 
     
     allowedHosts: [
@@ -60,18 +70,22 @@ export default defineConfig({
       '/api/v1/hosts/test-connection': {
         target: 'http://localhost:3001',
         changeOrigin: true,
+        ...forwarded,
       },
       '/api/v1/tunnels': {
         target: 'http://localhost:3001',
         changeOrigin: true,
+        ...forwarded,
       },
       '/api/v1/web-access': {
         target: 'http://localhost:3001',
         changeOrigin: true,
+        ...forwarded,
       },
       '/api': {
         target: 'http://localhost:3000',
         changeOrigin: true,
+        ...forwarded,
       },
       '/ws': {
         target:     'ws://localhost:3001',

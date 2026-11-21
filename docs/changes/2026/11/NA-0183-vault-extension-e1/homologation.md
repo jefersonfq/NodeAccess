@@ -9,6 +9,16 @@ Executar com o backend e o portal reais, em HTTPS, a partir do commit da PR75. C
 3. Backend: `VAULT_EXTENSION_ENABLED=true`, `VAULT_EXTENSION_IDS=<ID>`; reiniciar.
 4. Usuários: **U1** (local) e, se houver, **U2** (LDAP ou OIDC/Google, com `VAULT_STEP_UP_EXTERNAL_ENABLED=true`); dois gestores **G1** e **G2** distintos de U1/U2. U1 deve ver ao menos um Secret pessoal e um compartilhado; ter um item que U1 **não** vê.
 
+## Homologação local (portal de desenvolvimento)
+
+O cofre e a extensão recusam HTTP. O servidor de desenvolvimento do portal tem um modo HTTPS opcional, ligado só quando `NODEACCESS_DEV_HTTPS_CERT` e `NODEACCESS_DEV_HTTPS_KEY` apontam para um certificado e uma chave; nesse modo o proxy envia `x-forwarded-proto: https` e `x-forwarded-host` (padrão `127.0.0.1:5173`, ou `NODEACCESS_DEV_HTTPS_HOST`).
+
+1. `apps/backend/.env` (o servidor em desenvolvimento lê este arquivo, não o da raiz): `TRUST_PROXY=true`, `VAULT_EXTENSION_ENABLED=true`, `VAULT_EXTENSION_IDS=<ID da extensão>`; reiniciar o servidor.
+2. Certificado local autoassinado (fora do Git, em `.tmp/`) e o portal com `NODEACCESS_DEV_HTTPS_CERT=… NODEACCESS_DEV_HTTPS_KEY=… npm run dev`; abrir `https://127.0.0.1:5173`.
+3. Habilitar o cofre no tenant com `tools/vault-security/manage.mjs bootstrap` (dry-run e depois `--apply`), com a origem `https://127.0.0.1:5173` e dois gestores com TOTP.
+4. Extensão gerada para `https://127.0.0.1:5173` com chave fixa (`VAULTNACCESS_MANIFEST_KEY`), para o ID não mudar entre instalações.
+5. Chrome num perfil separado, só para o teste, aceitando o certificado local: `--user-data-dir=<pasta temporária> --ignore-certificate-errors`. Não usar esse perfil para navegar.
+
 ## Casos
 
 | # | Passo | Esperado |

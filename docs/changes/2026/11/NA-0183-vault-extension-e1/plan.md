@@ -118,6 +118,8 @@ Flag `vault-extension` desligada nega autorizações e invalida clientes da exte
 - Minimização (INFO-2): a lista mostra nome e e-mail (para distinguir homônimos) só a gestores, com confirmação, sem cache e só na memória da página até o bloqueio.
 - O cliente do cofre só é registrado quando o gestor abre a seção (**Administrar permissões**), para não consumir a cota horária de clientes a cada visita.
 
+2026-11-21 (homologação local, decisão do responsável): modo HTTPS opcional no servidor de desenvolvimento do portal (`apps/frontend/vite.config.ts`), ligado só com `NODEACCESS_DEV_HTTPS_CERT`/`NODEACCESS_DEV_HTTPS_KEY`; o proxy envia `x-forwarded-proto`/`x-forwarded-host` para o servidor com `TRUST_PROXY=true`. Sem as variáveis, nada muda. Não afeta build nem produção.
+
 ## Aprovação
 
 Decisão: `GO_WITH_RISKS`
