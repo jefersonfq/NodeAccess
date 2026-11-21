@@ -22,16 +22,24 @@ Execução final em 2026-11-20 sobre a árvore do commit de revisão (backend, p
 - Ran: revisão independente de segurança (subagente): APROVADO COM AJUSTES, ajustes aplicados.
 - Skipped: `validate:sonar` (Node 24 e tokens do responsável); fluxo com backend real no navegador (homologação); `test:terminal-experience:web` (terminal não tocado).
 
+PR75 (2026-11-20/21), checks remotos sobre `52b7dc4e4` (merge com o master `da0eba7ed`): 17 PASS, 1 skipped (`publish-windows-release`). `sonar-real` com SonarQube efêmero: Quality Gate OK, cobertura de código novo 87,1% (≥ 80%), duplicação 0,48%, 0 violações novas, 0 hotspots.
+Antes disso a CI acusou, e foi corrigido:
+- contrato estrito do scanner fixava a lista de `tsconfigPaths` sem a extensão (`bbfb2c397`);
+- cobertura de código novo 65,1%: smoke da extensão registrado como harness `vault-extension` (`node-only`) e testes unitários do adaptador Chromium, service worker, repositório SQL e página de consentimento; local `test:coverage --base b4e8cccab` 87,5% (`1c635b646`);
+- análise da base abortava porque o master não tem `apps/extension`: a CI cria só no worktree descartável da base as raízes/tsconfig novos (contenção verificada antes de criar; registrado em `scannerConfiguration.baseBootstrapped`) (`1c635b646`);
+- 4 violações novas (S7773, S8786, S4036, S2871) corrigidas no código, sem baseline, e lint dos testes novos (`52b7dc4e4`).
+- Ran local após as correções: `lint:changed`, tsc x3, vitest extensão + vault-security + componentes do cofre 333 PASS, `test:sonar` 255/255, `test:extension:web` 12/12, `security:scan` PASS. Em `tools/coverage`, `preflight.test.mjs` (readonly-cache) falha só ao rodar como root; arquivo inalterado e PASS na CI.
+
 ## Recuperação
 
 `VAULT_EXTENSION_ENABLED=false` corta tudo de imediato. Desfazer a migração: remover linhas `extension` de `vault_entitlements`, apagar as duas tabelas novas e restaurar o CHECK (`docs/OPERATIONS-vault-extension.md`). Revert dos commits da frente.
 
 ## Pendências
 
-- `npm run validate:sonar` no candidato: exige Node 24 e os tokens digitados pelo responsável (bloqueio, não aprovação).
-- Homologação com o backend real no navegador (conexão, negação sem permissão, revogação); o ensaio automatizado usa portal simulado.
+- `npm run validate:sonar` local no candidato: exige Node 24 e os tokens digitados pelo responsável (bloqueio, não aprovação; o `sonar-real` da CI não o substitui).
+- Homologação com o backend real no navegador: roteiro em `homologation.md`; o ensaio automatizado usa portal simulado.
 - Planilha: META-005 (NA-0184 entregue) e META-017 (E1) sem ferramenta de `.xlsx` no ambiente; uma escrita única quando houver.
-- Push, PR e checks remotos com autorização do responsável.
+- Merge da PR75 após Sonar local e homologação, com autorização do responsável.
 - Fora da frente: `tacacs-tls.test.ts` (timeout) falha também no master sem alterações; `npm run lint` completo estoura memória do V8 localmente (o gate da CI é `lint:changed`, PASS).
 
 ## Diário de interações
@@ -57,3 +65,7 @@ NA-0184 mergeada (PR74) e encerrada. Branch avançada por fast-forward até o ma
 Pedido: seguir a frente fim a fim. Backend, portal e extensão implementados em commits separados (`ee4620d5e`, `ec6e055c1`, `de461d295`, `67cb7832d` e o commit desta entrada). O ensaio em Chromium real mostrou que o Chromium não envia `Origin` nos GET da extensão; corrigido no backend (obrigatório no POST, opcional e validado no GET). Revisão independente de segurança (subagente, somente leitura): APROVADO COM AJUSTES, sem achados críticos/altos/médios; aplicados: código do dispositivo exibido na extensão e conferido no portal, dispositivo ativado só na troca concluída, sessão do cofre encerrada no servidor após o consentimento, limpeza de tokens expirados, hash de auditoria com domínio separado. INFO mantidos como decisão: GET sem `Origin`, reativação de dispositivo revogado por novo consentimento com step-up, código queimado em tentativa inválida.
 Também: HTTPS exigido na lista de dispositivos (o harness `test:vault:frontend` acusou requisição em HTTP); hashes dos falsos positivos revisados em `security/gitleaks-fixtures.json` atualizados para os locales e o harness MySQL (linhas revisadas inalteradas).
 Validações: ver a seção Validação (execução final sobre o SHA do commit).
+
+### 2026-11-21T00:30:00-03:00 — PR75 e correções apontadas pela CI
+
+Responsável autorizou push, PR e Sonar. PR75 aberta; a CI falhou em `static-quality` e `sonar-real` três vezes, e cada causa foi corrigida (ver Validação): contrato do scanner, cobertura de código novo, análise da base sem `apps/extension` e 4 violações novas. Checks remotos todos PASS em `52b7dc4e4`. `validate:sonar` local não executado: depende dos tokens do responsável. Roteiro de homologação escrito em `homologation.md`. Próximo: Sonar local e homologação pelo responsável; depois, merge com autorização.
