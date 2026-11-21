@@ -69,3 +69,7 @@ Validações: ver a seção Validação (execução final sobre o SHA do commit)
 ### 2026-11-21T00:30:00-03:00 — PR75 e correções apontadas pela CI
 
 Responsável autorizou push, PR e Sonar. PR75 aberta; a CI falhou em `static-quality` e `sonar-real` três vezes, e cada causa foi corrigida (ver Validação): contrato do scanner, cobertura de código novo, análise da base sem `apps/extension` e 4 violações novas. Checks remotos todos PASS em `52b7dc4e4`. `validate:sonar` local não executado: depende dos tokens do responsável. Roteiro de homologação escrito em `homologation.md`. Próximo: Sonar local e homologação pelo responsável; depois, merge com autorização.
+
+### 2026-11-21T05:35:00-03:00 — Idioma do popup e migração local
+
+Pedido: popup da extensão em português (Brasil) e aplicar a migração. O popup passa a usar sempre pt-BR, como o portal, independentemente do idioma do navegador (o dicionário en permanece no código); teste novo cobre navegador em inglês. Banco local de desenvolvimento (`sshplatform`): backup antes (`mysqldump`, fora do Git em `.tmp/`), `prisma migrate deploy` aplicou `20261116030000_add_vault_security` e `20261120150000_vault_extension`; `migrate status` sem pendências; tabelas `vault_extension_*` e o CHECK com `extension` conferidos. Ran: vitest da extensão 27 PASS, `lint:changed`, typecheck da extensão, `test:extension:web` 12/12, `test:manual` PASS. Próximo: `validate:sonar` local com os tokens do responsável e homologação.

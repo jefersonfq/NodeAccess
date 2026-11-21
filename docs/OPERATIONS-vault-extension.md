@@ -62,3 +62,4 @@ Retirar (`enabled: false`) revoga na mesma transação todos os dispositivos e a
 - O fluxo completo extensão → portal → backend reais ainda não foi exercitado num navegador; o ensaio automatizado usa um portal simulado. A homologação deve cobrir a conexão real, a negação sem permissão e a revogação.
 - O Chromium não envia `Origin` nos GET da extensão; nesses pedidos o `Origin` é opcional (quando vem, precisa ser uma extensão permitida). O vínculo é a prova DPoP com a autorização e o dispositivo.
 - Não há tela de administração das concessões no portal; a permissão é concedida pela API acima, como revelar/copiar.
+- O popup da extensão é sempre exibido em português (Brasil), como o portal, independentemente do idioma do navegador.

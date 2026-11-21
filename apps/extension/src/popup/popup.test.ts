@@ -62,6 +62,16 @@ describe('NA-0183 extension popup', () => {
     await g.state.connect(); expect(g.state.error).toBe('unavailable')
     f.unmount(); g.unmount()
   })
+  it('always renders in pt-BR, even in an English browser', async () => {
+    vi.stubGlobal('navigator', { language: 'en-US' })
+    try {
+      const f = mount({ client: asClient(fakeClient(false)), requestConnection: vi.fn(), open: vi.fn() }); await flush()
+      const html = await f.html()
+      f.unmount()
+      expect(html).toContain(message('pt-BR').connect)
+      expect(html).not.toContain(message('en-US').connect)
+    } finally { vi.unstubAllGlobals() }
+  })
   it('has every message in both languages', () => {
     const pt = message('pt-BR'), en = message('en-US')
     expect(Object.keys(pt.errors)).toEqual(Object.keys(en.errors))

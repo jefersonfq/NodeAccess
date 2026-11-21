@@ -5,7 +5,8 @@ import { ExtensionError, type ExtensionClient, type ExtensionFailure } from '../
 import { message } from './messages'
 
 const props = defineProps<{ client: ExtensionClient; requestConnection: () => Promise<{ ok: boolean; reason?: ExtensionFailure }>; open: (url: string) => Promise<unknown> }>()
-const t = message(typeof navigator === 'undefined' ? 'pt-BR' : navigator.language)
+// Same language as the NodeAccess portal (pt-BR), whatever the browser UI language is.
+const t = message('pt-BR')
 const phase = ref<'loading' | 'disconnected' | 'connecting' | 'connected'>('loading')
 const query = ref(''), kind = ref<VaultItemKind | ''>(''), items = ref<VaultItemSummary[]>([]), next = ref<string | null>(null)
 const fingerprint = ref('')
