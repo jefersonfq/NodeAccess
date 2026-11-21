@@ -111,7 +111,7 @@ describe('NA-0183 extension consent page', () => {
     type Steps = { redirect(url: string, signal: AbortSignal): unknown; google(clientId: string, nonce: string, signal: AbortSignal): Promise<string>; totp(signal: AbortSignal): Promise<string> }
     let steps: Steps | undefined
     mocks.provider.mockImplementation((options: Steps) => { steps = options; return Promise.resolve() })
-    const f = mount<Connect & { totpPending: boolean; googlePending: boolean; submitTotp(): void; cancelProvider(): void }>(ExtensionConnectView); await flush()
+    const f = mount<Connect & { totpPending: boolean; googlePending: boolean; providerToken: string; submitTotp(): void; cancelProvider(): void }>(ExtensionConnectView); await flush()
     expect(await f.html()).toContain('vault-extension-provider')
     await f.state.allowWithProvider()
     const abort = new AbortController()
@@ -122,9 +122,9 @@ describe('NA-0183 extension consent page', () => {
     const code = steps!.totp(abort.signal)
     expect(f.state.totpPending).toBe(true)
     expect(await f.html()).toContain('vaultDelivery.unlock')
-    f.state.token = '654321'; f.state.submitTotp()
+    f.state.providerToken = '654321'; f.state.submitTotp()
     await expect(code).resolves.toBe('654321')
-    expect(f.state.token).toBe(''); expect(f.state.totpPending).toBe(false)
+    expect(f.state.providerToken).toBe(''); expect(f.state.totpPending).toBe(false)
     const cancelled = steps!.totp(abort.signal)
     abort.abort()
     await expect(cancelled).rejects.toMatchObject({ reason: 'locked' })

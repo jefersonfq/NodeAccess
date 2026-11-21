@@ -20,7 +20,7 @@ export interface VaultOperation {
   policyVersion: number; expiresAt: number; state: 'AUTHORIZED' | 'CONSUMED' | 'CANCELLED'
 }
 export interface VaultSecret { version: string; encrypted: string; iv: string }
-export interface VaultEvent { type: string; clientId?: string; operationId?: string; action?: VaultAction; secretId?: number; policyVersion: number; change?: VaultChange; proposedBy?: number; reasonCode?: string; device?: string }
+export interface VaultEvent { type: string; clientId?: string; operationId?: string; /** Already-hashed operation reference (approval by proposal reference). */ operationRef?: string; action?: VaultAction; secretId?: number; policyVersion: number; change?: VaultChange; proposedBy?: number; reasonCode?: string; device?: string }
 export class VaultError extends Error {
   constructor(public readonly code: string, public readonly status: number) { super(code) }
 }

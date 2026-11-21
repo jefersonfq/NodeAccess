@@ -200,6 +200,14 @@ export class VaultService {
     if (this.now() >= release.expiresAt) unavailable()
     return { envelope: release.envelope }
   }
+  /** Read without a vault session (e.g. "is this user a vault manager?"): exact policy origin and a per-user limit. */
+  async inspect<T>(identity: VaultIdentity, origin: string, limitKey: string, run: (tx: VaultTransaction) => Promise<T>): Promise<T> {
+    return this.store.transaction(identity, async tx => {
+      if (origin !== tx.authority.policy.origin) denied()
+      await tx.limit(limitKey, 60_000, 30)
+      return run(tx)
+    })
+  }
   async administer<T>(identity: VaultIdentity, clientId: string, origin: string, sessionId: string, run: (tx: VaultTransaction) => Promise<T>): Promise<T> {
     return this.confirmed(identity, clientId, origin, sessionId, 'administration', tx => run(tx))
   }

@@ -29,7 +29,9 @@ async function harness(patch: Partial<JwtPayload> = {}, withAdministration = fal
     providerComplete: vi.fn().mockResolvedValue({ totpRequired: true }),
     unlockProvider: vi.fn().mockResolvedValue({ sessionId: opaque(), idleUntil: 123, expiresAt: 456 }),
   }
-  const administration = { propose: vi.fn().mockResolvedValue({ proposalId: opaque() }), approve: vi.fn().mockResolvedValue({ state: 'APPLIED' }) }
+  const administration = { propose: vi.fn().mockResolvedValue({ proposalId: opaque() }), approve: vi.fn().mockResolvedValue({ state: 'APPLIED' }),
+    approveReference: vi.fn().mockResolvedValue({ state: 'APPLIED' }), status: vi.fn().mockResolvedValue({ manager: true }),
+    overview: vi.fn().mockResolvedValue({ users: [], proposals: [], serverNow: 1 }) }
   configureCurrentSessionReader(() => Promise.resolve({ tenantId: 7, active: true, deletedAt: null, tenantActive: true, targetTenantActive: true,
     sessionVersion: 3, role: patch.role === 'admin' ? 'ADMIN' : 'USER', isPlatformAdmin: patch.isPlatformAdmin ?? false,
     canManageHosts: patch.canManageHosts ?? false, canViewLiveSessions: false }))
@@ -192,6 +194,24 @@ describe('Vault private HTTP adapter', () => {
         expect((await h.post('/administration/proposals', { sessionId, change })).statusCode).toBe(400)
       }
       expect(h.administration.propose).not.toHaveBeenCalled()
+    } finally { await h.app.close() }
+  })
+  it('NA-0183: lists for managers and approves a listed proposal by its stored reference', async () => {
+    const h = await harness({}, true)
+    try {
+      const actor = { userId: 42, tenantId: 7, sessionVersion: 3 }, sessionId = opaque(), reference = 'a'.repeat(64)
+      expect((await h.post('/administration/status')).json()).toEqual({ manager: true })
+      expect(h.administration.status).toHaveBeenCalledWith(actor, origin)
+      expect((await h.post('/administration/overview', { sessionId })).json()).toEqual({ users: [], proposals: [], serverNow: 1 })
+      expect(h.administration.overview).toHaveBeenCalledWith(actor, h.clientId, origin, sessionId)
+      expect((await h.post('/administration/approve', { sessionId, reference })).json()).toEqual({ state: 'APPLIED' })
+      expect(h.administration.approveReference).toHaveBeenCalledWith(actor, h.clientId, origin, sessionId, reference)
+      for (const body of [{ sessionId, reference: 'A'.repeat(64) }, { sessionId, reference, proposalId: opaque() }, { sessionId }]) {
+        expect((await h.post('/administration/approve', body)).statusCode).toBe(400)
+      }
+      expect((await h.post('/administration/status', { extra: 1 })).statusCode).toBe(400)
+      expect((await h.post('/administration/overview', {})).statusCode).toBe(400)
+      expect(h.administration.approve).not.toHaveBeenCalled()
     } finally { await h.app.close() }
   })
   it('records only denial context and does not turn denial-audit outage into a release', async () => {

@@ -104,6 +104,15 @@ Em **VaultNAccess**, a seção **Extensão do navegador: dispositivos conectados
 
 **Acesso negado:** peça aos gestores do cofre a permissão **Usar extensão**. **Pedido de conexão inválido:** inicie a conexão de novo pela extensão. **A conexão expirou:** conecte novamente. **Atualize a extensão:** a instalação exige uma versão mais nova.
 
+### Conceder permissões do cofre (gestores)
+Gestores do cofre veem, em **VaultNAccess**, a seção **Permissões do cofre (gestores)**. Ela concede ou retira, por usuário, **Revelar**, **Copiar** e **Usar extensão**. Cada mudança é proposta por um gestor e aprovada por outro gestor em até 2 minutos; a pessoa que recebe a permissão nunca participa, e você não altera as suas próprias permissões. A seção não aparece para quem não é gestor.
+
+1. Selecione **Administrar permissões** e confirme sua identidade (senha e código do autenticador, ou **Confirmar no provedor**). A confirmação vale por 1 minuto; depois disso, confirme de novo.
+2. Na linha do usuário, selecione **Propor ativar** ou **Propor retirar** na permissão desejada. A proposta aparece em **Propostas aguardando aprovação**, com o tempo restante.
+3. Peça a outro gestor para abrir a mesma seção, confirmar a identidade e selecionar **Aprovar** na proposta. Você não vê o botão **Aprovar** nas suas próprias propostas.
+
+Cada aprovação bloqueia o cofre para todos, inclusive para os gestores: quem estava com o cofre aberto precisa confirmar a identidade de novo. Retirar **Usar extensão** desconecta na hora todos os dispositivos daquela pessoa. Mudanças de política do cofre e de itens aparecem na lista sem o botão **Aprovar**: são revisadas e aprovadas pela administração da instalação.
+
 ## Entenda os indicadores
 - Cards e listas reutilizam os ícones de protocolo do acesso rápido. O ícone da rota informa acesso direto, automático ou por Agent/conector. Passe o mouse, toque ou use **Tab** para consultar a descrição e a disponibilidade; **Esc** fecha a dica. O botão **Conectar** informa o motivo quando uma rota obrigatória não está disponível.
 - No **Acesso rápido**, a pasta aparece junto ao endereço quando há espaço, seguida do relógio e da data do último acesso em **dia/mês**; a dica mostra a data por extenso e o horário. **Raiz** indica que o host está no diretório raiz do inventário. A dica da pasta mostra o caminho disponível, como **Raiz → Banco de dados → Dbs**. Se um ancestral não estiver disponível, o caminho pode aparecer parcial; a interface não presume pastas que você não pode consultar. O ícone no canto superior direito do card identifica o protocolo: terminal com cadeado para SSH, monitor para RDP, terminal com T para Telnet e monitor com V para VNC. Passe o mouse ou toque no ícone para consultar seu protocolo sem conectar. Passe o mouse ou toque no relógio para consultar o último acesso sem conectar. Pelo teclado, focar o card mostra o protocolo e o último acesso; **Esc** fecha a dica. **Sessão ativa** continua visível no card.

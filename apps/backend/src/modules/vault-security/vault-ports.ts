@@ -10,10 +10,22 @@ export interface VaultTransaction {
   limit(key: string, windowMs: number, max: number): Promise<void>
   secret(id: number, action: VaultAction): Promise<VaultSecret>
   propose(id: string, change: VaultChange): Promise<void>
-  approve(id: string): Promise<{ change: VaultChange; proposedBy: number }>
+  /** `byReference`: `id` is the stored proposal hash shown to managers, not the original identifier. */
+  approve(id: string, byReference?: boolean): Promise<{ change: VaultChange; proposedBy: number }>
   audit(event: VaultEvent): Promise<void>
   /** NA-0183 extension records, in the same locked transaction as the authority read. */
   extension?: ExtensionRecords
+  /** NA-0183 read side of the two-manager administration (portal screen). */
+  administration?: AdministrationReads
+}
+export interface VaultAdministrationUser { id: number; name: string; email: string; grants: Record<'reveal' | 'copy' | 'extension', boolean> }
+export interface VaultAdministrationProposal { reference: string; change: VaultChange; proposedBy: { id: number; name: string }; mine: boolean; expiresAt: number
+  /** Grant beneficiary (same tenant), even when outside the bounded user list. */
+  beneficiary: { id: number; name: string; email: string } | null }
+export interface VaultAdministrationOverview { users: VaultAdministrationUser[]; proposals: VaultAdministrationProposal[]; serverNow: number }
+export interface AdministrationReads {
+  isManager(): Promise<boolean>
+  overview(): Promise<VaultAdministrationOverview>
 }
 export interface VaultStore { transaction<T>(identity: VaultIdentity, run: (tx: VaultTransaction) => Promise<T>): Promise<T> }
 export interface OriginVerifier {

@@ -109,6 +109,15 @@ Flag `vault-extension` desligada nega autorizações e invalida clientes da exte
 - Item 8 (permissão "Usar extensão" na administração): o portal não tem tela de concessões; a permissão entra na mesma API de administração de revelar/copiar.
 - E2E: o ensaio automatizado roda a extensão desempacotada em Chromium com `launchWebAuthFlow` real contra um portal simulado em HTTPS local. O fluxo com o backend real no navegador fica para a homologação.
 
+2026-11-21 (mudança de escopo, decisão do responsável): tela mínima de permissões do cofre no portal (opção "a"), porque sem ela a permissão "Usar extensão" só existia pela API e o segundo gestor não tinha como descobrir a proposta a aprovar (o servidor guarda só o hash).
+- Seção no VaultNAccess visível só para gestores do cofre: lista os usuários do tenant com revelar/copiar/extensão, propõe ativar ou retirar e lista as propostas pendentes para outro gestor aprovar.
+- Mesmas regras já testadas: dois gestores distintos, beneficiário nunca participa, confirmação de identidade < 60 s por ação, proposta vale 2 min, toda aprovação incrementa a versão da política e bloqueia as sessões do cofre.
+- Servidor: leitura `administration/status` (é gestor?) e `administration/overview` (com confirmação); aprovação aceita também a referência da proposta (o hash já guardado), sem expor nem guardar o identificador original; auditoria correlaciona proposta e aprovação pelo mesmo hash.
+- Sem tela para política (`policy`) e itens web (`item`); aparecem na lista sem **Aprovar** e continuam pela API, para que nenhum gestor aprove sem ver o conteúdo.
+- Decisão (revisão independente, INFO-1): o hash da proposta passa a valer como referência de aprovação. Qualquer outro gestor ativo do tenant, com confirmação < 60 s, pode aprovar; deixa de existir "o proponente escolhe quem aprova". Não amplia privilégio: continuam valendo gestor ativo, mesmo tenant, proponente e beneficiário excluídos e validade de 2 min.
+- Minimização (INFO-2): a lista mostra nome e e-mail (para distinguir homônimos) só a gestores, com confirmação, sem cache e só na memória da página até o bloqueio.
+- O cliente do cofre só é registrado quando o gestor abre a seção (**Administrar permissões**), para não consumir a cota horária de clientes a cada visita.
+
 ## Aprovação
 
 Decisão: `GO_WITH_RISKS`

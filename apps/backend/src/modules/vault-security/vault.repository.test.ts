@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto'
 import { describe, expect, it, vi } from 'vitest'
 import type { PrismaClient, Prisma } from '@prisma/client'
 import { SqlVaultStore } from './vault.repository.js'
@@ -95,6 +96,19 @@ describe('SQL vault adapter authorization and locking contract',()=>{
     })
     expect(JSON.stringify(f.writes)).not.toContain(token)
     expect(f.writes.some(w=>w.sql.includes('INSERT INTO vault_audit'))).toBe(true)
+  })
+  it('NA-0183: an approval by reference keeps the stored proposal hash in the audit, same as the proposal event',async()=>{
+    const f=fixture(),proposalId='proposal-capability',reference=createHash('sha256').update(proposalId).digest('hex')
+    await f.store.transaction(actor,async tx=>{
+      await tx.audit({type:'POLICY_CHANGE_PROPOSED',operationId:proposalId,policyVersion:1})
+      await tx.audit({type:'POLICY_CHANGED',operationRef:reference,policyVersion:2})
+    })
+    const audits=f.writes.filter(w=>w.sql.includes('INSERT INTO vault_audit')).map(w=>JSON.parse(String(w.values[4])) as Record<string,unknown>)
+    expect(audits.map(a=>a.operationId)).toEqual([reference,reference])
+    expect(audits[1]).not.toHaveProperty('operationRef')
+    expect(JSON.stringify(f.writes)).not.toContain(proposalId)
+    expect(f.state.manager).toBe(true)
+    await f.store.transaction(actor,async tx=>{ expect(await tx.administration?.isManager()).toBe(true) })
   })
   it('rejects full pending capacity and exhausted shared counters',async()=>{
     const f=fixture();f.state.pending=5

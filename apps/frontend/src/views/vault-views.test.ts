@@ -20,6 +20,7 @@ vi.mock('@/services/group.service', () => ({ groupService: { list: mocks.groups 
 vi.mock('@/components/vault/SecretActions.vue', () => ({ default: defineComponent({ render: () => null }) }))
 vi.mock('@/components/vault/PemKeyActions.vue', () => ({ default: defineComponent({ render: () => null }) }))
 vi.mock('@/components/vault/ExtensionDevices.vue', () => ({ default: defineComponent({ render: () => null }) }))
+vi.mock('@/components/vault/VaultAdministration.vue', () => ({ default: defineComponent({ render: () => null }) }))
 const route = reactive({ query: {} })
 vi.mock('vue-router', () => ({ useRoute: () => route, useRouter: () => ({ replace: vi.fn() }) }))
 vi.mock('naive-ui', () => ({ ...Object.fromEntries(['NAlert','NButton','NDropdown','NEmpty','NInput','NSelect','NTag','NText','NSpace'].map(name => [name, defineComponent({ inheritAttrs: false, setup: (_, { attrs, slots }) => () => h(name, attrs, slots.default?.()) })])),

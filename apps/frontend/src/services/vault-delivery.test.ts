@@ -199,3 +199,49 @@ describe('Vault provider step-up in the portal (NA-0184)', () => {
     await h.delivery.unlockWithProvider(h.confirm); await h.delivery.prepare(); expect(h.confirm.redirect).toHaveBeenCalledTimes(1)
   })
 })
+
+describe('Vault administration from the portal (NA-0183)', () => {
+  const reference = 'a'.repeat(64), overview = { users: [{ id: 2, name: 'Bruno', email: 'b@example.test', grants: { reveal: false, copy: false, extension: true } }],
+    proposals: [{ reference, change: { kind: 'grant', userId: 2, action: 'extension', enabled: false }, proposedBy: { id: 3, name: 'Carla' }, mine: false, expiresAt: 2_100_000, beneficiary: { id: 2, name: 'Bruno', email: 'b@example.test' } }], serverNow: 2_000_000 }
+  function admin(replies: Record<string, unknown>) {
+    const f = fixture(), base = f.post.getMockImplementation()!
+    f.post.mockImplementation(async (path: string, body: Record<string, unknown>) => (path in replies ? replies[path] : base(path, body)))
+    return f
+  }
+  it('needs an unlocked session and sends the session id with every administrative call', async () => {
+    const f = admin({ 'administration/overview': overview, 'administration/proposals': { proposalId: 'p'.repeat(43) }, 'administration/approve': { state: 'APPLIED' } })
+    expect(await f.delivery.administrationOverview()).toBeNull()
+    expect(await f.delivery.proposeChange({ kind: 'grant', userId: 2, action: 'copy', enabled: true })).toBe(false)
+    await unlock(f)
+    expect(await f.delivery.administrationOverview()).toEqual(overview)
+    expect(f.delivery.state.phase).toBe('unlocked')
+    expect(await f.delivery.proposeChange({ kind: 'grant', userId: 2, action: 'copy', enabled: true })).toBe(true)
+    expect(f.post).toHaveBeenCalledWith('administration/proposals', { change: { kind: 'grant', userId: 2, action: 'copy', enabled: true }, sessionId }, expect.anything(), clientId, expect.anything())
+    expect(f.delivery.state.phase).toBe('unlocked')
+    expect(await f.delivery.approveProposal(reference)).toBe(true)
+    expect(f.post).toHaveBeenCalledWith('administration/approve', { reference, sessionId }, expect.anything(), clientId, expect.anything())
+    // Every approval bumps the policy version on the server: the page drops its session too.
+    expect(f.delivery.state.phase).toBe('locked')
+  })
+  it('rejects malformed replies and references, and fails closed after the proof window', async () => {
+    const f = admin({ 'administration/overview': { ...overview, extra: true }, 'administration/proposals': { proposalId: 'short' }, 'administration/approve': { state: 'PENDING' } })
+    await unlock(f)
+    expect(await f.delivery.approveProposal('not-a-reference')).toBe(false)
+    expect(f.post.mock.calls.some(([p]) => p === 'administration/approve')).toBe(false)
+    expect(await f.delivery.administrationOverview()).toBeNull()
+    expect(f.delivery.state.error).toBe('unavailable')
+    await unlock(f)
+    expect(await f.delivery.proposeChange({ kind: 'item', secretId: 4, enabled: true })).toBe(false)
+    await unlock(f)
+    expect(await f.delivery.approveProposal(reference)).toBe(false)
+    await unlock(f); f.advance(61_000)
+    expect(await f.delivery.administrationOverview()).toBeNull()
+    expect(f.delivery.state.phase).toBe('locked')
+  })
+  it('drops the session when the signed-in identity changed', async () => {
+    const f = admin({ 'administration/overview': overview })
+    await unlock(f); f.identity({ userId: 99 })
+    expect(await f.delivery.administrationOverview()).toBeNull()
+    expect(f.delivery.state.phase).toBe('locked')
+  })
+})

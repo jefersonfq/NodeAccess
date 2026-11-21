@@ -278,6 +278,32 @@ describe.skipIf(!enabled)('Vault SQL/Redis isolated integration', () => {
     await expect(admin.approve(renewed.identity, renewed.clientId, origin, renewed.sessionId, proposal.proposalId)).rejects.toMatchObject({ code: 'OPERATION_UNAVAILABLE' })
     await expect(db.$executeRaw`INSERT INTO vault_entitlements(tenant_id,user_id,action,granted_by,approved_by,enabled) VALUES(${f.tenant.id},${f.manager1.id},'copy',${f.manager1.id},${f.manager2.id},TRUE)`).rejects.toThrow()
   }, 10_000)
+  it('NA-0183: the portal screen lists users, grants and live proposals and approves by reference with correlated audit', async () => {
+    const f = await fixture(), a = await managerSession(f, f.manager1.id), b = await managerSession(f, f.manager2.id)
+    const admin = new VaultAdministrationService(f.service, entropy)
+    expect(await admin.status(a.identity, origin)).toEqual({ manager: true })
+    expect(await admin.status(f.identity, origin)).toEqual({ manager: false })
+    await expect(admin.overview(f.identity, f.clientId, origin, f.sessionId)).rejects.toMatchObject({ code: 'VAULT_FORBIDDEN' })
+    const { proposalId } = await admin.propose(a.identity, a.clientId, origin, a.sessionId, { kind: 'grant', userId: f.user.id, action: 'extension', enabled: true })
+    const listed = await admin.overview(b.identity, b.clientId, origin, b.sessionId)
+    expect(listed.users.map(u => u.id)).toEqual(expect.arrayContaining([f.user.id, f.manager1.id, f.manager2.id]))
+    expect(listed.users.find(u => u.id === f.user.id)?.grants).toMatchObject({ extension: false })
+    expect(listed.proposals).toHaveLength(1)
+    const [pending] = listed.proposals
+    expect(pending).toMatchObject({ proposedBy: { id: f.manager1.id }, mine: false, change: { kind: 'grant', userId: f.user.id, action: 'extension', enabled: true }, beneficiary: { id: f.user.id } })
+    expect(JSON.stringify(listed)).not.toContain(proposalId)
+    expect((await admin.overview(a.identity, a.clientId, origin, a.sessionId)).proposals[0]?.mine).toBe(true)
+    await expect(admin.approveReference(a.identity, a.clientId, origin, a.sessionId, pending!.reference)).rejects.toMatchObject({ code: 'OPERATION_UNAVAILABLE' })
+    expect(await admin.approveReference(b.identity, b.clientId, origin, b.sessionId, pending!.reference)).toEqual({ state: 'APPLIED' })
+    const audit = await db.$queryRaw<Array<{ type: string; ref: string | null }>>`SELECT event_type AS type,JSON_UNQUOTE(JSON_EXTRACT(metadata,'$.operationId')) AS ref
+      FROM vault_audit WHERE tenant_id=${f.tenant.id} AND event_type IN ('POLICY_CHANGE_PROPOSED','POLICY_CHANGED') ORDER BY created_at,event_type DESC`
+    expect(audit.map(r => r.ref)).toEqual([pending!.reference, pending!.reference])
+    const b2 = await managerSession(f, f.manager2.id)
+    const after = await admin.overview(b2.identity, b2.clientId, origin, b2.sessionId)
+    expect(after.proposals).toEqual([])
+    expect(after.users.find(u => u.id === f.user.id)?.grants).toMatchObject({ extension: true })
+    await expect(admin.approveReference(b2.identity, b2.clientId, origin, b2.sessionId, pending!.reference)).rejects.toMatchObject({ code: 'OPERATION_UNAVAILABLE' })
+  }, 10_000)
   it('revalidates the proposing manager at approval, even if the proposal was originally authorized', async () => {
     const f = await fixture(), a = await managerSession(f, f.manager1.id), b = await managerSession(f, f.manager2.id)
     const admin = new VaultAdministrationService(f.service, entropy)

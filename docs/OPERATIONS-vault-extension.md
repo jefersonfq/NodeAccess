@@ -34,10 +34,12 @@ VAULTNACCESS_PORTAL_ORIGIN=https://<portal> [VAULTNACCESS_VERSION=0.1.0] [VAULTN
 
 ## Conceder e revogar a permissão
 
-A permissão `extension` usa o mesmo fluxo de concessões do cofre (dois gestores distintos, nenhum deles o beneficiário), pela API de administração:
+A permissão `extension` usa o mesmo fluxo de concessões do cofre (dois gestores distintos, nenhum deles o beneficiário). No portal: **VaultNAccess → Permissões do cofre (gestores)** (manual, capítulo Hosts). A seção só aparece para gestores (`vault_managers`) e cada ação pede confirmação de identidade com menos de 1 minuto.
 
-1. Gestor A: `POST /api/v1/vault-security/administration/proposals` com `{ sessionId, change: { kind: 'grant', userId, action: 'extension', enabled: true } }` (sessão do cofre desbloqueada).
-2. Gestor B: `POST /api/v1/vault-security/administration/approve` com `{ sessionId, proposalId }` em até 2 minutos.
+1. Gestor A confirma a identidade e seleciona **Propor ativar** em **Usar extensão** na linha do usuário.
+2. Gestor B confirma a identidade e seleciona **Aprovar** na proposta, em até 2 minutos.
+
+Pela API, o mesmo fluxo: `POST /api/v1/vault-security/administration/proposals` com `{ sessionId, change: { kind: 'grant', userId, action: 'extension', enabled: true } }`, e `POST /administration/approve` com `{ sessionId, proposalId }` ou `{ sessionId, reference }` (o hash da proposta, listado em `POST /administration/overview` para gestores). `POST /administration/status` informa se o usuário é gestor, sem sessão do cofre.
 
 Retirar (`enabled: false`) revoga na mesma transação todos os dispositivos e autorizações do usuário. Qualquer mudança aprovada incrementa a versão da política e invalida as autorizações em uso. O usuário pode revogar os próprios dispositivos em **VaultNAccess → Extensão do navegador: dispositivos conectados**. Logout do portal encerra a autorização da extensão na próxima requisição.
 
@@ -61,5 +63,5 @@ Retirar (`enabled: false`) revoga na mesma transação todos os dispositivos e a
 
 - O fluxo completo extensão → portal → backend reais ainda não foi exercitado num navegador; o ensaio automatizado usa um portal simulado. A homologação deve cobrir a conexão real, a negação sem permissão e a revogação.
 - O Chromium não envia `Origin` nos GET da extensão; nesses pedidos o `Origin` é opcional (quando vem, precisa ser uma extensão permitida). O vínculo é a prova DPoP com a autorização e o dispositivo.
-- Não há tela de administração das concessões no portal; a permissão é concedida pela API acima, como revelar/copiar.
+- A tela de permissões cobre só concessões por usuário (revelar, copiar, extensão); mudanças de política e de itens continuam pela API. Lista até 500 usuários ativos do tenant.
 - O popup da extensão é sempre exibido em português (Brasil), como o portal, independentemente do idioma do navegador.

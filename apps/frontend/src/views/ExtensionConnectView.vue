@@ -4,15 +4,15 @@
  * Requires the vault step-up of the user's login method; the one-time code goes only to the exact
  * https://<extension-id>.chromiumapp.org/ redirect and nothing is stored in this page or in browser storage.
  */
-import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { NAlert, NButton, NCard, NFormItem, NInput, NSpace, NText } from 'naive-ui'
 import { useI18n } from 'vue-i18n'
 import { VaultExtensionConnectRequestSchema, type VaultExtensionConnectRequest } from '@nodeaccess/shared'
 import { useAuthStore } from '@/stores/auth'
 import { createVaultDelivery } from '@/services/vault-delivery'
-import { VaultClientError, type VaultPortalIdentity } from '@/services/vault-http'
-import { openVaultProviderWindow, requestGoogleIdToken } from '@/services/vault-provider-confirm'
+import type { VaultPortalIdentity } from '@/services/vault-http'
+import { useVaultProviderStepUp } from '@/composables/useVaultProviderStepUp'
 import { extensionConsentRequest, extensionReturnUrl, fingerprint } from '@/services/vault-extension-consent'
 
 const { t } = useI18n(), auth = useAuthStore(), route = useRoute()
@@ -27,8 +27,7 @@ const delivery = createVaultDelivery({ identity }), state = delivery.state
 const password = ref(''), token = ref(''), done = ref(false)
 const provider = computed(() => state.stepUp === 'provider')
 const busy = computed(() => state.phase === 'unlocking' || state.phase === 'delivering')
-const googleTarget = ref<HTMLElement | null>(null), googlePending = ref(false), totpPending = ref(false)
-let totpWaiter: { resolve(value: string): void; reject(error: unknown): void } | null = null
+const { googleTarget, googlePending, totpPending, token: providerToken, confirm: confirmProvider, submitTotp, cancel: cancelProvider } = useVaultProviderStepUp(delivery)
 let ticker: ReturnType<typeof setInterval> | undefined
 
 function leave(params: Record<string, string>): void {
@@ -50,35 +49,10 @@ async function allow(): Promise<void> {
   await delivery.unlock(p, otp)
   await finish()
 }
-function cancelProvider(): void {
-  const waiter = totpWaiter; totpWaiter = null
-  totpPending.value = false; googlePending.value = false
-  waiter?.reject(new VaultClientError('locked'))
-}
 async function allowWithProvider(): Promise<void> {
   if (busy.value || !request.value) return
-  await delivery.unlockWithProvider({
-    redirect: (url, signal) => openVaultProviderWindow(url, signal),
-    google: async (clientId, nonce, signal) => {
-      googlePending.value = true
-      await nextTick()
-      try {
-        if (!googleTarget.value) throw new VaultClientError('unavailable')
-        return await requestGoogleIdToken(googleTarget.value, clientId, nonce, signal)
-      } finally { googlePending.value = false }
-    },
-    totp: signal => new Promise<string>((resolve, reject) => {
-      token.value = ''; totpPending.value = true; totpWaiter = { resolve, reject }
-      signal.addEventListener('abort', cancelProvider, { once: true })
-    }),
-  })
-  token.value = ''; totpPending.value = false
+  await confirmProvider()
   await finish()
-}
-function submitTotp(): void {
-  const waiter = totpWaiter, value = token.value
-  totpWaiter = null; token.value = ''; totpPending.value = false
-  waiter?.resolve(value)
 }
 onMounted(() => {
   if (request.value) void delivery.prepare()
@@ -171,7 +145,7 @@ onBeforeUnmount(() => { if (ticker) clearInterval(ticker); cancelProvider(); pas
               :label-props="{ for: 'vault-extension-provider-otp' }"
             >
               <NInput
-                v-model:value="token"
+                v-model:value="providerToken"
                 :input-props="{ id: 'vault-extension-provider-otp', autocomplete: 'one-time-code', inputmode: 'numeric' }"
                 maxlength="6"
               />
