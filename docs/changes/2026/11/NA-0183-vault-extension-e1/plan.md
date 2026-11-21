@@ -2,7 +2,7 @@
 change_id: NA-0183
 title: Extensão VaultNAccess E1 — permissão por usuário, conexão segura e busca de metadados
 type: feature
-status: planned
+status: ready-for-tests
 created_at: 2026-11-19T16:15:00-03:00
 base_branch: master
 base_sha: 8ef8188a6af1ee0b8180a9707ad54b54b8fd4002
@@ -83,7 +83,11 @@ Unitários do domínio e `core` da extensão; integração Fastify + MySQL + Red
 
 ## Baseline
 
-A registrar antes da primeira alteração de aplicação.
+Registrada em 2026-11-20 sobre o master `b4e8cccab` (branch em `f15da8517`, só documentos acima da base):
+- Ran: `vitest run` de `apps/backend/src/modules/vault-security`, `apps/backend/src/modules/auth` e `apps/frontend/src/views/vault-views.test.ts`: 36 arquivos, 471 PASS / 0 FAIL (33 skipped, reais opt-in).
+- Ran: `npm run test:vault:real` (MySQL + Redis reais): 32 PASS / 0 FAIL.
+- Ran: `npm run test:vault:frontend` (Chromium HTTPS): PASS (como root exige `PLAYWRIGHT_BROWSERS_PATH=/home/jeferson/.cache/ms-playwright`).
+- Sonar: `npm run validate:sonar` PASS em `723b80dc0` (NA-0184; 4164 testes, gate OK, 0 achados inesperados). Diff de `apps/ packages/ tools/ scripts/` entre `723b80dc0` e `b4e8cccab` vazio, então vale como baseline. Nova execução exige Node 24 e os tokens digitados pelo responsável; fica para o candidato da E1.
 
 ## Rollback ou recuperação
 
@@ -94,6 +98,27 @@ Flag `vault-extension` desligada nega autorizações e invalida clientes da exte
 2026-11-19: uso da extensão depende só da permissão, não do método de login (decisão do responsável); confirmação por método na NA-0184, pré-requisito; break-glass negado.
 
 2026-11-19: o contrato NA-0177 prevalece sobre a NA-0182 na renovação: no piloto não há refresh, e a autorização vence em 30 min (o plano da NA-0182 citava refresh vinculado à chave).
+
+2026-11-20 (implementação, sem mudar o escopo aprovado):
+- Armazenamento próprio (`vault_extension_devices`, `vault_extension_tokens`), porque as rotas públicas da extensão não conhecem o usuário antes de localizar o token; `vault_records` exige identidade. Só o hash dos tokens é guardado.
+- O step-up do consentimento reutiliza a sessão desbloqueada do portal com prova < 60 s (`VaultService.confirmed`, o mesmo critério da administração).
+- O dispositivo nasce ACTIVE no consentimento: o estado PENDING existe só na página, sem registro no servidor.
+- Toda mudança de política aprovada invalida as autorizações em uso (mesma regra das sessões do cofre).
+- `Origin` é obrigatório no POST `/token` e opcional nos GET, porque o Chromium não o envia em GET de extensão com host permission (achado do ensaio em Chromium real). Quando presente, precisa ser uma extensão permitida.
+- `apps/extension` sem `package.json`: usa `vite`, `vue` e `zod` da raiz; nenhuma dependência nova e nenhuma alteração do lockfile. Manifest sem `activeTab`, que não é necessário.
+- Item 8 (permissão "Usar extensão" na administração): o portal não tem tela de concessões; a permissão entra na mesma API de administração de revelar/copiar.
+- E2E: o ensaio automatizado roda a extensão desempacotada em Chromium com `launchWebAuthFlow` real contra um portal simulado em HTTPS local. O fluxo com o backend real no navegador fica para a homologação.
+
+2026-11-21 (mudança de escopo, decisão do responsável): tela mínima de permissões do cofre no portal (opção "a"), porque sem ela a permissão "Usar extensão" só existia pela API e o segundo gestor não tinha como descobrir a proposta a aprovar (o servidor guarda só o hash).
+- Seção no VaultNAccess visível só para gestores do cofre: lista os usuários do tenant com revelar/copiar/extensão, propõe ativar ou retirar e lista as propostas pendentes para outro gestor aprovar.
+- Mesmas regras já testadas: dois gestores distintos, beneficiário nunca participa, confirmação de identidade < 60 s por ação, proposta vale 2 min, toda aprovação incrementa a versão da política e bloqueia as sessões do cofre.
+- Servidor: leitura `administration/status` (é gestor?) e `administration/overview` (com confirmação); aprovação aceita também a referência da proposta (o hash já guardado), sem expor nem guardar o identificador original; auditoria correlaciona proposta e aprovação pelo mesmo hash.
+- Sem tela para política (`policy`) e itens web (`item`); aparecem na lista sem **Aprovar** e continuam pela API, para que nenhum gestor aprove sem ver o conteúdo.
+- Decisão (revisão independente, INFO-1): o hash da proposta passa a valer como referência de aprovação. Qualquer outro gestor ativo do tenant, com confirmação < 60 s, pode aprovar; deixa de existir "o proponente escolhe quem aprova". Não amplia privilégio: continuam valendo gestor ativo, mesmo tenant, proponente e beneficiário excluídos e validade de 2 min.
+- Minimização (INFO-2): a lista mostra nome e e-mail (para distinguir homônimos) só a gestores, com confirmação, sem cache e só na memória da página até o bloqueio.
+- O cliente do cofre só é registrado quando o gestor abre a seção (**Administrar permissões**), para não consumir a cota horária de clientes a cada visita.
+
+2026-11-21 (homologação local, decisão do responsável): modo HTTPS opcional no servidor de desenvolvimento do portal (`apps/frontend/vite.config.ts`), ligado só com `NODEACCESS_DEV_HTTPS_CERT`/`NODEACCESS_DEV_HTTPS_KEY`; o proxy envia `x-forwarded-proto`/`x-forwarded-host` para o servidor com `TRUST_PROXY=true`. Sem as variáveis, nada muda. Não afeta build nem produção.
 
 ## Aprovação
 

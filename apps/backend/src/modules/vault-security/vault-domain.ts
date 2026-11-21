@@ -1,5 +1,7 @@
 /** Vault policy is independent of HTTP, storage and operational credential consumers. */
 export type VaultAction = 'reveal' | 'copy'
+/** Per-user grants: delivery actions plus NA-0183 browser-extension use. */
+export type VaultGrant = VaultAction | 'extension'
 export interface VaultIdentity { userId: number; tenantId: number; sessionVersion: number }
 /** Central login methods that may unlock the vault; break-glass and unknown methods never do. */
 export type VaultAuthMethod = 'local' | 'ldap' | 'oidc' | 'google'
@@ -18,7 +20,7 @@ export interface VaultOperation {
   policyVersion: number; expiresAt: number; state: 'AUTHORIZED' | 'CONSUMED' | 'CANCELLED'
 }
 export interface VaultSecret { version: string; encrypted: string; iv: string }
-export interface VaultEvent { type: string; clientId?: string; operationId?: string; action?: VaultAction; secretId?: number; policyVersion: number; change?: VaultChange; proposedBy?: number; reasonCode?: string }
+export interface VaultEvent { type: string; clientId?: string; operationId?: string; /** Already-hashed operation reference (approval by proposal reference). */ operationRef?: string; action?: VaultAction; secretId?: number; policyVersion: number; change?: VaultChange; proposedBy?: number; reasonCode?: string; device?: string }
 export class VaultError extends Error {
   constructor(public readonly code: string, public readonly status: number) { super(code) }
 }
@@ -41,7 +43,7 @@ export function grantDeadline(session: VaultSession, client: VaultClient, now: n
   return deadline
 }
 
-export type VaultChange = { kind: 'grant'; userId: number; action: VaultAction; enabled: boolean }
+export type VaultChange = { kind: 'grant'; userId: number; action: VaultGrant; enabled: boolean }
   | { kind: 'item'; secretId: number; enabled: boolean }
   | { kind: 'policy'; reveal: boolean; copy: boolean; tenantQuota: number }
 

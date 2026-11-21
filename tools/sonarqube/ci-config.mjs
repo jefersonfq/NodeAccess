@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto'
-import { lstatSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
-import { join, resolve } from 'node:path'
+import { existsSync, lstatSync, mkdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
+import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path'
 
 const allowed = new Set(['sonar.projectKey', 'sonar.projectName', 'sonar.sourceEncoding', 'sonar.sources', 'sonar.tests',
   'sonar.test.inclusions', 'sonar.exclusions', 'sonar.javascript.lcov.reportPaths', 'sonar.python.coverage.reportPaths', 'sonar.typescript.tsconfigPaths'])
@@ -34,7 +34,42 @@ export function materializeBaseConfiguration(root, baseRoot) {
   rmSync(baseSettings, { force: true })
   writeFileSync(baseSettings, candidate.bytes, { flag: 'wx', mode: 0o600 })
   assertConfiguration(baseRoot, baseSettings, candidate.sha256)
-  return { settings, baseSettings, sha256: candidate.sha256, properties: candidate.properties }
+  const bootstrapped = bootstrapScope(root, baseRoot, candidate.properties)
+  return { settings, baseSettings, sha256: candidate.sha256, properties: candidate.properties, bootstrapped }
+}
+
+// A scope path the candidate introduces (e.g. a new workspace) does not exist in the
+// base snapshot; the scanner would abort on it. Materialize only inside the disposable
+// base: an empty directory for a new source/test root and the candidate's tsconfig.
+function bootstrapScope(root, baseRoot, properties) {
+  const list = key => (properties[key] ?? '').split(',').map(path => path.trim()).filter(Boolean)
+  const inside = (base, path) => {
+    if (isAbsolute(path) || path.split(/[\\/]/).includes('..')) throw new Error('CI_SCOPE_PATH_INVALID')
+    return join(base, path)
+  }
+  const contained = target => {
+    const real = realpathSync(target), top = realpathSync(baseRoot)
+    if (real !== top && !real.startsWith(top + sep)) throw new Error('CI_SCOPE_PATH_ESCAPE')
+  }
+  const ensure = directory => {
+    let ancestor = directory
+    while (!existsSync(ancestor)) ancestor = dirname(ancestor)
+    contained(ancestor) // checked before creating anything below a possible symlink
+    mkdirSync(directory, { recursive: true, mode: 0o700 }); contained(directory)
+  }
+  const created = []
+  for (const path of [...new Set([...list('sonar.sources'), ...list('sonar.tests')])]) {
+    const head = inside(root, path), base = inside(baseRoot, path)
+    if (existsSync(base) || !existsSync(head) || !lstatSync(head).isDirectory()) continue
+    ensure(base); created.push(path)
+  }
+  for (const path of list('sonar.typescript.tsconfigPaths')) {
+    const head = inside(root, path), base = inside(baseRoot, path)
+    if (existsSync(base) || !existsSync(head) || !lstatSync(head).isFile()) continue
+    ensure(dirname(base))
+    writeFileSync(base, readFileSync(head), { flag: 'wx', mode: 0o600 }); created.push(path)
+  }
+  return created.map(path => relative(baseRoot, join(baseRoot, path)))
 }
 
 export function assertConfiguration(root, settings, expectedHash) {

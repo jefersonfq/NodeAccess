@@ -47,7 +47,7 @@ Documental até a aprovação; depois flag `vault-step-up-external` e revert da 
 
 ## Pendências
 
-Homologação humana e checks remotos da PR. Planilha de metas (META-005) após o merge, no master, para não divergir da revisão 37. Ensaio com LDAP real não feito (adaptador coberto por testes de unidade; o provedor LDAP é o mesmo do login central). Operação: provedores OIDC precisam emitir `auth_time`.
+Entregue: PR74 mergeada em 2026-11-20T17:49Z (`b4e8cccab`, head `753e3834f`, 15 checks PASS). Abertas: planilha de metas (META-005) sem ferramenta de edição de `.xlsx` no ambiente (sem `openpyxl`/`pip`), registrada para uma escrita única quando houver; lacuna do CVE-2026-84782 na triagem do mysql (verificar errata da 3.5.9 antes de 2026-12-19); garantia de faixa/CPE descrita no `image-gate-review.md` sem verificação no código (`reviewedImageFinding`). Ensaio com LDAP real não feito. Operação: provedores OIDC precisam emitir `auth_time`.
 
 ## Diário de interações
 
@@ -116,3 +116,7 @@ Ran: rebuild local das 7 imagens (mysql sem cache) e `npm run security:images`, 
 Revisão independente (subagente): aprovada com ajustes; corrigidas a afirmação sobre CVEs no changelog e a leitura do Grype, e `reviewedAt` atualizado. Pendência fora do escopo: `image-gate-review.md` (Garantias) diz que a triagem compara faixa de versões e CPEs, mas `reviewedImageFinding` não compara isso.
 Skipped: `validate:sonar` (sem código de aplicação; só triagem e documentos).
 Próximo: revisão independente da triagem, push, checks e merge; depois, META-005 no master e a E1 (NA-0183).
+
+### 2026-11-20T15:00:00-03:00 — Merge e encerramento
+
+PR74 mergeada pelo responsável após a correção da descrição (`Tested SHA` 753e3834f; `change-governance` PASS na nova execução). Master local sincronizado em `b4e8cccab`; status `closed`. META-005 pendente por falta de ferramenta de `.xlsx` (decisão do responsável: registrar e seguir). Próximo: E1 (NA-0183).

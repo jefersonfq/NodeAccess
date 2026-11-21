@@ -1,4 +1,5 @@
 import { SqlVaultAdministration } from './vault-administration.repository.js'
+import { SqlVaultExtension } from './vault-extension.repository.js'
 import { Prisma, type PrismaClient } from '@prisma/client'
 import { createHash, randomUUID } from 'node:crypto'
 import { assertPolicy, denied, VaultError } from './vault-domain.js'
@@ -49,7 +50,12 @@ async function readAuthority(db: Tx, identity: VaultIdentity, now: number): Prom
     credentialVersion: hash(JSON.stringify([u.passwordHash, u.mfaSecret, u.version])) }
 }
 class SqlVaultTransaction implements VaultTransaction {
-  constructor(private readonly db: Tx, private readonly identity: VaultIdentity, readonly authority: VaultAuthority, readonly now: () => number) {}
+  readonly extension: SqlVaultExtension
+  readonly administration: SqlVaultAdministration
+  constructor(private readonly db: Tx, private readonly identity: VaultIdentity, readonly authority: VaultAuthority, readonly now: () => number) {
+    this.extension = new SqlVaultExtension(db, identity, now)
+    this.administration = new SqlVaultAdministration(db, identity, now)
+  }
   async get<T>(kind: RecordKind, token: string): Promise<T | null> {
     const rows = await this.db.$queryRaw<Array<{ payload: unknown }>>`SELECT payload FROM vault_records WHERE tenant_id=${this.identity.tenantId}
       AND user_id=${this.identity.userId} AND kind=${kind} AND token_hash=${hash(token)} FOR UPDATE`
@@ -100,13 +106,14 @@ class SqlVaultTransaction implements VaultTransaction {
   async propose(id: string, change: VaultChange): Promise<void> {
     await new SqlVaultAdministration(this.db, this.identity, this.now).propose(id, change)
   }
-  async approve(id: string): Promise<{ change: VaultChange; proposedBy: number }> {
-    return new SqlVaultAdministration(this.db, this.identity, this.now).approve(id)
+  async approve(id: string, byReference = false): Promise<{ change: VaultChange; proposedBy: number }> {
+    return new SqlVaultAdministration(this.db, this.identity, this.now).approve(id, byReference)
   }
   async audit(event: VaultEvent): Promise<void> {
     // Identifiers are hashes: no client/session capability, envelope or credential in the durable ledger.
-    const metadata = { ...event, clientId: event.clientId ? hash(event.clientId) : undefined,
-      operationId: event.operationId ? hash(event.operationId) : undefined }
+    const { operationRef, ...rest } = event
+    const metadata = { ...rest, clientId: event.clientId ? hash(event.clientId) : undefined,
+      operationId: operationRef ?? (event.operationId ? hash(event.operationId) : undefined) }
     await this.db.$executeRaw`INSERT INTO vault_audit(event_id,tenant_id,user_id,event_type,metadata)
       VALUES(${randomUUID()},${this.identity.tenantId},${this.identity.userId},${event.type},${JSON.stringify(metadata)})`
   }

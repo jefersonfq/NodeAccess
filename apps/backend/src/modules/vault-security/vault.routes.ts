@@ -63,12 +63,16 @@ export function vaultRoutes(app: FastifyInstance, service: VaultService, adminis
   post('/operations/cancel', z.object({ operationId: opaque }).strict(), (i,c,o,b) => service.operation(i,c,o,b.operationId,true))
   if (administration) {
     const change = z.discriminatedUnion('kind', [
-      z.object({ kind: z.literal('grant'), userId: z.number().int().positive(), action: z.enum(['reveal','copy']), enabled: z.boolean() }).strict(),
+      z.object({ kind: z.literal('grant'), userId: z.number().int().positive(), action: z.enum(['reveal','copy','extension']), enabled: z.boolean() }).strict(),
       z.object({ kind: z.literal('item'), secretId: z.number().int().positive(), enabled: z.boolean() }).strict(),
       z.object({ kind: z.literal('policy'), reveal: z.boolean(), copy: z.boolean(), tenantQuota: z.number().int().min(1).max(300) }).strict(),
     ])
     post('/administration/proposals', session.extend({ change }).strict(), (i,c,o,b) => administration.propose(i,c,o,b.sessionId,b.change))
-    post('/administration/approve', session.extend({ proposalId: opaque }).strict(), (i,c,o,b) => administration.approve(i,c,o,b.sessionId,b.proposalId))
+    post('/administration/approve', z.union([session.extend({ proposalId: opaque }).strict(), session.extend({ reference: z.string().regex(/^[a-f0-9]{64}$/) }).strict()]),
+      (i,c,o,b) => 'reference' in b ? administration.approveReference(i,c,o,b.sessionId,b.reference) : administration.approve(i,c,o,b.sessionId,b.proposalId))
+    // NA-0183 portal screen: "is a manager?" needs no vault session; the list needs the same confirmed session as a change.
+    post('/administration/status', empty, (i,_c,o) => administration.status(i,o), false)
+    post('/administration/overview', session, (i,c,o,b) => administration.overview(i,c,o,b.sessionId))
   }
   return Promise.resolve()
 }

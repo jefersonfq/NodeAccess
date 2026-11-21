@@ -21,6 +21,7 @@ export const requiredBrowserHarnesses = [
   ['tacacs-tls', 'tools/network-access/tls-ux.test.cjs'],
   ['security-center', 'tools/frontend/security-center-playwright.cjs'],
   ['highlight-budget', 'tools/frontend/terminal-highlight-budget.mjs'],
+  ['vault-extension', 'tools/vault-extension/extension-smoke.mjs'],
 ]
 
 const projectRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../..')
@@ -124,8 +125,9 @@ export async function collectBrowserCoverage({ root = projectRoot, env = process
         rmSync(join(directory, 'report.json'), { force: true })
       }
       // DOM-only frontend/table fixtures have no source capture hook; budget owns
-      // a separate Vite origin. Their real browser assertions still run with Node V8.
-      const coverageMode = ['frontend', 'table', 'highlight-budget'].includes(name) ? 'node-only' : 'node-and-browser'
+      // a separate Vite origin and the extension smoke loads its own unpacked build.
+      // Their real browser assertions still run with Node V8.
+      const coverageMode = ['frontend', 'table', 'highlight-budget', 'vault-extension'].includes(name) ? 'node-only' : 'node-and-browser'
       if (coverageMode === 'node-only') {
         delete childEnv.BROWSER_COVERAGE_DIR
         delete childEnv.BROWSER_COVERAGE_RUN_ID
