@@ -205,7 +205,7 @@ describe('Vault administration from the portal (NA-0183)', () => {
     proposals: [{ reference, change: { kind: 'grant', userId: 2, action: 'extension', enabled: false }, proposedBy: { id: 3, name: 'Carla' }, mine: false, expiresAt: 2_100_000, beneficiary: { id: 2, name: 'Bruno', email: 'b@example.test' } }], serverNow: 2_000_000 }
   function admin(replies: Record<string, unknown>) {
     const f = fixture(), base = f.post.getMockImplementation()!
-    f.post.mockImplementation(async (path: string, body: Record<string, unknown>) => (path in replies ? replies[path] : base(path, body)))
+    f.post.mockImplementation((path: string, body: Record<string, unknown>) => (path in replies ? Promise.resolve(replies[path]) : base(path, body)))
     return f
   }
   it('needs an unlocked session and sends the session id with every administrative call', async () => {

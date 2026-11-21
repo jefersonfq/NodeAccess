@@ -10,7 +10,7 @@ import { useI18n } from 'vue-i18n'
 import { VaultAdministrationStatusSchema, type VaultAdministrationChange, type VaultAdministrationOverview, type VaultGrantAction } from '@nodeaccess/shared'
 import { useAuthStore } from '@/stores/auth'
 import { createVaultDelivery, type VaultDelivery } from '@/services/vault-delivery'
-import { createVaultTransport, VaultClientError, type VaultPortalIdentity, type VaultTransport } from '@/services/vault-http'
+import { createVaultTransport, type VaultPortalIdentity, type VaultTransport } from '@/services/vault-http'
 import { useVaultProviderStepUp } from '@/composables/useVaultProviderStepUp'
 
 const props = defineProps<{ transport?: VaultTransport; delivery?: VaultDelivery }>()
