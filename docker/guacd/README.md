@@ -28,8 +28,10 @@ usando seu transporte separado.
   de exatamente um pacote. Não adicionamos edge aos repositórios nem desativamos
   assinatura APK. Revisar disponibilidade, ABI e vulnerabilidades a cada rebuild.
 
-- GLib 2.90.0-r0: APK oficial edge com release estável corrigido para
-  CVE-2026-58016; SHA256 `b5d0ad79a8e73c3e0f8e9749fbb407bb4f2bf089cdaceffbff9fed25edc33dd0`.
+- GLib 2.90.1-r0: APK oficial edge com release estável corrigido para
+  CVE-2026-58016; SHA256 `8d48e2c7f088607dae754001ad45bf3017a67615ca3213a7206e21b9eda4a2f3`.
+  Substitui 2.90.0-r0, retirado do edge (404 em 2026-11-22, NA-0185); assinatura
+  conferida com `apk verify` na base do guacd.
   [Correção upstream MR5156](https://gitlab.gnome.org/GNOME/glib/-/merge_requests/5156)
   está presente no código fonte da tag2.90.0. Alpine3.24 oferece2.88.1-r1 sem esse
   backport. A transação simulada atualiza apenas GLib; SONAMEs requeridos já estão
