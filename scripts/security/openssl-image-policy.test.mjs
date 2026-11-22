@@ -3,24 +3,53 @@ import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { reviewedOpensslImageFinding } from './openssl-image-policy.mjs'
 const policy = JSON.parse(readFileSync(new URL('../../security/openssl-image-triage.json', import.meta.url)))
-const now = new Date('2026-11-19T12:00:00Z')
+const now = new Date('2026-11-22T12:00:00Z')
 const backend = 'nodeaccess-backend:security-local'
 const backendDistro = { name: 'alpine', version: '3.24.4' }
-function fixture(id = 'CVE-2026-95692', name = 'libssl3') {
+const redis = 'nodeaccess-redis:8.2.10-1'
+const versionOf = ref => policy.images[ref].packageVersion ?? policy.version
+const packagesOf = ref => policy.images[ref].packages ?? policy.packages
+function fixture(id = 'CVE-2026-84786', name = 'libssl3', version = '3.5.9-r1') {
   const finding = policy.findings.find(f => f.id === id)
-  return { artifact: { type: 'apk', name, version: policy.version },
+  return { artifact: { type: 'apk', name, version },
     vulnerability: { id, severity: 'High', namespace: policy.namespace, dataSource: `https://nvd.nist.gov/vuln/detail/${id}`, fix: { state: 'unknown', versions: [] } },
     matchDetails: [{ type: 'cpe-match', matcher: 'apk-matcher', searchedBy: { namespace: policy.namespace,
-      package: { name: 'openssl', version: policy.version }, cpes: [policy.searchedCpe] },
+      package: { name: 'openssl', version }, cpes: [policy.searchedCpe] },
     found: { vulnerabilityID: id, versionConstraint: finding.versionConstraint, cpes: [policy.foundCpe] } }] }
 }
 for (const [ref, distro] of Object.entries(policy.images)) {
-  for (const { id } of policy.findings) {
-    for (const name of policy.packages) test(`exact ${name} ${id} is reviewed for ${ref}`, () => {
-      assert.equal(reviewedOpensslImageFinding(ref, distro, fixture(id, name), policy, now)?.reason, policy.reason)
-    })
+  for (const { id, packageVersions } of policy.findings) {
+    const version = versionOf(ref)
+    for (const name of policy.packages) {
+      const expected = packageVersions.includes(version) && packagesOf(ref).includes(name)
+      test(`${name} ${version} ${id} is ${expected ? '' : 'not '}reviewed for ${ref}`, () => {
+        const reviewed = reviewedOpensslImageFinding(ref, distro, fixture(id, name, version), policy, now)
+        assert.equal(reviewed?.reason ?? null, expected ? policy.reason : null)
+      })
+    }
   }
 }
+test('Alpine 3.24 images use 3.5.9-r1, redis keeps 3.5.9-r0 and the openssl CLI only where it is installed', () => {
+  for (const [ref, image] of Object.entries(policy.images)) {
+    assert.equal(image.packageVersion, ref === redis ? '3.5.9-r0' : '3.5.9-r1')
+    assert.deepEqual(packagesOf(ref), [backend, 'nodeaccess-tls-agent:security-local'].includes(ref) ? policy.packages : ['libssl3', 'libcrypto3'])
+  }
+})
+test('non-array image package list remains blocked', () => {
+  const images = { ...policy.images, [backend]: { ...policy.images[backend], packages: 'libssl3' } }
+  assert.equal(reviewedOpensslImageFinding(backend, backendDistro, fixture(), { ...policy, images }, now), null)
+})
+for (const [name, ref, version, id] of [
+  ['r0 package in an r1 image', backend, '3.5.9-r0', 'CVE-2026-84786'],
+  ['r1 package in the redis image', redis, '3.5.9-r1', 'CVE-2026-84786'],
+  ['CVE reviewed only for r0 in an r1 image', backend, '3.5.9-r1', 'CVE-2026-88823'],
+]) test(`${name} remains blocked`, () => {
+  assert.equal(reviewedOpensslImageFinding(ref, policy.images[ref], fixture(id, 'libssl3', version), policy, now), null)
+})
+test('finding without reviewed package versions remains blocked', () => {
+  const findings = policy.findings.map(f => f.id === 'CVE-2026-84786' ? { id: f.id, versionConstraint: f.versionConstraint } : f)
+  assert.equal(reviewedOpensslImageFinding(backend, backendDistro, fixture(), { ...policy, findings }, now), null)
+})
 const changes = [
   ['unreviewed package', m => { m.artifact.name = 'openssl-dev' }],
   ['patched version', m => { m.artifact.version = '3.5.10-r0' }],
@@ -41,7 +70,7 @@ const changes = [
   ['different searched namespace', m => { m.matchDetails[0].searchedBy.namespace = 'alpine' }],
   ['different searched name', m => { m.matchDetails[0].searchedBy.package.name = 'libressl' }],
   ['different searched version', m => { m.matchDetails[0].searchedBy.package.version = '3.5.8-r0' }],
-  ['different found CVE', m => { m.matchDetails[0].found.vulnerabilityID = 'CVE-2026-88823' }],
+  ['different found CVE', m => { m.matchDetails[0].found.vulnerabilityID = 'CVE-2026-124709' }],
   ['changed vulnerability range', m => { m.matchDetails[0].found.versionConstraint = '< 9.9.9 (unknown)' }],
   ['changed searched CPE', m => { m.matchDetails[0].searchedBy.cpes = ['other'] }],
   ['ambiguous searched CPE', m => { m.matchDetails[0].searchedBy.cpes.push('other') }],
@@ -58,6 +87,7 @@ for (const [name, ref, distro, selected, date] of [
   ['other distro', backend, { name: 'debian', version: '3.24.4' }, policy, now],
   ['future distro version', backend, { name: 'alpine', version: '3.24.5' }, policy, now],
   ['crossed redis distro', backend, { name: 'alpine', version: '3.22.8' }, policy, now],
+  ['crossed backend distro', redis, backendDistro, policy, now],
   ['missing distro', backend, undefined, policy, now],
   ['prototype property image', 'toString', backendDistro, policy, now],
   ['expired', backend, backendDistro, policy, new Date(`${policy.expiresAt}T00:00:00Z`)],
@@ -69,8 +99,9 @@ for (const [name, ref, distro, selected, date] of [
 test('still reviewed one millisecond before expiry', () => {
   assert.ok(reviewedOpensslImageFinding(backend, backendDistro, fixture(), policy, new Date(Date.parse(`${policy.expiresAt}T00:00:00Z`) - 1)))
 })
-test('review pins the 30-day owner acceptance window', () => {
-  assert.equal(policy.reviewedAt, '2026-11-19')
+test('review pins the owner acceptance window and reviewed CVEs', () => {
+  assert.equal(policy.reviewedAt, '2026-11-22')
   assert.equal(policy.expiresAt, '2026-12-19')
-  assert.deepEqual(policy.findings.map(f => f.id).sort(), ['CVE-2026-107496', 'CVE-2026-88823', 'CVE-2026-95691', 'CVE-2026-95692'])
+  assert.deepEqual(policy.findings.map(f => f.id).sort(), ['CVE-2026-107493', 'CVE-2026-107494', 'CVE-2026-107496', 'CVE-2026-121482',
+    'CVE-2026-124709', 'CVE-2026-84786', 'CVE-2026-88823', 'CVE-2026-95691', 'CVE-2026-95692'])
 })
