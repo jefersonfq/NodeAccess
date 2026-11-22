@@ -17,7 +17,8 @@ Voltar o gate de imagens (`upgrade-restore`) a verde após 5 CVEs High novas do 
 ## Validação
 
 - Ran: `node --test scripts/security/*policy*.test.mjs` 256 PASS / 0 FAIL; mutação das três checagens novas detectada; revisão independente aprovada com ajustes aplicados; replay sobre os relatórios do run 44891378946: 7/7 PASS hoje e bloqueio de volta em 2026-12-19.
-- Planned: checks remotos da PR (`upgrade-restore`, governança); `npm run validate:sonar` pelo responsável.
+- Ran (CI, PR76 em `6c2fd2bda`): 9/9 checks PASS, incluindo `upgrade-restore` (7/7 imagens) e `change-governance`; `sonar-real` PASS após nova execução (falha intermitente `CI_FRESH_LCOV_REQUIRED` na primeira).
+- Skipped: `npm run validate:sonar` local (tokens do responsável); o responsável autorizou seguir com o `sonar-real` da CI.
 
 ## Recuperação
 
@@ -36,3 +37,7 @@ Responsável aceitou a triagem até 2026-12-19. Implementada a versão por image
 ### 2026-11-22T17:30:00-03:00 — Checks da PR76
 
 `change-governance` falhou (decisão do plano e trailers do commit): corrigidos, validador local PASS. `upgrade-restore` falhou no build do guacd porque `glib-2.90.0-r0` saiu do Alpine edge; pin atualizado para `2.90.1-r0` (`apk verify` OK, instalação simulada OK). Próximo: novo push e checks.
+
+### 2026-11-22T18:40:00-03:00 — Merge e encerramento
+
+PR76 mergeada com autorização do responsável (merge `49b583741`). Status `closed`. Pendência: retirar as entradas quando o Alpine publicar OpenSSL corrigido e reavaliar todas as triagens antes de 2026-12-19.

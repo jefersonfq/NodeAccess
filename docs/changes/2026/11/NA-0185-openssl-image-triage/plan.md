@@ -2,7 +2,7 @@
 change_id: NA-0185
 title: Triagem exata de CVEs novas do OpenSSL Alpine sem pacote corrigido
 type: security
-status: implementing
+status: closed
 created_at: 2026-11-21T08:30:00-03:00
 base_branch: master
 base_sha: b4e8cccaba309c8f5aa626e5e31955718b9fce84
