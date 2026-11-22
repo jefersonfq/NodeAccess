@@ -72,6 +72,7 @@ Revert da PR. A triagem vence sozinha e volta a bloquear o gate.
 
 - 2026-11-22: responsável aceitou a triagem temporária até 2026-12-19 (mesma validade da NA-0181).
 - Versão por CVE (`packageVersions`) para não estender as 4 CVEs antigas ao 3.5.9-r1.
+- 2026-11-22 (mudança de escopo, necessária ao critério `upgrade-restore` PASS): o build do guacd falhou porque o APK fixado `glib-2.90.0-r0` saiu do Alpine edge (404). Pin atualizado para `glib-2.90.1-r0` (mesma série, posterior à correção do CVE-2026-58016), com SHA256 novo e assinatura oficial conferida.
 - Pacotes por imagem (`images[ref].packages`) após a revisão independente: o `openssl` (CLI) só vale onde está instalado (backend, tls-agent).
 
 ## Aprovação

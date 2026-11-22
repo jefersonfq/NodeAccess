@@ -34,6 +34,10 @@ Todas com `namespace=nvd:cpe`, `fix.state=unknown`, `matcher=apk-matcher`, CPE p
 - Replay das políticas sobre os relatórios brutos do run 44891378946 (`.tmp/NA-0185/replay.mjs`, local): 7/7 imagens PASS em 2026-11-22; em 2026-12-19T00:00Z as imagens voltam a bloquear.
 - Check remoto `upgrade-restore`: registrar na PR.
 
+## Build do guacd (2026-11-22)
+
+O check da PR76 falhou no build do guacd: o APK fixado `glib-2.90.0-r0` foi retirado do Alpine edge (a URL responde 404; o índice edge publica `2.90.1-r0`). O pin passou a `glib-2.90.1-r0`, SHA256 `8d48e2c7…a2f3`; `apk verify` com as chaves oficiais da base `alpine:3.24.3` retornou OK e a instalação simulada concluiu. Os pins `alsa-lib-1.2.16.1-r0` e `sqlite-libs-3.54.1-r0` seguem no índice. O scan do guacd com o pacote novo fica registrado no check `upgrade-restore`.
+
 ## Pendências
 
 - Quando o Alpine publicar OpenSSL 3.5.10 (ou backport), reconstruir as imagens e remover as entradas.
