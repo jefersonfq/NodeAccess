@@ -95,6 +95,10 @@ export const envSchema = z.object({
   TRIAL_REGISTRATION_ENABLED: booleanEnv(false),
   // NA-0184: vault step-up for LDAP/OIDC/Google sessions. Local sessions are unaffected.
   VAULT_STEP_UP_EXTERNAL_ENABLED: booleanEnv(false),
+  // NA-0183: browser extension (slice E1). Off by default; IDs are the allowed Chromium extension IDs.
+  VAULT_EXTENSION_ENABLED: booleanEnv(false),
+  VAULT_EXTENSION_IDS: z.string().regex(/^([a-p]{32}(,[a-p]{32})*)?$/, 'VAULT_EXTENSION_IDS must list 32-character Chromium extension IDs').default(''),
+  VAULT_EXTENSION_MIN_VERSION: z.string().regex(/^\d{1,4}\.\d{1,4}\.\d{1,4}$/).default('0.1.0'),
   TRIAL_PUBLIC_URL: z.string().url().refine(value => {
     const url = new URL(value)
     return url.protocol === 'https:' && !url.username && !url.password && !url.search && !url.hash

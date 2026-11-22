@@ -200,13 +200,26 @@ export class VaultService {
     if (this.now() >= release.expiresAt) unavailable()
     return { envelope: release.envelope }
   }
+  /** Read without a vault session (e.g. "is this user a vault manager?"): exact policy origin and a per-user limit. */
+  async inspect<T>(identity: VaultIdentity, origin: string, limitKey: string, run: (tx: VaultTransaction) => Promise<T>): Promise<T> {
+    return this.store.transaction(identity, async tx => {
+      if (origin !== tx.authority.policy.origin) denied()
+      await tx.limit(limitKey, 60_000, 30)
+      return run(tx)
+    })
+  }
   async administer<T>(identity: VaultIdentity, clientId: string, origin: string, sessionId: string, run: (tx: VaultTransaction) => Promise<T>): Promise<T> {
+    return this.confirmed(identity, clientId, origin, sessionId, 'administration', tx => run(tx))
+  }
+  /** Unlocked session with a step-up proof younger than 60 s; the portal client is handed to the decision. */
+  async confirmed<T>(identity: VaultIdentity, clientId: string, origin: string, sessionId: string, limitKey: string,
+    run: (tx: VaultTransaction, client: VaultClient) => Promise<T>): Promise<T> {
     return this.store.transaction(identity, async tx => {
       const client = await this.client(tx, clientId, identity, origin)
       const session = await this.session(tx, client, sessionId)
       const deadline = grantDeadline(session, client, tx.now(), tx.authority.validUntil)
-      await tx.limit('administration', 60_000, 10)
-      const result = await run(tx)
+      await tx.limit(limitKey, 60_000, 10)
+      const result = await run(tx, client)
       // All SQL decisions/writes remain locked and uncommitted at this authorization point.
       await this.origin.assert(client.origin, identity)
       if (tx.now() >= deadline) unavailable()

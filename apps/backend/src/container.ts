@@ -6,6 +6,11 @@ import { SqlVaultStore } from './modules/vault-security/vault.repository.js'
 import { RedisVaultOrigin, MethodVaultReauthentication } from './modules/vault-security/vault-identity.js'
 import { createVaultProviderStepUp } from './modules/vault-security/vault-provider.js'
 import { JweVaultEnvelope } from './modules/vault-security/vault-envelope.js'
+import { VaultExtensionService, catalogSummaries } from './modules/vault-security/vault-extension.service.js'
+import { SqlExtensionLocator } from './modules/vault-security/vault-extension.repository.js'
+import { DpopNonces, DpopVerifier } from './modules/vault-security/vault-extension-dpop.js'
+import type { VaultIdentity } from './modules/vault-security/vault-domain.js'
+import type { VaultItemSummary } from '@nodeaccess/shared'
 import { UserSessionRevocationService } from './modules/auth/user-session-revocation.service.js'
 import { configureCurrentSessionReader } from './modules/auth/current-session.js'
 import { SessionAuditReconstructionRepository } from './modules/session-audit/session-audit-reconstruction.repository.js'
@@ -337,7 +342,9 @@ const localIdentityProvider = new LocalIdentityProvider(userRepository)
 const ldapIdentityProvider = new LdapIdentityProvider(integrationRepository, ldapIntegrationService, userRepository)
 const vaultEntropy = { token: (): string => randomBytes(32).toString('base64url'), digest: (value: string): string => createHash('sha256').update(value).digest('hex') }
 const vaultDatabase = new VaultDatabase(env.DATABASE_URL)
-const vaultSecurityService = new VaultService(new SqlVaultStore(() => vaultDatabase.client()), new RedisVaultOrigin(redis, env.JWT_SECRET, Date.now, 500, env.VAULT_STEP_UP_EXTERNAL_ENABLED),
+const vaultStore = new SqlVaultStore(() => vaultDatabase.client())
+const vaultOrigin = new RedisVaultOrigin(redis, env.JWT_SECRET, Date.now, 500, env.VAULT_STEP_UP_EXTERNAL_ENABLED)
+const vaultSecurityService = new VaultService(vaultStore, vaultOrigin,
   new MethodVaultReauthentication(totpService, ldapIdentityProvider), new JweVaultEnvelope(),
   vaultEntropy, Date.now, createVaultProviderStepUp({
     oidcFlow: () => oidcFlowService, links: externalIdentityRepository, google: googleService, users: userRepository, redirectUri: oidcCallbackUrl,
@@ -540,6 +547,15 @@ const inventoryAclService = new InventoryAclService(inventoryAclRepository, logR
 const hostImportService = new HostImportService(redis, hostService, inventoryService, inventoryAclService, secretService, logRepository, hostImportRepository)
 const bastionService   = new BastionService(bastionRepository, logRepository)
 const pemKeyService          = new PemKeyService(pemKeyRepository, logRepository)
+// NA-0183: browser extension (E1). Listing reuses the Secrets/PEM ACL services; nothing returns a value.
+const vaultExtensionNonces = new DpopNonces(createHash('sha256').update(`nodeaccess-vault-extension:${env.JWT_SECRET}`).digest('hex'))
+const vaultExtensionService = new VaultExtensionService(vaultSecurityService, vaultStore, new SqlExtensionLocator(() => vaultDatabase.client()), vaultOrigin,
+  new DpopVerifier(vaultExtensionNonces, { claim: async (key: string, ttlMs: number): Promise<boolean> => (await redis.set(`vault-ext-dpop:${createHash('sha256').update(key).digest('hex')}`, '1', 'PX', ttlMs, 'NX')) === 'OK' }),
+  vaultExtensionNonces, vaultEntropy, {
+    list: async (identity: VaultIdentity, admin: boolean): Promise<VaultItemSummary[]> => catalogSummaries(
+      await secretService.list(identity.userId, identity.tenantId, admin ? 'admin' : 'user'),
+      await pemKeyService.list(identity.userId, identity.tenantId, admin), identity.userId),
+  }, { enabled: env.VAULT_EXTENSION_ENABLED, extensionIds: env.VAULT_EXTENSION_IDS.split(',').filter(Boolean), minVersion: env.VAULT_EXTENSION_MIN_VERSION })
 const groupService     = new GroupService(groupRepository, logRepository)
 
 // ---------------------------------------------------------------------------
@@ -682,6 +698,7 @@ export const container = {
   // Secrets
   vaultSecurityService,
   vaultAdministrationService,
+  vaultExtensionService,
   closeVaultDatabase: (): Promise<void> => vaultDatabase.close(),
   secretController,
   // Platform

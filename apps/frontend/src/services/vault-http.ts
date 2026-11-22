@@ -37,7 +37,7 @@ export function createVaultTransport(fetcher: typeof fetch = globalThis.fetch): 
         body: JSON.stringify(body),
       })
       if (!response.ok) {
-        const reasons: Record<number, VaultFailure> = { 401: 'login', 403: 'denied', 409: 'expired', 423: 'locked', 429: 'quota' }
+        const reasons: Record<number, VaultFailure> = { 401: 'login', 403: 'denied', 404: 'unsupported', 409: 'expired', 423: 'locked', 429: 'quota' }
         throw new VaultClientError(reasons[response.status] ?? 'unavailable')
       }
       const text = await readBounded(response)

@@ -30,7 +30,7 @@ def sanitized(value):
 
 def fingerprint():
     paths = run(["git", "ls-files", "--cached", "--others", "--exclude-standard"]).stdout.splitlines()
-    selected = sorted(p for p in paths if p.startswith(("apps/backend/src/modules/vault-security/", "apps/backend/prisma/migrations/20261116030000_add_vault_security/", "tools/vault-security/")))
+    selected = sorted(p for p in paths if p.startswith(("apps/backend/src/modules/vault-security/", "apps/backend/prisma/migrations/20261116030000_add_vault_security/", "apps/backend/prisma/migrations/20261120150000_vault_extension/", "tools/vault-security/")))
     digest = hashlib.sha256()
     for name in selected:
         path = ROOT / name
@@ -85,11 +85,17 @@ try:
     schema.write_text(run(["git", "show", BASE + ":apps/backend/prisma/schema.prisma"]).stdout)
     setup = run(["node", "node_modules/prisma/build/index.js", "db", "push", "--skip-generate", "--schema", str(schema)], timeout=120)
     log("schema.log", setup)
-    migration = ROOT / "apps/backend/prisma/migrations/20261116030000_add_vault_security/migration.sql"
-    applied = run(["docker", "exec", "-i", "-e", "MYSQL_PWD=" + password, mysql, "mysql", "-uroot", database], input=migration.read_text(), timeout=60)
-    log("migration.log", applied)
-    RESULT["migration_sha256"] = hashlib.sha256(migration.read_bytes()).hexdigest()
-    tests = subprocess.run(["node", "node_modules/vitest/vitest.mjs", "run", "apps/backend/src/modules/vault-security/vault.mysql.test.ts", "--reporter=json", "--outputFile=" + str(OUT / "tests.json")], cwd=ROOT, env=ENV, capture_output=True, text=True, timeout=180)
+    # NA-0183: the extension migration is rehearsed on top of the vault one, in deployment order.
+    migrations = [ROOT / "apps/backend/prisma/migrations/20261116030000_add_vault_security/migration.sql",
+                  ROOT / "apps/backend/prisma/migrations/20261120150000_vault_extension/migration.sql"]
+    digest = hashlib.sha256()
+    for migration in migrations:
+        applied = run(["docker", "exec", "-i", "-e", "MYSQL_PWD=" + password, mysql, "mysql", "-uroot", database], input=migration.read_text(), timeout=60)
+        log("migration-" + migration.parent.name + ".log", applied)
+        digest.update(migration.read_bytes())
+    RESULT["migration_sha256"] = digest.hexdigest()
+    tests = subprocess.run(["node", "node_modules/vitest/vitest.mjs", "run", "apps/backend/src/modules/vault-security/vault.mysql.test.ts",
+                            "apps/backend/src/modules/vault-security/vault-extension.mysql.test.ts", "--reporter=json", "--outputFile=" + str(OUT / "tests.json")], cwd=ROOT, env=ENV, capture_output=True, text=True, timeout=180)
     log("tests.log", tests)
     RESULT["exit_code"] = tests.returncode
     report = json.loads((OUT / "tests.json").read_text())

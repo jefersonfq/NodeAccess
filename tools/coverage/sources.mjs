@@ -4,6 +4,7 @@ export const sourcePatterns = [
   'apps/backend/src/**/*.{ts,js,mjs,cjs,mts}',
   'apps/backend/prisma/**/*.{ts,js,mjs,cjs,mts}',
   'apps/frontend/src/**/*.{ts,js,mjs,cjs,mts,vue}',
+  'apps/extension/src/**/*.{ts,js,mjs,cjs,mts,vue}',
   'apps/agent/src/**/*.{ts,js,mjs,cjs,mts}',
   'packages/shared/src/**/*.{ts,js,mjs,cjs,mts}',
   'scripts/**/*.{ts,js,mjs,cjs,mts}',

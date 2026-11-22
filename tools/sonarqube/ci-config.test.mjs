@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync, symlinkSync } from 'node:fs'
+import { existsSync, mkdtempSync, mkdirSync, readdirSync, writeFileSync, readFileSync, rmSync, symlinkSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { assertConfiguration, materializeBaseConfiguration, readConfiguration, verifyScannerContext } from './ci-config.mjs'
@@ -27,6 +27,31 @@ test('base symlink cannot redirect config writes outside the disposable base', t
   writeFileSync(outside, 'preserve'); symlinkSync(outside, f.baseSettings)
   materializeBaseConfiguration(f.root, f.baseRoot)
   assert.equal(readFileSync(outside, 'utf8'), 'preserve'); assert.equal(readFileSync(f.baseSettings, 'utf8'), source)
+})
+test('scope roots and tsconfigs introduced by the candidate are materialized only inside the base', t => {
+  const f = fixture(t)
+  writeFileSync(f.settings, source.replace('sonar.sources=src', 'sonar.sources=src,apps/extension/src,index.html')
+    .replace('packages/shared/tsconfig.json', 'apps/extension/tsconfig.json,packages/shared/tsconfig.json'))
+  mkdirSync(join(f.root, 'src')); mkdirSync(join(f.baseRoot, 'src')); mkdirSync(join(f.root, 'apps/extension/src'), { recursive: true })
+  writeFileSync(join(f.root, 'apps/extension/src/a.ts'), 'export {}'); writeFileSync(join(f.root, 'index.html'), '<html>')
+  writeFileSync(join(f.root, 'apps/extension/tsconfig.json'), '{"include":["src/**/*.ts"]}')
+  const result = materializeBaseConfiguration(f.root, f.baseRoot)
+  assert.deepEqual(result.bootstrapped, ['apps/extension/src', 'apps/extension/tsconfig.json'])
+  assert.deepEqual(readdirSync(join(f.baseRoot, 'apps/extension/src')), [])
+  assert.equal(readFileSync(join(f.baseRoot, 'apps/extension/tsconfig.json'), 'utf8'), '{"include":["src/**/*.ts"]}')
+  assert.equal(existsSync(join(f.baseRoot, 'index.html')), false)
+})
+test('scope paths cannot leave the disposable base', t => {
+  for (const path of ['../outside', '/etc']) {
+    const f = fixture(t)
+    writeFileSync(f.settings, source.replace('sonar.sources=src', `sonar.sources=${path}`))
+    assert.throws(() => materializeBaseConfiguration(f.root, f.baseRoot), /CI_SCOPE_PATH_INVALID/)
+  }
+  const f = fixture(t), outside = join(f.directory, 'outside')
+  writeFileSync(f.settings, source.replace('sonar.sources=src', 'sonar.sources=link/new'))
+  mkdirSync(join(f.root, 'link/new'), { recursive: true }); mkdirSync(outside); symlinkSync(outside, join(f.baseRoot, 'link'))
+  assert.throws(() => materializeBaseConfiguration(f.root, f.baseRoot), /CI_SCOPE_PATH_ESCAPE/)
+  assert.deepEqual(readdirSync(outside), [])
 })
 test('settings location, mutation, unsupported syntax and duplicate keys fail closed', t => {
   const f = fixture(t), config = readConfiguration(f.settings)
@@ -65,5 +90,5 @@ test('effective context proves configured scope and discards every non-allowlist
 test('current repository scanner settings satisfy the strict CI contract', () => {
   const config = readConfiguration(new URL('../../sonar-project.properties', import.meta.url))
   assert.equal(config.properties['sonar.python.coverage.reportPaths'], 'coverage/python.xml')
-  assert.equal(config.properties['sonar.typescript.tsconfigPaths'], 'apps/backend/tsconfig.json,apps/frontend/tsconfig.json,packages/shared/tsconfig.json')
+  assert.equal(config.properties['sonar.typescript.tsconfigPaths'], 'apps/backend/tsconfig.json,apps/frontend/tsconfig.json,apps/extension/tsconfig.json,packages/shared/tsconfig.json')
 })

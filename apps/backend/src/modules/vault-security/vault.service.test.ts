@@ -23,6 +23,8 @@ function fixture() {
   const sealer = { validate: vi.fn(() => Promise.resolve('key-thumbprint')), seal: vi.fn<EnvelopeSealer['seal']>(() => Promise.resolve('ciphertext-envelope')) }
   const verifier = { bind: vi.fn(() => Promise.resolve({ jti: 'origin', expiresAt: 2_000_000, authMethod: originMethod })), assert: vi.fn(() => { if (!originActive) throw new VaultError('VAULT_ORIGIN_REVOKED',423); return Promise.resolve() }) }
   const propose = vi.fn(() => Promise.resolve()), approve = vi.fn(() => Promise.resolve({ change: { kind: 'item' as const, secretId: 4, enabled: true }, proposedBy: 9 }))
+  const administration = { isManager: vi.fn(() => Promise.resolve(true)), overview: vi.fn(() => Promise.resolve({ users: [], proposals: [], serverNow: time })) }
+  let withAdministration = true
   let tail = Promise.resolve()
   const store: VaultStore = { transaction: async <T>(_i: VaultIdentity, run: (tx: VaultTransaction) => Promise<T>): Promise<T> => {
     let done!: () => void
@@ -34,7 +36,7 @@ function fixture() {
         put: (kind, token, value) => { records.set(kind+':'+token, structuredClone(value)); return Promise.resolve() },
         remove: (kind, token) => { records.delete(kind+':'+token); return Promise.resolve() },
         limit: (name, window, max) => { const k=name+Math.floor(time/window); const n=(counts.get(k)??0)+1;counts.set(k,n);if(n>max)throw new VaultError('VAULT_RATE_LIMIT',429);return Promise.resolve() },
-        secret: authorizeSecret, audit, propose, approve,
+        secret: authorizeSecret, audit, propose, approve, ...(withAdministration ? { administration } : {}),
       })
       afterCommit?.(); return result
     } catch (e) { records=before; counts=previousCounts;events=previousEvents;throw e } finally { done() }
@@ -46,7 +48,8 @@ function fixture() {
     const s = await service.unlock(identity,c.clientId,origin,challenge.challengeId,'password','123456')
     return { c, s, request: () => service.request(identity,c.clientId,origin,s.sessionId,'reveal',4,key) }
   }
-  return { service, store, setup, authority, reauth, provider, useMethod: (m: VaultAuthMethod) => { originMethod = m }, sealer, verifier, audit, authorizeSecret, propose, approve,
+  return { service, store, setup, authority, reauth, provider, useMethod: (m: VaultAuthMethod) => { originMethod = m }, sealer, verifier, audit, authorizeSecret, propose, approve, administration,
+    withoutAdministration: () => { withAdministration = false },
     records: () => records, events: () => events, counts: () => counts,
     advance: (ms: number) => { time+=ms }, revoke: () => { originActive=false }, rotate: () => { secretVersion='v2' },
     failAudit: (v: boolean) => { auditFails=v }, onCommit: (fn: () => void) => { afterCommit=fn } }
@@ -206,6 +209,32 @@ describe('vault lifecycle and release boundaries', () => {
     const p=await admin.propose(identity,c.clientId,origin,s.sessionId,{kind:'item',secretId:4,enabled:true})
     expect(f.propose).toHaveBeenCalled();await expect(admin.approve(identity,c.clientId,origin,s.sessionId,p.proposalId)).resolves.toEqual({state:'APPLIED'})
     f.advance(60000);await expect(admin.approve(identity,c.clientId,origin,s.sessionId,p.proposalId)).rejects.toMatchObject({status:423})
+  })
+  it('NA-0183: manager status needs only the exact origin; overview and approval by reference need the confirmed session',async()=>{
+    const f=fixture(),{c,s}=await f.setup(),admin=new VaultAdministrationService(f.service,entropy),reference='b'.repeat(64)
+    await expect(admin.status(identity,origin)).resolves.toEqual({manager:true})
+    await expect(admin.status(identity,'https://other.test')).rejects.toMatchObject({status:403})
+    f.administration.isManager.mockResolvedValueOnce(false)
+    await expect(admin.status(identity,origin)).resolves.toEqual({manager:false})
+    await expect(admin.overview(identity,c.clientId,origin,s.sessionId)).resolves.toMatchObject({users:[],proposals:[]})
+    await expect(admin.approveReference(identity,c.clientId,origin,s.sessionId,reference)).resolves.toEqual({state:'APPLIED'})
+    expect(f.approve).toHaveBeenLastCalledWith(reference,true)
+    expect(f.audit).toHaveBeenLastCalledWith(expect.objectContaining({type:'POLICY_CHANGED',operationRef:reference,proposedBy:9}))
+    expect(f.audit.mock.calls.at(-1)?.[0]).not.toHaveProperty('operationId')
+    f.advance(60000)
+    await expect(admin.overview(identity,c.clientId,origin,s.sessionId)).rejects.toMatchObject({status:423})
+    await expect(admin.approveReference(identity,c.clientId,origin,s.sessionId,reference)).rejects.toMatchObject({status:423})
+  })
+  it('NA-0183: without the administration reads the overview is unavailable and status is false',async()=>{
+    const f=fixture(),{c,s}=await f.setup(),admin=new VaultAdministrationService(f.service,entropy)
+    f.withoutAdministration()
+    await expect(admin.status(identity,origin)).resolves.toEqual({manager:false})
+    await expect(admin.overview(identity,c.clientId,origin,s.sessionId)).rejects.toMatchObject({status:409})
+  })
+  it('NA-0183: status is rate limited per user',async()=>{
+    const f=fixture(),admin=new VaultAdministrationService(f.service,entropy)
+    for(let i=0;i<30;i++) await admin.status(identity,origin)
+    await expect(admin.status(identity,origin)).rejects.toMatchObject({status:429})
   })
 })
 describe('policy fails closed',()=>{

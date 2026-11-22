@@ -52,7 +52,7 @@ test('isolated browser orchestration uses loopback fixtures and private outputs 
       assert.equal(existsSync(join(root, 'coverage/browser/chromium-v8/stale.json')), false)
       assert.equal(env.SONAR_TOKEN, undefined); assert.equal(env.SONAR_REVIEW_TOKEN, undefined)
       assert.equal(env.SONAR_ASSIGNED, join(root, 'docs/changes/2026/11/NA-0087-sonar-frontend/dispositions.json'))
-      if (['sonar-frontend-review.cjs', 'table-review.cjs', 'terminal-highlight-budget.mjs'].some(name => script.endsWith('/' + name))) {
+      if (['sonar-frontend-review.cjs', 'table-review.cjs', 'terminal-highlight-budget.mjs', 'extension-smoke.mjs'].some(name => script.endsWith('/' + name))) {
         assert.equal(env.BROWSER_COVERAGE_DIR, undefined)
         assert.equal(env.BROWSER_COVERAGE_RUN_ID, undefined)
       } else {
@@ -67,7 +67,7 @@ test('isolated browser orchestration uses loopback fixtures and private outputs 
       assert.equal((await fetch(env.FRONTEND_BASE + '/api/v1/user')).status, 404)
       return { exitCode: 0, timedOut: false }
     } })
-  assert.equal(requiredBrowserHarnesses.length, 10)
+  assert.equal(requiredBrowserHarnesses.length, 11)
   assert.equal(result.harnesses.at(-1).coverageMode, 'node-only')
   assert.equal(result.status, 'passed'); assert.equal(result.phase, 'complete'); assert.equal(vite.closed, true)
   assert.deepEqual(runs, requiredBrowserHarnesses.map(([, script]) => script))
@@ -177,7 +177,7 @@ for (const override of [undefined, '', '/explicit/chromium']) test(`all nine chi
       return { exitCode: 0, timedOut: false }
     } })
   assert.equal(result.status, 'passed', result.error)
-  assert.equal(paths.length, 10); assert.equal(vite.closed, true)
+  assert.equal(paths.length, requiredBrowserHarnesses.length); assert.equal(vite.closed, true)
 })
 
 test('missing explicit browser stays explicit and failure cannot fall back to another executable', async t => {
@@ -222,7 +222,7 @@ test('failed frontend retains bounded stack coordinates without private text or 
   assert.doesNotMatch(JSON.stringify(result), /PRIVATE|selector/)
 })
 
-for (const name of ['ha', 'audit-input', 'tacacs-tls', 'security-center', 'highlight-budget']) {
+for (const name of ['ha', 'audit-input', 'tacacs-tls', 'security-center', 'highlight-budget', 'vault-extension']) {
   test(`new required browser harness ${name} blocks completion on failure`, async t => {
     const root = fixture(t), vite = fakeVite(), calls = []
     const script = requiredBrowserHarnesses.find(([candidate]) => candidate === name)[1]

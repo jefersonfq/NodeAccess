@@ -16,7 +16,7 @@ if (process.env.LINT_INCLUDE_WORKTREE === 'true') {
 }
 
 const files = [...candidates]
-  .filter((file) => /^apps\/(backend|frontend)\/src\/.+\.(ts|vue)$/.test(file))
+  .filter((file) => /^apps\/(backend|frontend|extension)\/src\/.+\.(ts|vue)$/.test(file))
   .filter((file) => !file.includes('-NOTE-JEFF.'))
   .filter((file) => existsSync(resolve(root, file)))
   .sort(compareCodeUnits)

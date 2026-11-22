@@ -13,6 +13,9 @@ import { canManageVaultEntry, filterVaultEntries, type VaultEntry, type VaultKin
 import SecretActions from '@/components/vault/SecretActions.vue'
 import PemKeyActions from '@/components/vault/PemKeyActions.vue'
 import VaultDeliveryPanel from '@/components/vault/VaultDeliveryPanel.vue'
+import ExtensionDevices from '@/components/vault/ExtensionDevices.vue'
+import VaultAdministration from '@/components/vault/VaultAdministration.vue'
+import { useRoute, useRouter } from 'vue-router'
 
 const { t } = useI18n()
 const auth = useAuthStore()
@@ -25,7 +28,17 @@ const search = ref('')
 const kind = ref<VaultKind | 'all'>('all')
 const includeRevoked = ref(false)
 const canListPem = computed(() => auth.isAdmin || !!auth.user?.canManageHosts)
-const filtered = computed(() => filterVaultEntries(catalog.entries.value, search.value, kind.value))
+const route = useRoute(), router = useRouter()
+// NA-0183: the extension opens items as /vault?kind=<secret|pem>&id=<n>; only that entry is shown until cleared.
+const focus = computed(() => {
+  const k = route.query.kind, id = route.query.id
+  return (k === 'secret' || k === 'pem') && typeof id === 'string' && /^\d{1,9}$/.test(id) ? `${k}:${id}` : ''
+})
+function clearFocus(): void { void router.replace({ name: 'vault' }) }
+const filtered = computed(() => {
+  const entries = filterVaultEntries(catalog.entries.value, search.value, kind.value)
+  return focus.value ? entries.filter(entry => entry.key === focus.value) : entries
+})
 const partialError = computed(() => secretState.value === 'error' || pemState.value === 'error')
 const typeOptions = computed(() => [
   { label: t('vault.allTypes'), value: 'all' },
@@ -146,6 +159,24 @@ const columns = computed<DataTableColumns<VaultEntry>>(() => [
       {{ t('vaultDelivery.catalogHint') }}
     </p>
     <VaultDeliveryPanel ref="deliveryPanel" />
+    <ExtensionDevices />
+    <VaultAdministration />
+    <NAlert
+      v-if="focus"
+      type="info"
+      class="mb-4"
+      data-testid="vault-focus"
+    >
+      {{ t('vaultExtension.focused') }}
+      <NButton
+        text
+        type="primary"
+        class="ml-2"
+        @click="clearFocus"
+      >
+        {{ t('vaultExtension.showAll') }}
+      </NButton>
+    </NAlert>
     <NAlert
       v-if="secretState === 'unlicensed'"
       type="info"

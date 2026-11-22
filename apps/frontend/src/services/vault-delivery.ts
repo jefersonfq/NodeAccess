@@ -1,6 +1,7 @@
 import { shallowReactive, readonly, type DeepReadonly } from 'vue'
 import { assertVaultEnvelopeContext, createVaultRecipient, openVaultEnvelope } from './vault-envelope'
 import { createVaultTransport, VaultClientError, type VaultFailure, type VaultPortalIdentity, type VaultTransport } from './vault-http'
+import { VaultAdministrationOverviewSchema, type VaultAdministrationChange, type VaultAdministrationOverview } from '@nodeaccess/shared'
 
 type Action = 'reveal' | 'copy'
 interface Deadline { mono: number; wall: number }
@@ -36,6 +37,8 @@ const fail = (reason: VaultFailure = 'unavailable'): never => { throw new VaultC
 function sameIdentity(a: VaultPortalIdentity | null, b: VaultPortalIdentity | null): boolean {
   return !!a && !!b && a.userId === b.userId && a.tenantId === b.tenantId && a.refreshToken === b.refreshToken && a.origin === b.origin
 }
+/** Public parameters the extension sent to the consent page; the code is bound to them server side. */
+export interface ExtensionConsent { extensionId: string; redirectUri: string; state: string; codeChallenge: string; deviceJkt: string }
 /** Page-local capabilities and plaintext; never Pinia, browser storage, catalog, or error payloads. */
 export interface VaultDelivery {
   state: DeepReadonly<DeliveryState>
@@ -43,6 +46,14 @@ export interface VaultDelivery {
   prepare(): Promise<void>
   unlockWithProvider(confirm: VaultProviderConfirmation): Promise<void>
   deliver(action: Action, secretId: number): Promise<void>
+  /** NA-0183: consent for the browser extension inside the unlocked session; returns the one-time code. */
+  authorizeExtension(request: ExtensionConsent): Promise<string | null>
+  /** NA-0183 manager screen: users, grants and pending proposals (needs the confirmed session). */
+  administrationOverview(): Promise<VaultAdministrationOverview | null>
+  /** Proposes a change; another manager approves it. The session stays unlocked within the proof window. */
+  proposeChange(change: VaultAdministrationChange): Promise<boolean>
+  /** Approves a listed proposal; every approval bumps the policy version, so the session is locked afterwards. */
+  approveProposal(reference: string): Promise<boolean>
   confirmCopy(): Promise<void>
   dismiss(): void; lock(): void; tick(): void; dispose(): void
 }
@@ -200,6 +211,54 @@ export function createVaultDelivery(deps: VaultDeliveryDependencies): VaultDeliv
       if (action === 'reveal') { state.value = value; state.phase = 'revealed' } else { pendingCopy = value; state.phase = 'copy-ready' }
     } catch (error) { failure(error, version) }
   }
+  async function authorizeExtension(request: ExtensionConsent): Promise<string | null> {
+    tick()
+    if (disposed || state.phase !== 'unlocked') return null
+    const identity = deps.identity()
+    if (!identity || !sameIdentity(identity, owner)) { lock(); return null }
+    invalidate(); const version = epoch, signal = abort.signal
+    state.phase = 'delivering'; state.error = null
+    try {
+      requireProof()
+      const reply = await transport.post<{ code?: unknown }>('extension/authorize', { ...request, sessionId }, identity, clientId, signal)
+      guard(version, identity)
+      const code = reply.code
+      if (!opaque(code)) return fail()
+      // One consent per unlock: the session is locked again so the page holds no vault capability afterwards.
+      lock()
+      return code
+    } catch (error) { failure(error, version); return null }
+  }
+  async function administration<T>(path: string, body: object, run: (reply: unknown) => T, lockAfter = false): Promise<T | null> {
+    tick()
+    if (disposed || state.phase !== 'unlocked') return null
+    const identity = deps.identity()
+    if (!identity || !sameIdentity(identity, owner)) { lock(); return null }
+    invalidate(); const version = epoch, signal = abort.signal
+    state.phase = 'delivering'; state.error = null
+    try {
+      requireProof()
+      const reply = await transport.post<unknown>(path, { ...body, sessionId }, identity, clientId, signal)
+      guard(version, identity)
+      const result = run(reply)
+      if (lockAfter) lock()
+      else state.phase = 'unlocked'
+      return result
+    } catch (error) { failure(error, version); return null }
+  }
+  function administrationOverview(): Promise<VaultAdministrationOverview | null> {
+    return administration('administration/overview', {}, reply => {
+      const parsed = VaultAdministrationOverviewSchema.safeParse(reply)
+      return parsed.success ? parsed.data : fail()
+    })
+  }
+  async function proposeChange(change: VaultAdministrationChange): Promise<boolean> {
+    return (await administration('administration/proposals', { change }, reply => opaque((reply as { proposalId?: unknown } | null)?.proposalId) || fail())) === true
+  }
+  async function approveProposal(reference: string): Promise<boolean> {
+    if (!/^[a-f0-9]{64}$/.test(reference)) return false
+    return (await administration('administration/approve', { reference }, reply => (reply as { state?: unknown } | null)?.state === 'APPLIED' || fail(), true)) === true
+  }
   async function confirmCopy(): Promise<void> {
     tick()
     if (disposed || state.phase !== 'copy-ready') return
@@ -231,5 +290,5 @@ export function createVaultDelivery(deps: VaultDeliveryDependencies): VaultDeliv
     if (valueUntil && !live(valueUntil)) dismiss()
   }
   function dispose(): void { lock(); disposed = true }
-  return { state: readonly(state), unlock, prepare, unlockWithProvider, deliver, confirmCopy, dismiss, lock, tick, dispose }
+  return { state: readonly(state), unlock, prepare, unlockWithProvider, deliver, authorizeExtension, administrationOverview, proposeChange, approveProposal, confirmCopy, dismiss, lock, tick, dispose }
 }
