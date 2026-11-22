@@ -87,6 +87,7 @@ function describe(proposal: Proposal): string {
 function approvable(change: VaultAdministrationChange, mine: boolean): boolean {
   return !mine && change.kind === 'grant' && change.userId !== me.value
 }
+const steps = ['step1', 'step2', 'step3'] as const
 const remaining = (expiresAt: number): number => Math.max(0, Math.ceil((expiresAt - now.value - clockSkew) / 1000))
 onMounted(() => {
   void detect()
@@ -108,9 +109,18 @@ defineExpose({ detect })
     <h2 class="mb-1 text-base font-semibold">
       {{ t('vaultAdministration.title') }}
     </h2>
-    <p class="mb-3 text-sm text-gray-400">
-      {{ t('vaultAdministration.intro') }}
-    </p>
+    <div
+      class="mb-3 text-sm text-gray-400"
+      data-testid="vault-administration-how"
+    >
+      <p>{{ t('vaultAdministration.intro') }}</p>
+      <p
+        v-for="step in steps"
+        :key="step"
+      >
+        {{ t(`vaultAdministration.${step}`) }}
+      </p>
+    </div>
     <NAlert
       v-if="notice"
       class="mb-3"
@@ -276,6 +286,13 @@ defineExpose({ detect })
             depth="3"
           >
             {{ t('vaultAdministration.yours') }}
+          </NText>
+          <NText
+            v-else-if="proposal.change.kind === 'grant' && proposal.change.userId === me"
+            depth="3"
+            :data-testid="`vault-administration-beneficiary-${proposal.reference}`"
+          >
+            {{ t('vaultAdministration.beneficiary') }}
           </NText>
         </li>
       </ul>

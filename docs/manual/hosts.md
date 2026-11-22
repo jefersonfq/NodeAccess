@@ -109,7 +109,9 @@ Gestores do cofre veem, em **VaultNAccess**, a seção **Permissões do cofre (g
 
 1. Selecione **Administrar permissões** e confirme sua identidade (senha e código do autenticador, ou **Confirmar no provedor**). A confirmação vale por 1 minuto; depois disso, confirme de novo.
 2. Na linha do usuário, selecione **Propor ativar** ou **Propor retirar** na permissão desejada. A proposta aparece em **Propostas aguardando aprovação**, com o tempo restante.
-3. Peça a outro gestor para abrir a mesma seção, confirmar a identidade e selecionar **Aprovar** na proposta. Você não vê o botão **Aprovar** nas suas próprias propostas.
+3. Peça a outro gestor para entrar com a própria conta, abrir a mesma seção, confirmar a identidade e selecionar **Aprovar** na proposta. Não pode ser quem propôs nem quem recebe a permissão. Nas suas propostas aparece **aguardando outro gestor aprovar**; numa proposta que dá a permissão a você, aparece que outro gestor precisa aprovar.
+
+Ser administrador do NodeAccess não torna ninguém gestor do cofre: os gestores são definidos na ativação do cofre do tenant.
 
 Cada aprovação bloqueia o cofre para todos, inclusive para os gestores: quem estava com o cofre aberto precisa confirmar a identidade de novo. Retirar **Usar extensão** desconecta na hora todos os dispositivos daquela pessoa. Mudanças de política do cofre e de itens aparecem na lista sem o botão **Aprovar**: são revisadas e aprovadas pela administração da instalação.
 

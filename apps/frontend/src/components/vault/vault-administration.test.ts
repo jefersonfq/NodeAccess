@@ -32,6 +32,8 @@ const overview = {
       beneficiary: { id: 2, name: 'Bruno', email: 'bruno@example.test' } },
     { reference: other, change: { kind: 'policy' as const, reveal: true, copy: true, tenantQuota: 10 }, proposedBy: { id: 1, name: 'Ana' }, mine: true, expiresAt: Date.now() + 30_000, beneficiary: null },
     { reference: 'c'.repeat(64), change: { kind: 'item' as const, secretId: 4, enabled: true }, proposedBy: { id: 3, name: 'Carla' }, mine: false, expiresAt: Date.now() + 30_000, beneficiary: null },
+    { reference: 'd'.repeat(64), change: { kind: 'grant' as const, userId: 1, action: 'copy' as const, enabled: true }, proposedBy: { id: 3, name: 'Carla' }, mine: false, expiresAt: Date.now() + 30_000,
+      beneficiary: { id: 1, name: 'Ana', email: 'ana@example.test' } },
   ],
 }
 const state = reactive({ phase: 'locked', error: null as string | null, stepUp: 'password_totp', value: '', copied: false, providerPending: false })
@@ -89,6 +91,10 @@ describe('NA-0183 vault administration screen', () => {
     // Policy/item proposals are listed but never approved blind from this screen.
     expect(html).not.toContain(`vault-administration-approve-${'c'.repeat(64)}`)
     expect(html).toContain('vaultAdministration.yours'); expect(html).toContain('vaultAdministration.proposalOther')
+    // The two-manager rule is spelled out, and a manager who receives the permission is told someone else must approve.
+    for (const step of ['intro', 'step1', 'step2', 'step3']) expect(html).toContain(`vaultAdministration.${step}`)
+    expect(html).toContain(`vault-administration-beneficiary-${'d'.repeat(64)}`); expect(html).not.toContain(`vault-administration-approve-${'d'.repeat(64)}`)
+    expect(html).not.toContain(`vault-administration-beneficiary-${reference}`)
     expect(f.state.describe(overview.proposals[0])).toContain('"user":"Bruno <bruno@example.test>"')
     expect(f.state.describe({ ...overview.proposals[1], change: { kind: 'grant', userId: 2, action: 'copy', enabled: true } })).toContain('"user":"Bruno"')
     expect(f.state.describe({ ...overview.proposals[1], change: { kind: 'grant', userId: 9, action: 'copy', enabled: true } })).toContain('vaultAdministration.unknownUser')
