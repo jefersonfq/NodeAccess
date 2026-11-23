@@ -24,7 +24,7 @@ execFileSync(process.execPath, [resolve(ROOT, 'node_modules/vite/bin/vite.js'), 
 const dist = resolve(ROOT, 'apps/extension/dist')
 const profile = mkdtempSync(join(OUT, 'profile-'))
 const access = 'A'.repeat(43), code = 'C'.repeat(43)
-const seen = { token: 0, items: 0, consentQuery: null, urls: [], id: '', announced: BUILD, trusted: false, portalLogin: true, renewed: [], forgotten: 0 }
+const seen = { token: 0, items: 0, consentQuery: null, urls: [], id: '', announced: BUILD, trusted: false, portalLogin: true, lastRenewal: '', forgotten: 0 }
 let context, server
 try {
   // Disposable self-signed certificate; the browser is told to trust it only for this run.
@@ -64,7 +64,7 @@ try {
         if (!seen.trusted) return send(401, JSON.stringify({ code: 'EXTENSION_UNAUTHORIZED' }))
         if (body.otp === undefined && !seen.portalLogin) return send(401, JSON.stringify({ code: 'EXTENSION_REAUTH_REQUIRED' }))
         if (body.otp !== undefined && body.otp !== '123456') return send(403, JSON.stringify({ code: 'VAULT_REAUTH_FAILED' }))
-        seen.renewed.push(body.otp === undefined ? 'SESSION' : 'OTP')
+        seen.lastRenewal = body.otp === undefined ? 'SESSION' : 'OTP'
         return send(200, JSON.stringify({ accessToken: access, tokenType: 'DPoP', expiresAt: 1_800_000, serverNow: 0 }))
       }
       if (url.pathname.endsWith('/extension/forget')) {
@@ -162,7 +162,7 @@ try {
   const dropAuthorization = () => popup.evaluate(async () => chrome.storage.session.remove(['authorization']))
   await dropAuthorization(); await popup.reload()
   await popup.getByTestId('vaultnaccess-results').getByText('smoke-item').waitFor({ timeout: 10_000 })
-  check('renew-automatic', seen.renewed.at(-1) === 'SESSION')
+  check('renew-automatic', seen.lastRenewal === 'SESSION')
   // Portal login ended: only the authenticator code is asked; a wrong code is explained, the right one reconnects.
   seen.portalLogin = false
   await dropAuthorization(); await popup.reload()
@@ -172,7 +172,7 @@ try {
   await popup.getByTestId('vaultnaccess-error').filter({ hasText: /Código incorreto|Wrong code/ }).waitFor({ timeout: 10_000 })
   await popup.getByTestId('vaultnaccess-otp').fill('123456'); await popup.getByTestId('vaultnaccess-otp-submit').click()
   await popup.getByTestId('vaultnaccess-results').getByText('smoke-item').waitFor({ timeout: 10_000 })
-  check('renew-with-code', seen.renewed.at(-1) === 'OTP')
+  check('renew-with-code', seen.lastRenewal === 'OTP')
   await popup.getByText(/Desconectar|Disconnect/).click()
   await popup.getByTestId('vaultnaccess-connect').waitFor({ timeout: 10_000 })
   const after = await popup.evaluate(async () => chrome.storage.session.get(null))

@@ -36,3 +36,7 @@ Implementação e validação acima. Decisão do planejador: **Desconectar** enc
 ### 2026-11-23T15:50:00-03:00 — Revisão independente e ajustes
 
 Revisão independente de segurança (subagente, somente leitura): PASS_WITH_WARNINGS — sem caminho de renovação sem a chave, sem cruzar usuário/tenant, contador de códigos sem burla por paralelismo (linha do usuário travada), revogações efetivas. Corrigidos: MEDIUM 1 (`/forget` pela chave do dispositivo; **Desconectar** também na tela do código), MEDIUM 2 (uma confiança por chave; teste MySQL com dois usuários), LOW 3 (política de métodos no modo por código), INFO (limite antes da verificação do código). Ran: vitest `vault-security` 292 PASS; `apps/extension` 44 PASS; `test:vault:real` 45 PASS; `test:extension:web` PASS.
+
+### 2026-11-23T16:50:00-03:00 — CI da PR84
+
+`sonar-real` reprovou por dois apontamentos S3403 no smoke da extensão (comparação com o vetor `renewed` de tipo inferido vazio; trocado por um campo de texto) e porque o harness `vault-extension` saiu com código 1 sem diagnóstico (o smoke não imprime pilha). Localmente o smoke passa em todas as execuções (3/3, ~23 s, também com o executável do Chromium indicado como na CI). Cobertura nova 93,3%. Reexecução para confirmar se é intermitente.
