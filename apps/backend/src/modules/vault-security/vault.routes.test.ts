@@ -163,6 +163,10 @@ describe('Vault private HTTP adapter', () => {
       expect(locked.json()).toMatchObject({ code: 'VAULT_LOCKED' })
       expect(locked.headers['cache-control']).toBe('no-store')
       expect((await h.app.inject({ method: 'GET', url: '/central-session', headers: h.headers })).json()).toEqual({ userId: '42' })
+      // NA-0191: a failed identity confirmation keeps 403 with its own code (the portal explains it).
+      h.service.current.mockRejectedValueOnce(new VaultError('VAULT_REAUTH_FAILED', 403))
+      const reauth = await h.post('/sessions/current')
+      expect(reauth.statusCode).toBe(403); expect(reauth.json()).toMatchObject({ code: 'VAULT_REAUTH_FAILED' })
       h.service.current.mockRejectedValueOnce(new Error('secret-private-upstream-data'))
       const failure = await h.post('/sessions/current')
       expect(failure.statusCode).toBe(503)

@@ -30,6 +30,9 @@ export class VaultError extends Error {
 }
 export function denied(): never { throw new VaultError('VAULT_FORBIDDEN', 403) }
 export function unavailable(): never { throw new VaultError('OPERATION_UNAVAILABLE', 409) }
+/** NA-0191: the identity confirmation itself failed (password, authenticator code or provider proof); same 403, own code
+ * so the portal does not present it as a missing permission. Never says which factor failed. */
+export function reauthFailed(): never { throw new VaultError('VAULT_REAUTH_FAILED', 403) }
 export const CONFIRMATION_DEFAULT_SECONDS = 60
 export const CONFIRMATION_MAX_SECONDS = 900
 export function validConfirmationSeconds(value: unknown): value is number {

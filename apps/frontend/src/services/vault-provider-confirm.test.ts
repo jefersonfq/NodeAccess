@@ -95,7 +95,7 @@ describe('vault Google step-up button (NA-0184)', () => {
     const g = google()
     const bad = requestGoogleIdToken(element, 'google-client', 'nonce-value', new AbortController().signal)
     await vi.waitFor(() => expect(g.id.renderButton).toHaveBeenCalled())
-    g.respond({}); await expect(bad).rejects.toMatchObject({ reason: 'denied' })
+    g.respond({}); await expect(bad).rejects.toMatchObject({ reason: 'reauth' })
     const controller = new AbortController()
     const aborted = requestGoogleIdToken(element, 'google-client', 'nonce-value', controller.signal)
     await vi.waitFor(() => expect(g.id.renderButton).toHaveBeenCalledTimes(2))

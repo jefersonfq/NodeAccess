@@ -85,7 +85,7 @@ describe('vault lifecycle and release boundaries', () => {
   it('burns a failed challenge and requires a fresh proof for another attempt', async () => {
     const f=fixture(),c=await f.service.register(identity,'refresh',origin),p=await f.service.challenge(identity,c.clientId,origin)
     f.reauth.verify.mockResolvedValue(false)
-    await expect(f.service.unlock(identity,c.clientId,origin,p.challengeId,'wrong','123456')).rejects.toMatchObject({status:403})
+    await expect(f.service.unlock(identity,c.clientId,origin,p.challengeId,'wrong','123456')).rejects.toMatchObject({status:403,code:'VAULT_REAUTH_FAILED'})
     f.reauth.verify.mockResolvedValue(true)
     await expect(f.service.unlock(identity,c.clientId,origin,p.challengeId,'correct','123456')).rejects.toMatchObject({status:403})
     expect(f.reauth.verify).toHaveBeenCalledTimes(1)
@@ -319,20 +319,21 @@ describe('vault provider step-up flow (NA-0184)', () => {
     f.provider.complete.mockResolvedValue({ mfa: false })
     await expect(f.service.providerComplete(identity, c.clientId, origin, p.challengeId, { idToken: 'token' })).resolves.toEqual({ totpRequired: true })
     f.reauth.verifySecondFactor.mockReturnValue(false)
-    await expect(f.service.unlockProvider(identity, c.clientId, origin, p.challengeId, '000000')).rejects.toMatchObject({ status: 403 })
+    await expect(f.service.unlockProvider(identity, c.clientId, origin, p.challengeId, '000000')).rejects.toMatchObject({ status: 403, code: 'VAULT_REAUTH_FAILED' })
     f.reauth.verifySecondFactor.mockReturnValue(true)
     await expect(f.service.unlockProvider(identity, c.clientId, origin, p.challengeId, '123456')).rejects.toMatchObject({ status: 403 })
   })
   it('burns the challenge and audits when the provider proof is rejected', async () => {
     const { f, c, p } = await pending()
     f.provider.complete.mockRejectedValue(new Error('private provider diagnostic'))
-    await expect(f.service.providerComplete(identity, c.clientId, origin, p.challengeId, { state: 's', code: 'c' })).rejects.toMatchObject({ status: 403 })
+    await expect(f.service.providerComplete(identity, c.clientId, origin, p.challengeId, { state: 's', code: 'c' })).rejects.toMatchObject({ status: 403, code: 'VAULT_REAUTH_FAILED' })
     expect(f.events().some(e => e.type === 'UNLOCK_DENIED' && e.reasonCode === 'PROVIDER_PROOF_FAILED')).toBe(true)
     await expect(f.service.providerBegin(identity, c.clientId, origin, p.challengeId)).rejects.toMatchObject({ status: 403 })
   })
   it('denies unlock without a provider proof and burns the challenge', async () => {
     const { f, c, p } = await pending()
-    await expect(f.service.unlockProvider(identity, c.clientId, origin, p.challengeId, '123456')).rejects.toMatchObject({ status: 403 })
+    // NA-0191: no proof at all is a refused request, not a mistyped credential.
+    await expect(f.service.unlockProvider(identity, c.clientId, origin, p.challengeId, '123456')).rejects.toMatchObject({ status: 403, code: 'VAULT_FORBIDDEN' })
     await expect(f.service.providerComplete(identity, c.clientId, origin, p.challengeId, { state: 's', code: 'c' })).rejects.toMatchObject({ status: 403 })
   })
   it('does not let one proof unlock twice', async () => {
@@ -374,7 +375,7 @@ describe('vault provider step-up edge cases (NA-0184)', () => {
     const stored = [...f.records().entries()].find(([k]) => k.startsWith('provider'))
     expect(stored).toBeDefined()
     f.records().set(stored![0], { ...(stored![1] as object), clientId: 'other-client' })
-    await expect(f.service.unlockProvider(identity, c.clientId, origin, p.challengeId, '123456')).rejects.toMatchObject({ status: 403 })
+    await expect(f.service.unlockProvider(identity, c.clientId, origin, p.challengeId, '123456')).rejects.toMatchObject({ status: 403, code: 'VAULT_FORBIDDEN' })
   })
   it('rejects provider calls for an unknown or expired challenge', async () => {
     const f = fixture(); f.useMethod('google')

@@ -7,6 +7,12 @@ describe('Isolated vault HTTP adapter',()=>{
     await expect(createVaultTransport(fetcher).post('operations/consume',{},identity,'client')).rejects.toMatchObject({message:reason,reason})
     expect(fetcher).toHaveBeenCalledTimes(1)
   })
+  it('NA-0191: a 403 VAULT_REAUTH_FAILED is its own reason; other 403 bodies stay "denied"',async()=>{
+    const reply=(body:string)=>vi.fn(()=>Promise.resolve(new Response(body,{status:403})))
+    await expect(createVaultTransport(reply(JSON.stringify({code:'VAULT_REAUTH_FAILED',message:'x'}))).post('sessions/unlock',{},identity,'client')).rejects.toMatchObject({reason:'reauth'})
+    for(const body of [JSON.stringify({code:'VAULT_FORBIDDEN'}),'not json'])
+      await expect(createVaultTransport(reply(body)).post('sessions/unlock',{},identity,'client')).rejects.toMatchObject({reason:'denied'})
+  })
   it('NA-0188: a 409 VAULT_NO_APPROVER is its own reason; other 409 bodies stay "expired"',async()=>{
     const reply=(body:string)=>vi.fn(()=>Promise.resolve(new Response(body,{status:409})))
     await expect(createVaultTransport(reply(JSON.stringify({code:'VAULT_NO_APPROVER',message:'x'}))).post('administration/proposals',{},identity,'client')).rejects.toMatchObject({reason:'noApprover'})

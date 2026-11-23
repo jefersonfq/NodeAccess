@@ -105,7 +105,7 @@ export async function requestGoogleIdToken(element: HTMLElement, clientId: strin
       callback: response => {
         signal.removeEventListener('abort', aborted)
         if (typeof response.credential === 'string' && response.credential.length >= 32) resolve(response.credential)
-        else reject(new VaultClientError('denied'))
+        else reject(new VaultClientError('reauth'))
       },
     })
     element.replaceChildren()

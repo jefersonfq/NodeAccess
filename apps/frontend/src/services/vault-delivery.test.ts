@@ -161,6 +161,8 @@ describe('Vault provider step-up in the portal (NA-0184)', () => {
     expect(f.delivery.state.phase).toBe('locked'); expect(f.delivery.state.providerPending).toBe(false)
     const g = providerFixture(undefined, true); g.confirm.totp.mockResolvedValue('12'); await g.delivery.unlockWithProvider(g.confirm)
     expect(g.delivery.state.phase).toBe('locked'); expect(g.post.mock.calls.some(c => c[0] === 'sessions/unlock-provider')).toBe(false)
+    // NA-0191: a malformed code is a failed confirmation, not a missing permission.
+    expect(g.delivery.state.error).toBe('reauth')
   })
   it('refuses the password form for a provider session and the provider flow for a password session', async () => {
     const f = providerFixture(); await f.delivery.prepare(); await unlock(f)

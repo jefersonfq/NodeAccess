@@ -6890,7 +6890,8 @@
       "login": "A autenticação do portal precisa ser renovada. Nenhuma operação foi repetida automaticamente.",
       "clipboard": "Não foi possível confirmar a cópia. O valor foi descartado; verifique as permissões do navegador antes de solicitar outra operação.",
       "unsupported": "Este fluxo exige HTTPS e uma sessão local elegível, sem gerenciamento de outro tenant.",
-      "noApprover": "Nenhum outro gestor poderia aprovar esta proposta (quem propõe e quem recebe não aprovam). Torne mais um usuário gestor do cofre e tente de novo."
+      "noApprover": "Nenhum outro gestor poderia aprovar esta proposta (quem propõe e quem recebe não aprovam). Torne mais um usuário gestor do cofre e tente de novo.",
+      "reauth": "Não foi possível confirmar sua identidade. Confira a senha e o código do autenticador da conta conectada e tente novamente."
     }
   },
   "vaultExtension": {
