@@ -5,8 +5,9 @@ import {
 import { createDeviceKey, dpopProof, pkcePair, randomToken } from './crypto'
 import type { AuthFlow, Authorization, DeviceKey, DeviceKeyStore, ExtensionInfo, SessionStore } from './ports'
 
-/** `offline` (NA-0190): the portal did not answer at all (down, wrong origin, network). */
-export type ExtensionFailure = 'denied' | 'cancelled' | 'expired' | 'upgrade' | 'unavailable' | 'invalid' | 'offline'
+/** `offline` (NA-0190): the portal did not answer at all (down, wrong origin, network).
+ * `reauthRequired` / `otpInvalid` (NA-0193): the trusted device needs the authenticator code / the code was wrong. */
+export type ExtensionFailure = 'denied' | 'cancelled' | 'expired' | 'upgrade' | 'unavailable' | 'invalid' | 'offline' | 'reauthRequired' | 'otpInvalid'
 export class ExtensionError extends Error {
   constructor(public readonly reason: ExtensionFailure) { super(reason) }
 }
@@ -27,6 +28,8 @@ export interface ExtensionClient {
   fingerprint(): Promise<string>
   /** NA-0192: portal language from the last connection, when known. */
   locale(): Promise<'pt-BR' | 'en' | null>
+  /** NA-0193: reconnect this trusted device — automatically, or with the authenticator code. Never creates a device key. */
+  renew(otp?: string): Promise<void>
 }
 /** Connection, DPoP-signed calls and metadata search. Holds the authorization only in the session store. */
 export function createExtensionClient(deps: Deps): ExtensionClient {
@@ -45,7 +48,9 @@ export function createExtensionClient(deps: Deps): ExtensionClient {
     if (text.length > MAX_BODY) throw new ExtensionError('unavailable')
     try { return JSON.parse(text) } catch { throw new ExtensionError('unavailable') }
   }
-  function failure(status: number): ExtensionError {
+  function failure(status: number, code: string | null = null): ExtensionError {
+    if (status === 401 && code === 'EXTENSION_REAUTH_REQUIRED') return new ExtensionError('reauthRequired')
+    if (status === 403 && code === 'VAULT_REAUTH_FAILED') return new ExtensionError('otpInvalid')
     if (status === 401) return new ExtensionError('expired')
     if (status === 403) return new ExtensionError('denied')
     if (status === 426) return new ExtensionError('upgrade')
@@ -71,7 +76,9 @@ export function createExtensionClient(deps: Deps): ExtensionClient {
       if (issued && /^[0-9a-z]{1,12}\.[A-Za-z0-9_-]{32}$/.test(issued)) nonce = issued
       if (response.ok) return readJson(response)
       if (response.status === 401 && attempt === 0 && /use_dpop_nonce/.test(response.headers.get('WWW-Authenticate') ?? '')) continue
-      throw failure(response.status)
+      let code: string | null = null
+      try { const body = await readJson(response) as { code?: unknown }; code = typeof body.code === 'string' ? body.code : null } catch { code = null }
+      throw failure(response.status, code)
     }
     throw new ExtensionError('unavailable')
   }
@@ -89,6 +96,14 @@ export function createExtensionClient(deps: Deps): ExtensionClient {
       if (error instanceof ExtensionError && (error.reason === 'expired' || error.reason === 'denied')) await deps.session.clear()
       throw error
     }
+  }
+  /** Keeps a token reply in session memory; local deadline from the server's remaining lifetime, never over 30 minutes. */
+  async function keep(answer: unknown, started: number): Promise<void> {
+    const reply = VaultExtensionTokenReplySchema.safeParse(answer)
+    if (!reply.success) throw new ExtensionError('unavailable')
+    const ttl = Math.min(reply.data.expiresAt - reply.data.serverNow, 1_800_000) - 5_000
+    if (ttl <= 0) throw new ExtensionError('expired')
+    await deps.session.set({ accessToken: reply.data.accessToken, portalOrigin: deps.info.portalOrigin, expiresAt: started + ttl })
   }
   /** NA-0190: any HTTP answer from the portal origin within 5 s proves it is up; no credentials, nothing read. */
   async function reachable(): Promise<void> {
@@ -117,12 +132,7 @@ export function createExtensionClient(deps: Deps): ExtensionClient {
       const code = returned.searchParams.get('code')
       if (!code || !/^[A-Za-z0-9_-]{43}$/.test(code)) throw new ExtensionError('invalid')
       const started = now()
-      const reply = VaultExtensionTokenReplySchema.safeParse(await signed('POST', '/token', { body: { code, codeVerifier: verifier, redirectUri, extensionId: deps.info.id } }))
-      if (!reply.success) throw new ExtensionError('unavailable')
-      // Local deadline from the server's remaining lifetime, never longer than 30 minutes.
-      const ttl = Math.min(reply.data.expiresAt - reply.data.serverNow, 1_800_000) - 5_000
-      if (ttl <= 0) throw new ExtensionError('expired')
-      await deps.session.set({ accessToken: reply.data.accessToken, portalOrigin: deps.info.portalOrigin, expiresAt: started + ttl })
+      await keep(await signed('POST', '/token', { body: { code, codeVerifier: verifier, redirectUri, extensionId: deps.info.id } }), started)
       // NA-0192: the consent page tells which language the portal was using; only the two known codes are kept.
       const lang = returned.searchParams.get('lang')
       if (lang === 'pt-BR' || lang === 'en') await deps.session.setLocale(lang)
@@ -130,7 +140,12 @@ export function createExtensionClient(deps: Deps): ExtensionClient {
     async connected(): Promise<boolean> {
       try { await authorization(); return true } catch { return false }
     },
-    disconnect(): Promise<void> { return deps.session.clear() },
+    /** NA-0193: also ends this device's trust on the server, proven by the device key alone (works with an expired
+     * authorization); best effort when the portal is unreachable. The next connection is a full consent. */
+    async disconnect(): Promise<void> {
+      if (await deps.keys.load().catch(() => null)) await signed('POST', '/forget', { body: { extensionId: deps.info.id } }).catch(() => undefined)
+      await deps.session.clear()
+    },
     capabilities(): Promise<VaultExtensionCapabilities> {
       return guarded(async auth => {
         const parsed = VaultExtensionCapabilitiesSchema.safeParse(await signed('GET', '/capabilities', { accessToken: auth.accessToken }))
@@ -161,6 +176,13 @@ export function createExtensionClient(deps: Deps): ExtensionClient {
     },
     recents(): Promise<string[]> { return deps.session.recents() },
     /** Portal URL for an item; only server-validated relative paths on the configured origin. */
+    async renew(otp?: string): Promise<void> {
+      if (otp !== undefined && !/^\d{6}$/.test(otp)) throw new ExtensionError('otpInvalid')
+      // A browser without a device key was never trusted: the portal consent is the only way in.
+      if (!await deps.keys.load()) throw new ExtensionError('expired')
+      const started = now()
+      await keep(await signed('POST', '/renew', { body: { extensionId: deps.info.id, ...(otp !== undefined ? { otp } : {}) } }), started)
+    },
     async locale(): Promise<'pt-BR' | 'en' | null> {
       const value = await deps.session.locale().catch(() => null)
       return value === 'pt-BR' || value === 'en' ? value : null

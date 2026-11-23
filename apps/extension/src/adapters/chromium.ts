@@ -22,7 +22,8 @@ export const chromiumSession: SessionStore = {
       ? { accessToken: value.accessToken, portalOrigin: value.portalOrigin, expiresAt: value.expiresAt } : null
   },
   set: (value: Authorization): Promise<void> => chrome.storage.session.set({ [AUTH]: value }),
-  clear: (): Promise<void> => chrome.storage.session.remove([AUTH, RECENTS, FAILURE, LOCALE]),
+  // The portal language is a display preference: it outlives an expired authorization (NA-0193 reopens with the code screen).
+  clear: (): Promise<void> => chrome.storage.session.remove([AUTH, RECENTS, FAILURE]),
   async recents(): Promise<string[]> {
     const value = (await chrome.storage.session.get(RECENTS))[RECENTS]
     return Array.isArray(value) ? value.filter((k): k is string => typeof k === 'string') : []

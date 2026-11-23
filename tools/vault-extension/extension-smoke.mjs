@@ -24,7 +24,7 @@ execFileSync(process.execPath, [resolve(ROOT, 'node_modules/vite/bin/vite.js'), 
 const dist = resolve(ROOT, 'apps/extension/dist')
 const profile = mkdtempSync(join(OUT, 'profile-'))
 const access = 'A'.repeat(43), code = 'C'.repeat(43)
-const seen = { token: 0, items: 0, consentQuery: null, urls: [], id: '', announced: BUILD }
+const seen = { token: 0, items: 0, consentQuery: null, urls: [], id: '', announced: BUILD, trusted: false, portalLogin: true, renewed: [], forgotten: 0 }
 let context, server
 try {
   // Disposable self-signed certificate; the browser is told to trust it only for this run.
@@ -55,7 +55,22 @@ try {
         if (seen.token === 1) return send(401, '{}', { 'WWW-Authenticate': 'DPoP error="use_dpop_nonce"' })
         const body = JSON.parse(raw || '{}')
         if (body.code !== code || headers['x-extension-version'] !== '0.1.0') return send(400, '{}')
+        seen.trusted = true
         return send(200, JSON.stringify({ accessToken: access, tokenType: 'DPoP', expiresAt: 1_800_000, serverNow: 0 }))
+      }
+      // NA-0193: trusted device renewal (automatic while the portal login lives, else the authenticator code) and forget.
+      if (url.pathname.endsWith('/extension/renew')) {
+        const body = JSON.parse(raw || '{}')
+        if (!seen.trusted) return send(401, JSON.stringify({ code: 'EXTENSION_UNAUTHORIZED' }))
+        if (body.otp === undefined && !seen.portalLogin) return send(401, JSON.stringify({ code: 'EXTENSION_REAUTH_REQUIRED' }))
+        if (body.otp !== undefined && body.otp !== '123456') return send(403, JSON.stringify({ code: 'VAULT_REAUTH_FAILED' }))
+        seen.renewed.push(body.otp === undefined ? 'SESSION' : 'OTP')
+        return send(200, JSON.stringify({ accessToken: access, tokenType: 'DPoP', expiresAt: 1_800_000, serverNow: 0 }))
+      }
+      if (url.pathname.endsWith('/extension/forget')) {
+        if (JSON.parse(raw || '{}').extensionId !== seen.id) return send(400, '{}')
+        seen.trusted = false; seen.forgotten++
+        return send(200, JSON.stringify({ state: 'FORGOTTEN' }))
       }
       if (url.pathname.endsWith('/extension/items')) {
         seen.items++
@@ -143,10 +158,29 @@ try {
   check('recents-are-ids', JSON.stringify(recents) === '["secret:3"]', JSON.stringify(recents))
   await shots('connected')
   check('popup-layout-fits', layout.every(Boolean), JSON.stringify(layout))
+  // NA-0193: an extension reload drops the session authorization; the trusted device comes back by itself while the portal login lives.
+  const dropAuthorization = () => popup.evaluate(async () => chrome.storage.session.remove(['authorization']))
+  await dropAuthorization(); await popup.reload()
+  await popup.getByTestId('vaultnaccess-results').getByText('smoke-item').waitFor({ timeout: 10_000 })
+  check('renew-automatic', seen.renewed.at(-1) === 'SESSION')
+  // Portal login ended: only the authenticator code is asked; a wrong code is explained, the right one reconnects.
+  seen.portalLogin = false
+  await dropAuthorization(); await popup.reload()
+  await popup.getByTestId('vaultnaccess-code').waitFor({ timeout: 10_000 })
+  await shots('code')
+  await popup.getByTestId('vaultnaccess-otp').fill('000000'); await popup.getByTestId('vaultnaccess-otp-submit').click()
+  await popup.getByTestId('vaultnaccess-error').filter({ hasText: /Código incorreto|Wrong code/ }).waitFor({ timeout: 10_000 })
+  await popup.getByTestId('vaultnaccess-otp').fill('123456'); await popup.getByTestId('vaultnaccess-otp-submit').click()
+  await popup.getByTestId('vaultnaccess-results').getByText('smoke-item').waitFor({ timeout: 10_000 })
+  check('renew-with-code', seen.renewed.at(-1) === 'OTP')
   await popup.getByText(/Desconectar|Disconnect/).click()
   await popup.getByTestId('vaultnaccess-connect').waitFor({ timeout: 10_000 })
   const after = await popup.evaluate(async () => chrome.storage.session.get(null))
-  check('disconnect-clears-session', Object.keys(after).length === 0, JSON.stringify(Object.keys(after)))
+  check('disconnect-clears-session', JSON.stringify(Object.keys(after)) === '["locale"]', JSON.stringify(Object.keys(after)))
+  // NA-0193: "Disconnect" ended the trust: reopening asks for the portal consent again, not for a code.
+  await popup.reload()
+  await popup.getByTestId('vaultnaccess-connect').waitFor({ timeout: 10_000 })
+  check('disconnect-ends-trust', seen.forgotten === 1 && await popup.getByTestId('vaultnaccess-code').count() === 0)
   // NA-0190: same build => no prompt; another build announced => "Update" reloads the unpacked extension.
   check('no-update-prompt-for-same-build', await popup.getByTestId('vaultnaccess-update').count() === 0)
   seen.announced = 'bbbbbbbbbbbb'

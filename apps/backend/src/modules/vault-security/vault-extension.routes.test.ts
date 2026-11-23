@@ -21,6 +21,8 @@ async function harness() {
     nonces: new DpopNonces('routes'),
     authorize: vi.fn().mockResolvedValue({ code: opaque(), expiresAt: 1, serverNow: 0 }),
     token: vi.fn().mockResolvedValue({ accessToken: opaque(), tokenType: 'DPoP', expiresAt: 1, serverNow: 0 }),
+    renew: vi.fn().mockResolvedValue({ accessToken: opaque(), tokenType: 'DPoP', expiresAt: 1, serverNow: 0 }),
+    forget: vi.fn().mockResolvedValue({ state: 'FORGOTTEN' }),
     capabilities: vi.fn().mockResolvedValue({ apiVersion: 1 }),
     items: vi.fn().mockResolvedValue({ items: [], nextCursor: null }),
     devices: vi.fn().mockResolvedValue({ devices: [] }),
@@ -48,6 +50,29 @@ describe('NA-0183 extension routes', () => {
       expect(res.headers['cache-control']).toBe('no-store')
       expect(h.service.token).toHaveBeenCalledWith({ requestOrigin: `chrome-extension://${EXT}`, version: '0.1.0', proof: 'proof',
         url: 'https://vault.example.test/api/v1/vault-security/extension/token' }, body)
+    } finally { await h.app.close() }
+  })
+  it('NA-0193: renewal passes origin, version and proof, validates the body and keeps the error code', async () => {
+    const h = await harness()
+    try {
+      const headers = { origin: `chrome-extension://${EXT}`, 'x-forwarded-proto': 'https', host: 'vault.example.test', dpop: 'proof', 'x-extension-version': '0.1.0' }
+      for (const body of [{ extensionId: EXT }, { extensionId: EXT, otp: '123456' }]) {
+        const res = await h.app.inject({ method: 'POST', url: '/api/v1/vault-security/extension/renew', payload: body, headers })
+        expect(res.statusCode).toBe(200); expect(res.headers['dpop-nonce']).toBeTruthy()
+        expect(h.service.renew).toHaveBeenLastCalledWith({ requestOrigin: `chrome-extension://${EXT}`, version: '0.1.0', proof: 'proof',
+          url: 'https://vault.example.test/api/v1/vault-security/extension/renew' }, body)
+      }
+      h.service.renew.mockClear()
+      for (const body of [{ extensionId: EXT, otp: '12345' }, { extensionId: EXT, otp: 123456 }, { extensionId: 'x', otp: '123456' }, { extensionId: EXT, extra: 1 }]) {
+        expect((await h.app.inject({ method: 'POST', url: '/api/v1/vault-security/extension/renew', payload: body, headers })).statusCode).toBe(400)
+      }
+      expect(h.service.renew).not.toHaveBeenCalled()
+      expect((await h.app.inject({ method: 'POST', url: '/api/v1/vault-security/extension/forget', payload: { extensionId: EXT }, headers })).statusCode).toBe(200)
+      expect(h.service.forget).toHaveBeenLastCalledWith(expect.objectContaining({ proof: 'proof' }), { extensionId: EXT })
+      expect((await h.app.inject({ method: 'POST', url: '/api/v1/vault-security/extension/forget', payload: {}, headers })).statusCode).toBe(400)
+      h.service.renew.mockRejectedValueOnce(new VaultError('EXTENSION_REAUTH_REQUIRED', 401))
+      const reauth = await h.app.inject({ method: 'POST', url: '/api/v1/vault-security/extension/renew', payload: { extensionId: EXT }, headers })
+      expect(reauth.statusCode).toBe(401); expect(reauth.json()).toMatchObject({ code: 'EXTENSION_REAUTH_REQUIRED' })
     } finally { await h.app.close() }
   })
   it('rejects plain HTTP, malformed bodies and maps DPoP errors to WWW-Authenticate', async () => {

@@ -1,7 +1,7 @@
 import type { Prisma, PrismaClient } from '@prisma/client'
 import { createHash } from 'node:crypto'
 import type { VaultIdentity } from './vault-domain.js'
-import type { ExtensionAccess, ExtensionCode, ExtensionDeviceRow, ExtensionLocator, ExtensionRecords, ExtensionTokenKind } from './vault-extension-domain.js'
+import type { ExtensionDeviceRow, ExtensionLocator, ExtensionRecords, ExtensionTokenKind, ExtensionTokenValue } from './vault-extension-domain.js'
 
 const hash = (s: string): string => createHash('sha256').update(s).digest('hex')
 const truth = (x: unknown): boolean => x === true || x === 1 || x === 1n
@@ -44,18 +44,25 @@ export class SqlVaultExtension implements ExtensionRecords {
       FROM vault_extension_devices WHERE tenant_id=${this.identity.tenantId} AND user_id=${this.identity.userId} ORDER BY created_at DESC LIMIT 50`
     return rows.map(toDevice)
   }
-  async put(kind: ExtensionTokenKind, token: string, jkt: string, value: ExtensionCode | ExtensionAccess, expiresAt: number): Promise<void> {
+  async put(kind: ExtensionTokenKind, token: string, jkt: string, value: ExtensionTokenValue, expiresAt: number): Promise<void> {
     // Opportunistic cleanup, bounded to this user: expired codes and authorizations never accumulate.
     await this.db.$executeRaw`DELETE FROM vault_extension_tokens WHERE tenant_id=${this.identity.tenantId} AND user_id=${this.identity.userId} AND expires_at <= ${new Date(this.now())}`
     await this.db.$executeRaw`INSERT INTO vault_extension_tokens(token_hash,kind,tenant_id,user_id,jkt,payload,expires_at)
       VALUES(${hash(token)},${kind},${this.identity.tenantId},${this.identity.userId},${jkt},${JSON.stringify(value)},${new Date(expiresAt)})`
   }
-  async get<T extends ExtensionCode | ExtensionAccess>(kind: ExtensionTokenKind, token: string): Promise<{ jkt: string; value: T } | null> {
+  async get<T extends ExtensionTokenValue>(kind: ExtensionTokenKind, token: string): Promise<{ jkt: string; value: T } | null> {
     const rows = await this.db.$queryRaw<Array<{ jkt: string; payload: unknown }>>`SELECT jkt,payload FROM vault_extension_tokens
       WHERE token_hash=${hash(token)} AND kind=${kind} AND tenant_id=${this.identity.tenantId} AND user_id=${this.identity.userId} FOR SHARE`
     return rows[0] ? { jkt: rows[0].jkt, value: json<T>(rows[0].payload) } : null
   }
-  async take<T extends ExtensionCode | ExtensionAccess>(kind: ExtensionTokenKind, token: string): Promise<{ jkt: string; value: T } | null> {
+  async releaseTrust(jkt: string): Promise<void> {
+    // The trust key is the device key: proven by DPoP before this call; a later full consent replaces any previous owner.
+    await this.db.$executeRaw`DELETE FROM vault_extension_tokens WHERE token_hash=${hash(`trust:${jkt}`)} AND kind='trust'`
+  }
+  async dropAccess(jkt: string): Promise<void> {
+    await this.db.$executeRaw`DELETE FROM vault_extension_tokens WHERE tenant_id=${this.identity.tenantId} AND user_id=${this.identity.userId} AND jkt=${jkt} AND kind='access'`
+  }
+  async take<T extends ExtensionTokenValue>(kind: ExtensionTokenKind, token: string): Promise<{ jkt: string; value: T } | null> {
     const rows = await this.db.$queryRaw<Array<{ jkt: string; payload: unknown }>>`SELECT jkt,payload FROM vault_extension_tokens
       WHERE token_hash=${hash(token)} AND kind=${kind} AND tenant_id=${this.identity.tenantId} AND user_id=${this.identity.userId} FOR UPDATE`
     if (!rows[0]) return null

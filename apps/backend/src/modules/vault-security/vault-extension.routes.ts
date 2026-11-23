@@ -1,6 +1,6 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify'
 import { z } from 'zod'
-import { VaultExtensionAuthorizeSchema, VaultExtensionItemsQuerySchema, VaultExtensionThumbprintSchema, VaultExtensionTokenRequestSchema } from '@nodeaccess/shared'
+import { VaultExtensionAuthorizeSchema, VaultExtensionItemsQuerySchema, VaultExtensionForgetRequestSchema, VaultExtensionRenewRequestSchema, VaultExtensionThumbprintSchema, VaultExtensionTokenRequestSchema } from '@nodeaccess/shared'
 import { requireAuth } from '../../shared/guards.js'
 import { AppError } from '../../shared/errors.js'
 import { VaultError, type VaultIdentity } from './vault-domain.js'
@@ -49,6 +49,9 @@ export function vaultExtensionRoutes(app: FastifyInstance, vault: VaultService, 
     } })
   }
   extension('POST', '/extension/token', req => service.token(extensionRequest(req), VaultExtensionTokenRequestSchema.parse(req.body ?? {})))
+  // NA-0193: trusted-device renewal (automatic while the consenting portal login lives, else the authenticator code).
+  extension('POST', '/extension/renew', req => service.renew(extensionRequest(req), VaultExtensionRenewRequestSchema.parse(req.body ?? {})))
+  extension('POST', '/extension/forget', req => service.forget(extensionRequest(req), VaultExtensionForgetRequestSchema.parse(req.body ?? {})))
   extension('GET', '/extension/capabilities', req => service.capabilities(extensionRequest(req), header(req, 'authorization')))
   extension('GET', '/extension/items', req => service.items(extensionRequest(req), header(req, 'authorization'), VaultExtensionItemsQuerySchema.parse(req.query ?? {})))
 

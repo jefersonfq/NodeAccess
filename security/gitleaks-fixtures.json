@@ -335,7 +335,7 @@
       "path": "tools/vault-security/mysql-harness.py",
       "rule": "generic-api-key",
       "line": 82,
-      "fileSha256": "b7a4be1e5a0595a4510a8e88442a641f0f5cc8ba5d1d34a6d71f298161e82f6f",
+      "fileSha256": "97fd10ac2923da4bb234d6bea32e88f0148d1a05729ddae5797a5ef529fdcc80",
       "reason": "NA-0178: atribuições de nomes de variáveis, sem segredo literal. signing_key e encryption_key são geradas em runtime por secrets.token_hex(32) para containers descartáveis em loopback; logs sanitizados e limpeza finally. Revisão independente confirmou falso positivo sintático; autorização restrita a regra, linha e hash."
     }
   ]

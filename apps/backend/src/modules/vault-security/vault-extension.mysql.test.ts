@@ -80,14 +80,15 @@ describe.skipIf(!enabled)('Vault extension E1 SQL/Redis integration', () => {
 
     const signingKey = process.env.JWT_SECRET!
     const store = new SqlVaultStore(db), originVerifier = new RedisVaultOrigin(redis, signingKey)
-    const vault = new VaultService(store, originVerifier, new MethodVaultReauthentication(new TotpService()), new JweVaultEnvelope(), entropy)
+    const reauth = new MethodVaultReauthentication(new TotpService())
+    const vault = new VaultService(store, originVerifier, reauth, new JweVaultEnvelope(), entropy)
     const nonces = new DpopNonces(`test-${suffix}`)
     const replay = { claim: async (key: string, ttl: number) => (await redis.set(`vault-ext-dpop:${createHash('sha256').update(key).digest('hex')}`, '1', 'PX', ttl, 'NX')) === 'OK' }
     const prismaCatalog = { secrets: new SecretService(new SecretRepository(db), new LogRepository(db), new LicenseEntitlementService(db)), pems: new PemKeyService(new PemKeyRepository(db), new LogRepository(db)) }
     const service = new VaultExtensionService(vault, store, new SqlExtensionLocator(db), originVerifier, new DpopVerifier(nonces, replay), nonces, entropy, {
       list: async (i: VaultIdentity, admin: boolean) => catalogSummaries(await prismaCatalog.secrets.list(i.userId, i.tenantId, admin ? 'admin' : 'user'),
         await prismaCatalog.pems.list(i.userId, i.tenantId, admin), i.userId),
-    }, { enabled: true, extensionIds: [EXT], minVersion: '0.1.0' })
+    }, { enabled: true, extensionIds: [EXT], minVersion: '0.1.0' }, Date.now, reauth)
 
     async function portal(u: { id: number; tenantId: number }) {
       const identity: VaultIdentity = { userId: u.id, tenantId: u.tenantId, sessionVersion: 1 }, jti = randomUUID()
@@ -98,7 +99,8 @@ describe.skipIf(!enabled)('Vault extension E1 SQL/Redis integration', () => {
       const { sessionId } = await vault.unlock(identity, clientId, origin, challengeId, password, speakeasy.totp({ secret: mfaSecret, encoding: 'base32' }))
       return { identity, clientId, sessionId, jti }
     }
-    return { a, b, user, peer, outsider, m1, m2, redis, vault, service, nonces, portal }
+    const code = (): string => speakeasy.totp({ secret: mfaSecret, encoding: 'base32' })
+    return { a, b, user, peer, outsider, m1, m2, redis, vault, service, nonces, portal, code }
   }
   type F = Awaited<ReturnType<typeof fixture>>
   async function device(): Promise<{ privateKey: CryptoKey; jwk: JWK; jkt: string }> {
@@ -108,8 +110,8 @@ describe.skipIf(!enabled)('Vault extension E1 SQL/Redis integration', () => {
   }
   const proof = (f: F, key: { privateKey: CryptoKey; jwk: JWK }, claims: object) => new SignJWT({ jti: randomBytes(16).toString('base64url'), iat: Math.floor(Date.now() / 1000), nonce: f.nonces.issue(), ...claims })
     .setProtectedHeader({ alg: 'ES256', typ: 'dpop+jwt', jwk: key.jwk }).sign(key.privateKey)
-  async function connect(f: F, u: { id: number; tenantId: number }) {
-    const session = await f.portal(u), key = await device()
+  async function connect(f: F, u: { id: number; tenantId: number }, existing?: Awaited<ReturnType<typeof device>>) {
+    const session = await f.portal(u), key = existing ?? await device()
     const verifier = randomBytes(48).toString('base64url')
     const { code } = await f.service.authorize(session.identity, session.clientId, origin, { extensionId: EXT, redirectUri: extensionRedirectUri(EXT), state: randomBytes(24).toString('base64url'),
       codeChallenge: createHash('sha256').update(verifier).digest('base64url'), deviceJkt: key.jkt, sessionId: session.sessionId })
@@ -175,4 +177,55 @@ describe.skipIf(!enabled)('Vault extension E1 SQL/Redis integration', () => {
     await expect(db.$executeRaw`INSERT INTO vault_entitlements(tenant_id,user_id,action,granted_by,approved_by,enabled) VALUES(${f.a.id},${f.peer.id},'extension',${f.m1.id},${f.m1.id},TRUE)`).rejects.toThrow()
     await expect(db.$executeRaw`INSERT INTO vault_extension_devices(tenant_id,user_id,jkt,extension_id,state) VALUES(${f.a.id},${f.peer.id},${'x'.repeat(43)},${EXT},'PENDING')`).rejects.toThrow()
   })
+  // NA-0193: trusted device renewal against the real migration, SQL and Redis.
+  async function renew(f: F, key: { privateKey: CryptoKey; jwk: JWK }, otp?: string) {
+    return f.service.renew({ requestOrigin: `chrome-extension://${EXT}`, version: '0.1.0', url: `${BASE}/renew`, proof: await proof(f, key, { htm: 'POST', htu: `${BASE}/renew` }) },
+      { extensionId: EXT, ...(otp ? { otp } : {}) })
+  }
+  const trustRows = async (f: F) => db.$queryRaw<Array<{ payload: unknown; expiresAt: Date }>>`SELECT payload,expires_at AS expiresAt FROM vault_extension_tokens WHERE tenant_id=${f.a.id} AND kind='trust'`
+  it('NA-0193: renews automatically while the portal login lives, then only with the authenticator code', async () => {
+    const f = await fixture(), c = await connect(f, f.user)
+    await c.exchange()
+    const [row] = await trustRows(f)
+    expect(row!.expiresAt.getTime() - Date.now()).toBeGreaterThan(7 * 24 * 3_600_000 - 60_000)
+    const silent = await renew(f, c.key)
+    expect(Array.isArray((await items(f, c.key, silent.accessToken)).items)).toBe(true)
+    await f.redis.del(`refresh:${c.session.jti}`)
+    await expect(items(f, c.key, silent.accessToken)).rejects.toMatchObject({ code: 'EXTENSION_UNAUTHORIZED' })
+    await expect(renew(f, c.key)).rejects.toMatchObject({ code: 'EXTENSION_REAUTH_REQUIRED' })
+    await expect(renew(f, c.key, f.code() === '000000' ? '111111' : '000000')).rejects.toMatchObject({ code: 'VAULT_REAUTH_FAILED' })
+    const failures = (await trustRows(f)).map(r => (typeof r.payload === 'string' ? JSON.parse(r.payload) : r.payload) as { failures: number })
+    expect(failures[0]!.failures).toBe(1)
+    const byCode = await renew(f, c.key, f.code())
+    expect(Array.isArray((await items(f, c.key, byCode.accessToken)).items)).toBe(true)
+    expect(await audits(f, 'EXTENSION_RENEWED')).toBe(2); expect(await audits(f, 'EXTENSION_RENEW_DENIED')).toBe(1)
+  }, 30_000)
+  it('NA-0193: "disconnect all" (session version) and device revocation end the trust', async () => {
+    const f = await fixture(), c = await connect(f, f.user)
+    await c.exchange()
+    await db.user.update({ where: { id: f.user.id }, data: { sessionVersion: { increment: 1 } } })
+    await expect(renew(f, c.key, f.code())).rejects.toMatchObject({ code: 'EXTENSION_UNAUTHORIZED' })
+    await db.user.update({ where: { id: f.user.id }, data: { sessionVersion: 1 } })
+    const d = await connect(f, f.user)
+    await d.exchange()
+    await f.service.revokeDevice(d.session.identity, origin, d.key.jkt)
+    expect((await trustRows(f)).length).toBe(1)
+    await expect(renew(f, d.key, f.code())).rejects.toMatchObject({ code: 'EXTENSION_UNAUTHORIZED' })
+    await expect(db.$executeRaw`INSERT INTO vault_extension_tokens(token_hash,kind,tenant_id,user_id,jkt,payload,expires_at) VALUES(${'f'.repeat(64)},'other',${f.a.id},${f.user.id},${'x'.repeat(43)},'{}',NOW())`).rejects.toThrow()
+  }, 30_000)
+  it('NA-0193: one trust per device key across users, and "Disconnect" by the device key ends it', async () => {
+    const f = await fixture(), c = await connect(f, f.user)
+    await c.exchange()
+    await db.$executeRaw`INSERT INTO vault_entitlements(tenant_id,user_id,action,granted_by,approved_by,enabled) VALUES(${f.a.id},${f.peer.id},'extension',${f.m1.id},${f.m2.id},TRUE)`
+    const second = await connect(f, f.peer, c.key)
+    await second.exchange()
+    const owners = await db.$queryRaw<Array<{ userId: number }>>`SELECT user_id AS userId FROM vault_extension_tokens WHERE kind='trust' AND tenant_id=${f.a.id}`
+    expect(owners.map(o => o.userId)).toEqual([f.peer.id])
+    const forget = async () => f.service.forget({ requestOrigin: `chrome-extension://${EXT}`, version: '0.1.0', url: `${BASE}/forget`, proof: await proof(f, c.key, { htm: 'POST', htu: `${BASE}/forget` }) }, { extensionId: EXT })
+    await f.redis.del(`refresh:${second.session.jti}`)
+    await expect(forget()).resolves.toEqual({ state: 'FORGOTTEN' })
+    expect((await trustRows(f)).length).toBe(0)
+    expect(Number((await db.$queryRaw<Array<{ n: bigint }>>`SELECT COUNT(*) AS n FROM vault_extension_tokens WHERE tenant_id=${f.a.id} AND user_id=${f.peer.id} AND kind='access'`)[0]!.n)).toBe(0)
+    await expect(renew(f, c.key, f.code())).rejects.toMatchObject({ code: 'EXTENSION_UNAUTHORIZED' })
+  }, 30_000)
 })

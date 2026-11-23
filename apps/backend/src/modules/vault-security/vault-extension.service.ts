@@ -1,13 +1,20 @@
 import type { VaultItemSummary, VaultItemKind } from '@nodeaccess/shared'
-import { denied, unavailable, VaultError, type VaultAuthority, type VaultIdentity } from './vault-domain.js'
+import { denied, unavailable, VaultError, type VaultAuthMethod, type VaultAuthority, type VaultIdentity } from './vault-domain.js'
+import type { Reauthentication } from './vault-ports.js'
 import type { OriginVerifier, VaultEntropy, VaultStore, VaultTransaction } from './vault-ports.js'
 import type { VaultService } from './vault.service.js'
-import { extensionRedirectUri, versionAtLeast, type ExtensionAccess, type ExtensionCode, type ExtensionConfig, type ExtensionDeviceRow, type ExtensionLocator, type ExtensionRecords } from './vault-extension-domain.js'
+import { extensionRedirectUri, versionAtLeast, type ExtensionAccess, type ExtensionCode, type ExtensionConfig, type ExtensionDeviceRow, type ExtensionLocator, type ExtensionRecords, type ExtensionTrust } from './vault-extension-domain.js'
 import { pkceMatches, type DpopNonces, type DpopVerifier } from './vault-extension-dpop.js'
 
 const CODE_TTL_MS = 60_000
 const ACCESS_TTL_MS = 1_800_000
 const PAGE = 50
+/** NA-0193 (decision of the owner, 2026-11-23): a device stays trusted 7 days after its last full consent; 5 wrong codes end it. */
+const TRUST_TTL_MS = 7 * 24 * 3_600_000
+const TRUST_MAX_FAILURES = 5
+const trustKey = (jkt: string): string => `trust:${jkt}`
+export interface RenewInput { extensionId: string; otp?: string | undefined }
+type Renewal = { ok: true; reply: { accessToken: string; tokenType: 'DPoP'; expiresAt: number; serverNow: number } } | { ok: false; error: VaultError }
 
 /** Item listing reuses the Secrets and PEM ACL services; this port only maps their output. */
 export interface VaultCatalog { list(identity: VaultIdentity, admin: boolean): Promise<VaultItemSummary[]> }
@@ -52,7 +59,9 @@ export function pageOf(items: readonly VaultItemSummary[], q: string | undefined
 export class VaultExtensionService {
   constructor(private readonly vault: VaultService, private readonly store: VaultStore, private readonly locator: ExtensionLocator,
     private readonly origin: OriginVerifier, private readonly dpop: DpopVerifier, readonly nonces: DpopNonces,
-    private readonly entropy: VaultEntropy, private readonly catalog: VaultCatalog, private readonly config: ExtensionConfig, private readonly now = Date.now) {}
+    private readonly entropy: VaultEntropy, private readonly catalog: VaultCatalog, private readonly config: ExtensionConfig, private readonly now = Date.now,
+    /** NA-0193: NodeAccess TOTP check for renewal with the authenticator code; absent = never accepted (fail closed). */
+    private readonly secondFactor: Pick<Reauthentication, 'verifySecondFactor'> = { verifySecondFactor: () => false }) {}
 
   private enabled(): void { if (!this.config.enabled) throw new VaultError('EXTENSION_DISABLED', 404) }
   private allowed(extensionId: string, redirectUri: string): void {
@@ -126,6 +135,11 @@ export class VaultExtensionService {
         const expiresAt = Math.min(tx.now() + ACCESS_TTL_MS, code.origin.expiresAt, tx.authority.validUntil)
         const access: ExtensionAccess = { sessionVersion: identity.sessionVersion, extensionId: code.extensionId, origin: code.origin, policyVersion: code.policyVersion, expiresAt }
         await this.records(tx).put('access', accessToken, jkt, access, expiresAt)
+        // NA-0193: a full consent (re)starts the 7-day trust of this device, bound to the consenting central session.
+        await this.records(tx).releaseTrust(jkt)
+        const trustUntil = Math.min(tx.now() + TRUST_TTL_MS, tx.authority.validUntil)
+        const trust: ExtensionTrust = { sessionVersion: identity.sessionVersion, extensionId: code.extensionId, origin: code.origin, failures: 0, expiresAt: trustUntil }
+        await this.records(tx).put('trust', trustKey(jkt), jkt, trust, trustUntil)
         await tx.audit({ type: 'EXTENSION_CLIENT_REGISTERED', clientId: `extension-access:${this.entropy.digest(accessToken)}`, device: jkt, policyVersion: tx.authority.policy.version })
         return { accessToken, tokenType: 'DPoP' as const, expiresAt, serverNow: tx.now() }
       })
@@ -136,12 +150,78 @@ export class VaultExtensionService {
   private async admit(tx: VaultTransaction, identity: VaultIdentity, grant: ExtensionCode | ExtensionAccess, jkt: string, url: string): Promise<void> {
     const authority: VaultAuthority = tx.authority
     if (grant.policyVersion !== authority.policy.version || grant.sessionVersion !== identity.sessionVersion || new URL(url).origin !== authority.policy.origin
-      || authority.methods[grant.origin.authMethod] !== true) throw new VaultError('EXTENSION_UNAUTHORIZED', 401)
+      || (grant.origin !== null && authority.methods[grant.origin.authMethod] !== true)) throw new VaultError('EXTENSION_UNAUTHORIZED', 401)
     const ext = this.records(tx)
     if (!await ext.entitled()) throw new VaultError('EXTENSION_FORBIDDEN', 403)
     const device: ExtensionDeviceRow | null = await ext.device(jkt)
     if (device?.state !== 'ACTIVE' || device.extensionId !== grant.extensionId) throw new VaultError('EXTENSION_UNAUTHORIZED', 401)
+    // An authorization renewed with the authenticator code (NA-0193) is not tied to a central session, but its login
+    // method still has to be allowed by the tenant policy and the external-methods flag.
+    if (grant.origin === null) {
+      const method = 'method' in grant ? grant.method : undefined
+      if (!method || !this.methodAllowed(method, authority)) throw new VaultError('EXTENSION_UNAUTHORIZED', 401)
+      return
+    }
     try { await this.origin.assert(grant.origin, identity) } catch { throw new VaultError('EXTENSION_UNAUTHORIZED', 401) }
+  }
+
+  /**
+   * NA-0193: renewal by a trusted device, proven by its DPoP key. Without `otp` only while the consenting central
+   * session lives (else EXTENSION_REAUTH_REQUIRED); with `otp` the NodeAccess TOTP. Wrong codes are counted in a
+   * committed transaction before the error is returned; the fifth ends the trust (full consent again).
+   */
+  async renew(req: ExtensionRequest, input: RenewInput): Promise<{ accessToken: string; tokenType: 'DPoP'; expiresAt: number; serverNow: number }> {
+    const extensionId = this.client(req, true)
+    if (extensionId !== input.extensionId) throw new VaultError('EXTENSION_CLIENT_INVALID', 400)
+    const jkt = await this.dpop.verify(req.proof, { method: 'POST', url: req.url })
+    const identity = await this.locator.locate('trust', trustKey(jkt))
+    if (!identity) throw new VaultError('EXTENSION_UNAUTHORIZED', 401)
+    let outcome: Renewal
+    try {
+      outcome = await this.store.transaction(identity, async (tx): Promise<Renewal> => {
+        await tx.limit('extension-renew', 60_000, 10)
+        const ext = this.records(tx)
+        const row = await ext.take<ExtensionTrust>('trust', trustKey(jkt))
+        const trust = row?.value
+        if (!row || !trust || row.jkt !== jkt || trust.expiresAt <= tx.now() || trust.extensionId !== input.extensionId || trust.sessionVersion !== identity.sessionVersion) {
+          return { ok: false, error: new VaultError('EXTENSION_UNAUTHORIZED', 401) }
+        }
+        const keep = (failures: number): Promise<void> => ext.put('trust', trustKey(jkt), jkt, { ...trust, failures }, trust.expiresAt)
+        if (!await ext.entitled()) { await keep(trust.failures); return { ok: false, error: new VaultError('EXTENSION_FORBIDDEN', 403) } }
+        const device = await ext.device(jkt)
+        if (device?.state !== 'ACTIVE' || device.extensionId !== trust.extensionId) return { ok: false, error: new VaultError('EXTENSION_UNAUTHORIZED', 401) }
+        // Before any code check: a limit hit never tells whether the code was right.
+        await tx.limit('extension-token', 3_600_000, 20)
+        if (!this.methodAllowed(trust.origin.authMethod, tx.authority)) { await keep(trust.failures); return { ok: false, error: new VaultError('EXTENSION_UNAUTHORIZED', 401) } }
+        let viaSession = false
+        if (input.otp === undefined) {
+          try { await this.origin.assert(trust.origin, identity); viaSession = tx.authority.methods[trust.origin.authMethod] === true } catch { viaSession = false }
+          if (!viaSession) { await keep(trust.failures); return { ok: false, error: new VaultError('EXTENSION_REAUTH_REQUIRED', 401) } }
+        } else if (!this.secondFactor.verifySecondFactor(input.otp, tx.authority)) {
+          const failures = trust.failures + 1
+          if (failures < TRUST_MAX_FAILURES) await keep(failures)
+          await tx.audit({ type: 'EXTENSION_RENEW_DENIED', device: jkt, reasonCode: failures < TRUST_MAX_FAILURES ? 'OTP_INVALID' : 'TRUST_ENDED', policyVersion: tx.authority.policy.version })
+          return { ok: false, error: failures < TRUST_MAX_FAILURES ? new VaultError('VAULT_REAUTH_FAILED', 403) : new VaultError('EXTENSION_UNAUTHORIZED', 401) }
+        }
+        await keep(0)
+        const accessToken = this.entropy.token()
+        const expiresAt = Math.min(tx.now() + ACCESS_TTL_MS, trust.expiresAt, tx.authority.validUntil, viaSession ? trust.origin.expiresAt : Number.MAX_SAFE_INTEGER)
+        const access: ExtensionAccess = { sessionVersion: identity.sessionVersion, extensionId: trust.extensionId, origin: viaSession ? trust.origin : null,
+          policyVersion: tx.authority.policy.version, expiresAt, ...(viaSession ? {} : { method: trust.origin.authMethod }) }
+        await ext.put('access', accessToken, jkt, access, expiresAt)
+        await ext.touchDevice(jkt)
+        await tx.audit({ type: 'EXTENSION_RENEWED', device: jkt, reasonCode: viaSession ? 'SESSION' : 'OTP', policyVersion: tx.authority.policy.version })
+        return { ok: true, reply: { accessToken, tokenType: 'DPoP', expiresAt, serverNow: tx.now() } }
+      })
+    } catch (error) { return this.denied(identity, error, jkt) }
+    if (!outcome.ok) {
+      if (outcome.error.code === 'EXTENSION_FORBIDDEN' || outcome.error.code === 'EXTENSION_UNAUTHORIZED') await this.deny(identity, outcome.error.code, jkt)
+      throw outcome.error
+    }
+    return outcome.reply
+  }
+  private methodAllowed(method: VaultAuthMethod, authority: VaultAuthority): boolean {
+    return authority.methods[method] === true && (this.origin.allows ? this.origin.allows(method) : method === 'local')
   }
   private async denied(identity: VaultIdentity, error: unknown, jkt: string): Promise<never> {
     const code = error instanceof VaultError ? error.code : 'VAULT_DEPENDENCY_UNAVAILABLE'
@@ -181,6 +261,27 @@ export class VaultExtensionService {
   async items(req: ExtensionRequest, authorization: unknown, query: { q?: string | undefined; kind?: VaultItemKind | undefined; cursor?: string | undefined }): Promise<{ items: VaultItemSummary[]; nextCursor: string | null }> {
     const { identity, authority } = await this.resource(req, authorization)
     return pageOf(await this.catalog.list(identity, authority.role === 'ADMIN'), query.q, query.kind, query.cursor)
+  }
+
+  /**
+   * NA-0193: "Disconnect" in the extension ends this device's trust and authorizations; the next connection is a full
+   * consent. Authenticated like renewal (Origin + DPoP with the device key), so it works with an expired authorization.
+   */
+  async forget(req: ExtensionRequest, input: { extensionId: string }): Promise<{ state: 'FORGOTTEN' }> {
+    const extensionId = this.client(req, true)
+    if (extensionId !== input.extensionId) throw new VaultError('EXTENSION_CLIENT_INVALID', 400)
+    const jkt = await this.dpop.verify(req.proof, { method: 'POST', url: req.url })
+    const identity = await this.locator.locate('trust', trustKey(jkt))
+    if (!identity) return { state: 'FORGOTTEN' }
+    try {
+      await this.store.transaction(identity, async tx => {
+        const ext = this.records(tx)
+        const row = await ext.take<ExtensionTrust>('trust', trustKey(jkt))
+        await ext.dropAccess(jkt)
+        if (row) await tx.audit({ type: 'EXTENSION_TRUST_ENDED', device: jkt, reasonCode: 'USER_DISCONNECTED', policyVersion: tx.authority.policy.version })
+      })
+    } catch (error) { return this.denied(identity, error, jkt) }
+    return { state: 'FORGOTTEN' }
   }
 
   /** Portal: the signed-in user's own devices (metadata only). */

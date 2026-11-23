@@ -100,7 +100,7 @@ A extensão VaultNAccess para Chrome e Edge busca, pelo navegador, os nomes e ti
 
 Atalhos: **Alt+Shift+V** abre a extensão (troque em `chrome://extensions/shortcuts` se conflitar); **/** vai para a busca; **↑/↓** escolhem um item e **Enter** abre; **Esc** limpa a busca. A extensão usa o idioma do portal no momento da conexão (antes de conectar, o do navegador).
 
-A conexão vale por até 30 minutos, sem renovação automática, e termina antes se você sair do portal (logout), se a permissão for retirada, se o dispositivo for revogado ou se os gestores mudarem a política do cofre. Fechar o navegador também apaga a conexão. Depois disso, conecte de novo. **Negar** devolve a extensão sem conexão.
+Cada conexão vale por até 30 minutos. Depois da primeira autorização pelo portal, o navegador fica confiável por 7 dias: ao reabrir a extensão (por exemplo, depois de **Atualizar** ou de reiniciar o navegador), ela reconecta sozinha enquanto o seu login no portal estiver ativo; se você saiu do portal, ela pede só o **Código do autenticador** e **Reconectar**. **Autorizar pelo portal** abre a autorização completa a qualquer momento. Cinco códigos errados, **Desconectar** na extensão, revogar o dispositivo, retirar a permissão ou **Desconectar todas** nas sessões de login encerram essa confiança: a próxima conexão volta a ser pelo portal, com senha e código. **Negar** devolve a extensão sem conexão.
 
 Em **VaultNAccess**, a seção **Extensão do navegador: dispositivos conectados** lista os seus dispositivos; use **Revogar** para cortar o acesso de um deles imediatamente. A seção não aparece quando o recurso está desligado na instalação.
 

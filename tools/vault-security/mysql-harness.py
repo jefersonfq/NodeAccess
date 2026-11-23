@@ -87,7 +87,9 @@ try:
     log("schema.log", setup)
     # NA-0183: the extension migration is rehearsed on top of the vault one, in deployment order.
     migrations = [ROOT / "apps/backend/prisma/migrations/20261116030000_add_vault_security/migration.sql",
-                  ROOT / "apps/backend/prisma/migrations/20261120150000_vault_extension/migration.sql"]
+                  ROOT / "apps/backend/prisma/migrations/20261120150000_vault_extension/migration.sql",
+                  # NA-0193: trusted extension devices.
+                  ROOT / "apps/backend/prisma/migrations/20261123170000_vault_extension_trust/migration.sql"]
     digest = hashlib.sha256()
     for migration in migrations:
         applied = run(["docker", "exec", "-i", "-e", "MYSQL_PWD=" + password, mysql, "mysql", "-uroot", database], input=migration.read_text(), timeout=60)
