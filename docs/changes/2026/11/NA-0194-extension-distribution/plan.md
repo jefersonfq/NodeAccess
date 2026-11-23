@@ -68,6 +68,10 @@ Revert da PR; sem migração. Sem `VAULT_EXTENSION_PACKAGE_DIR`, nada é publica
 
 - 2026-11-23 (revisão independente, PASS_WITH_WARNINGS): `.gitignore` ancorado (`/release/`, para não ignorar `scripts/release/`); arquivos públicos com tamanho conferido antes da leitura e ETag; metadados do portal só com ZIP e CRX íntegros; `update.xml` gerado pelo servidor a partir do release conferido; limite de 64 KB para `release.json`; URLs do cartão comparadas exatamente.
 
+## Correções necessárias fora do escopo
+
+- 2026-11-23: `tacacs-tls.test.ts` (NA-0169) bloqueava o `sonar-real` de forma determinística em OpenSSL 3: o pacote em texto puro forma um cabeçalho TLS que anuncia 256 bytes, o servidor espera o resto até o tempo do handshake (5 s) e o teste estoura (5 s). O cliente agora fecha a escrita (`end`), o servidor recusa na hora e o teste continua exigindo que nada seja despachado. Sem mudança no servidor TACACS.
+
 ## Aprovação
 
 Decisão: `GO` — responsável aprovou E6 e E2 de ponta a ponta em 2026-11-23.
