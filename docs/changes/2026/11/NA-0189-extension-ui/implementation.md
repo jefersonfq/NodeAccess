@@ -37,3 +37,7 @@ Implementação e validação acima. A NA-0188 segue na PR #79 (CI); esta frente
 ### 2026-11-23T10:00:00-03:00 — Publicação
 
 Responsável autorizou a frente fim a fim. Branch refeita sobre o merge da NA-0188 (`660b08096`), com o encerramento da NA-0188. Revalidado na nova base: vitest `apps/extension` 29 PASS, `typecheck:extension` PASS, `lint:changed` 0 problemas, `test:extension:web` PASS. Próximo: NA-0190 (atualização da extensão ao subir o ambiente), com a compilação na pasta do projeto.
+
+### 2026-11-23T11:50:00-03:00 — Merge e encerramento
+
+PR80 mergeada em `master` (`740d58273`, 2026-11-23) com todos os checks remotos verdes (após completar as seções do plano exigidas pela governança). `master` local sincronizado. Status `closed`. Seguem: homologação visual pelo responsável e `validate:sonar` local (tokens do responsável). Encerramento registrado na branch da NA-0190.

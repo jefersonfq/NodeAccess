@@ -98,6 +98,24 @@ describe('NA-0183 extension client', () => {
     await expect(c.capabilities()).resolves.toMatchObject({ features: { reveal: false } })
     expect(await c.fingerprint()).toBe((s.peek().key!.jkt.slice(0, 16).match(/.{4}/g) ?? []).join('-'))
   })
+  it('NA-0190: reports an unreachable portal as offline before opening the consent window', async () => {
+    const p = portal(), base = p.fetcher.getMockImplementation()!
+    p.fetcher.mockImplementation((input: RequestInfo | URL, init?: RequestInit) => ((input instanceof Request ? input.url : input.toString()) === `${PORTAL}/` ? Promise.reject(new TypeError('Failed to fetch')) : base(input, init)))
+    const { c } = client(p)
+    await expect(c.connect()).rejects.toMatchObject({ reason: 'offline' })
+    expect(p.flow.launch).not.toHaveBeenCalled()
+    const [url, init] = p.fetcher.mock.calls[0] as [string, RequestInit]
+    expect(url).toBe(`${PORTAL}/`); expect(init.credentials).toBe('omit'); expect(init.method).toBe('GET')
+  })
+  it('NA-0190: a consent page that cannot load is offline; a closed window is cancelled', async () => {
+    const p = portal(), { c } = client(p)
+    p.flow.launch.mockRejectedValueOnce(new Error('Authorization page could not be loaded.'))
+    await expect(c.connect()).rejects.toMatchObject({ reason: 'offline' })
+    p.flow.launch.mockRejectedValueOnce(new Error('The user did not approve access.'))
+    await expect(c.connect()).rejects.toMatchObject({ reason: 'cancelled' })
+    p.flow.launch.mockRejectedValueOnce('closed')
+    await expect(c.connect()).rejects.toMatchObject({ reason: 'cancelled' })
+  })
   it('reuses one device key across connections', async () => {
     const s = stores()
     const first = portal(); await client(first, s).c.connect()

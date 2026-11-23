@@ -15,20 +15,26 @@ const version = process.env.VAULTNACCESS_VERSION ?? '0.1.0'
 if (!/^\d{1,4}\.\d{1,4}\.\d{1,4}$/.test(version)) throw new Error('VAULTNACCESS_VERSION must be x.y.z')
 const key = process.env.VAULTNACCESS_MANIFEST_KEY
 if (key !== undefined && !/^[A-Za-z0-9+/]{100,800}={0,2}$/.test(key)) throw new Error('VAULTNACCESS_MANIFEST_KEY must be a base64 public key')
+// NA-0190: local builds (`build:extension:local`) carry a content-derived build id and go to dist-local, apart from
+// the test build in dist; the popup offers to reload when the portal announces another id.
+const buildId = process.env.VAULTNACCESS_BUILD_ID ?? ''
+if (!/^([a-f0-9]{12})?$/.test(buildId)) throw new Error('VAULTNACCESS_BUILD_ID must be 12 hex characters')
+const outDir = process.env.VAULTNACCESS_OUT_DIR ?? 'dist'
+if (outDir !== 'dist' && outDir !== 'dist-local') throw new Error('VAULTNACCESS_OUT_DIR must be dist or dist-local')
 
 function manifestPlugin(): Plugin {
   return { name: 'vaultnaccess-manifest', generateBundle() {
-    this.emitFile({ type: 'asset', fileName: 'manifest.json', source: `${JSON.stringify(manifest(portal, version, key), null, 2)}\n` })
+    this.emitFile({ type: 'asset', fileName: 'manifest.json', source: `${JSON.stringify(manifest(portal, version, key, buildId || undefined), null, 2)}\n` })
   } }
 }
 export default defineConfig({
   root: __dirname,
   base: './',
   plugins: [vue(), manifestPlugin()],
-  define: { __PORTAL_ORIGIN__: JSON.stringify(portal) },
+  define: { __PORTAL_ORIGIN__: JSON.stringify(portal), __BUILD_ID__: JSON.stringify(buildId) },
   resolve: { alias: [{ find: /^@nodeaccess\/shared$/, replacement: resolve(__dirname, '../../packages/shared/src/index.ts') }] },
   build: {
-    outDir: resolve(__dirname, 'dist'),
+    outDir: resolve(__dirname, outDir),
     emptyOutDir: true,
     sourcemap: false,
     modulePreload: false,

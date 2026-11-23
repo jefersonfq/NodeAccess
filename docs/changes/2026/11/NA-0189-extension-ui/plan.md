@@ -2,7 +2,7 @@
 change_id: NA-0189
 title: Visual do popup da extensão VaultNAccess e plano de evolução
 type: feature
-status: ready-for-review
+status: closed
 created_at: 2026-11-23T09:05:00-03:00
 base_branch: master
 base_sha: 660b080966541814f3d2894e2cf4d0fe62d019f5

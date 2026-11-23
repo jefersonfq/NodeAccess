@@ -32,6 +32,15 @@ VAULTNACCESS_PORTAL_ORIGIN=https://<portal> [VAULTNACCESS_VERSION=0.1.0] [VAULTN
 - O ID de uma extensão sem compactação depende do caminho. Para um ID estável entre máquinas, gere um par de chaves para a extensão e informe a chave pública em `VAULTNACCESS_MANIFEST_KEY`; guarde a chave privada fora do repositório. Cadastre o ID resultante em `VAULT_EXTENSION_IDS`.
 - Permissões do manifest: `identity`, `storage` e a origem do portal. Sem content scripts, `externally_connectable` ou `web_accessible_resources`.
 
+### Homologação local com atualização ao subir o ambiente (NA-0190)
+
+- Configure uma vez `apps/extension/local.json` (fora do Git, só valores públicos): `{ "portalOrigin": "https://127.0.0.1:5173", "manifestKey": "<chave pública base64>", "version": "0.1.0" }`. As variáveis `VAULTNACCESS_PORTAL_ORIGIN`, `VAULTNACCESS_MANIFEST_KEY` e `VAULTNACCESS_VERSION` têm prioridade.
+- `npm run dev` compila a extensão em `apps/extension/dist-local` (separada da `dist` dos testes) antes de subir o ambiente; `npm run build:extension:local` faz o mesmo sob demanda. Sem origem configurada, não faz nada; uma falha não impede o ambiente de subir.
+- O identificador da compilação vem do código da extensão e da configuração: sem mudança no código, não recompila nem pede atualização. Ele aparece em `chrome://extensions` como `version_name`.
+- Carregue `apps/extension/dist-local` sem compactação uma única vez (no Windows com WSL: `\\wsl.localhost\<distribuição>\…\apps\extension\dist-local`). Depois, quando o portal de desenvolvimento anunciar outra compilação (`/vaultnaccess-build.json`), o popup mostra **Nova versão da extensão disponível** com **Atualizar**, que recarrega a extensão a partir da pasta.
+- Se o portal não responder, **Conectar ao NodeAccess** mostra "Não foi possível conectar ao NodeAccess" sem abrir a janela de autorização; confira se o ambiente está no ar e a origem configurada.
+- Mantenha a mesma chave pública para o ID não mudar (o ID precisa estar em `VAULT_EXTENSION_IDS`). Compilações de teste e de produção não têm identificador e nunca consultam o portal para isso; a atualização automática em produção é a fatia E6 (pacote assinado e `update_url`).
+
 ## Conceder e revogar a permissão
 
 A permissão `extension` usa o mesmo fluxo de concessões do cofre (dois gestores distintos, nenhum deles o beneficiário). No portal: **VaultNAccess → Permissões do cofre (gestores)** (manual, capítulo Hosts). A seção só aparece para gestores (`vault_managers`) e cada ação pede confirmação de identidade com menos de 1 minuto.

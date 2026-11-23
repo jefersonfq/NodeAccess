@@ -5,7 +5,8 @@ import {
 import { createDeviceKey, dpopProof, pkcePair, randomToken } from './crypto'
 import type { AuthFlow, Authorization, DeviceKey, DeviceKeyStore, ExtensionInfo, SessionStore } from './ports'
 
-export type ExtensionFailure = 'denied' | 'cancelled' | 'expired' | 'upgrade' | 'unavailable' | 'invalid'
+/** `offline` (NA-0190): the portal did not answer at all (down, wrong origin, network). */
+export type ExtensionFailure = 'denied' | 'cancelled' | 'expired' | 'upgrade' | 'unavailable' | 'invalid' | 'offline'
 export class ExtensionError extends Error {
   constructor(public readonly reason: ExtensionFailure) { super(reason) }
 }
@@ -87,6 +88,13 @@ export function createExtensionClient(deps: Deps): ExtensionClient {
       throw error
     }
   }
+  /** NA-0190: any HTTP answer from the portal origin within 5 s proves it is up; no credentials, nothing read. */
+  async function reachable(): Promise<void> {
+    const abort = new AbortController(), timer = setTimeout(() => abort.abort(), 5_000)
+    try {
+      await fetcher(new URL('/', deps.info.portalOrigin).toString(), { method: 'GET', credentials: 'omit', cache: 'no-store', redirect: 'manual', referrerPolicy: 'no-referrer', signal: abort.signal })
+    } catch { throw new ExtensionError('offline') } finally { clearTimeout(timer) }
+  }
   return {
     /** Opens the portal consent page; on success keeps only the 30-minute authorization in session memory. */
     async connect(): Promise<void> {
@@ -96,8 +104,12 @@ export function createExtensionClient(deps: Deps): ExtensionClient {
       if (redirectUri !== `https://${deps.info.id}.chromiumapp.org/`) throw new ExtensionError('invalid')
       const consent = new URL('/vault/extension/connect', deps.info.portalOrigin)
       for (const [name, value] of Object.entries({ extensionId: deps.info.id, redirectUri, state, codeChallenge: challenge, codeChallengeMethod: 'S256', deviceJkt: key.jkt })) consent.searchParams.set(name, value)
+      await reachable()
       let returned: URL
-      try { returned = new URL(await deps.flow.launch(consent.toString())) } catch { throw new ExtensionError('cancelled') }
+      try { returned = new URL(await deps.flow.launch(consent.toString())) } catch (error) {
+        // Chromium rejects with "Authorization page could not be loaded" when the portal goes away meanwhile.
+        throw new ExtensionError(error instanceof Error && /could not be loaded/i.test(error.message) ? 'offline' : 'cancelled')
+      }
       if (`${returned.origin}/` !== redirectUri || returned.searchParams.get('state') !== state) throw new ExtensionError('invalid')
       if (returned.searchParams.get('error')) throw new ExtensionError(returned.searchParams.get('error') === 'access_denied' ? 'cancelled' : 'denied')
       const code = returned.searchParams.get('code')

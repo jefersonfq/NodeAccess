@@ -8,7 +8,7 @@
     "packages/*"
   ],
   "scripts": {
-    "dev": "npm run dev:clean && npm run dev:raw",
+    "dev": "npm run dev:clean && npm run build:extension:local -- --soft && npm run dev:raw",
     "dev:raw": "concurrently --names api,gateway,frontend,warmup --prefix-colors blue,magenta,cyan,gray \"npm run dev -w apps/backend\" \"npm run dev:gateway -w apps/backend\" \"bash scripts/dev-frontend.sh\" \"wait-on tcp:3000 tcp:5173 && npm run dev:warmup\"",
     "dev:clean": "bash scripts/dev-clean.sh",
     "dev:warmup": "node tools/frontend/dev-warmup.cjs",
@@ -17,6 +17,7 @@
     "harness:hosts-browser-cache": "node tools/frontend/hosts-browser-cache-harness.cjs",
     "lint": "eslint apps/backend/src apps/frontend/src apps/extension/src --ext .ts,.vue --max-warnings 0",
     "build:extension": "vite build --config apps/extension/vite.config.ts",
+    "build:extension:local": "node tools/vault-extension/build-local.mjs",
     "typecheck:extension": "vue-tsc --noEmit -p apps/extension/tsconfig.json",
     "test:extension:web": "node tools/vault-extension/extension-smoke.mjs",
     "lint:changed": "node scripts/lint-changed.mjs",

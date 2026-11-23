@@ -8,7 +8,7 @@ import { message } from './messages'
 interface HostNode { parent: HostNode | null; children: HostNode[] }
 const node = (): HostNode => ({ parent: null, children: [] })
 interface Popup { phase: string; items: unknown[]; error: string; query: string; next: string | null; recents: string[]
-  search(more?: boolean): Promise<void>; connect(): Promise<void>; disconnect(): Promise<void>; openItem(item: unknown): Promise<void>; setKind(value: string): void }
+  search(more?: boolean): Promise<void>; connect(): Promise<void>; disconnect(): Promise<void>; openItem(item: unknown): Promise<void>; setKind(value: string): void; applyUpdate(): void }
 function mount(props: Record<string, unknown>) {
   const renderer = createRenderer<HostNode, HostNode>({ createElement: node, createText: node, createComment: node, setText: () => {}, setElementText: () => {}, patchProp: () => {},
     parentNode: n => n.parent, nextSibling: () => null, insert: (n, p) => { n.parent = p; p.children.push(n) }, remove: n => { if (n.parent) n.parent.children = n.parent.children.filter(c => c !== n) } })
@@ -104,5 +104,29 @@ describe('NA-0183 extension popup', () => {
     expect(html).toContain('vaultnaccess-fingerprint'); expect(html).toContain('abcd-efgh-ijkl-mnop'); expect(html).toContain('spinner')
     finish({ ok: true }); await pending
     f.unmount()
+  })
+  it('NA-0190: offers to reload a newer local build and stays quiet otherwise', async () => {
+    const apply = vi.fn()
+    const f = mount({ client: asClient(fakeClient(false)), requestConnection: vi.fn(), open: vi.fn(), update: { check: { available: vi.fn().mockResolvedValue(true) }, apply } }); await flush()
+    const html = await f.html()
+    expect(html).toContain('vaultnaccess-update'); expect(html).toContain('Nova versão da extensão disponível.')
+    f.state.applyUpdate(); expect(apply).toHaveBeenCalledTimes(1)
+    f.unmount()
+    for (const update of [undefined, { check: { available: vi.fn().mockResolvedValue(false) }, apply }]) {
+      const quiet = mount({ client: asClient(fakeClient(false)), requestConnection: vi.fn(), open: vi.fn(), update }); await flush()
+      expect(await quiet.html()).not.toContain('vaultnaccess-update'); quiet.state.applyUpdate(); quiet.unmount()
+    }
+    expect(apply).toHaveBeenCalledTimes(2)
+  })
+  it('NA-0190: shows why a connection attempt failed after the popup had closed', async () => {
+    const lastFailure = vi.fn().mockResolvedValue('offline')
+    const f = mount({ client: asClient(fakeClient(false)), requestConnection: vi.fn(), open: vi.fn(), lastFailure }); await flush()
+    expect(f.state.error).toBe('offline')
+    expect(await f.html()).toContain('Não foi possível conectar ao NodeAccess.')
+    f.unmount()
+    const quiet = mount({ client: asClient(fakeClient(false)), requestConnection: vi.fn(), open: vi.fn(), lastFailure: vi.fn().mockRejectedValue(new Error('x')) }); await flush()
+    expect(quiet.state.error).toBe(''); quiet.unmount()
+    const live = mount({ client: asClient(fakeClient(false)), requestConnection: vi.fn().mockResolvedValue({ ok: false, reason: 'offline' }), open: vi.fn() }); await flush()
+    await live.state.connect(); expect(live.state.error).toBe('offline'); expect(live.state.phase).toBe('disconnected'); live.unmount()
   })
 })

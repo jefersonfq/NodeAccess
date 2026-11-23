@@ -35,3 +35,7 @@ Responsável aprovou a frente de ponta a ponta. Implementação e validação ac
 ### 2026-11-23T11:40:00-03:00 — Revisão independente
 
 Revisão independente (subagente, somente leitura): PASS_WITH_WARNINGS, sem oráculo útil (senha e TOTP verificados juntos; desafio queimado antes; auditoria e limites inalterados). Corrigido W1: código do autenticador em formato inválido no fluxo do provedor e credencial do Google malformada passam a `reauth` no portal (antes `denied`, que a página da extensão mostrava como falta de permissão). Ran: vitest serviços/componentes do cofre e `vault-security`.
+
+### 2026-11-23T12:40:00-03:00 — Merge e encerramento
+
+PR82 mergeada em `master` (`7f728c2c2`, 2026-11-23) com todos os checks remotos verdes. `master` local sincronizado. Status `closed`. Seguem: homologação pelo responsável (roteiro no PR) e `validate:sonar` local (tokens do responsável). Encerramento registrado na branch da NA-0190.
