@@ -23,6 +23,8 @@ function valid(value: unknown): value is PackageInfo {
     && v.zipUrl === `${BASE}/package.zip` && v.crxUrl === `${BASE}/package.crx` && v.updateUrl === `${BASE}/update.xml`
 }
 async function load(): Promise<void> {
+  // Outside HTTPS the vault page makes no Vault API request (contract of the HTTP boundary); the extension needs HTTPS anyway.
+  if (typeof window === 'undefined' || !window.isSecureContext) { info.value = null; return }
   try {
     const { data } = await api.get<unknown>('/vault-security/extension/package')
     info.value = valid(data) ? data : null
