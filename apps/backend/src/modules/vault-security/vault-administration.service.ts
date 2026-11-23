@@ -1,6 +1,6 @@
 import type { VaultService } from './vault.service.js'
-import { unavailable, type VaultChange, type VaultIdentity } from './vault-domain.js'
-import type { VaultAdministrationOverview, VaultEntropy } from './vault-ports.js'
+import { CONFIRMATION_DEFAULT_SECONDS, unavailable, type VaultChange, type VaultIdentity } from './vault-domain.js'
+import type { VaultAdministrationView, VaultEntropy } from './vault-ports.js'
 export class VaultAdministrationService {
   constructor(private readonly vault: VaultService, private readonly entropy: VaultEntropy) {}
   async propose(i: VaultIdentity, c: string, o: string, s: string, change: VaultChange): Promise<{ proposalId: string }> {
@@ -31,10 +31,11 @@ export class VaultAdministrationService {
     return this.vault.inspect(i, o, 'administration-status', async tx => ({ manager: (await tx.administration?.isManager()) === true }))
   }
   /** Users, grants and live proposals; same confirmed session as any administrative change. */
-  async overview(i: VaultIdentity, c: string, o: string, s: string): Promise<VaultAdministrationOverview> {
-    return this.vault.confirmed(i,c,o,s, 'administration-overview', tx => {
+  async overview(i: VaultIdentity, c: string, o: string, s: string): Promise<VaultAdministrationView> {
+    return this.vault.confirmed(i,c,o,s, 'administration-overview', async tx => {
       if (!tx.administration) unavailable()
-      return tx.administration.overview()
+      const overview = await tx.administration.overview()
+      return { ...overview, policy: { confirmationSeconds: tx.authority.policy.confirmationSeconds ?? CONFIRMATION_DEFAULT_SECONDS } }
     })
   }
 }

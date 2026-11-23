@@ -2,7 +2,7 @@
 change_id: NA-0183
 title: Extensão VaultNAccess E1 — permissão por usuário, conexão segura e busca de metadados
 type: feature
-status: ready-for-tests
+status: closed
 created_at: 2026-11-19T16:15:00-03:00
 base_branch: master
 base_sha: 8ef8188a6af1ee0b8180a9707ad54b54b8fd4002

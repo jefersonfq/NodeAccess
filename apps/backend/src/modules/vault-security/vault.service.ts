@@ -1,4 +1,4 @@
-import { assertPolicy, assertSession, denied, grantDeadline, unavailable, vaultEnvelopeContext, VaultError } from './vault-domain.js'
+import { assertPolicy, assertSession, denied, grantDeadline, operationProofWindowMs, unavailable, vaultEnvelopeContext, VaultError } from './vault-domain.js'
 import type { VaultAuthMethod, VaultEnvelopeContext, VaultAction, VaultChallenge, VaultClient, VaultIdentity, VaultOperation, VaultSession } from './vault-domain.js'
 import type { EnvelopeSealer, OriginVerifier, ProviderMethod, ProviderProofInput, ProviderStart, ProviderStepUp, Reauthentication, VaultEntropy, VaultStore, VaultTransaction } from './vault-ports.js'
 
@@ -50,7 +50,7 @@ export class VaultService {
       return { challengeId, expiresAt, serverNow: tx.now(), stepUp: stepUpOf(client.origin.authMethod) }
     })
   }
-  async unlock(identity: VaultIdentity, clientId: string, origin: string, challengeId: string, password: string, otp: string): Promise<{ sessionId: string; idleUntil: number; expiresAt: number; serverNow: number }> {
+  async unlock(identity: VaultIdentity, clientId: string, origin: string, challengeId: string, password: string, otp: string): Promise<{ sessionId: string; idleUntil: number; expiresAt: number; serverNow: number; proofUntil: number }> {
     // Burn each challenge before expensive verification; failures cannot replay it.
     const proof = await this.store.transaction(identity, async tx => {
       const client = await this.client(tx, clientId, identity, origin)
@@ -103,7 +103,7 @@ export class VaultService {
     })
     return { totpRequired: !mfa }
   }
-  async unlockProvider(identity: VaultIdentity, clientId: string, origin: string, challengeId: string, otp: string | undefined): Promise<{ sessionId: string; idleUntil: number; expiresAt: number; serverNow: number }> {
+  async unlockProvider(identity: VaultIdentity, clientId: string, origin: string, challengeId: string, otp: string | undefined): Promise<{ sessionId: string; idleUntil: number; expiresAt: number; serverNow: number; proofUntil: number }> {
     const proof = await this.store.transaction(identity, async tx => {
       const { client, challenge } = await this.providerContext(tx, identity, clientId, origin, challengeId)
       const stored = await tx.get<{ clientId: string; mfa: boolean }>('provider', challengeId)
@@ -118,7 +118,7 @@ export class VaultService {
     }
     return this.openSession(identity, clientId, origin, proof)
   }
-  private async openSession(identity: VaultIdentity, clientId: string, origin: string, proof: { authority: VaultTransaction['authority']; expiresAt: number }): Promise<{ sessionId: string; idleUntil: number; expiresAt: number; serverNow: number }> {
+  private async openSession(identity: VaultIdentity, clientId: string, origin: string, proof: { authority: VaultTransaction['authority']; expiresAt: number }): Promise<{ sessionId: string; idleUntil: number; expiresAt: number; serverNow: number; proofUntil: number }> {
     return this.store.transaction(identity, async tx => {
       const client = await this.client(tx, clientId, identity, origin)
       if (proof.expiresAt <= tx.now() || proof.authority.credentialVersion !== tx.authority.credentialVersion) denied()
@@ -129,7 +129,9 @@ export class VaultService {
         proofAt: tx.now(), idleUntil: Math.min(tx.now() + 300_000, expiresAt), expiresAt }
       await tx.put('session', client.id, { ...session, sessionId: this.entropy.digest(sessionId) }, expiresAt)
       await tx.audit({ type: 'VAULT_UNLOCKED', clientId, policyVersion: tx.authority.policy.version })
-      return { sessionId, idleUntil: session.idleUntil, expiresAt, serverNow: tx.now() }
+      // NA-0186: the client mirrors the tenant's reveal/copy window; the server still enforces it on every grant.
+      const proofUntil = Math.min(session.proofAt + operationProofWindowMs(tx.authority.policy), expiresAt)
+      return { sessionId, idleUntil: session.idleUntil, expiresAt, serverNow: tx.now(), proofUntil }
     })
   }
   private async session(tx: VaultTransaction, client: VaultClient, sessionId: string): Promise<VaultSession> {
@@ -169,7 +171,7 @@ export class VaultService {
       const client = await this.client(tx, clientId, identity, origin)
       const session = await this.session(tx, client, sessionId)
       const secret = await tx.secret(secretId, action)
-      const operationId = this.entropy.token(), expiresAt = grantDeadline(session, client, tx.now(), tx.authority.validUntil)
+      const operationId = this.entropy.token(), expiresAt = grantDeadline(session, client, tx.now(), tx.authority.validUntil, operationProofWindowMs(tx.authority.policy))
       const op: VaultOperation = { clientId: client.id, sessionId: this.entropy.digest(sessionId), action, secretId, secretVersion: secret.version, recipient, recipientThumbprint,
         policyVersion: tx.authority.policy.version, expiresAt, state: 'AUTHORIZED' }
       await tx.put('operation', operationId, op, expiresAt)
@@ -185,7 +187,7 @@ export class VaultService {
       const op = await tx.get<VaultOperation>('operation', operationId)
       if (!op || op.clientId !== this.entropy.digest(clientId) || op.sessionId !== this.entropy.digest(sessionId) || op.state !== 'AUTHORIZED' || op.expiresAt <= tx.now()
         || op.policyVersion !== tx.authority.policy.version) unavailable()
-      const deadline = Math.min(op.expiresAt, grantDeadline(session, client, tx.now(), tx.authority.validUntil))
+      const deadline = Math.min(op.expiresAt, grantDeadline(session, client, tx.now(), tx.authority.validUntil, operationProofWindowMs(tx.authority.policy)))
       if (deadline < op.expiresAt) unavailable() // An authorized envelope context is immutable.
       const secret = await tx.secret(op.secretId, op.action)
       if (secret.version !== op.secretVersion) unavailable()

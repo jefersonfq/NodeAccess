@@ -3553,6 +3553,10 @@
         "yes": "Sim",
         "no": "Não"
       },
+      "vaultModal": {
+        "title": "Permissões do cofre: {name}",
+        "hint": "Mesmas regras do VaultNAccess: você propõe e outro gestor aprova. Quem recebe a permissão não aprova."
+      },
       "actions": {
         "access": "Acessos",
         "edit": "Editar",
@@ -3560,6 +3564,7 @@
         "activate": "Ativar",
         "resetPassword": "Reset senha",
         "resetMfa": "Resetar MFA",
+        "vault": "Permissões do cofre",
         "delete": "Excluir",
         "restore": "Restaurar",
         "promoteSuperadmin": "Promover superadmin"
@@ -6909,6 +6914,11 @@
     "applied": "Alteração aplicada. O cofre foi bloqueado para todos; confirme a identidade de novo para continuar.",
     "reload": "Atualizar",
     "open": "Administrar permissões",
+    "proposalConfirmation": "Tempo de confirmação do tenant: {minutes} min",
+    "confirmationTitle": "Tempo de confirmação para revelar e copiar",
+    "confirmationHint": "Depois de confirmar a identidade, revelar e copiar ficam liberados por {minutes} min (de 1 a 15), enquanto o cofre estiver aberto. Administrar permissões e conectar a extensão sempre pedem confirmação de 1 minuto. A mudança segue a mesma regra de dois gestores.",
+    "confirmationMinutes": "Minutos",
+    "confirmationPropose": "Propor novo tempo",
     "unknownUser": "usuário {id}"
   }
 }

@@ -16,6 +16,9 @@ import { useAuthStore } from '@/stores/auth'
 import SkeletonTable from '@/components/SkeletonTable.vue'
 import SessionSupervisionPermission from '@/components/SessionSupervisionPermission.vue'
 import UserAvatar from '@/components/UserAvatar.vue'
+import VaultAdministration from '@/components/vault/VaultAdministration.vue'
+import { createVaultTransport } from '@/services/vault-http'
+import { isVaultManager } from '@/services/vault-manager'
 
 const { t } = useI18n()
 const router = useRouter()
@@ -35,6 +38,9 @@ const accessDrawerUser = ref<UserPublic | null>(null)
 const accessLoading = ref(false)
 const accessError = ref('')
 const accessEntries = ref<UserInventoryAccessEntry[]>([])
+// NA-0186: vault permissions per user, only for vault managers (NodeAccess admin alone is not enough).
+const vaultManager = ref(false)
+const vaultUser = ref<UserPublic | null>(null)
 
 const groupOptions = ref<{ label: string; value: number }[]>([])
 const userOptions = computed(() =>
@@ -64,6 +70,7 @@ type UserActionKey =
   | 'deactivate'
   | 'reset-password'
   | 'reset-mfa'
+  | 'vault'
   | 'delete'
   | 'restore'
 
@@ -97,7 +104,7 @@ async function createUser() {
       showCreateModal.value = false
     }
     msg.success(t('admin.users.messages.created'))
-    load()
+    void load()
   } catch (err: unknown) {
     const e = err as { response?: { data?: { message?: string } } }
     msg.error(e.response?.data?.message ?? t('admin.users.messages.createError'))
@@ -163,7 +170,7 @@ async function saveEdit() {
     await userService.update(editingId.value, editForm.value)
     msg.success(t('admin.users.messages.updated'))
     showEditModal.value = false
-    load()
+    void load()
   } catch (err: unknown) {
     const e = err as { response?: { data?: { message?: string } } }
     msg.error(e.response?.data?.message ?? t('admin.users.messages.updateError'))
@@ -278,6 +285,7 @@ function userActionOptions(user: UserPublic) {
     },
     { label: t('admin.users.actions.resetPassword'), key: 'reset-password' },
     { label: t('admin.users.actions.resetMfa'), key: 'reset-mfa' },
+    ...(vaultManager.value && user.active ? [{ label: t('admin.users.actions.vault'), key: 'vault' }] : []),
     { type: 'divider', key: 'danger-divider' },
     {
       label: () => h('span', { class: 'user-action-danger' }, t('admin.users.actions.delete')),
@@ -295,6 +303,7 @@ function handleUserAction(action: UserActionKey, user: UserPublic) {
   if (action === 'deactivate') return toggleActive(user, false)
   if (action === 'reset-password') return resetPwd(user.id)
   if (action === 'reset-mfa') return confirmResetMfa(user)
+  if (action === 'vault') { vaultUser.value = user; return }
   if (action === 'delete') return confirmDeleteUser(user)
   if (action === 'restore') return restoreUser(user)
 }
@@ -358,7 +367,7 @@ const columns = computed<DataTableColumns<UserPublic>>(() => [
       trigger: 'click',
       placement: 'bottom-end',
       options: userActionOptions(row),
-      onSelect: (key: string) => handleUserAction(key as UserActionKey, row),
+      onSelect: (key: string) => { void handleUserAction(key as UserActionKey, row) },
     }, {
       default: () => h(NButton, { size: 'small', secondary: true }, () => t('admin.users.columns.actions')),
     }),
@@ -385,8 +394,9 @@ async function load() {
 }
 
 onMounted(() => {
-  load()
-  loadGroups()
+  void load()
+  void loadGroups()
+  void isVaultManager(createVaultTransport(), auth).then(value => { vaultManager.value = value })
 })
 
 async function toggleActive(user: UserPublic, active: boolean) {
@@ -394,7 +404,7 @@ async function toggleActive(user: UserPublic, active: boolean) {
     if (active) await userService.activate(user.id)
     else        await userService.deactivate(user.id)
     msg.success(active ? t('admin.users.messages.activated') : t('admin.users.messages.deactivated'))
-    load()
+    void load()
   } catch {
     msg.error(t('admin.users.messages.updateError'))
   }
@@ -410,7 +420,7 @@ function confirmDeleteUser(user: UserPublic) {
       try {
         await userService.delete(user.id)
         msg.success(t('admin.users.messages.deleted'))
-        load()
+        void load()
       } catch (err: unknown) {
         const e = err as { response?: { data?: { message?: string } } }
         msg.error(e.response?.data?.message ?? t('admin.users.messages.deleteError'))
@@ -423,14 +433,14 @@ async function restoreUser(user: UserPublic) {
   try {
     await userService.restore(user.id)
     msg.success(t('admin.users.messages.restored'))
-    load()
+    void load()
   } catch (err: unknown) {
     const e = err as { response?: { data?: { message?: string } } }
     msg.error(e.response?.data?.message ?? t('admin.users.messages.restoreError'))
   }
 }
 
-async function resetPwd(id: number) {
+function resetPwd(id: number) {
   dialog.warning({
     title:        t('admin.users.resetPassword.dialogTitle'),
     content:      t('admin.users.resetPassword.dialogContent'),
@@ -656,6 +666,24 @@ function confirmPromotePlatformAdmin(user: UserPublic) {
           <NButton type="primary" :loading="editLoading" @click="saveEdit">{{ $t('admin.users.editModal.save') }}</NButton>
         </div>
       </NForm>
+    </NModal>
+
+    <NModal
+      :show="vaultUser !== null"
+      preset="card"
+      :title="$t('admin.users.vaultModal.title', { name: vaultUser?.name ?? '' })"
+      style="width: min(760px, 100vw)"
+      data-testid="users-vault-modal"
+      @update:show="(value) => { if (!value) vaultUser = null }"
+    >
+      <p class="mb-3 text-sm text-gray-400">
+        {{ $t('admin.users.vaultModal.hint') }}
+      </p>
+      <VaultAdministration
+        v-if="vaultUser"
+        :key="vaultUser.id"
+        :user-id="vaultUser.id"
+      />
     </NModal>
 
     <NDrawer

@@ -6,7 +6,9 @@ export interface VaultIdentity { userId: number; tenantId: number; sessionVersio
 /** Central login methods that may unlock the vault; break-glass and unknown methods never do. */
 export type VaultAuthMethod = 'local' | 'ldap' | 'oidc' | 'google'
 export interface VaultOrigin { jti: string; expiresAt: number; authMethod: VaultAuthMethod }
-export interface VaultPolicy { version: number; unlock: boolean; reveal: boolean; copy: boolean; localReauth: boolean; origin: string; tenantQuota: number }
+export interface VaultPolicy { version: number; unlock: boolean; reveal: boolean; copy: boolean; localReauth: boolean; origin: string; tenantQuota: number
+  /** NA-0186: how long an unlock proof stays valid for reveal/copy (whole minutes, 60–900 s; absent = 60 s, contract default). */
+  confirmationSeconds?: number }
 export interface VaultAuthority {
   policy: VaultPolicy; validUntil: number; role: 'ADMIN' | 'USER'; passwordHash: string | null; mfaSecret: string; credentialVersion: string
   email: string; methods: Record<VaultAuthMethod, boolean>
@@ -26,9 +28,19 @@ export class VaultError extends Error {
 }
 export function denied(): never { throw new VaultError('VAULT_FORBIDDEN', 403) }
 export function unavailable(): never { throw new VaultError('OPERATION_UNAVAILABLE', 409) }
+export const CONFIRMATION_DEFAULT_SECONDS = 60
+export const CONFIRMATION_MAX_SECONDS = 900
+export function validConfirmationSeconds(value: unknown): value is number {
+  return typeof value === 'number' && Number.isSafeInteger(value) && value >= CONFIRMATION_DEFAULT_SECONDS && value <= CONFIRMATION_MAX_SECONDS && value % 60 === 0
+}
+/** Proof window for reveal/copy; administration and extension consent always keep the 60 s default. */
+export function operationProofWindowMs(policy: VaultPolicy): number {
+  return (policy.confirmationSeconds ?? CONFIRMATION_DEFAULT_SECONDS) * 1000
+}
 export function assertPolicy(policy: VaultPolicy): void {
   if (policy.unlock !== true || policy.localReauth !== true || typeof policy.reveal !== 'boolean' || typeof policy.copy !== 'boolean' || !Number.isSafeInteger(policy.version) || policy.version < 1
-    || !Number.isSafeInteger(policy.tenantQuota) || policy.tenantQuota < 1 || policy.tenantQuota > 300) denied()
+    || !Number.isSafeInteger(policy.tenantQuota) || policy.tenantQuota < 1 || policy.tenantQuota > 300
+    || (policy.confirmationSeconds !== undefined && !validConfirmationSeconds(policy.confirmationSeconds))) denied()
   try { const u = new URL(policy.origin); if (u.protocol !== 'https:' || u.origin !== policy.origin) denied() } catch { denied() }
 }
 export function assertSession(session: VaultSession | null, client: VaultClient, authority: VaultAuthority, now: number): asserts session is VaultSession {
@@ -37,8 +49,9 @@ export function assertSession(session: VaultSession | null, client: VaultClient,
     throw new VaultError('VAULT_LOCKED', 423)
   }
 }
-export function grantDeadline(session: VaultSession, client: VaultClient, now: number, authorityDeadline: number): number {
-  const deadline = Math.min(authorityDeadline, now + 30_000, session.idleUntil, session.expiresAt, client.expiresAt, client.origin.expiresAt, session.proofAt + 60_000)
+export function grantDeadline(session: VaultSession, client: VaultClient, now: number, authorityDeadline: number,
+  proofWindowMs = CONFIRMATION_DEFAULT_SECONDS * 1000): number {
+  const deadline = Math.min(authorityDeadline, now + 30_000, session.idleUntil, session.expiresAt, client.expiresAt, client.origin.expiresAt, session.proofAt + proofWindowMs)
   if (deadline <= now) throw new VaultError('VAULT_STEP_UP_REQUIRED', 423)
   return deadline
 }
@@ -46,6 +59,7 @@ export function grantDeadline(session: VaultSession, client: VaultClient, now: n
 export type VaultChange = { kind: 'grant'; userId: number; action: VaultGrant; enabled: boolean }
   | { kind: 'item'; secretId: number; enabled: boolean }
   | { kind: 'policy'; reveal: boolean; copy: boolean; tenantQuota: number }
+  | { kind: 'confirmation'; seconds: number }
 
 /** Same authenticated context at authorization and release; deadline is immutable. */
 export interface VaultEnvelopeContext {

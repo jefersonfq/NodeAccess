@@ -3539,6 +3539,10 @@
         "yes": "Yes",
         "no": "No"
       },
+      "vaultModal": {
+        "title": "Vault permissions: {name}",
+        "hint": "Same rules as VaultNAccess: you propose and another manager approves. The person receiving the permission cannot approve."
+      },
       "actions": {
         "access": "Access",
         "edit": "Edit",
@@ -3546,6 +3550,7 @@
         "activate": "Activate",
         "resetPassword": "Reset password",
         "resetMfa": "Reset MFA",
+        "vault": "Vault permissions",
         "delete": "Delete",
         "restore": "Restore",
         "promoteSuperadmin": "Promote superadmin"
@@ -6885,6 +6890,11 @@
     "applied": "Change applied. The vault was locked for everyone; confirm your identity again to continue.",
     "reload": "Refresh",
     "open": "Manage permissions",
+    "proposalConfirmation": "Tenant confirmation time: {minutes} min",
+    "confirmationTitle": "Confirmation time for reveal and copy",
+    "confirmationHint": "After confirming identity, reveal and copy stay available for {minutes} min (1 to 15) while the vault is open. Managing permissions and connecting the extension always require a 1-minute confirmation. Changes follow the same two-manager rule.",
+    "confirmationMinutes": "Minutes",
+    "confirmationPropose": "Propose new time",
     "unknownUser": "user {id}"
   }
 }

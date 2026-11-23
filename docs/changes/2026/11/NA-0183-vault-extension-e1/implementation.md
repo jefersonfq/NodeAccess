@@ -89,3 +89,7 @@ Ideias do responsável, registradas como frentes futuras (sem código aqui): NA-
 ### 2026-11-22T18:40:00-03:00 — Desbloqueio do gate de imagens e preparação do merge
 
 NA-0185 (PR76) mergeada e encerrada nesta branch, como foi feito com a NA-0184. `master` mesclado aqui (`a63668c88`, sem conflitos) para o `upgrade-restore` passar. O commit de clareza foi refeito com os trailers de governança (`729b3a5bd`); validador local PASS. O responsável autorizou o merge da PR75 de ponta a ponta, com o `sonar-real` da CI e sem o `validate:sonar` local (Skipped: tokens do responsável). Homologação: parcial (conexão e concessão com dois gestores); o restante do roteiro H1–H14 fica com o responsável. Pendências após o merge: encerramento da NA-0183 na próxima frente; NA-0186 e NA-0187 como ideias; roadmap 2027 (META-005/META-017) sem ferramenta de edição da planilha.
+
+### 2026-11-22T20:00:00-03:00 — Encerramento
+
+PR75 mergeada em `master` (`7c973fce8`, 2026-11-22) com todos os checks remotos verdes; `master` local sincronizado. Status `closed`. Homologação parcial pelo responsável (conexão e concessão com dois gestores); o restante do roteiro H1–H14 segue como verificação dele, sem bloquear. Seguem: `validate:sonar` local não executado (Skipped, autorizado); roadmap 2027 sem ferramenta de edição. Encerramento registrado na branch da NA-0186, como foi feito com a NA-0184.
