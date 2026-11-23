@@ -2,7 +2,7 @@
 change_id: NA-0193
 title: Extensão VaultNAccess — dispositivo confiável por 7 dias, reconexão automática e por código do autenticador
 type: security
-status: ready-for-review
+status: closed
 created_at: 2026-11-23T14:30:00-03:00
 base_branch: master
 base_sha: b8d99fd8ed8404d183561a5605a62f9b3b3a0593

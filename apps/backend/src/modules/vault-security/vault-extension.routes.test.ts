@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { randomBytes } from 'node:crypto'
 import { configureCurrentSessionReader } from '../auth/current-session.js'
 import type { JwtPayload } from '../../shared/guards.js'
+import type { ExtensionPackage } from './vault-extension-package.js'
 import { vaultExtensionRoutes } from './vault-extension.routes.js'
 import { VaultError } from './vault-domain.js'
 import { DpopNonces } from './vault-extension-dpop.js'
@@ -33,9 +34,10 @@ async function harness() {
     sessionVersion: 3, role: 'USER', isPlatformAdmin: false, canManageHosts: false, canViewLiveSessions: false }))
   const app = Fastify({ trustProxy: true })
   await app.register(fastifyJwt, { secret: randomBytes(32).toString('hex') })
-  await app.register(async r => vaultExtensionRoutes(r, vault as unknown as VaultService, service as unknown as VaultExtensionService), { prefix: '/api/v1/vault-security' })
+  const releases = { release: vi.fn().mockResolvedValue(null), file: vi.fn().mockResolvedValue(null), verified: vi.fn().mockResolvedValue(null) }
+  await app.register(async r => vaultExtensionRoutes(r, vault as unknown as VaultService, service as unknown as VaultExtensionService, releases as unknown as ExtensionPackage), { prefix: '/api/v1/vault-security' })
   const jwt = app.jwt.sign(user)
-  return { app, service, jwt }
+  return { app, service, jwt, releases }
 }
 
 describe('NA-0183 extension routes', () => {
@@ -116,6 +118,33 @@ describe('NA-0183 extension routes', () => {
       expect(devices.statusCode).toBe(200)
       const revoke = await h.app.inject({ method: 'POST', url: '/api/v1/vault-security/extension/devices/revoke', payload: { jkt: 'short' }, headers: { authorization: `Bearer ${h.jwt}`, origin, 'x-forwarded-proto': 'https' } })
       expect(revoke.statusCode).toBe(400)
+    } finally { await h.app.close() }
+  })
+  it('NA-0194: serves the published release files and metadata only when available, over HTTPS', async () => {
+    const h = await harness()
+    try {
+      const https = { 'x-forwarded-proto': 'https', host: 'vault.example.test' }
+      expect((await h.app.inject({ method: 'GET', url: '/api/v1/vault-security/extension/package.crx', headers: https })).statusCode).toBe(404)
+      expect((await h.app.inject({ method: 'GET', url: '/api/v1/vault-security/extension/update.xml', headers: { host: 'vault.example.test' } })).statusCode).toBe(403)
+      const release = { version: '0.2.0', extensionId: EXT, zip: { file: 'vaultnaccess-0.2.0.zip', sha256: 'a'.repeat(64), size: 3 }, crx: { file: 'vaultnaccess-0.2.0.crx', sha256: 'b'.repeat(64), size: 3 } }
+      h.releases.file.mockResolvedValueOnce({ body: Buffer.from('crx'), contentType: 'application/x-chrome-extension', release })
+      const crx = await h.app.inject({ method: 'GET', url: '/api/v1/vault-security/extension/package.crx', headers: https })
+      expect(crx.statusCode).toBe(200); expect(crx.headers['content-type']).toBe('application/x-chrome-extension')
+      expect(crx.headers['content-disposition']).toBe('attachment; filename="vaultnaccess-0.2.0.crx"'); expect(crx.body).toBe('crx')
+      expect(crx.headers.etag).toBe(`"${'b'.repeat(64)}"`)
+      h.releases.file.mockResolvedValueOnce({ body: Buffer.from('crx'), contentType: 'application/x-chrome-extension', release })
+      expect((await h.app.inject({ method: 'GET', url: '/api/v1/vault-security/extension/package.crx', headers: { ...https, 'if-none-match': `"${'b'.repeat(64)}"` } })).statusCode).toBe(304)
+      expect((await h.app.inject({ method: 'GET', url: '/api/v1/vault-security/extension/update.xml', headers: https })).statusCode).toBe(404)
+      h.releases.verified.mockResolvedValueOnce(release)
+      const xml = await h.app.inject({ method: 'GET', url: '/api/v1/vault-security/extension/update.xml', headers: https })
+      expect(xml.statusCode).toBe(200); expect(xml.headers['content-disposition']).toBeUndefined()
+      expect(xml.body).toContain(`appid='${EXT}'`); expect(xml.body).toContain("codebase='https://vault.example.test/api/v1/vault-security/extension/package.crx'")
+      const auth = { ...https, authorization: `Bearer ${h.jwt}` }
+      expect((await h.app.inject({ method: 'GET', url: '/api/v1/vault-security/extension/package', headers: https })).statusCode).toBe(401)
+      expect((await h.app.inject({ method: 'GET', url: '/api/v1/vault-security/extension/package', headers: auth })).json()).toEqual({ available: false })
+      h.releases.verified.mockResolvedValueOnce(release)
+      expect((await h.app.inject({ method: 'GET', url: '/api/v1/vault-security/extension/package', headers: auth })).json()).toEqual({ available: true, version: '0.2.0', extensionId: EXT,
+        zip: { sha256: 'a'.repeat(64), size: 3 }, zipUrl: '/api/v1/vault-security/extension/package.zip', crxUrl: '/api/v1/vault-security/extension/package.crx', updateUrl: '/api/v1/vault-security/extension/update.xml' })
     } finally { await h.app.close() }
   })
 })

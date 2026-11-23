@@ -27,6 +27,7 @@ Garantias que valem para todas as fatias: nenhum valor secreto persistido na ext
 - Reconexão automática enquanto o login do portal estiver ativo e só com o código do autenticador quando não estiver, por 7 dias após a autorização completa (pedido do responsável após usar o **Atualizar** da NA-0190).
 
 ### 2. E6 — Distribuição piloto pelo portal (antes de E2, porque já há uso real)
+- Entregue na NA-0194: ícones, `npm run package:extension` (ZIP reprodutível, CRX3 assinado, `update.xml`, `release.json`), publicação validada pelo servidor (`VAULT_EXTENSION_PACKAGE_DIR`) e cartão **Instalar a extensão** com a política para administradores.
 - Ícones PNG do manifesto (16/32/48/128) com a identidade do NodeAccess.
 - Pacote ZIP gerado no build com ID fixo (chave do manifesto), hash SHA-256 publicado no portal e página de instalação com instruções (Chrome/Edge, modo desenvolvedor no piloto; política corporativa `ExtensionInstallForcelist` para produção).
 - Verificação de versão mínima já existente (`upgrade`) ligada ao pacote publicado.

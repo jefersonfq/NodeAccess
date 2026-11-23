@@ -99,6 +99,8 @@ export const envSchema = z.object({
   VAULT_EXTENSION_ENABLED: booleanEnv(false),
   VAULT_EXTENSION_IDS: z.string().regex(/^([a-p]{32}(,[a-p]{32})*)?$/, 'VAULT_EXTENSION_IDS must list 32-character Chromium extension IDs').default(''),
   VAULT_EXTENSION_MIN_VERSION: z.string().regex(/^\d{1,4}\.\d{1,4}\.\d{1,4}$/).default('0.1.0'),
+  // NA-0194: directory produced by `npm run package:extension` (release.json, ZIP, CRX, update.xml). Unset = nothing published.
+  VAULT_EXTENSION_PACKAGE_DIR: z.string().min(1).optional(),
   TRIAL_PUBLIC_URL: z.string().url().refine(value => {
     const url = new URL(value)
     return url.protocol === 'https:' && !url.username && !url.password && !url.search && !url.hash

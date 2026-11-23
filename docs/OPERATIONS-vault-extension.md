@@ -34,6 +34,17 @@ VAULTNACCESS_PORTAL_ORIGIN=https://<portal> [VAULTNACCESS_VERSION=0.1.0] [VAULTN
 
 - Atalho do manifesto (NA-0192): `commands._execute_action` com `Alt+Shift+V` (sem permissão nova); o usuário troca em `chrome://extensions/shortcuts`. A página de conexão devolve `lang=pt-BR|en`, guardado só como código em `storage.session` junto da autorização.
 
+### Pacote oficial e distribuição pelo portal (NA-0194)
+
+1. Gere uma chave RSA de assinatura (uma vez por instalação) e guarde-a fora do repositório e do servidor de aplicação: `openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048 -out vaultnaccess-signing.pem`. A chave define o ID da extensão; perdê-la ou trocá-la muda o ID (todos reinstalam e o novo ID entra em `VAULT_EXTENSION_IDS`).
+2. Gere o pacote: `VAULTNACCESS_PORTAL_ORIGIN=https://<portal> VAULTNACCESS_VERSION=x.y.z VAULTNACCESS_SIGNING_KEY=/caminho/seguro/vaultnaccess-signing.pem [VAULTNACCESS_RELEASE_DIR=release/vaultnaccess] npm run package:extension`. Saída: `vaultnaccess-x.y.z.zip` (instalação manual, reprodutível), `vaultnaccess-x.y.z.crx` (assinado, CRX3), `update.xml` e `release.json` (versão, ID, SHA-256, commit). O comando imprime o ID e o valor da política.
+3. Publique a pasta no servidor com `VAULT_EXTENSION_PACKAGE_DIR=<pasta>`, mantenha `VAULT_EXTENSION_ENABLED=true` e o ID em `VAULT_EXTENSION_IDS`. O servidor só publica se o `release.json` for válido, o ID estiver autorizado, a versão não for menor que `VAULT_EXTENSION_MIN_VERSION` e os hashes conferirem.
+4. Rotas: `GET /api/v1/vault-security/extension/package` (portal, autenticado: metadados, só com os dois arquivos íntegros) e, públicas (HTTPS, com ETag), `package.zip`, `package.crx` e `update.xml` — não contêm segredo. O `update.xml` servido é gerado pelo servidor a partir do `release.json` conferido; o da pasta serve só como referência.
+5. Usuários: cartão **Instalar a extensão** no VaultNAccess (download, SHA-256, passo a passo). Empresas: política `ExtensionInstallForcelist` do Chrome/Edge com `<id>;https://<portal>/api/v1/vault-security/extension/update.xml` (mostrada aos administradores no cartão); instala e atualiza sozinha. No Windows/macOS o navegador só aceita essa política para extensões fora da loja em máquinas gerenciadas (domínio/MDM).
+6. Nova versão: gere com versão maior e publique a pasta; quem instalou por política atualiza sozinho; para obrigar a atualização, suba `VAULT_EXTENSION_MIN_VERSION`.
+
+Validação: `node --test tools/vault-extension/package*.test.mjs` (ZIP reprodutível, CRX3 verificado por leitor independente e contra um CRX empacotado pelo próprio Chromium) e `npm run test:extension-package:web` (o Chromium carrega o pacote e atribui o ID do `release.json`).
+
 ### Dispositivo confiável (NA-0193)
 
 - A primeira conexão (página do portal com senha e código) torna o navegador confiável por 7 dias, contados a partir da última autorização completa.

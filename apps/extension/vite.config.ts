@@ -19,12 +19,15 @@ if (key !== undefined && !/^[A-Za-z0-9+/]{100,800}={0,2}$/.test(key)) throw new 
 // the test build in dist; the popup offers to reload when the portal announces another id.
 const buildId = process.env.VAULTNACCESS_BUILD_ID ?? ''
 if (!/^([a-f0-9]{12})?$/.test(buildId)) throw new Error('VAULTNACCESS_BUILD_ID must be 12 hex characters')
+// NA-0194: packaged releases point policy-installed copies at the portal's update manifest (same origin only).
+const updateUrl = process.env.VAULTNACCESS_UPDATE_URL
+if (updateUrl !== undefined && updateUrl !== `${portal}/api/v1/vault-security/extension/update.xml`) throw new Error('VAULTNACCESS_UPDATE_URL must be the portal update manifest')
 const outDir = process.env.VAULTNACCESS_OUT_DIR ?? 'dist'
-if (outDir !== 'dist' && outDir !== 'dist-local') throw new Error('VAULTNACCESS_OUT_DIR must be dist or dist-local')
+if (outDir !== 'dist' && outDir !== 'dist-local' && outDir !== 'dist-release') throw new Error('VAULTNACCESS_OUT_DIR must be dist, dist-local or dist-release')
 
 function manifestPlugin(): Plugin {
   return { name: 'vaultnaccess-manifest', generateBundle() {
-    this.emitFile({ type: 'asset', fileName: 'manifest.json', source: `${JSON.stringify(manifest(portal, version, key, buildId || undefined), null, 2)}\n` })
+    this.emitFile({ type: 'asset', fileName: 'manifest.json', source: `${JSON.stringify(manifest(portal, version, key, buildId || undefined, updateUrl), null, 2)}\n` })
   } }
 }
 export default defineConfig({

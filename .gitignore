@@ -110,3 +110,6 @@ __pycache__/
 apps/extension/dist-local/
 apps/extension/local.json
 apps/frontend/public/vaultnaccess-build.json
+# NA-0194: extension release build and packages (published from VAULT_EXTENSION_PACKAGE_DIR, never committed)
+apps/extension/dist-release/
+/release/
