@@ -11,12 +11,12 @@ function fixture() {
     auth:[] as {local:boolean;sso:boolean}[],trials:[] as object[],features:{secrets:true},licenseActive:true,licenseExpires:null as Date|null,policy,policyVersion:1,
     grant:{enabled:true,grantedBy:2,approvedBy:3} as {enabled:boolean;grantedBy:number;approvedBy:number}|null,
     secret:{encrypted:'ciphertext',iv:'iv',scope:'PERSONAL',owner:1,groupId:null as number|null,revokedAt:null as Date|null} as {encrypted:string;iv:string;scope:string;owner:number|null;groupId:number|null;revokedAt:Date|null}|null,
-    eligible:true,membership:true,record:null as unknown,count:1,pending:0,manager:true,target:true,
+    eligible:true,membership:true,record:null as unknown,count:1,pending:0,manager:true,target:true,managers:[1,2,3],
     proposal:{proposedBy:2,payload:{kind:'item',secretId:9,enabled:true},expiresAt:new Date(10000)} as {proposedBy:number;payload:VaultChange;expiresAt:Date}|null}
   const queries:string[]=[],writes:{sql:string;values:unknown[]}[]=[]
   const query=vi.fn((strings:TemplateStringsArray,...values:unknown[])=>Promise.resolve().then(()=>{
     const sql=strings.join('?');queries.push(sql)
-    if(sql.includes('FROM vault_managers'))return state.manager?[{id:1}]:[]
+    if(sql.includes('FROM vault_managers'))return sql.includes('m.user_id=')?(state.manager?[{id:1}]:[]):state.managers.map(id=>({id}))
     if(sql.includes('FROM tenants'))return [{active:state.tenant}]
     if(sql.includes('FROM users'))return sql.includes('password_hash')?[state.user]:state.target?[{id:9}]:[]
     if(sql.includes('FROM tenant_auth_policies'))return state.auth

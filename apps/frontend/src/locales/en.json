@@ -3541,8 +3541,12 @@
       },
       "vaultModal": {
         "title": "Vault permissions: {name}",
+        "reviewTitle": "Vault changes awaiting approval",
         "hint": "Same rules as VaultNAccess: you propose and another manager approves. The person receiving the permission cannot approve."
       },
+      "vaultManager": "Vault manager",
+      "vaultPending": "1 vault change awaits your approval. | {count} vault changes await your approval.",
+      "vaultReview": "Review",
       "online": "Online \u00b7 {count}",
       "loginSessions": {
         "title": "Login sessions: {name}",
@@ -3574,6 +3578,7 @@
         "resetPassword": "Reset password",
         "resetMfa": "Reset MFA",
         "vault": "Vault permissions",
+        "vaultManagersOnly": "Vault permissions (vault managers only)",
         "loginSessions": "Login sessions",
         "delete": "Delete",
         "restore": "Restore",
@@ -6860,7 +6865,8 @@
       "quota": "Attempt limit reached. Wait before trying again.",
       "login": "Portal authentication needs renewal. No operation was automatically retried.",
       "clipboard": "Could not confirm the copy. The value was discarded; check browser permissions before requesting another operation.",
-      "unsupported": "This flow requires HTTPS and an eligible local session, without delegated tenant management."
+      "unsupported": "This flow requires HTTPS and an eligible local session, without delegated tenant management.",
+      "noApprover": "No other manager could approve this proposal (the proposer and the person affected cannot approve). Make one more user a vault manager and try again."
     }
   },
   "vaultExtension": {
@@ -6885,9 +6891,9 @@
   },
   "vaultAdministration": {
     "title": "Vault permissions (managers)",
-    "intro": "Grant or remove reveal, copy and extension use per user. Every change needs two managers:",
+    "intro": "Grant or remove reveal, copy, extension use and vault manager per user. Every change needs two managers:",
     "step1": "1. One manager proposes the change.",
-    "step2": "2. Another manager signs in with their own account and approves it within 2 minutes. It cannot be the proposer or the person receiving the permission.",
+    "step2": "2. Another manager signs in with their own account and approves it while the proposal is valid (set by the tenant). It cannot be the proposer or the person receiving the permission.",
     "step3": "3. The change takes effect and the vault is locked for everyone.",
     "confirmHint": "Confirm your identity to see and change permissions. The confirmation lasts 1 minute and each approval locks the vault again.",
     "confirm": "Confirm identity",
@@ -6906,11 +6912,11 @@
     "noPending": "No pending proposals.",
     "proposalGrant": "{action} for {user}: {state}",
     "proposalOther": "Policy or item change: review and approve through the API",
-    "proposedBy": "Proposed by {name}, expires in {seconds} s",
+    "proposedBy": "Proposed by {name}, expires in {time}",
     "yours": "Your proposal: waiting for another manager to approve it.",
-    "beneficiary": "You receive this permission: another manager must approve it.",
+    "beneficiary": "This proposal is about you: another manager must approve it.",
     "approve": "Approve",
-    "proposed": "Proposal created. Another manager must now sign in with their own account and approve it within 2 minutes. It cannot be you or the person receiving the permission.",
+    "proposed": "Proposal created. Another manager must now sign in with their own account and approve it within {time}. It cannot be you or the person receiving the permission.",
     "applied": "Change applied. The vault was locked for everyone; confirm your identity again to continue.",
     "reload": "Refresh",
     "open": "Manage permissions",
@@ -6919,6 +6925,20 @@
     "confirmationHint": "After confirming identity, reveal and copy stay available for {minutes} min (1 to 15) while the vault is open. Managing permissions and connecting the extension always require a 1-minute confirmation. Changes follow the same two-manager rule.",
     "confirmationMinutes": "Minutes",
     "confirmationPropose": "Propose new time",
-    "unknownUser": "user {id}"
+    "unknownUser": "user {id}",
+    "manager": "Vault manager",
+    "unitSeconds": "s",
+    "unitMinutes": "min",
+    "unitHours": "h",
+    "pendingCount": "1 vault change awaits your approval. Open the administration and confirm your identity to review it. | {count} vault changes await your approval. Open the administration and confirm your identity to review them.",
+    "proposalWindow": "Tenant proposal validity: {time}",
+    "proposalManagerAdd": "Make {user} a vault manager",
+    "proposalManagerRemove": "Remove {user} from vault managers",
+    "blockedHint": "Changes for another manager need a third manager to approve: the proposer and the person affected cannot approve. Make one more user a manager to enable them.",
+    "windowTitle": "Proposal validity",
+    "windowHint": "A proposal stays open for {time} waiting for another manager (2 minutes to 24 hours). Changes follow the same two-manager rule.",
+    "windowLabel": "Validity",
+    "windowPropose": "Propose new validity",
+    "notManager": "You are an administrator but not a vault manager. Vault permissions are granted by two managers; ask a manager to add you."
   }
 }

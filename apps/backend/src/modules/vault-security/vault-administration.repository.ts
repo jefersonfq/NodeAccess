@@ -1,9 +1,11 @@
 import type { Prisma } from '@prisma/client'
 import { createHash } from 'node:crypto'
-import { denied, unavailable, validConfirmationSeconds, type VaultChange, type VaultIdentity } from './vault-domain.js'
+import { denied, noApprover, PROPOSAL_DEFAULT_SECONDS, unavailable, validConfirmationSeconds, validProposalSeconds,
+  type VaultChange, type VaultIdentity } from './vault-domain.js'
 import type { AdministrationReads, VaultAdministrationOverview, VaultAdministrationUser } from './vault-ports.js'
 
 const hash = (s: string): string => createHash('sha256').update(s).digest('hex')
+const parse = (payload: unknown): VaultChange => (typeof payload === 'string' ? JSON.parse(payload) : payload) as VaultChange
 /** Two separately authenticated managers; no implicit admin-role extraction grant. */
 export class SqlVaultAdministration implements AdministrationReads {
   constructor(private readonly db: Prisma.TransactionClient, private readonly actor: VaultIdentity, private readonly now: () => number) {}
@@ -16,6 +18,36 @@ export class SqlVaultAdministration implements AdministrationReads {
     if (!await this.managing(userId)) denied()
   }
   isManager(): Promise<boolean> { return this.managing(this.actor.userId) }
+  /** NA-0188: enabled managers who are active tenant users (`lock` = FOR UPDATE on the manager rows only, for changes to the
+   * manager set; the users rows keep the shared lock the authority read already took). */
+  private async managerIds(lock = false): Promise<number[]> {
+    const rows = lock
+      ? await this.db.$queryRaw<Array<{ id: number }>>`SELECT u.id FROM vault_managers m JOIN users u ON u.id=m.user_id AND u.tenant_id=m.tenant_id
+        WHERE m.tenant_id=${this.actor.tenantId} AND m.enabled=TRUE AND u.active=TRUE AND u.deleted_at IS NULL FOR UPDATE OF m`
+      : await this.db.$queryRaw<Array<{ id: number }>>`SELECT u.id FROM vault_managers m JOIN users u ON u.id=m.user_id AND u.tenant_id=m.tenant_id
+        WHERE m.tenant_id=${this.actor.tenantId} AND m.enabled=TRUE AND u.active=TRUE AND u.deleted_at IS NULL FOR SHARE`
+    return rows.map(r => Number(r.id))
+  }
+  /** NA-0188 status for managers: ids of the managers and how many live proposals this manager can approve (no vault session). */
+  async summary(): Promise<{ manager: boolean; pending: number; managers: number[] }> {
+    const managers = await this.managerIds()
+    if (!managers.includes(this.actor.userId)) return { manager: false, pending: 0, managers: [] }
+    const rows = await this.db.$queryRaw<Array<{ proposedBy: number; payload: unknown }>>`SELECT proposed_by AS proposedBy,payload FROM vault_proposals
+      WHERE tenant_id=${this.actor.tenantId} AND expires_at > ${new Date(this.now())} AND proposed_by<>${this.actor.userId} LIMIT 50`
+    const pending = rows.filter(p => {
+      const change = parse(p.payload)
+      // Only what the portal approves on screen; item/policy changes stay in the API.
+      if (change.kind === 'item' || change.kind === 'policy') return false
+      return managers.includes(Number(p.proposedBy)) && !(('userId' in change) && change.userId === this.actor.userId)
+    }).length
+    return { manager: true, pending, managers }
+  }
+  /** NA-0188: refuse what could never be approved, before anyone waits for it. */
+  private async assertApprovable(change: VaultChange, proposer: number): Promise<void> {
+    const managers = await this.managerIds(change.kind === 'manager')
+    const target = change.kind === 'grant' || change.kind === 'manager' ? change.userId : undefined
+    if (!managers.some(id => id !== proposer && id !== target)) noApprover()
+  }
   /** Managers only: tenant users with their grants and the live proposals (by stored hash; the original id is never kept). */
   async overview(): Promise<VaultAdministrationOverview> {
     await this.manager(this.actor.userId)
@@ -29,23 +61,35 @@ export class SqlVaultAdministration implements AdministrationReads {
       p.proposed_by AS proposedBy,u.name,p.payload,p.expires_at AS expiresAt,b.id AS beneficiaryId,b.name AS beneficiaryName,b.email AS beneficiaryEmail
       FROM vault_proposals p LEFT JOIN users u ON u.id=p.proposed_by AND u.tenant_id=p.tenant_id
       LEFT JOIN users b ON b.id=CAST(JSON_UNQUOTE(JSON_EXTRACT(p.payload,'$.userId')) AS UNSIGNED) AND b.tenant_id=p.tenant_id
+        AND b.active=TRUE AND b.deleted_at IS NULL
       WHERE p.tenant_id=${this.actor.tenantId} AND p.expires_at > ${new Date(now)} ORDER BY p.expires_at LIMIT 50`
-    const byUser = new Map<number, VaultAdministrationUser>(users.map(u => [u.id, { id: u.id, name: u.name, email: u.email, grants: { reveal: false, copy: false, extension: false } }]))
+    const managers = await this.managerIds()
+    const byUser = new Map<number, VaultAdministrationUser>(users.map(u => [u.id, { id: u.id, name: u.name, email: u.email, manager: managers.includes(Number(u.id)),
+      grants: { reveal: false, copy: false, extension: false } }]))
     for (const g of grants) {
       const user = byUser.get(g.userId)
       if (user && (g.action === 'reveal' || g.action === 'copy' || g.action === 'extension')) user.grants[g.action] = g.enabled === true || g.enabled === 1 || g.enabled === 1n
     }
-    return { users: [...byUser.values()], serverNow: now, proposals: proposals.map(p => ({ reference: p.reference, proposedBy: { id: p.proposedBy, name: p.name ?? '' },
+    // NA-0188: hide what approval would refuse anyway — proposer no longer a manager, or an inactive/removed person to
+    // grant or promote (with 24 h proposals this happens); removing a manager stays listed whatever their account state.
+    const live = proposals.filter(p => {
+      const change = parse(p.payload)
+      return managers.includes(Number(p.proposedBy)) && !('userId' in change && p.beneficiaryId === null && !(change.kind === 'manager' && !change.enabled))
+    })
+    return { users: [...byUser.values()], serverNow: now, proposals: live.map(p => ({ reference: p.reference, proposedBy: { id: p.proposedBy, name: p.name ?? '' },
       mine: p.proposedBy === this.actor.userId, expiresAt: p.expiresAt.getTime(),
       beneficiary: p.beneficiaryId === null ? null : { id: p.beneficiaryId, name: p.beneficiaryName ?? '', email: p.beneficiaryEmail ?? '' },
-      change: (typeof p.payload === 'string' ? JSON.parse(p.payload) : p.payload) as VaultChange })) }
+      change: parse(p.payload) })) }
   }
-  async propose(id: string, change: VaultChange): Promise<void> {
+  async propose(id: string, change: VaultChange, windowSeconds = PROPOSAL_DEFAULT_SECONDS): Promise<void> {
     await this.manager(this.actor.userId)
-    if (change.kind === 'grant' && change.userId === this.actor.userId) denied()
+    if ((change.kind === 'grant' || change.kind === 'manager') && change.userId === this.actor.userId) denied()
     if (change.kind === 'confirmation' && !validConfirmationSeconds(change.seconds)) denied()
+    if (change.kind === 'proposalWindow' && !validProposalSeconds(change.seconds)) denied()
+    if (!validProposalSeconds(windowSeconds)) denied()
+    await this.assertApprovable(change, this.actor.userId)
     await this.db.$executeRaw`INSERT INTO vault_proposals(tenant_id,proposal_hash,proposed_by,payload,expires_at)
-      VALUES(${this.actor.tenantId},${hash(id)},${this.actor.userId},${JSON.stringify(change)},${new Date(this.now()+120_000)})`
+      VALUES(${this.actor.tenantId},${hash(id)},${this.actor.userId},${JSON.stringify(change)},${new Date(this.now()+windowSeconds*1000)})`
   }
   async approve(id: string, byReference = false): Promise<{ change: VaultChange; proposedBy: number }> {
     await this.manager(this.actor.userId)
@@ -55,9 +99,12 @@ export class SqlVaultAdministration implements AdministrationReads {
     const p = rows[0]
     if (!p || p.expiresAt.getTime() <= this.now() || p.proposedBy === this.actor.userId) unavailable()
     await this.manager(p.proposedBy)
-    const change = (typeof p.payload === 'string' ? JSON.parse(p.payload) : p.payload) as VaultChange
+    const change = parse(p.payload)
+    if ((change.kind === 'grant' || change.kind === 'manager') && (change.userId === p.proposedBy || change.userId === this.actor.userId)) denied()
+    // The approver is already a distinct manager, so this cannot refuse here; it takes the manager-set lock (FOR UPDATE OF m)
+    // that serializes concurrent manager changes.
+    await this.assertApprovable(change, p.proposedBy)
     if (change.kind === 'grant') {
-      if (change.userId === p.proposedBy || change.userId === this.actor.userId) denied()
       const users = await this.db.$queryRaw<Array<{ id: number }>>`SELECT id FROM users WHERE id=${change.userId} AND tenant_id=${this.actor.tenantId} AND active=TRUE AND deleted_at IS NULL FOR SHARE`
       if (!users.length) denied()
       await this.db.$executeRaw`INSERT INTO vault_entitlements(tenant_id,user_id,action,granted_by,approved_by,enabled)
@@ -75,6 +122,20 @@ export class SqlVaultAdministration implements AdministrationReads {
       await this.db.$executeRaw`INSERT INTO vault_web_items(tenant_id,secret_id,enabled) VALUES(${this.actor.tenantId},${change.secretId},${change.enabled}) ON DUPLICATE KEY UPDATE enabled=VALUES(enabled)`
     } else if (change.kind === 'policy') {
       await this.db.$executeRaw`UPDATE vault_policies SET config=JSON_SET(config,'$.reveal',CAST(${JSON.stringify(change.reveal)} AS JSON),'$.copy',CAST(${JSON.stringify(change.copy)} AS JSON),'$.tenantQuota',${change.tenantQuota}) WHERE tenant_id=${this.actor.tenantId}`
+    } else if (change.kind === 'manager') {
+      const users = change.enabled
+        ? await this.db.$queryRaw<Array<{ id: number }>>`SELECT id FROM users WHERE id=${change.userId} AND tenant_id=${this.actor.tenantId} AND active=TRUE AND deleted_at IS NULL FOR SHARE`
+        : await this.db.$queryRaw<Array<{ id: number }>>`SELECT id FROM users WHERE id=${change.userId} AND tenant_id=${this.actor.tenantId} FOR SHARE`
+      if (!users.length) denied()
+      await this.db.$executeRaw`INSERT INTO vault_managers(tenant_id,user_id,enabled) VALUES(${this.actor.tenantId},${change.userId},${change.enabled})
+        ON DUPLICATE KEY UPDATE enabled=VALUES(enabled)`
+      // A removed manager's open proposals die with the role (re-adding later does not revive them).
+      if (!change.enabled) await this.db.$executeRaw`DELETE FROM vault_proposals WHERE tenant_id=${this.actor.tenantId} AND proposed_by=${change.userId}`
+    } else if (change.kind === 'proposalWindow') {
+      if (!validProposalSeconds(change.seconds)) denied()
+      await this.db.$executeRaw`UPDATE vault_policies SET config=JSON_SET(config,'$.proposalSeconds',${change.seconds}) WHERE tenant_id=${this.actor.tenantId}`
+      // Shortening the validity also shortens the proposals already open (never lengthens them).
+      await this.db.$executeRaw`UPDATE vault_proposals SET expires_at=LEAST(expires_at,${new Date(this.now() + change.seconds * 1000)}) WHERE tenant_id=${this.actor.tenantId}`
     } else if (change.kind === 'confirmation') {
       if (!validConfirmationSeconds(change.seconds)) denied()
       await this.db.$executeRaw`UPDATE vault_policies SET config=JSON_SET(config,'$.confirmationSeconds',${change.seconds}) WHERE tenant_id=${this.actor.tenantId}`

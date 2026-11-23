@@ -4,11 +4,11 @@ import { renderToString } from 'vue/server-renderer'
 import VaultAdministration from './VaultAdministration.vue'
 import type { VaultTransport } from '@/services/vault-http'
 
-const auth = reactive({ isManagingTenant: false, accessToken: 'portal-fixture', refreshToken: 'origin-fixture', user: { id: 1, tenantId: 7, actingTenantId: undefined as number | undefined } })
+const auth = reactive({ isAdmin: true, isManagingTenant: false, accessToken: 'portal-fixture', refreshToken: 'origin-fixture', user: { id: 1, tenantId: 7, actingTenantId: undefined as number | undefined } })
 vi.mock('@/stores/auth', () => ({ useAuthStore: () => auth }))
 vi.mock('@/services/vault-provider-confirm', () => ({ openVaultProviderWindow: vi.fn(), requestGoogleIdToken: vi.fn() }))
 vi.mock('vue-i18n', () => ({ useI18n: () => ({ t: (key: string, values?: Record<string, unknown>) => (values ? `${key}:${JSON.stringify(values)}` : key) }) }))
-vi.mock('naive-ui', () => ({ ...Object.fromEntries(['NAlert', 'NButton', 'NFormItem', 'NInput', 'NInputNumber', 'NSpace', 'NText'].map(name => [name,
+vi.mock('naive-ui', () => ({ ...Object.fromEntries(['NAlert', 'NButton', 'NFormItem', 'NInput', 'NInputNumber', 'NSelect', 'NSpace', 'NText'].map(name => [name,
   defineComponent({ inheritAttrs: false, setup: (_, { attrs, slots }) => () => h(name, attrs, slots.default?.()) })])) }))
 interface HostNode { parent: HostNode | null; children: HostNode[] }
 const node = (): HostNode => ({ parent: null, children: [] })
@@ -23,10 +23,11 @@ const flush = async (): Promise<void> => { for (let i = 0; i < 6; i++) { await P
 const reference = 'a'.repeat(64), other = 'b'.repeat(64)
 const overview = {
   serverNow: Date.now(),
-  policy: { confirmationSeconds: 60 },
+  policy: { confirmationSeconds: 60, proposalSeconds: 120 },
   users: [
-    { id: 1, name: 'Ana', email: 'ana@example.test', grants: { reveal: true, copy: false, extension: false } },
-    { id: 2, name: 'Bruno', email: 'bruno@example.test', grants: { reveal: false, copy: false, extension: true } },
+    { id: 1, name: 'Ana', email: 'ana@example.test', manager: true, grants: { reveal: true, copy: false, extension: false } },
+    { id: 2, name: 'Bruno', email: 'bruno@example.test', manager: false, grants: { reveal: false, copy: false, extension: true } },
+    { id: 3, name: 'Carla', email: 'carla@example.test', manager: true, grants: { reveal: false, copy: false, extension: false } },
   ],
   proposals: [
     { reference, change: { kind: 'grant' as const, userId: 2, action: 'extension' as const, enabled: false }, proposedBy: { id: 3, name: 'Carla' }, mine: false, expiresAt: Date.now() + 90_000,
@@ -52,11 +53,13 @@ function fakeDelivery() {
 }
 interface Admin { manager: boolean; opened: boolean; open(): Promise<void>; password: string; token: string; notice: string; overview: unknown
   confirm(): Promise<void>; confirmWithProvider(): Promise<void>; propose(userId: number, action: string, enabled: boolean): Promise<void>
-  approve(reference: string): Promise<void>; lock(): void; load(): Promise<void>; remaining(at: number): number; detect(): Promise<void>
-  describe(change: unknown): string; minutes: number | null; proposeConfirmation(): Promise<void> }
+  approve(reference: string): Promise<void>; lock(): void; load(): Promise<void>; remaining(at: number): string; detect(): Promise<void>
+  describe(change: unknown): string; minutes: number | null; proposeConfirmation(): Promise<void>
+  proposeManager(userId: number, enabled: boolean): Promise<void>; proposeWindow(): Promise<void>; windowSeconds: number | null
+  canPropose(target?: number): boolean; pendingCount: number }
 // The mock is kept apart from the transport object so assertions never detach a method.
 const transport = (manager: boolean | Error) => {
-  const post = vi.fn(() => (manager instanceof Error ? Promise.reject(manager) : Promise.resolve({ manager })))
+  const post = vi.fn(() => (manager instanceof Error ? Promise.reject(manager) : Promise.resolve({ manager, pending: 0, managers: manager ? [1, 3] : [] })))
   return Object.assign({ post } as VaultTransport, { calls: post })
 }
 beforeEach(() => {
@@ -70,7 +73,7 @@ describe('NA-0183 vault administration screen', () => {
   it('stays hidden for non-managers, on insecure pages and when the server lacks the feature', async () => {
     for (const reply of [false, new Error('404')]) {
       const d = fakeDelivery(), f = mount<Admin>(VaultAdministration, { transport: transport(reply), delivery: d }); await flush()
-      expect(f.state.manager).toBe(false); expect(await f.html()).not.toContain('vault-administration'); expect(d.prepare).not.toHaveBeenCalled(); f.unmount()
+      expect(f.state.manager).toBe(false); expect(await f.html()).not.toContain('data-testid="vault-administration"'); expect(d.prepare).not.toHaveBeenCalled(); f.unmount()
     }
     vi.stubGlobal('isSecureContext', false)
     const t = transport(true), f = mount<Admin>(VaultAdministration, { transport: t, delivery: fakeDelivery() }); await flush()
@@ -119,8 +122,8 @@ describe('NA-0183 vault administration screen', () => {
     expect(await f.html()).toContain('vault-administration-provider')
     await f.state.confirmWithProvider()
     expect(d.unlockWithProvider).toHaveBeenCalled(); expect(f.state.overview).toEqual(overview)
-    expect(f.state.remaining(Date.now() + 30_500)).toBeGreaterThanOrEqual(30)
-    expect(f.state.remaining(0)).toBe(0)
+    expect(f.state.remaining(Date.now() + 30_500)).toMatch(/^3[01] vaultAdministration\.unitSeconds$/)
+    expect(f.state.remaining(0)).toBe('0 vaultAdministration.unitSeconds')
     f.state.lock(); expect(d.lock).toHaveBeenCalled(); expect(f.state.overview).toBeNull()
     f.unmount(); expect(d.dispose).not.toHaveBeenCalled()
   })
@@ -182,6 +185,120 @@ describe('NA-0186 Users tab and confirmation time', () => {
     const html = await f.html()
     expect(html).toContain(`vault-administration-approve-${'e'.repeat(64)}`); expect(html).not.toContain(`vault-administration-approve-${'f'.repeat(64)}`)
     expect(f.state.describe(confirmationProposal)).toBe('vaultAdministration.proposalConfirmation:{"minutes":5}')
+    f.unmount()
+  })
+})
+
+const statusTransport = (reply: object) => {
+  const post = vi.fn(() => Promise.resolve(reply))
+  return Object.assign({ post } as VaultTransport, { calls: post })
+}
+const q = (text: string): string => text.replaceAll('"', '&quot;')
+const twoManagers = { ...overview, users: overview.users.filter(u => u.id !== 3).map(u => ({ ...u, manager: true })) }
+const threeManagers = { ...overview, users: overview.users.map(u => ({ ...u, manager: true })) }
+async function confirmed(props: Record<string, unknown>, view: object = overview) {
+  const d = fakeDelivery(); d.administrationOverview.mockResolvedValue(view as typeof overview)
+  const f = mount<Admin>(VaultAdministration, { transport: transport(true), delivery: d, ...props }); await flush()
+  if (!props.userId && !props.review) await f.state.open()
+  f.state.password = 'pw'; f.state.token = '123456'; await f.state.confirm()
+  return { d, f }
+}
+describe('NA-0188 vault managers, proposal validity and pending notices', () => {
+  it('proposes adding or removing a manager for someone else, never for oneself', async () => {
+    const { d, f } = await confirmed({})
+    const html = await f.html()
+    expect(html).toContain('vaultAdministration.manager'); expect(html).toContain('vault-administration-manager-2'); expect(html).not.toContain('vault-administration-manager-1')
+    await f.state.proposeManager(1, false); expect(d.proposeChange).not.toHaveBeenCalled()
+    await f.state.proposeManager(2, true)
+    expect(d.proposeChange).toHaveBeenCalledWith({ kind: 'manager', userId: 2, enabled: true })
+    // Carla is the only other manager: removing her would leave nobody to approve.
+    await f.state.proposeManager(3, false); expect(d.proposeChange).toHaveBeenCalledTimes(1)
+    f.unmount()
+    const more = await confirmed({}, threeManagers)
+    await more.f.state.proposeManager(3, false)
+    expect(more.d.proposeChange).toHaveBeenCalledWith({ kind: 'manager', userId: 3, enabled: false }); more.f.unmount()
+  })
+  it('with only two managers, changes for the other one are disabled with the reason', async () => {
+    const { d, f } = await confirmed({}, twoManagers)
+    expect(f.state.canPropose(2)).toBe(false); expect(f.state.canPropose()).toBe(true)
+    await f.state.propose(2, 'reveal', true); await f.state.proposeManager(2, false)
+    expect(d.proposeChange).not.toHaveBeenCalled()
+    const html = await f.html()
+    expect(html).toContain('vault-administration-blocked'); expect(html).toContain('vaultAdministration.blockedHint')
+    expect(html).toContain('aria-describedby="vault-administration-blocked"')
+    f.unmount()
+    const three = await confirmed({}, threeManagers)
+    expect(await three.f.html()).not.toContain('vault-administration-blocked'); three.f.unmount()
+  })
+  it('shows the proposal validity and proposes a new one only when it changes', async () => {
+    const { d, f } = await confirmed({})
+    const html = await f.html()
+    expect(html).toContain('vault-administration-window'); expect(html).toContain(q('vaultAdministration.windowHint:{"time":"2 vaultAdministration.unitMinutes"}'))
+    expect(f.state.windowSeconds).toBe(120)
+    await f.state.proposeWindow(); f.state.windowSeconds = null; await f.state.proposeWindow()
+    expect(d.proposeChange).not.toHaveBeenCalled()
+    f.state.windowSeconds = 86_400; await f.state.proposeWindow()
+    expect(d.proposeChange).toHaveBeenCalledWith({ kind: 'proposalWindow', seconds: 86_400 }); expect(f.state.notice).toBe('proposed')
+    f.unmount()
+  })
+  it('describes and lets another manager approve manager and validity proposals; the person affected only sees a note', async () => {
+    const base = { proposedBy: { id: 3, name: 'Carla' }, mine: false, expiresAt: Date.now() + 7_200_000 }
+    const proposals = [
+      { ...base, reference: '1'.repeat(64), change: { kind: 'manager', userId: 2, enabled: true }, beneficiary: { id: 2, name: 'Bruno', email: 'bruno@example.test' } },
+      { ...base, reference: '2'.repeat(64), change: { kind: 'manager', userId: 1, enabled: false }, beneficiary: { id: 1, name: 'Ana', email: 'ana@example.test' } },
+      { ...base, reference: '3'.repeat(64), change: { kind: 'proposalWindow', seconds: 3600 }, beneficiary: null },
+    ]
+    const { f } = await confirmed({}, { ...overview, proposals })
+    const html = await f.html()
+    expect(html).toContain(`vault-administration-approve-${'1'.repeat(64)}`); expect(html).toContain(`vault-administration-approve-${'3'.repeat(64)}`)
+    expect(html).not.toContain(`vault-administration-approve-${'2'.repeat(64)}`); expect(html).toContain(`vault-administration-beneficiary-${'2'.repeat(64)}`)
+    expect(html).toContain(q('"time":"2 vaultAdministration.unitHours'))
+    expect(f.state.describe(proposals[0])).toBe('vaultAdministration.proposalManagerAdd:{"user":"Bruno <bruno@example.test>"}')
+    expect(f.state.describe(proposals[1])).toBe('vaultAdministration.proposalManagerRemove:{"user":"Ana <ana@example.test>"}')
+    expect(f.state.describe(proposals[2])).toBe('vaultAdministration.proposalWindow:{"time":"1 vaultAdministration.unitHours"}')
+    f.unmount()
+    const focused = await confirmed({ userId: 2 }, { ...overview, proposals })
+    const only = await focused.f.html()
+    expect(only).toContain(`vault-administration-proposal-${'1'.repeat(64)}`); expect(only).not.toContain(`vault-administration-proposal-${'3'.repeat(64)}`)
+    focused.f.unmount()
+  })
+  it('tells a manager how many changes await them before unlocking, and refreshes after an approval', async () => {
+    const t = statusTransport({ manager: true, pending: 2, managers: [1, 3] }), d = fakeDelivery()
+    const f = mount<Admin>(VaultAdministration, { transport: t, delivery: d }); await flush()
+    expect(f.state.pendingCount).toBe(2)
+    const html = await f.html()
+    expect(html).toContain('vault-administration-pending-count'); expect(html).toContain(q('vaultAdministration.pendingCount:{"count":2}'))
+    await f.state.open(); f.state.password = 'pw'; f.state.token = '123456'; await f.state.confirm()
+    expect(await f.html()).not.toContain('vault-administration-pending-count')
+    await f.state.approve(reference); await flush()
+    expect(t.calls).toHaveBeenCalledTimes(2)
+    f.unmount()
+  })
+  it('explains to a NodeAccess admin who is not a manager; says nothing to other users or inside the Users tab', async () => {
+    const f = mount<Admin>(VaultAdministration, { transport: transport(false), delivery: fakeDelivery() }); await flush()
+    expect(await f.html()).toContain('vault-administration-not-manager'); f.unmount()
+    const focused = mount<Admin>(VaultAdministration, { transport: transport(false), delivery: fakeDelivery(), userId: 2 }); await flush()
+    expect(await focused.html()).not.toContain('vault-administration-not-manager'); focused.unmount()
+    auth.isAdmin = false
+    const user = mount<Admin>(VaultAdministration, { transport: transport(false), delivery: fakeDelivery() }); await flush()
+    expect(await user.html()).not.toContain('vault-administration-not-manager'); user.unmount()
+    auth.isAdmin = true
+  })
+  it('an unknown status shows nothing at first and later keeps what was last known', async () => {
+    const post = vi.fn().mockRejectedValueOnce(new Error('429')).mockResolvedValueOnce({ manager: true, pending: 1, managers: [1, 3] }).mockRejectedValueOnce(new Error('down'))
+    const f = mount<Admin>(VaultAdministration, { transport: { post }, delivery: fakeDelivery() }); await flush()
+    expect(f.state.manager).toBe(false); expect(await f.html()).not.toContain('vault-administration-not-manager')
+    await f.state.detect(); expect(f.state.manager).toBe(true); expect(f.state.pendingCount).toBe(1)
+    await f.state.detect(); expect(f.state.manager).toBe(true); expect(f.state.pendingCount).toBe(1)
+    f.unmount()
+  })
+  it('the Users-tab review opens by itself and shows only the proposals', async () => {
+    const { d, f } = await confirmed({ review: true })
+    expect(d.prepare).toHaveBeenCalledTimes(1)
+    const html = await f.html()
+    expect(html).toContain(`vault-administration-approve-${reference}`)
+    for (const hidden of ['vault-administration-user-', 'vault-administration-confirmation', 'vault-administration-window', 'vault-administration-blocked', 'vaultAdministration.title'])
+      expect(html).not.toContain(hidden)
     f.unmount()
   })
 })

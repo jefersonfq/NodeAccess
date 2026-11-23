@@ -9,7 +9,8 @@ export interface VaultTransaction {
   remove(kind: RecordKind, token: string): Promise<void>
   limit(key: string, windowMs: number, max: number): Promise<void>
   secret(id: number, action: VaultAction): Promise<VaultSecret>
-  propose(id: string, change: VaultChange): Promise<void>
+  /** `windowSeconds`: NA-0188 tenant proposal validity (default 120 s). */
+  propose(id: string, change: VaultChange, windowSeconds?: number): Promise<void>
   /** `byReference`: `id` is the stored proposal hash shown to managers, not the original identifier. */
   approve(id: string, byReference?: boolean): Promise<{ change: VaultChange; proposedBy: number }>
   audit(event: VaultEvent): Promise<void>
@@ -18,15 +19,18 @@ export interface VaultTransaction {
   /** NA-0183 read side of the two-manager administration (portal screen). */
   administration?: AdministrationReads
 }
-export interface VaultAdministrationUser { id: number; name: string; email: string; grants: Record<'reveal' | 'copy' | 'extension', boolean> }
+export interface VaultAdministrationUser { id: number; name: string; email: string; /** NA-0188 */ manager: boolean; grants: Record<'reveal' | 'copy' | 'extension', boolean> }
 export interface VaultAdministrationProposal { reference: string; change: VaultChange; proposedBy: { id: number; name: string }; mine: boolean; expiresAt: number
   /** Grant beneficiary (same tenant), even when outside the bounded user list. */
   beneficiary: { id: number; name: string; email: string } | null }
 export interface VaultAdministrationOverview { users: VaultAdministrationUser[]; proposals: VaultAdministrationProposal[]; serverNow: number }
 /** NA-0186: the overview also shows the tenant's current confirmation time (read from the locked policy). */
-export interface VaultAdministrationView extends VaultAdministrationOverview { policy: { confirmationSeconds: number } }
+export interface VaultAdministrationView extends VaultAdministrationOverview { policy: { confirmationSeconds: number; /** NA-0188 */ proposalSeconds: number } }
+/** NA-0188 status: pending count and manager ids only for managers (zero/empty otherwise). */
+export interface VaultAdministrationSummary { manager: boolean; pending: number; managers: number[] }
 export interface AdministrationReads {
   isManager(): Promise<boolean>
+  summary(): Promise<VaultAdministrationSummary>
   overview(): Promise<VaultAdministrationOverview>
 }
 export interface VaultStore { transaction<T>(identity: VaultIdentity, run: (tx: VaultTransaction) => Promise<T>): Promise<T> }

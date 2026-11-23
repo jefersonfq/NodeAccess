@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, h, computed, type VNode } from 'vue'
+import { ref, onMounted, onBeforeUnmount, h, computed, type VNode } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import {
@@ -18,7 +18,7 @@ import SessionSupervisionPermission from '@/components/SessionSupervisionPermiss
 import UserAvatar from '@/components/UserAvatar.vue'
 import VaultAdministration from '@/components/vault/VaultAdministration.vue'
 import { createVaultTransport } from '@/services/vault-http'
-import { isVaultManager } from '@/services/vault-manager'
+import { vaultAdministrationStatus } from '@/services/vault-manager'
 import UserLoginSessions from '@/components/users/UserLoginSessions.vue'
 import { loginSessionsService } from '@/services/login-sessions.service'
 
@@ -41,8 +41,26 @@ const accessLoading = ref(false)
 const accessError = ref('')
 const accessEntries = ref<UserInventoryAccessEntry[]>([])
 // NA-0186: vault permissions per user, only for vault managers (NodeAccess admin alone is not enough).
+// NA-0188: managers also see who the managers are and how many vault changes await their approval (refreshed every minute).
 const vaultManager = ref(false)
+/** False until a status read succeeded: unknown (no vault, HTTP, another tenant, error) shows no vault action at all. */
+const vaultKnown = ref(false)
 const vaultUser = ref<UserPublic | null>(null)
+const vaultReview = ref(false)
+const vaultPending = ref(0)
+const vaultManagers = ref<number[]>([])
+const vaultTransport = createVaultTransport()
+let vaultTimer: ReturnType<typeof setInterval> | undefined
+async function loadVaultStatus(): Promise<void> {
+  const status = await vaultAdministrationStatus(vaultTransport, auth)
+  if (!status) return // a failed poll keeps the last known state
+  vaultKnown.value = true
+  vaultManager.value = status.manager; vaultPending.value = status.pending; vaultManagers.value = status.managers
+}
+function closeVault(): void {
+  vaultUser.value = null; vaultReview.value = false
+  void loadVaultStatus()
+}
 // NA-0187: who is online (session used in the last 15 min) and one user's login sessions.
 const onlineUsers = ref(new Map<number, number>())
 const sessionsUser = ref<UserPublic | null>(null)
@@ -296,7 +314,9 @@ function userActionOptions(user: UserPublic): Array<DropdownOption | DropdownDiv
     },
     { label: t('admin.users.actions.resetPassword'), key: 'reset-password' },
     { label: t('admin.users.actions.resetMfa'), key: 'reset-mfa' },
-    ...(vaultManager.value && user.active ? [{ label: t('admin.users.actions.vault'), key: 'vault' }] : []),
+    ...(user.active && vaultKnown.value ? [vaultManager.value
+      ? { label: t('admin.users.actions.vault'), key: 'vault' }
+      : { label: t('admin.users.actions.vaultManagersOnly'), key: 'vault', disabled: true }] : []),
     { label: t('admin.users.actions.loginSessions'), key: 'login-sessions' },
     { type: 'divider', key: 'danger-divider' },
     {
@@ -315,7 +335,7 @@ function handleUserAction(action: UserActionKey, user: UserPublic): void | Promi
   if (action === 'deactivate') return toggleActive(user, false)
   if (action === 'reset-password') return resetPwd(user.id)
   if (action === 'reset-mfa') return confirmResetMfa(user)
-  if (action === 'vault') { vaultUser.value = user; return }
+  if (action === 'vault') { if (vaultManager.value) vaultUser.value = user; return }
   if (action === 'login-sessions') { sessionsUser.value = user; return }
   if (action === 'delete') return confirmDeleteUser(user)
   if (action === 'restore') return restoreUser(user)
@@ -323,7 +343,10 @@ function handleUserAction(action: UserActionKey, user: UserPublic): void | Promi
 
 // ─── Tabela ──────────────────────────────────────────────────────────────────
 
-const columns = computed<DataTableColumns<UserPublic>>(() => [
+// Read the online/manager state here so the table re-renders its cells when either arrives after the user list.
+const columns = computed<DataTableColumns<UserPublic>>(() => {
+  const online = onlineUsers.value, managers = vaultManagers.value
+  return [
   {
     title: t('admin.users.columns.name'),
     key: 'name',
@@ -333,9 +356,13 @@ const columns = computed<DataTableColumns<UserPublic>>(() => [
       h('div', { class: 'users-name-cell__text' }, [
         h('span', { class: 'users-name-cell__name' }, [
           row.name,
-          onlineUsers.value.has(row.id)
+          online.has(row.id)
             ? h(NTag, { size: 'tiny', type: 'success', round: true, class: 'ml-2', 'data-testid': `user-online-${row.id}` },
-              () => t('admin.users.online', { count: onlineUsers.value.get(row.id) ?? 0 }))
+              () => t('admin.users.online', { count: online.get(row.id) ?? 0 }))
+            : null,
+          managers.includes(row.id)
+            ? h(NTag, { size: 'tiny', type: 'info', round: true, class: 'ml-2', 'data-testid': `user-vault-manager-${row.id}` },
+              () => t('admin.users.vaultManager'))
             : null,
         ]),
         h('span', { class: 'users-name-cell__email' }, row.email),
@@ -391,7 +418,8 @@ const columns = computed<DataTableColumns<UserPublic>>(() => [
       default: () => h(NButton, { size: 'small', secondary: true }, () => t('admin.users.columns.actions')),
     }),
   },
-])
+  ]
+})
 
 // ─── Ações ───────────────────────────────────────────────────────────────────
 
@@ -415,9 +443,11 @@ async function load(): Promise<void> {
 onMounted(() => {
   void load()
   void loadGroups()
-  void isVaultManager(createVaultTransport(), auth).then(value => { vaultManager.value = value })
+  void loadVaultStatus()
+  vaultTimer = setInterval(() => { if (!vaultUser.value && !vaultReview.value) void loadVaultStatus() }, 60_000)
   void loadOnline()
 })
+onBeforeUnmount(() => { if (vaultTimer) clearInterval(vaultTimer) })
 
 async function toggleActive(user: UserPublic, active: boolean): Promise<void> {
   try {
@@ -570,6 +600,25 @@ function confirmPromotePlatformAdmin(user: UserPublic): void {
       class="mb-4"
       :title="error"
     />
+
+    <NAlert
+      v-if="vaultManager && vaultPending > 0"
+      type="info"
+      class="mb-4"
+      data-testid="users-vault-pending"
+    >
+      <div class="flex flex-wrap items-center justify-between gap-3">
+        <span>{{ $t('admin.users.vaultPending', { count: vaultPending }, vaultPending) }}</span>
+        <NButton
+          size="small"
+          type="primary"
+          data-testid="users-vault-review"
+          @click="vaultReview = true"
+        >
+          {{ $t('admin.users.vaultReview') }}
+        </NButton>
+      </div>
+    </NAlert>
 
     <SkeletonTable
       v-if="loading && users.length === 0"
@@ -806,12 +855,12 @@ function confirmPromotePlatformAdmin(user: UserPublic): void {
     </NModal>
 
     <NModal
-      :show="vaultUser !== null"
+      :show="vaultUser !== null || vaultReview"
       preset="card"
-      :title="$t('admin.users.vaultModal.title', { name: vaultUser?.name ?? '' })"
-      style="width: min(760px, 100vw)"
+      :title="vaultUser ? $t('admin.users.vaultModal.title', { name: vaultUser.name }) : $t('admin.users.vaultModal.reviewTitle')"
+      style="width: min(860px, 100vw)"
       data-testid="users-vault-modal"
-      @update:show="(value) => { if (!value) vaultUser = null }"
+      @update:show="(value) => { if (!value) closeVault() }"
     >
       <p class="mb-3 text-sm text-gray-400">
         {{ $t('admin.users.vaultModal.hint') }}
@@ -820,6 +869,10 @@ function confirmPromotePlatformAdmin(user: UserPublic): void {
         v-if="vaultUser"
         :key="vaultUser.id"
         :user-id="vaultUser.id"
+      />
+      <VaultAdministration
+        v-else-if="vaultReview"
+        review
       />
     </NModal>
 

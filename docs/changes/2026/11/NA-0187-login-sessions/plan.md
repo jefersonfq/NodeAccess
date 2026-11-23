@@ -2,7 +2,7 @@
 change_id: NA-0187
 title: Sessões de login online por IP e desconexão de uma sessão específica
 type: security
-status: ready-for-review
+status: closed
 created_at: 2026-11-22T22:30:00-03:00
 base_branch: master
 base_sha: d26301ed8a994abef4ec99998e00840274954e35

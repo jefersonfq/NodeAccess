@@ -105,20 +105,31 @@ Em **VaultNAccess**, a seção **Extensão do navegador: dispositivos conectados
 **Acesso negado:** peça aos gestores do cofre a permissão **Usar extensão**. **Pedido de conexão inválido:** inicie a conexão de novo pela extensão. **A conexão expirou:** conecte novamente. **Atualize a extensão:** a instalação exige uma versão mais nova.
 
 ### Conceder permissões do cofre (gestores)
-Gestores do cofre veem, em **VaultNAccess**, a seção **Permissões do cofre (gestores)**. Também podem abrir as permissões de uma pessoa direto em **Administração › Usuários**: no menu de ações do usuário, selecione **Permissões do cofre**. A janela mostra só aquele usuário e as propostas dele, com as mesmas regras e os mesmos passos abaixo. Ela concede ou retira, por usuário, **Revelar**, **Copiar** e **Usar extensão**. Cada mudança é proposta por um gestor e aprovada por outro gestor em até 2 minutos; a pessoa que recebe a permissão nunca participa, e você não altera as suas próprias permissões. A seção não aparece para quem não é gestor.
+Gestores do cofre veem, em **VaultNAccess**, a seção **Permissões do cofre (gestores)**. Também podem abrir as permissões de uma pessoa direto em **Administração › Usuários**: no menu de ações do usuário, selecione **Permissões do cofre**. A janela mostra só aquele usuário e as propostas dele, com as mesmas regras e os mesmos passos abaixo. Ela concede ou retira, por usuário, **Revelar**, **Copiar**, **Usar extensão** e **Gestor do cofre**. Cada mudança é proposta por um gestor e aprovada por outro gestor dentro da validade da proposta (padrão de 2 minutos; veja **Validade das propostas** abaixo); a pessoa afetada nunca participa, e você não altera as suas próprias permissões nem a sua própria gestão.
 
 1. Selecione **Administrar permissões** e confirme sua identidade (senha e código do autenticador, ou **Confirmar no provedor**). A confirmação vale por 1 minuto; depois disso, confirme de novo.
 2. Na linha do usuário, selecione **Propor ativar** ou **Propor retirar** na permissão desejada. A proposta aparece em **Propostas aguardando aprovação**, com o tempo restante.
-3. Peça a outro gestor para entrar com a própria conta, abrir a mesma seção, confirmar a identidade e selecionar **Aprovar** na proposta. Não pode ser quem propôs nem quem recebe a permissão. Nas suas propostas aparece **aguardando outro gestor aprovar**; numa proposta que dá a permissão a você, aparece que outro gestor precisa aprovar.
+3. Peça a outro gestor para entrar com a própria conta, confirmar a identidade e selecionar **Aprovar** na proposta. Não pode ser quem propôs nem quem é afetado. Nas suas propostas aparece **aguardando outro gestor aprovar**; numa proposta sobre você, aparece que outro gestor precisa aprovar.
 
-Ser administrador do NodeAccess não torna ninguém gestor do cofre: os gestores são definidos na ativação do cofre do tenant.
+**Avisos de pendência:** quando há propostas que você pode aprovar, **Administração › Usuários** mostra **N alterações do cofre aguardam sua aprovação** com o botão **Revisar**, que abre só a lista de propostas; a seção do VaultNAccess mostra o mesmo aviso antes de confirmar a identidade. Na lista de usuários, a etiqueta **Gestor do cofre** identifica os gestores (visível só para gestores). O aviso é atualizado a cada minuto e ao fechar a janela.
+
+**Gestores do cofre:** a ativação do cofre do tenant define os dois primeiros gestores. Depois, a coluna **Gestor do cofre** inclui ou retira gestores pela mesma regra de dois gestores. Ser administrador ou superadministrador do NodeAccess não torna ninguém gestor nem permite promover alguém sozinho, porque o administrador pode criar contas e redefinir senha e autenticador. Um administrador que não é gestor vê uma explicação no VaultNAccess, e a ação **Permissões do cofre (só gestores do cofre)** aparece desabilitada em **Usuários**.
+
+**Quando o botão fica desabilitado:** uma mudança para outro gestor precisa de um terceiro gestor para aprovar. Com apenas dois gestores, os botões na linha do outro gestor ficam desabilitados e a seção explica o motivo; torne mais um usuário gestor para liberar. Pelo mesmo motivo, retirar um gestor só é possível com pelo menos três, e o cofre sempre mantém pelo menos dois.
 
 Cada aprovação bloqueia o cofre para todos, inclusive para os gestores: quem estava com o cofre aberto precisa confirmar a identidade de novo. Retirar **Usar extensão** desconecta na hora todos os dispositivos daquela pessoa. Mudanças de política do cofre e de itens aparecem na lista sem o botão **Aprovar**: são revisadas e aprovadas pela administração da instalação.
+
+Retirar um gestor apaga as propostas abertas dele, e reduzir a validade encurta as propostas já abertas. Propostas que não podem mais ser aprovadas (por exemplo, de quem deixou de ser gestor ou para uma conta desativada) somem da lista. Desativar ou excluir a conta de um gestor na guia **Usuários** também o retira da contagem: mantenha pelo menos dois gestores ativos.
+
+**Nenhum outro gestor poderia aprovar:** a proposta foi recusada porque só restariam quem propõe e quem é afetado; torne mais um usuário gestor e tente de novo. O cofre continua aberto.
 
 ### Tempo de confirmação (gestores)
 Na seção **Permissões do cofre (gestores)** do VaultNAccess, **Tempo de confirmação para revelar e copiar** mostra por quantos minutos, depois de confirmar a identidade, revelar e copiar ficam liberados sem pedir a confirmação de novo. O padrão é 1 minuto, e o máximo é 15. Para mudar, informe os **Minutos** e selecione **Propor novo tempo**; outro gestor aprova na lista de propostas, como numa permissão. Ao aprovar, o cofre é bloqueado para todos.
 
 O tempo vale só enquanto o cofre estiver aberto: sem atividade por 5 minutos, ou após 30 minutos, o cofre bloqueia de qualquer forma. Administrar permissões e conectar a extensão continuam pedindo confirmação de 1 minuto.
+
+### Validade das propostas (gestores)
+Em **Validade das propostas**, os gestores definem por quanto tempo uma proposta fica aberta esperando outro gestor aprovar: de 2 minutos (padrão) a 24 horas. Escolha a **Validade** e selecione **Propor nova validade**; outro gestor aprova na lista de propostas. A nova validade vale para as propostas criadas depois da aprovação. Propostas mais longas facilitam a aprovação por gestores em outros horários, mas ficam abertas por mais tempo; a aprovação continua exigindo a confirmação de identidade do segundo gestor.
 
 ### Sessões de login dos usuários (administradores)
 Em **Administração › Usuários**, a etiqueta **Online** ao lado do nome mostra quem usou o NodeAccess nos últimos 15 minutos e quantas sessões de login estão ativas. No menu de ações do usuário, **Sessões de login** lista cada login com o IP do último uso (e o IP do login, quando mudou), navegador, método de login, início e último uso. A sua própria sessão aparece como **Esta sessão** e não pode ser desconectada por aqui; use **Sair**.

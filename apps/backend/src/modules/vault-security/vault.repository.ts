@@ -103,8 +103,8 @@ class SqlVaultTransaction implements VaultTransaction {
     }
     return { encrypted: s.encrypted, iv: s.iv, version: hash(JSON.stringify([s.encrypted, s.iv, s.scope, s.owner, s.groupId, g.grantedBy, g.approvedBy])) }
   }
-  async propose(id: string, change: VaultChange): Promise<void> {
-    await new SqlVaultAdministration(this.db, this.identity, this.now).propose(id, change)
+  async propose(id: string, change: VaultChange, windowSeconds?: number): Promise<void> {
+    await new SqlVaultAdministration(this.db, this.identity, this.now).propose(id, change, windowSeconds)
   }
   async approve(id: string, byReference = false): Promise<{ change: VaultChange; proposedBy: number }> {
     return new SqlVaultAdministration(this.db, this.identity, this.now).approve(id, byReference)

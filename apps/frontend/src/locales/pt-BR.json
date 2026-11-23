@@ -3555,8 +3555,12 @@
       },
       "vaultModal": {
         "title": "Permissões do cofre: {name}",
+        "reviewTitle": "Alterações do cofre aguardando aprovação",
         "hint": "Mesmas regras do VaultNAccess: você propõe e outro gestor aprova. Quem recebe a permissão não aprova."
       },
+      "vaultManager": "Gestor do cofre",
+      "vaultPending": "1 alteração do cofre aguarda sua aprovação. | {count} alterações do cofre aguardam sua aprovação.",
+      "vaultReview": "Revisar",
       "online": "Online \u00b7 {count}",
       "loginSessions": {
         "title": "Sessões de login: {name}",
@@ -3588,6 +3592,7 @@
         "resetPassword": "Reset senha",
         "resetMfa": "Resetar MFA",
         "vault": "Permissões do cofre",
+        "vaultManagersOnly": "Permissões do cofre (só gestores do cofre)",
         "loginSessions": "Sessões de login",
         "delete": "Excluir",
         "restore": "Restaurar",
@@ -6884,7 +6889,8 @@
       "quota": "Limite de tentativas atingido. Aguarde antes de tentar novamente.",
       "login": "A autenticação do portal precisa ser renovada. Nenhuma operação foi repetida automaticamente.",
       "clipboard": "Não foi possível confirmar a cópia. O valor foi descartado; verifique as permissões do navegador antes de solicitar outra operação.",
-      "unsupported": "Este fluxo exige HTTPS e uma sessão local elegível, sem gerenciamento de outro tenant."
+      "unsupported": "Este fluxo exige HTTPS e uma sessão local elegível, sem gerenciamento de outro tenant.",
+      "noApprover": "Nenhum outro gestor poderia aprovar esta proposta (quem propõe e quem recebe não aprovam). Torne mais um usuário gestor do cofre e tente de novo."
     }
   },
   "vaultExtension": {
@@ -6909,9 +6915,9 @@
   },
   "vaultAdministration": {
     "title": "Permissões do cofre (gestores)",
-    "intro": "Conceda ou retire revelar, copiar e usar a extensão por usuário. Toda mudança precisa de dois gestores:",
+    "intro": "Conceda ou retire revelar, copiar, usar a extensão e ser gestor do cofre por usuário. Toda mudança precisa de dois gestores:",
     "step1": "1. Um gestor propõe a mudança.",
-    "step2": "2. Outro gestor entra com a própria conta e aprova em até 2 minutos. Não pode ser quem propôs nem quem recebe a permissão.",
+    "step2": "2. Outro gestor entra com a própria conta e aprova dentro da validade da proposta (definida pelo tenant). Não pode ser quem propôs nem quem recebe a permissão.",
     "step3": "3. A mudança passa a valer e o cofre é bloqueado para todos.",
     "confirmHint": "Confirme sua identidade para ver e alterar as permissões. A confirmação vale por 1 minuto e cada aprovação bloqueia o cofre de novo.",
     "confirm": "Confirmar identidade",
@@ -6930,11 +6936,11 @@
     "noPending": "Nenhuma proposta pendente.",
     "proposalGrant": "{action} para {user}: {state}",
     "proposalOther": "Mudança de política ou de item: revise e aprove pela API",
-    "proposedBy": "Proposta por {name}, vence em {seconds} s",
+    "proposedBy": "Proposta por {name}, vence em {time}",
     "yours": "Sua proposta: aguardando outro gestor aprovar.",
-    "beneficiary": "Você recebe esta permissão: outro gestor precisa aprovar.",
+    "beneficiary": "Esta proposta é sobre você: outro gestor precisa aprovar.",
     "approve": "Aprovar",
-    "proposed": "Proposta criada. Agora outro gestor precisa entrar com a conta dele e aprovar em até 2 minutos. Não pode ser você nem quem recebe a permissão.",
+    "proposed": "Proposta criada. Agora outro gestor precisa entrar com a conta dele e aprovar em até {time}. Não pode ser você nem quem recebe a permissão.",
     "applied": "Alteração aplicada. O cofre foi bloqueado para todos; confirme a identidade de novo para continuar.",
     "reload": "Atualizar",
     "open": "Administrar permissões",
@@ -6943,6 +6949,20 @@
     "confirmationHint": "Depois de confirmar a identidade, revelar e copiar ficam liberados por {minutes} min (de 1 a 15), enquanto o cofre estiver aberto. Administrar permissões e conectar a extensão sempre pedem confirmação de 1 minuto. A mudança segue a mesma regra de dois gestores.",
     "confirmationMinutes": "Minutos",
     "confirmationPropose": "Propor novo tempo",
-    "unknownUser": "usuário {id}"
+    "unknownUser": "usuário {id}",
+    "manager": "Gestor do cofre",
+    "unitSeconds": "s",
+    "unitMinutes": "min",
+    "unitHours": "h",
+    "pendingCount": "1 alteração do cofre aguarda sua aprovação. Abra a administração e confirme a identidade para revisar. | {count} alterações do cofre aguardam sua aprovação. Abra a administração e confirme a identidade para revisar.",
+    "proposalWindow": "Validade das propostas do tenant: {time}",
+    "proposalManagerAdd": "Tornar {user} gestor do cofre",
+    "proposalManagerRemove": "Retirar {user} da gestão do cofre",
+    "blockedHint": "Mudanças para outro gestor precisam de um terceiro gestor para aprovar: quem propõe e quem recebe não aprovam. Torne mais um usuário gestor para liberar.",
+    "windowTitle": "Validade das propostas",
+    "windowHint": "Uma proposta fica aberta por {time} esperando outro gestor aprovar (de 2 minutos a 24 horas). A mudança segue a mesma regra de dois gestores.",
+    "windowLabel": "Validade",
+    "windowPropose": "Propor nova validade",
+    "notManager": "Você é administrador, mas não é gestor do cofre. As permissões do cofre são dadas por dois gestores; peça a um gestor para incluir você."
   }
 }

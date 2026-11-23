@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto'
 import { describe, it, expect, vi } from 'vitest'
+import { VaultClientError } from './vault-http'
 import { createVaultDelivery } from './vault-delivery'
 import { type VaultPortalIdentity, type VaultTransport } from './vault-http'
 
@@ -201,7 +202,7 @@ describe('Vault provider step-up in the portal (NA-0184)', () => {
 })
 
 describe('Vault administration from the portal (NA-0183)', () => {
-  const reference = 'a'.repeat(64), overview = { policy: { confirmationSeconds: 60 }, users: [{ id: 2, name: 'Bruno', email: 'b@example.test', grants: { reveal: false, copy: false, extension: true } }],
+  const reference = 'a'.repeat(64), overview = { policy: { confirmationSeconds: 60, proposalSeconds: 120 }, users: [{ id: 2, name: 'Bruno', email: 'b@example.test', manager: false, grants: { reveal: false, copy: false, extension: true } }],
     proposals: [{ reference, change: { kind: 'grant', userId: 2, action: 'extension', enabled: false }, proposedBy: { id: 3, name: 'Carla' }, mine: false, expiresAt: 2_100_000, beneficiary: { id: 2, name: 'Bruno', email: 'b@example.test' } }], serverNow: 2_000_000 }
   function admin(replies: Record<string, unknown>) {
     const f = fixture(), base = f.post.getMockImplementation()!
@@ -237,6 +238,16 @@ describe('Vault administration from the portal (NA-0183)', () => {
     await unlock(f); f.advance(61_000)
     expect(await f.delivery.administrationOverview()).toBeNull()
     expect(f.delivery.state.phase).toBe('locked')
+  })
+  it('NA-0188: a proposal nobody could approve keeps the vault open and explains why', async () => {
+    const f = admin({ 'administration/overview': overview })
+    const base = f.post.getMockImplementation()!
+    f.post.mockImplementation((path: string, body: Record<string, unknown>) => (path === 'administration/proposals' ? Promise.reject(new VaultClientError('noApprover')) : base(path, body)))
+    await unlock(f)
+    expect(await f.delivery.proposeChange({ kind: 'manager', userId: 2, enabled: true })).toBe(false)
+    expect(f.delivery.state.phase).toBe('unlocked'); expect(f.delivery.state.error).toBe('noApprover')
+    expect(await f.delivery.administrationOverview()).toEqual(overview)
+    expect(f.delivery.state.error).toBeNull()
   })
   it('drops the session when the signed-in identity changed', async () => {
     const f = admin({ 'administration/overview': overview })

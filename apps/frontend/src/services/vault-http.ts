@@ -2,7 +2,8 @@
 export interface VaultPortalIdentity {
   userId: number; tenantId: number; accessToken: string; refreshToken: string; origin: string
 }
-export type VaultFailure = 'unavailable' | 'denied' | 'locked' | 'expired' | 'quota' | 'login' | 'clipboard' | 'unsupported'
+/** `noApprover` (NA-0188): the server refused a proposal no other manager could approve. */
+export type VaultFailure = 'unavailable' | 'denied' | 'locked' | 'expired' | 'quota' | 'login' | 'clipboard' | 'unsupported' | 'noApprover'
 export class VaultClientError extends Error {
   constructor(public readonly reason: VaultFailure) { super(reason) }
 }
@@ -23,6 +24,13 @@ async function readBounded(response: Response): Promise<string> {
     }
   } finally { reader.releaseLock() }
 }
+/** Error code of a refused request; any doubt is `null` (the status alone then decides). */
+async function errorCode(response: Response): Promise<string | null> {
+  try {
+    const body = JSON.parse(await readBounded(response)) as { code?: unknown }
+    return typeof body.code === 'string' ? body.code : null
+  } catch { return null }
+}
 export function createVaultTransport(fetcher: typeof fetch = globalThis.fetch): VaultTransport {
   return { async post<T>(path: string, body: object, identity: VaultPortalIdentity, clientId?: string, signal?: AbortSignal): Promise<T> {
     const abort = new AbortController()
@@ -38,6 +46,7 @@ export function createVaultTransport(fetcher: typeof fetch = globalThis.fetch): 
       })
       if (!response.ok) {
         const reasons: Record<number, VaultFailure> = { 401: 'login', 403: 'denied', 404: 'unsupported', 409: 'expired', 423: 'locked', 429: 'quota' }
+        if (response.status === 409 && await errorCode(response) === 'VAULT_NO_APPROVER') throw new VaultClientError('noApprover')
         throw new VaultClientError(reasons[response.status] ?? 'unavailable')
       }
       const text = await readBounded(response)

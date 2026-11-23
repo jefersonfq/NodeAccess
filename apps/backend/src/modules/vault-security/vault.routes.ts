@@ -3,7 +3,7 @@ import { z } from 'zod'
 import type { FastifyInstance, FastifyRequest } from 'fastify'
 import { requireAuth } from '../../shared/guards.js'
 import { AppError } from '../../shared/errors.js'
-import { CONFIRMATION_DEFAULT_SECONDS, CONFIRMATION_MAX_SECONDS, VaultError, type VaultIdentity } from './vault-domain.js'
+import { CONFIRMATION_DEFAULT_SECONDS, CONFIRMATION_MAX_SECONDS, PROPOSAL_DEFAULT_SECONDS, PROPOSAL_MAX_SECONDS, VaultError, type VaultIdentity } from './vault-domain.js'
 import type { VaultService } from './vault.service.js'
 
 const opaque = z.string().regex(/^[A-Za-z0-9_-]{43}$/)
@@ -67,6 +67,8 @@ export function vaultRoutes(app: FastifyInstance, service: VaultService, adminis
       z.object({ kind: z.literal('item'), secretId: z.number().int().positive(), enabled: z.boolean() }).strict(),
       z.object({ kind: z.literal('policy'), reveal: z.boolean(), copy: z.boolean(), tenantQuota: z.number().int().min(1).max(300) }).strict(),
       z.object({ kind: z.literal('confirmation'), seconds: z.number().int().min(CONFIRMATION_DEFAULT_SECONDS).max(CONFIRMATION_MAX_SECONDS).multipleOf(60) }).strict(),
+      z.object({ kind: z.literal('manager'), userId: z.number().int().positive(), enabled: z.boolean() }).strict(),
+      z.object({ kind: z.literal('proposalWindow'), seconds: z.number().int().min(PROPOSAL_DEFAULT_SECONDS).max(PROPOSAL_MAX_SECONDS).multipleOf(60) }).strict(),
     ])
     post('/administration/proposals', session.extend({ change }).strict(), (i,c,o,b) => administration.propose(i,c,o,b.sessionId,b.change))
     post('/administration/approve', z.union([session.extend({ proposalId: opaque }).strict(), session.extend({ reference: z.string().regex(/^[a-f0-9]{64}$/) }).strict()]),

@@ -264,8 +264,8 @@ describe.skipIf(!enabled)('Vault SQL/Redis isolated integration', () => {
     const admin = new VaultAdministrationService(f.service, entropy)
     await expect(admin.propose(f.identity, f.clientId, origin, f.sessionId, { kind: 'grant', userId: f.user.id, action: 'copy', enabled: true })).rejects.toMatchObject({ code: 'VAULT_FORBIDDEN' })
     await expect(admin.propose(a.identity, a.clientId, origin, a.sessionId, { kind: 'grant', userId: a.identity.userId, action: 'copy', enabled: true })).rejects.toMatchObject({ code: 'VAULT_FORBIDDEN' })
-    const forbidden = await admin.propose(a.identity, a.clientId, origin, a.sessionId, { kind: 'grant', userId: b.identity.userId, action: 'copy', enabled: true })
-    await expect(admin.approve(b.identity, b.clientId, origin, b.sessionId, forbidden.proposalId)).rejects.toMatchObject({ code: 'VAULT_FORBIDDEN' })
+    // NA-0188: with only two managers, a grant for the other one could never be approved, so it is refused at once.
+    await expect(admin.propose(a.identity, a.clientId, origin, a.sessionId, { kind: 'grant', userId: b.identity.userId, action: 'copy', enabled: true })).rejects.toMatchObject({ code: 'VAULT_NO_APPROVER' })
     const proposal = await admin.propose(a.identity, a.clientId, origin, a.sessionId, { kind: 'grant', userId: f.user.id, action: 'copy', enabled: true })
     await expect(admin.approve(a.identity, a.clientId, origin, a.sessionId, proposal.proposalId)).rejects.toMatchObject({ code: 'OPERATION_UNAVAILABLE' })
     expect(await admin.approve(b.identity, b.clientId, origin, b.sessionId, proposal.proposalId)).toEqual({ state: 'APPLIED' })
@@ -281,8 +281,10 @@ describe.skipIf(!enabled)('Vault SQL/Redis isolated integration', () => {
   it('NA-0183: the portal screen lists users, grants and live proposals and approves by reference with correlated audit', async () => {
     const f = await fixture(), a = await managerSession(f, f.manager1.id), b = await managerSession(f, f.manager2.id)
     const admin = new VaultAdministrationService(f.service, entropy)
-    expect(await admin.status(a.identity, origin)).toEqual({ manager: true })
-    expect(await admin.status(f.identity, origin)).toEqual({ manager: false })
+    const status = await admin.status(a.identity, origin)
+    expect(status).toMatchObject({ manager: true, pending: 0 })
+    expect([...status.managers].sort((x, y) => x - y)).toEqual([f.manager1.id, f.manager2.id].sort((x, y) => x - y))
+    expect(await admin.status(f.identity, origin)).toEqual({ manager: false, pending: 0, managers: [] })
     await expect(admin.overview(f.identity, f.clientId, origin, f.sessionId)).rejects.toMatchObject({ code: 'VAULT_FORBIDDEN' })
     const { proposalId } = await admin.propose(a.identity, a.clientId, origin, a.sessionId, { kind: 'grant', userId: f.user.id, action: 'extension', enabled: true })
     const listed = await admin.overview(b.identity, b.clientId, origin, b.sessionId)
@@ -337,6 +339,52 @@ describe.skipIf(!enabled)('Vault SQL/Redis isolated integration', () => {
     const c = await managerSession(f, f.manager1.id)
     await expect(admin.overview(c.identity, c.clientId, origin, c.sessionId)).resolves.toMatchObject({ policy: { confirmationSeconds: 300 } })
   }, 10_000)
+  it('NA-0188: managers added and removed by two managers, tenant proposal validity and pending count', async () => {
+    const f = await fixture(), a = await managerSession(f, f.manager1.id), b = await managerSession(f, f.manager2.id)
+    const admin = new VaultAdministrationService(f.service, entropy)
+    await expect(admin.propose(a.identity, a.clientId, origin, a.sessionId, { kind: 'manager', userId: a.identity.userId, enabled: false })).rejects.toMatchObject({ code: 'VAULT_FORBIDDEN' })
+    const promote = await admin.propose(a.identity, a.clientId, origin, a.sessionId, { kind: 'manager', userId: f.user.id, enabled: true })
+    expect(await admin.status(b.identity, origin)).toMatchObject({ manager: true, pending: 1 })
+    expect(await admin.status(a.identity, origin)).toMatchObject({ manager: true, pending: 0 })
+    expect(await admin.approve(b.identity, b.clientId, origin, b.sessionId, promote.proposalId)).toEqual({ state: 'APPLIED' })
+    const rows = await db.$queryRaw<Array<{ enabled: number }>>`SELECT enabled FROM vault_managers WHERE tenant_id=${f.tenant.id} AND user_id=${f.user.id}`
+    expect(Number(rows[0]!.enabled)).toBe(1)
+    const c = await managerSession(f, f.user.id)
+    expect((await admin.status(c.identity, origin)).managers.sort((x, y) => x - y)).toEqual([f.manager1.id, f.manager2.id, f.user.id].sort((x, y) => x - y))
+    // Three managers: a grant for a manager now has a distinct approver.
+    const a2 = await managerSession(f, f.manager1.id)
+    const grant = await admin.propose(a2.identity, a2.clientId, origin, a2.sessionId, { kind: 'grant', userId: f.manager2.id, action: 'reveal', enabled: true })
+    expect(await admin.approve(c.identity, c.clientId, origin, c.sessionId, grant.proposalId)).toEqual({ state: 'APPLIED' })
+    const a3 = await managerSession(f, f.manager1.id), b3 = await managerSession(f, f.manager2.id)
+    const window = await admin.propose(a3.identity, a3.clientId, origin, a3.sessionId, { kind: 'proposalWindow', seconds: 3600 })
+    await admin.approve(b3.identity, b3.clientId, origin, b3.sessionId, window.proposalId)
+    const policy = await db.$queryRaw<Array<{ seconds: number; kind: string }>>`SELECT JSON_EXTRACT(config,'$.proposalSeconds') AS seconds,JSON_TYPE(JSON_EXTRACT(config,'$.proposalSeconds')) AS kind FROM vault_policies WHERE tenant_id=${f.tenant.id}`
+    expect(policy[0]).toMatchObject({ kind: 'INTEGER' }); expect(Number(policy[0]!.seconds)).toBe(3600)
+    const a4 = await managerSession(f, f.manager1.id), b4 = await managerSession(f, f.manager2.id)
+    expect(await admin.overview(a4.identity, a4.clientId, origin, a4.sessionId)).toMatchObject({ policy: { proposalSeconds: 3600 } })
+    const before = Date.now()
+    const demote = await admin.propose(a4.identity, a4.clientId, origin, a4.sessionId, { kind: 'manager', userId: f.user.id, enabled: false })
+    const expiry = await db.$queryRaw<Array<{ expiresAt: Date }>>`SELECT expires_at AS expiresAt FROM vault_proposals WHERE tenant_id=${f.tenant.id}`
+    expect(expiry[0]!.expiresAt.getTime() - before).toBeGreaterThan(3_590_000)
+    await admin.approve(b4.identity, b4.clientId, origin, b4.sessionId, demote.proposalId)
+    const after = await db.$queryRaw<Array<{ enabled: number }>>`SELECT enabled FROM vault_managers WHERE tenant_id=${f.tenant.id} AND user_id=${f.user.id}`
+    expect(Number(after[0]!.enabled)).toBe(0)
+    const a5 = await managerSession(f, f.manager1.id)
+    await expect(admin.propose(a5.identity, a5.clientId, origin, a5.sessionId, { kind: 'manager', userId: f.manager2.id, enabled: false })).rejects.toMatchObject({ code: 'VAULT_NO_APPROVER' })
+  }, 20_000)
+  it('NA-0188: two manager removals approved at the same time never leave fewer than two managers', async () => {
+    const f = await fixture(), a = await managerSession(f, f.manager1.id), b = await managerSession(f, f.manager2.id), c = await managerSession(f, f.user.id)
+    const admin = new VaultAdministrationService(f.service, entropy)
+    const dropC = await admin.propose(a.identity, a.clientId, origin, a.sessionId, { kind: 'manager', userId: f.user.id, enabled: false })
+    const dropB = await admin.propose(a.identity, a.clientId, origin, a.sessionId, { kind: 'manager', userId: f.manager2.id, enabled: false })
+    const results = await Promise.allSettled([
+      admin.approve(b.identity, b.clientId, origin, b.sessionId, dropC.proposalId),
+      admin.approve(c.identity, c.clientId, origin, c.sessionId, dropB.proposalId),
+    ])
+    expect(results.filter(r => r.status === 'fulfilled').length).toBeLessThanOrEqual(1)
+    const rows = await db.$queryRaw<Array<{ count: bigint }>>`SELECT COUNT(*) AS count FROM vault_managers WHERE tenant_id=${f.tenant.id} AND enabled=TRUE`
+    expect(Number(rows[0]!.count)).toBeGreaterThanOrEqual(2)
+  }, 20_000)
   it('executes deployment bootstrap, bounded cleanup and disable CLI against the disposable database', async () => {
     const cli = promisify(execFile)
     const suffix = randomUUID(), tenant = await db.tenant.create({ data: { name: 'CLI fixture', slug: `cli-${suffix}` } })
