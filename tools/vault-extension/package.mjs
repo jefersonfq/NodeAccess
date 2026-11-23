@@ -23,7 +23,8 @@ const sha256 = buffer => createHash('sha256').update(buffer).digest('hex')
 function filesOf(directory) {
   const out = []
   const walk = current => {
-    for (const name of readdirSync(current).sort()) {
+    // Order is irrelevant here: zip() writes entries in byte order.
+    for (const name of readdirSync(current)) {
       const path = join(current, name)
       if (statSync(path).isDirectory()) walk(path)
       else out.push({ name: relative(directory, path).split('\\').join('/'), data: readFileSync(path) })

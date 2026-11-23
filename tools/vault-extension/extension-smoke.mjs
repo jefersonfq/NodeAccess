@@ -9,6 +9,7 @@ import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'nod
 import { join, resolve } from 'node:path'
 import { chromium } from 'playwright'
 import { resolveExecutable } from '../shared/trusted-executable.cjs'
+import { checkPackageInBrowser } from './package-smoke.mjs'
 
 const ROOT = resolve(import.meta.dirname, '../..')
 const PORTAL = 'https://vault.example.test'
@@ -191,6 +192,9 @@ try {
   await popup.getByTestId('vaultnaccess-update-apply').click()
   await closed
   check('update-reloads-extension', true)
+  // NA-0194: the signed release of the same sources, loaded in Chromium with its own id.
+  await context.close(); context = undefined
+  await checkPackageInBrowser(check)
   result.status = 'passed'
 } catch (error) {
   result.error = String(error?.message ?? error).slice(0, 400)
