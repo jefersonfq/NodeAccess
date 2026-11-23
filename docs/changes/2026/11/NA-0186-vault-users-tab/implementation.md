@@ -44,3 +44,7 @@ Skipped: `validate:sonar` (Node 24 e tokens do responsável).
 ### 2026-11-23T00:10:00-03:00 — PR77 e ajustes pedidos pela CI
 
 PR77 aberta. A CI reprovou `change-governance` (corpo da PR sem as seções do modelo) e `static-quality` (`lint:changed` aceita zero avisos; o `UsersView.vue` tinha 111 avisos antigos). Corrigido: corpo no modelo do projeto; avisos resolvidos com `eslint --fix` (formatação do template) e tipos de retorno explícitos, sem mudança de comportamento; hash do capítulo `hosts` renovado. Ran: `lint:changed` 0 problemas; `vue-tsc` PASS; vitest views + componentes do cofre 198 PASS; `manual:check-reviewed` PASS.
+
+### 2026-11-23T01:20:00-03:00 — Cobertura de código novo (sonar-real)
+
+`sonar-real` reprovou: cobertura do código novo 55,8% (< 80%; linhas + condições), porque o `UsersView.vue` não tinha teste e as linhas alteradas (tipos, ação nova, template) contavam sem cobertura. Novo `views/admin/users-view.test.ts` (carga, opções e roteamento das ações, colunas, modais, erros e manipuladores do template). Medição local com o mesmo critério (linhas + condições alteradas desde `7c973fce8`): 224/265 = 84,5%. Ran: vitest cofre/serviços/views 1205 PASS; `vue-tsc` PASS; `lint:changed` 0 problemas.
