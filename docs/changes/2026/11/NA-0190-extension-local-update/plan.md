@@ -43,11 +43,15 @@ Fora: pacote assinado, `update_url` e instalação por política (E6); servidor/
 - [x] Mesma chave → mesmo ID da extensão; permissões e CSP inalteradas.
 - [x] Com o portal fora do ar, **Conectar** mostra que não foi possível conectar, sem abrir a janela de autorização.
 
+## Estratégia técnica
+
+Script Node no início do `npm run dev` (tolerante a falhas) chama o build Vite existente com variáveis novas validadas; o identificador vem do hash das fontes e da configuração; o portal de desenvolvimento serve o anúncio como arquivo estático; o popup compara e recarrega com `chrome.runtime.reload()`. A validação de comunicação fica no cliente (`connect`) e o motivo da falha passa do service worker ao popup por `storage.session`.
+
 ## Riscos e mitigações
 
 Baixo. O anúncio só decide se um botão aparece; nada baixado é executado; a recarga lê a pasta local. Arquivos de configuração só com valores públicos e fora do Git.
 
-## Matriz de testes
+## Matriz de testes e evidências
 
 vitest `apps/extension`; `node --test tools/vault-extension/build-local.test.mjs`; `typecheck:extension`; lint; `test:extension:web`; compilação local real com o usuário do projeto.
 
@@ -55,10 +59,10 @@ vitest `apps/extension`; `node --test tools/vault-extension/build-local.test.mjs
 
 `660b08096` + NA-0189 (PR80): vitest `apps/extension` 29 PASS; `test:extension:web` PASS.
 
-## Rollback
+## Rollback ou recuperação
 
 Revert da PR; carregar `apps/extension/dist` como antes.
 
 ## Aprovação
 
-Responsável aprovou "fim a fim" em 2026-11-23, com a saída na pasta do projeto.
+Decisão: `GO` — responsável aprovou "fim a fim" em 2026-11-23, com a saída na pasta do projeto.
