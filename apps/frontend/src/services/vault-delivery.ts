@@ -256,7 +256,13 @@ export function createVaultDelivery(deps: VaultDeliveryDependencies): VaultDeliv
       if (lockAfter) lock()
       else state.phase = 'unlocked'
       return result
-    } catch (error) { failure(error, version); return null }
+    } catch (error) {
+      // NA-0188: a proposal nobody could approve is a rule, not a broken session; keep the vault open and explain.
+      if (error instanceof VaultClientError && error.reason === 'noApprover' && version === epoch && !disposed) {
+        state.phase = 'unlocked'; state.error = 'noApprover'; return null
+      }
+      failure(error, version); return null
+    }
   }
   function administrationOverview(): Promise<VaultAdministrationOverview | null> {
     return administration('administration/overview', {}, reply => {

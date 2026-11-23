@@ -14,7 +14,7 @@ const auth = reactive({ isPlatformAdmin: true, user: { id: 1, tenantId: 7 } })
 vi.mock('@/services/user.service', () => ({ userService: mocks.users }))
 vi.mock('@/services/group.service', () => ({ groupService: mocks.groups }))
 vi.mock('@/services/platform-admin.service', () => ({ platformAdminService: mocks.platform }))
-vi.mock('@/services/vault-manager', () => ({ isVaultManager: mocks.vaultManager }))
+vi.mock('@/services/vault-manager', () => ({ vaultAdministrationStatus: mocks.vaultManager }))
 vi.mock('@/services/vault-http', () => ({ createVaultTransport: () => ({}) }))
 vi.mock('@/services/login-sessions.service', () => ({ loginSessionsService: { online: mocks.online } }))
 vi.mock('@/components/users/UserLoginSessions.vue', () => ({ default: defineComponent({ render: () => null }) }))
@@ -50,7 +50,7 @@ const user = (patch: Partial<UserPublic> = {}): UserPublic => ({ id: 2, name: 'B
 type Column = { key: string; render?: (row: UserPublic) => VNode }
 type Option = { key: string; label?: unknown }
 interface View {
-  users: UserPublic[]; vaultManager: boolean; vaultUser: UserPublic | null; sessionsUser: UserPublic | null; onlineUsers: Map<number, number>; loadOnline(): Promise<void>; error: string | null; tempPassword: string | null
+  users: UserPublic[]; vaultManager: boolean; vaultUser: UserPublic | null; vaultReview: boolean; vaultPending: number; vaultManagers: number[]; closeVault(): void; sessionsUser: UserPublic | null; onlineUsers: Map<number, number>; loadOnline(): Promise<void>; error: string | null; tempPassword: string | null
   showCreateModal: boolean; showEditModal: boolean; editingId: number | null; accessDrawerUser: UserPublic | null; accessError: string
   createForm: { password?: string }; copyGroupsFromCreateUserId: number | null; copyGroupsFromEditUserId: number | null; editForm: { groupIds: number[] }
   columns: Column[]; userActionOptions(u: UserPublic): Option[]; handleUserAction(a: string, u: UserPublic): unknown
@@ -63,7 +63,7 @@ beforeEach(() => {
   mocks.users.list.mockResolvedValue({ data: { data: [user()], total: 1 } })
   mocks.groups.list.mockResolvedValue({ data: [{ id: 3, name: 'Ops' }] })
   mocks.users.get.mockResolvedValue({ data: user({ groupIds: [3, 4] }) })
-  mocks.vaultManager.mockResolvedValue(true)
+  mocks.vaultManager.mockResolvedValue({ manager: true, pending: 0, managers: [1] })
   mocks.online.mockResolvedValue([{ userId: 2, sessions: 2, lastSeenAt: 1 }])
   for (const fn of ['create', 'update', 'activate', 'deactivate', 'delete', 'restore', 'resetMfa', 'listInventoryAccess'] as const) mocks.users[fn].mockResolvedValue({ data: [] })
   mocks.users.resetPassword.mockResolvedValue({ data: { temporaryPassword: 'temp-fixture' } })
@@ -79,7 +79,11 @@ describe('Users view (NA-0186)', () => {
     expect(keys(user({ active: false }))).not.toContain('vault')
     expect(keys(user({ deletedAt: new Date() }))).toEqual(['restore'])
     f.state.handleUserAction('vault', user()); expect(f.state.vaultUser?.id).toBe(2)
-    f.state.vaultManager = false; expect(keys(user())).not.toContain('vault')
+    // NA-0188: an admin who is not a vault manager sees the action disabled, with the reason in its label.
+    f.state.vaultManager = false; f.state.vaultUser = null
+    const option = f.state.userActionOptions(user()).find(o => o.key === 'vault') as Option & { disabled?: boolean }
+    expect(option.disabled).toBe(true); expect(option.label).toBe('admin.users.actions.vaultManagersOnly')
+    f.state.handleUserAction('vault', user()); expect(f.state.vaultUser).toBeNull()
     const danger = f.state.userActionOptions(user()).find(o => o.key === 'delete')!.label as () => VNode
     expect(danger().props?.class).toBe('user-action-danger')
     f.unmount()
@@ -156,9 +160,19 @@ describe('Users view (NA-0186)', () => {
     f.unmount()
   })
   it('keeps working when groups or the vault check fail', async () => {
-    mocks.groups.list.mockRejectedValueOnce(new Error('x')); mocks.vaultManager.mockResolvedValueOnce(false)
+    mocks.groups.list.mockRejectedValueOnce(new Error('x')); mocks.vaultManager.mockResolvedValueOnce({ manager: false, pending: 0, managers: [] })
     const f = mount<View>(UsersView); await flush()
     expect(f.state.vaultManager).toBe(false); expect(f.state.users).toHaveLength(1)
+    f.unmount()
+  })
+  it('NA-0188: an unknown vault status (no vault, HTTP, error) shows no vault action; a failed poll keeps the last state', async () => {
+    mocks.vaultManager.mockResolvedValueOnce(null)
+    const f = mount<View>(UsersView); await flush()
+    expect(f.state.userActionOptions(user()).map(o => o.key)).not.toContain('vault')
+    mocks.vaultManager.mockResolvedValueOnce({ manager: true, pending: 1, managers: [1] }); f.state.closeVault(); await flush()
+    expect(f.state.userActionOptions(user()).map(o => o.key)).toContain('vault')
+    mocks.vaultManager.mockResolvedValueOnce(null); f.state.closeVault(); await flush()
+    expect(f.state.vaultManager).toBe(true); expect(f.state.vaultPending).toBe(1)
     f.unmount()
   })
   it('NA-0187: marks online users and opens the login sessions of one user', async () => {
@@ -172,5 +186,31 @@ describe('Users view (NA-0186)', () => {
     expect(mocks.handlers.some(a => String(a.title).startsWith('admin.users.loginSessions.title'))).toBe(true)
     mocks.online.mockRejectedValueOnce(new Error('x')); await f.state.loadOnline(); expect(f.state.onlineUsers.size).toBe(0)
     f.unmount()
+  })
+  it('NA-0188: tags vault managers, announces pending vault changes and refreshes the count every minute', async () => {
+    vi.useFakeTimers()
+    try {
+      mocks.vaultManager.mockResolvedValue({ manager: true, pending: 2, managers: [1, 2] })
+      const f = mount<View>(UsersView); await flush()
+      expect(f.state.vaultPending).toBe(2); expect(f.state.vaultManagers).toEqual([1, 2])
+      const name = f.state.columns.find(c => c.key === 'name')!.render!(user())
+      expect(JSON.stringify(name.children)).toContain('user-vault-manager-2')
+      const testIds = async (): Promise<unknown[]> => { mocks.handlers.length = 0; await f.html(); return mocks.handlers.map(a => a['data-testid']) }
+      expect(await testIds()).toEqual(expect.arrayContaining(['users-vault-pending', 'users-vault-review']))
+      const review = mocks.handlers.find(a => a['data-testid'] === 'users-vault-review') as { onClick(): void }
+      review.onClick(); expect(f.state.vaultReview).toBe(true)
+      mocks.handlers.length = 0; await f.html()
+      expect(mocks.handlers.some(a => a.title === 'admin.users.vaultModal.reviewTitle')).toBe(true)
+      // No refresh while the vault window is open; closing it re-reads the status.
+      const calls = mocks.vaultManager.mock.calls.length
+      await vi.advanceTimersByTimeAsync(60_000); expect(mocks.vaultManager.mock.calls.length).toBe(calls)
+      mocks.vaultManager.mockResolvedValue({ manager: true, pending: 0, managers: [1, 2] })
+      f.state.closeVault(); await flush()
+      expect(f.state.vaultReview).toBe(false); expect(f.state.vaultPending).toBe(0)
+      await vi.advanceTimersByTimeAsync(60_000); expect(mocks.vaultManager.mock.calls.length).toBe(calls + 2)
+      expect(await testIds()).not.toContain('users-vault-pending')
+      f.unmount()
+      await vi.advanceTimersByTimeAsync(120_000); expect(mocks.vaultManager.mock.calls.length).toBe(calls + 2)
+    } finally { vi.useRealTimers() }
   })
 })

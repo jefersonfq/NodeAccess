@@ -7,6 +7,12 @@ describe('Isolated vault HTTP adapter',()=>{
     await expect(createVaultTransport(fetcher).post('operations/consume',{},identity,'client')).rejects.toMatchObject({message:reason,reason})
     expect(fetcher).toHaveBeenCalledTimes(1)
   })
+  it('NA-0188: a 409 VAULT_NO_APPROVER is its own reason; other 409 bodies stay "expired"',async()=>{
+    const reply=(body:string)=>vi.fn(()=>Promise.resolve(new Response(body,{status:409})))
+    await expect(createVaultTransport(reply(JSON.stringify({code:'VAULT_NO_APPROVER',message:'x'}))).post('administration/proposals',{},identity,'client')).rejects.toMatchObject({reason:'noApprover'})
+    for(const body of [JSON.stringify({code:'OPERATION_UNAVAILABLE'}),JSON.stringify({code:7}),'not json'])
+      await expect(createVaultTransport(reply(body)).post('administration/proposals',{},identity,'client')).rejects.toMatchObject({reason:'expired'})
+  })
   it('uses the captured bearer, no ambient cookies, no caching or redirects',async()=>{
     const fetcher=vi.fn(()=>Promise.resolve(new Response('{"state":"LOCKED"}')))
     await expect(createVaultTransport(fetcher).post('sessions/lock',{},identity,'client')).resolves.toEqual({state:'LOCKED'})

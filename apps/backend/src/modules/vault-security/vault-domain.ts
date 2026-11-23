@@ -8,7 +8,9 @@ export type VaultAuthMethod = 'local' | 'ldap' | 'oidc' | 'google'
 export interface VaultOrigin { jti: string; expiresAt: number; authMethod: VaultAuthMethod }
 export interface VaultPolicy { version: number; unlock: boolean; reveal: boolean; copy: boolean; localReauth: boolean; origin: string; tenantQuota: number
   /** NA-0186: how long an unlock proof stays valid for reveal/copy (whole minutes, 60–900 s; absent = 60 s, contract default). */
-  confirmationSeconds?: number }
+  confirmationSeconds?: number
+  /** NA-0188: how long a two-manager proposal stays open (whole minutes, 120 s–24 h; absent = 120 s). */
+  proposalSeconds?: number }
 export interface VaultAuthority {
   policy: VaultPolicy; validUntil: number; role: 'ADMIN' | 'USER'; passwordHash: string | null; mfaSecret: string; credentialVersion: string
   email: string; methods: Record<VaultAuthMethod, boolean>
@@ -33,6 +35,17 @@ export const CONFIRMATION_MAX_SECONDS = 900
 export function validConfirmationSeconds(value: unknown): value is number {
   return typeof value === 'number' && Number.isSafeInteger(value) && value >= CONFIRMATION_DEFAULT_SECONDS && value <= CONFIRMATION_MAX_SECONDS && value % 60 === 0
 }
+export const PROPOSAL_DEFAULT_SECONDS = 120
+export const PROPOSAL_MAX_SECONDS = 86_400
+export function validProposalSeconds(value: unknown): value is number {
+  return typeof value === 'number' && Number.isSafeInteger(value) && value >= PROPOSAL_DEFAULT_SECONDS && value <= PROPOSAL_MAX_SECONDS && value % 60 === 0
+}
+export function proposalWindowMs(policy: VaultPolicy): number {
+  return (policy.proposalSeconds ?? PROPOSAL_DEFAULT_SECONDS) * 1000
+}
+/** NA-0188: no manager other than the proposer and the beneficiary could approve it. Removing a manager therefore
+ * always leaves at least two (proposer + approver), so the vault never becomes unmanageable. */
+export function noApprover(): never { throw new VaultError('VAULT_NO_APPROVER', 409) }
 /** Proof window for reveal/copy; administration and extension consent always keep the 60 s default. */
 export function operationProofWindowMs(policy: VaultPolicy): number {
   return (policy.confirmationSeconds ?? CONFIRMATION_DEFAULT_SECONDS) * 1000
@@ -40,7 +53,8 @@ export function operationProofWindowMs(policy: VaultPolicy): number {
 export function assertPolicy(policy: VaultPolicy): void {
   if (policy.unlock !== true || policy.localReauth !== true || typeof policy.reveal !== 'boolean' || typeof policy.copy !== 'boolean' || !Number.isSafeInteger(policy.version) || policy.version < 1
     || !Number.isSafeInteger(policy.tenantQuota) || policy.tenantQuota < 1 || policy.tenantQuota > 300
-    || (policy.confirmationSeconds !== undefined && !validConfirmationSeconds(policy.confirmationSeconds))) denied()
+    || (policy.confirmationSeconds !== undefined && !validConfirmationSeconds(policy.confirmationSeconds))
+    || (policy.proposalSeconds !== undefined && !validProposalSeconds(policy.proposalSeconds))) denied()
   try { const u = new URL(policy.origin); if (u.protocol !== 'https:' || u.origin !== policy.origin) denied() } catch { denied() }
 }
 export function assertSession(session: VaultSession | null, client: VaultClient, authority: VaultAuthority, now: number): asserts session is VaultSession {
@@ -60,6 +74,9 @@ export type VaultChange = { kind: 'grant'; userId: number; action: VaultGrant; e
   | { kind: 'item'; secretId: number; enabled: boolean }
   | { kind: 'policy'; reveal: boolean; copy: boolean; tenantQuota: number }
   | { kind: 'confirmation'; seconds: number }
+  /** NA-0188: vault manager added/removed by two other managers. */
+  | { kind: 'manager'; userId: number; enabled: boolean }
+  | { kind: 'proposalWindow'; seconds: number }
 
 /** Same authenticated context at authorization and release; deadline is immutable. */
 export interface VaultEnvelopeContext {

@@ -23,7 +23,7 @@ function fixture() {
   const sealer = { validate: vi.fn(() => Promise.resolve('key-thumbprint')), seal: vi.fn<EnvelopeSealer['seal']>(() => Promise.resolve('ciphertext-envelope')) }
   const verifier = { bind: vi.fn(() => Promise.resolve({ jti: 'origin', expiresAt: 2_000_000, authMethod: originMethod })), assert: vi.fn(() => { if (!originActive) throw new VaultError('VAULT_ORIGIN_REVOKED',423); return Promise.resolve() }) }
   const propose = vi.fn(() => Promise.resolve()), approve = vi.fn(() => Promise.resolve({ change: { kind: 'item' as const, secretId: 4, enabled: true }, proposedBy: 9 }))
-  const administration = { isManager: vi.fn(() => Promise.resolve(true)), overview: vi.fn(() => Promise.resolve({ users: [], proposals: [], serverNow: time })) }
+  const administration = { isManager: vi.fn(() => Promise.resolve(true)), summary: vi.fn(() => Promise.resolve({ manager: true, pending: 2, managers: [1, 9] })), overview: vi.fn(() => Promise.resolve({ users: [], proposals: [], serverNow: time })) }
   let withAdministration = true
   let tail = Promise.resolve()
   const store: VaultStore = { transaction: async <T>(_i: VaultIdentity, run: (tx: VaultTransaction) => Promise<T>): Promise<T> => {
@@ -240,10 +240,10 @@ describe('vault lifecycle and release boundaries', () => {
   })
   it('NA-0183: manager status needs only the exact origin; overview and approval by reference need the confirmed session',async()=>{
     const f=fixture(),{c,s}=await f.setup(),admin=new VaultAdministrationService(f.service,entropy),reference='b'.repeat(64)
-    await expect(admin.status(identity,origin)).resolves.toEqual({manager:true})
+    await expect(admin.status(identity,origin)).resolves.toEqual({manager:true,pending:2,managers:[1,9]})
     await expect(admin.status(identity,'https://other.test')).rejects.toMatchObject({status:403})
-    f.administration.isManager.mockResolvedValueOnce(false)
-    await expect(admin.status(identity,origin)).resolves.toEqual({manager:false})
+    f.administration.summary.mockResolvedValueOnce({manager:false,pending:0,managers:[]})
+    await expect(admin.status(identity,origin)).resolves.toEqual({manager:false,pending:0,managers:[]})
     await expect(admin.overview(identity,c.clientId,origin,s.sessionId)).resolves.toMatchObject({users:[],proposals:[]})
     await expect(admin.approveReference(identity,c.clientId,origin,s.sessionId,reference)).resolves.toEqual({state:'APPLIED'})
     expect(f.approve).toHaveBeenLastCalledWith(reference,true)
@@ -256,7 +256,7 @@ describe('vault lifecycle and release boundaries', () => {
   it('NA-0183: without the administration reads the overview is unavailable and status is false',async()=>{
     const f=fixture(),{c,s}=await f.setup(),admin=new VaultAdministrationService(f.service,entropy)
     f.withoutAdministration()
-    await expect(admin.status(identity,origin)).resolves.toEqual({manager:false})
+    await expect(admin.status(identity,origin)).resolves.toEqual({manager:false,pending:0,managers:[]})
     await expect(admin.overview(identity,c.clientId,origin,s.sessionId)).rejects.toMatchObject({status:409})
   })
   it('NA-0183: status is rate limited per user',async()=>{
@@ -266,7 +266,7 @@ describe('vault lifecycle and release boundaries', () => {
   })
 })
 describe('policy fails closed',()=>{
-  it.each([{unlock:'false'},{localReauth:1},{reveal:'true'},{copy:undefined},{version:0},{tenantQuota:0},{tenantQuota:301},{confirmationSeconds:59},{confirmationSeconds:901},{confirmationSeconds:120.5},{confirmationSeconds:90},{confirmationSeconds:'300'},{origin:'http://vault.test'},{origin:'https://vault.test/path'},{origin:'invalid'}])('rejects malformed policy %j', patch=>{
+  it.each([{unlock:'false'},{localReauth:1},{reveal:'true'},{copy:undefined},{version:0},{tenantQuota:0},{tenantQuota:301},{confirmationSeconds:59},{confirmationSeconds:901},{confirmationSeconds:120.5},{confirmationSeconds:90},{confirmationSeconds:'300'},{proposalSeconds:60},{proposalSeconds:86460},{proposalSeconds:150},{proposalSeconds:'600'},{origin:'http://vault.test'},{origin:'https://vault.test/path'},{origin:'invalid'}])('rejects malformed policy %j', patch=>{
     const p=fixture().authority.policy;expect(()=>assertPolicy({...p,...patch} as typeof p)).toThrow(VaultError)
   })
 })

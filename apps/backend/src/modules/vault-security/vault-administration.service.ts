@@ -1,12 +1,12 @@
 import type { VaultService } from './vault.service.js'
-import { CONFIRMATION_DEFAULT_SECONDS, unavailable, type VaultChange, type VaultIdentity } from './vault-domain.js'
-import type { VaultAdministrationView, VaultEntropy } from './vault-ports.js'
+import { CONFIRMATION_DEFAULT_SECONDS, PROPOSAL_DEFAULT_SECONDS, unavailable, type VaultChange, type VaultIdentity } from './vault-domain.js'
+import type { VaultAdministrationSummary, VaultAdministrationView, VaultEntropy } from './vault-ports.js'
 export class VaultAdministrationService {
   constructor(private readonly vault: VaultService, private readonly entropy: VaultEntropy) {}
   async propose(i: VaultIdentity, c: string, o: string, s: string, change: VaultChange): Promise<{ proposalId: string }> {
     return this.vault.administer(i,c,o,s, async tx => {
       const proposalId = this.entropy.token()
-      await tx.propose(proposalId, change)
+      await tx.propose(proposalId, change, tx.authority.policy.proposalSeconds ?? PROPOSAL_DEFAULT_SECONDS)
       await tx.audit({ type: 'POLICY_CHANGE_PROPOSED', policyVersion: tx.authority.policy.version, operationId: proposalId, change })
       return { proposalId }
     })
@@ -26,16 +26,18 @@ export class VaultAdministrationService {
       return { state: 'APPLIED' }
     })
   }
-  /** Whether the signed-in user manages this tenant's vault; no vault session needed (decides whether the portal shows the screen). */
-  async status(i: VaultIdentity, o: string): Promise<{ manager: boolean }> {
-    return this.vault.inspect(i, o, 'administration-status', async tx => ({ manager: (await tx.administration?.isManager()) === true }))
+  /** Whether the signed-in user manages this tenant's vault; no vault session needed (decides whether the portal shows the screen).
+   * NA-0188: managers also get how many proposals await their approval and who the managers are. */
+  async status(i: VaultIdentity, o: string): Promise<VaultAdministrationSummary> {
+    return this.vault.inspect(i, o, 'administration-status', async tx => (await tx.administration?.summary()) ?? { manager: false, pending: 0, managers: [] })
   }
   /** Users, grants and live proposals; same confirmed session as any administrative change. */
   async overview(i: VaultIdentity, c: string, o: string, s: string): Promise<VaultAdministrationView> {
     return this.vault.confirmed(i,c,o,s, 'administration-overview', async tx => {
       if (!tx.administration) unavailable()
       const overview = await tx.administration.overview()
-      return { ...overview, policy: { confirmationSeconds: tx.authority.policy.confirmationSeconds ?? CONFIRMATION_DEFAULT_SECONDS } }
+      return { ...overview, policy: { confirmationSeconds: tx.authority.policy.confirmationSeconds ?? CONFIRMATION_DEFAULT_SECONDS,
+        proposalSeconds: tx.authority.policy.proposalSeconds ?? PROPOSAL_DEFAULT_SECONDS } }
     })
   }
 }

@@ -51,3 +51,7 @@ Branch refeita sobre o commit `062034059` da NA-0186 (teste novo do `UsersView.v
 ### 2026-11-23T03:20:00-03:00 — PR78 e revisão do controle de identidade
 
 PR78 aberta. A CI reprovou `build`, `manual`, `csp-browser`, `upgrade-restore` e `sonar-real` pela mesma causa: o catálogo da Central de Segurança (`docs/security/controls-catalog.json`, controle `identity`) revisa `auth.service.ts`, `current-session.ts` e `guards.ts`, que mudaram. Revisão editorial refeita: escopo descreve a conferência do `sid` e a desconexão de uma sessão; testes mapeados incluem `current-session.test.ts` e `auth.service.login-sessions.test.ts`; texto público inalterado (não promete recurso novo ao usuário final). Ran: `node --test tools/security-center/` 7 PASS; carregamento do catálogo PASS; `vite build` do portal PASS.
+
+### 2026-11-23T07:35:00-03:00 — Merge e encerramento
+
+PR78 mergeada em `master` (`518e88aa5`, 2026-11-23) com os 12 checks remotos verdes (após a revisão do controle `identity` do catálogo da Central de Segurança). `master` local sincronizado. Status `closed`. Seguem: homologação pelo responsável (roteiro em Pendências) e `validate:sonar` local (tokens do responsável). Encerramento registrado na branch da NA-0188.
