@@ -73,9 +73,21 @@ try {
     && !manifest.content_scripts && !manifest.externally_connectable && !manifest.web_accessible_resources)
 
   const popup = await context.newPage()
+  await popup.setViewportSize({ width: 360, height: 600 })
+  // NA-0189: light/dark screenshots of each popup state for visual review, and no horizontal overflow at the popup width.
+  const layout = []
+  const shots = async state => {
+    for (const colorScheme of ['light', 'dark']) {
+      await popup.emulateMedia({ colorScheme })
+      await popup.getByTestId('vaultnaccess-popup').screenshot({ path: join(OUT, `popup-${state}-${colorScheme}.png`) })
+    }
+    await popup.emulateMedia({ colorScheme: null })
+    layout.push(await popup.evaluate(() => document.documentElement.scrollWidth <= innerWidth))
+  }
   await popup.goto(`chrome-extension://${id}/popup.html`)
   await popup.getByTestId('vaultnaccess-connect').waitFor({ timeout: 10_000 })
   check('popup-disconnected', true)
+  await shots('disconnected')
   await popup.getByTestId('vaultnaccess-connect').click()
   await popup.getByTestId('vaultnaccess-results').getByText('smoke-item').waitFor({ timeout: 20_000 })
   check('connect-and-search', seen.token === 2 && seen.items >= 1, JSON.stringify({ token: seen.token, items: seen.items }))
@@ -98,6 +110,8 @@ try {
   check('open-in-portal', tab.url() === `${PORTAL}/vault?kind=secret&id=3`, tab.url())
   const recents = await popup.evaluate(async () => (await chrome.storage.session.get('recents')).recents)
   check('recents-are-ids', JSON.stringify(recents) === '["secret:3"]', JSON.stringify(recents))
+  await shots('connected')
+  check('popup-layout-fits', layout.every(Boolean), JSON.stringify(layout))
   await popup.getByText(/Desconectar|Disconnect/).click()
   await popup.getByTestId('vaultnaccess-connect').waitFor({ timeout: 10_000 })
   const after = await popup.evaluate(async () => chrome.storage.session.get(null))

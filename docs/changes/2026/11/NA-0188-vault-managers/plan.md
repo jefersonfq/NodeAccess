@@ -2,7 +2,7 @@
 change_id: NA-0188
 title: Gestores do cofre pela guia Usuários, validade de propostas por tenant e avisos de pendência
 type: security
-status: ready-for-review
+status: closed
 created_at: 2026-11-23T07:30:00-03:00
 base_branch: master
 base_sha: 518e88aa5a88a9a029299b2470707fb694b02642
