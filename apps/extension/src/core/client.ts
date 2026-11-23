@@ -25,6 +25,8 @@ export interface ExtensionClient {
   portalUrl(path: string): string
   /** Short device fingerprint, identical to the one the consent page shows. */
   fingerprint(): Promise<string>
+  /** NA-0192: portal language from the last connection, when known. */
+  locale(): Promise<'pt-BR' | 'en' | null>
 }
 /** Connection, DPoP-signed calls and metadata search. Holds the authorization only in the session store. */
 export function createExtensionClient(deps: Deps): ExtensionClient {
@@ -121,6 +123,9 @@ export function createExtensionClient(deps: Deps): ExtensionClient {
       const ttl = Math.min(reply.data.expiresAt - reply.data.serverNow, 1_800_000) - 5_000
       if (ttl <= 0) throw new ExtensionError('expired')
       await deps.session.set({ accessToken: reply.data.accessToken, portalOrigin: deps.info.portalOrigin, expiresAt: started + ttl })
+      // NA-0192: the consent page tells which language the portal was using; only the two known codes are kept.
+      const lang = returned.searchParams.get('lang')
+      if (lang === 'pt-BR' || lang === 'en') await deps.session.setLocale(lang)
     },
     async connected(): Promise<boolean> {
       try { await authorization(); return true } catch { return false }
@@ -156,6 +161,10 @@ export function createExtensionClient(deps: Deps): ExtensionClient {
     },
     recents(): Promise<string[]> { return deps.session.recents() },
     /** Portal URL for an item; only server-validated relative paths on the configured origin. */
+    async locale(): Promise<'pt-BR' | 'en' | null> {
+      const value = await deps.session.locale().catch(() => null)
+      return value === 'pt-BR' || value === 'en' ? value : null
+    },
     portalUrl(path: string): string {
       const url = new URL(path, deps.info.portalOrigin)
       if (url.origin !== deps.info.portalOrigin || !/^\/vault\?kind=(secret|pem)&id=\d{1,9}$/.test(`${url.pathname}${url.search}`)) throw new ExtensionError('invalid')

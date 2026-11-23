@@ -15,7 +15,7 @@ import type { VaultPortalIdentity } from '@/services/vault-http'
 import { useVaultProviderStepUp } from '@/composables/useVaultProviderStepUp'
 import { extensionConsentRequest, extensionReturnUrl, fingerprint } from '@/services/vault-extension-consent'
 
-const { t } = useI18n(), auth = useAuthStore(), route = useRoute()
+const { t, locale } = useI18n(), auth = useAuthStore(), route = useRoute()
 const secure = computed(() => globalThis.isSecureContext === true && typeof window !== 'undefined' && window.location?.protocol === 'https:')
 function identity(): VaultPortalIdentity | null {
   const u = auth.user
@@ -33,7 +33,9 @@ let ticker: ReturnType<typeof setInterval> | undefined
 function leave(params: Record<string, string>): void {
   if (!request.value) return
   done.value = true
-  window.location.replace(extensionReturnUrl(request.value.redirectUri, { ...params, state: request.value.state }))
+  // NA-0192: the extension follows the portal language (only the code; nothing about the user).
+  const lang = String(locale.value).toLowerCase().startsWith('pt') ? 'pt-BR' : 'en'
+  window.location.replace(extensionReturnUrl(request.value.redirectUri, { ...params, state: request.value.state, lang }))
 }
 function deny(): void { password.value = ''; token.value = ''; delivery.lock(); leave({ error: 'access_denied' }) }
 async function finish(): Promise<void> {

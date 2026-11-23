@@ -2,7 +2,7 @@
 change_id: NA-0190
 title: Extensão VaultNAccess — compilação local ao subir o ambiente, aviso de atualização e validação de comunicação
 type: feature
-status: ready-for-review
+status: closed
 created_at: 2026-11-23T10:00:00-03:00
 base_branch: master
 base_sha: 740d58273bd7e01aa34a284a08842817d1fc7cc5

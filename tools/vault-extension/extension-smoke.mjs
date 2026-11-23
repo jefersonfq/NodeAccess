@@ -44,7 +44,7 @@ try {
       if (url.pathname === '/vaultnaccess-build.json') return send(200, JSON.stringify({ buildId: seen.announced }))
       if (url.pathname === '/vault/extension/connect') {
         seen.consentQuery = Object.fromEntries(url.searchParams)
-        const back = `${url.searchParams.get('redirectUri')}?code=${code}&state=${url.searchParams.get('state')}`
+        const back = `${url.searchParams.get('redirectUri')}?code=${code}&state=${url.searchParams.get('state')}&lang=pt-BR`
         return send(302, '', { Location: back }, 'text/plain')
       }
       // Same rule as the backend: Origin is mandatory on POST, optional on GET (Chromium omits it there).
@@ -60,7 +60,10 @@ try {
       if (url.pathname.endsWith('/extension/items')) {
         seen.items++
         if (headers.authorization !== `DPoP ${access}`) return send(401, '{}')
-        return send(200, JSON.stringify({ items: [{ kind: 'secret', sourceId: 3, label: 'smoke-item', description: null, scope: 'shared', portalPath: '/vault?kind=secret&id=3' }], nextCursor: null }))
+        const all = [{ kind: 'secret', sourceId: 3, label: 'smoke-item', description: null, scope: 'shared', portalPath: '/vault?kind=secret&id=3' },
+          { kind: 'pem', sourceId: 5, label: 'zeta-key', description: null, scope: 'personal', portalPath: '/vault?kind=pem&id=5' }]
+        const q = (url.searchParams.get('q') ?? '').toLowerCase()
+        return send(200, JSON.stringify({ items: all.filter(i => i.label.includes(q)), nextCursor: null }))
       }
       return send(200, '<title>portal</title>', {}, 'text/html')
     })
@@ -76,6 +79,7 @@ try {
   const manifest = JSON.parse(readFileSync(join(dist, 'manifest.json'), 'utf8'))
   check('manifest-permissions', JSON.stringify(manifest.permissions) === '["identity","storage"]' && JSON.stringify(manifest.host_permissions) === `["${PORTAL}/*"]`
     && !manifest.content_scripts && !manifest.externally_connectable && !manifest.web_accessible_resources)
+  check('shortcut-alt-shift-v', manifest.commands?._execute_action?.suggested_key?.default === 'Alt+Shift+V', JSON.stringify(manifest.commands))
 
   const popup = await context.newPage()
   await popup.setViewportSize({ width: 360, height: 600 })
@@ -111,12 +115,28 @@ try {
     key: await new Promise(done => { const r = indexedDB.open('vaultnaccess'); r.onsuccess = () => { const g = r.result.transaction('device').objectStore('device').get('current'); g.onsuccess = () => done({ extractable: g.result?.privateKey?.extractable, hasD: 'd' in (g.result?.publicJwk ?? {}) }) } }),
   }))
   check('no-local-or-sync-storage', Object.keys(storage.local).length === 0 && Object.keys(storage.sync).length === 0, JSON.stringify({ local: Object.keys(storage.local), sync: Object.keys(storage.sync) }))
-  check('session-holds-only-authorization', JSON.stringify(Object.keys(storage.session).sort((a, b) => a.localeCompare(b))) === '["authorization"]' && storage.session.authorization.accessToken === access)
+  // NA-0192: besides the authorization, only the portal language code.
+  check('session-holds-only-authorization', JSON.stringify(Object.keys(storage.session).sort((a, b) => a.localeCompare(b))) === '["authorization","locale"]'
+    && storage.session.authorization.accessToken === access && storage.session.locale === 'pt-BR')
+  check('portal-language-after-connect', await popup.getByText('Conectado', { exact: false }).count() > 0)
   check('device-key-non-extractable', storage.key.extractable === false && storage.key.hasD === false, JSON.stringify(storage.key))
   check('no-token-in-urls', !seen.urls.some(u => u.includes(access)) && !seen.urls.some(u => u.includes('code=') && !u.startsWith('/vault/extension/connect')))
 
+  // NA-0192: search while typing (no Enter), then keyboard: "/" focuses the search, ↓ selects, Enter opens.
+  const typedBefore = seen.items
+  await popup.getByTestId('vaultnaccess-search').fill('zeta')
+  await popup.getByTestId('vaultnaccess-results').getByText('zeta-key').waitFor({ timeout: 5_000 })
+  await popup.getByTestId('vaultnaccess-results').getByText('smoke-item').waitFor({ state: 'detached', timeout: 5_000 })
+  check('search-while-typing', seen.items > typedBefore && seen.urls.some(u => u.includes('q=zeta')))
+  await popup.keyboard.press('Escape')
+  await popup.getByTestId('vaultnaccess-results').getByText('smoke-item').waitFor({ timeout: 5_000 })
+  await popup.locator('body').click({ position: { x: 5, y: 5 } })
+  await popup.keyboard.press('/')
+  check('slash-focuses-search', await popup.evaluate(() => document.activeElement?.getAttribute('data-testid') === 'vaultnaccess-search'))
+  await popup.keyboard.press('ArrowDown')
+  check('arrow-selects-first-result', await popup.evaluate(() => document.activeElement?.textContent?.includes('smoke-item') === true))
   const opened = context.waitForEvent('page')
-  await popup.getByText('smoke-item').click()
+  await popup.keyboard.press('Enter')
   const tab = await opened
   check('open-in-portal', tab.url() === `${PORTAL}/vault?kind=secret&id=3`, tab.url())
   const recents = await popup.evaluate(async () => (await chrome.storage.session.get('recents')).recents)

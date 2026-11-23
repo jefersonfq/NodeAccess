@@ -13,7 +13,7 @@ export const chromiumAuthFlow: AuthFlow = {
     return result
   },
 }
-const AUTH = 'authorization', RECENTS = 'recents', FAILURE = 'connectFailure'
+const AUTH = 'authorization', RECENTS = 'recents', FAILURE = 'connectFailure', LOCALE = 'locale'
 const FAILURES: readonly string[] = ['denied', 'cancelled', 'expired', 'upgrade', 'unavailable', 'invalid', 'offline']
 export const chromiumSession: SessionStore = {
   async get(): Promise<Authorization | null> {
@@ -22,12 +22,17 @@ export const chromiumSession: SessionStore = {
       ? { accessToken: value.accessToken, portalOrigin: value.portalOrigin, expiresAt: value.expiresAt } : null
   },
   set: (value: Authorization): Promise<void> => chrome.storage.session.set({ [AUTH]: value }),
-  clear: (): Promise<void> => chrome.storage.session.remove([AUTH, RECENTS, FAILURE]),
+  clear: (): Promise<void> => chrome.storage.session.remove([AUTH, RECENTS, FAILURE, LOCALE]),
   async recents(): Promise<string[]> {
     const value = (await chrome.storage.session.get(RECENTS))[RECENTS]
     return Array.isArray(value) ? value.filter((k): k is string => typeof k === 'string') : []
   },
   setRecents: (keys: string[]): Promise<void> => chrome.storage.session.set({ [RECENTS]: keys }),
+  async locale(): Promise<string | null> {
+    const value = (await chrome.storage.session.get(LOCALE))[LOCALE]
+    return typeof value === 'string' ? value : null
+  },
+  setLocale: (locale: string): Promise<void> => chrome.storage.session.set({ [LOCALE]: locale }),
 }
 /**
  * NA-0190: why the last connection failed, kept briefly for a popup that closed while the service worker tried

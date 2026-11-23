@@ -96,7 +96,9 @@ A extensão VaultNAccess para Chrome e Edge busca, pelo navegador, os nomes e ti
 1. Na extensão, selecione **Conectar ao NodeAccess**. O navegador abre a página **Conectar a extensão VaultNAccess** do portal; se pedido, entre no portal primeiro.
 2. Confira a extensão, o dispositivo e a conta exibidos. O código do dispositivo precisa ser igual ao que a extensão mostra enquanto aguarda a confirmação. Prossiga somente se foi você quem iniciou a conexão e os códigos coincidem; caso contrário, selecione **Negar**.
 3. Confirme sua identidade como no cofre (senha e código do autenticador, ou **Confirmar no provedor e permitir**). A janela volta sozinha para a extensão.
-4. Na extensão, busque pelo nome, filtre por tipo e selecione um item para abri-lo no portal. O portal mostra só esse item; use **Mostrar todos** para voltar à lista completa.
+4. Na extensão, digite parte do nome (a busca acontece enquanto você digita), filtre por tipo e selecione um item para abri-lo no portal. O portal mostra só esse item; use **Mostrar todos** para voltar à lista completa.
+
+Atalhos: **Alt+Shift+V** abre a extensão (troque em `chrome://extensions/shortcuts` se conflitar); **/** vai para a busca; **↑/↓** escolhem um item e **Enter** abre; **Esc** limpa a busca. A extensão usa o idioma do portal no momento da conexão (antes de conectar, o do navegador).
 
 A conexão vale por até 30 minutos, sem renovação automática, e termina antes se você sair do portal (logout), se a permissão for retirada, se o dispositivo for revogado ou se os gestores mudarem a política do cofre. Fechar o navegador também apaga a conexão. Depois disso, conecte de novo. **Negar** devolve a extensão sem conexão.
 

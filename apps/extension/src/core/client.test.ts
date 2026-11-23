@@ -12,12 +12,13 @@ const API = `${PORTAL}/api/v1/vault-security/extension`
 const opaque = (): string => randomBytes(32).toString('base64url')
 
 function stores() {
-  let key: DeviceKey | null = null, auth: Authorization | null = null, recents: string[] = []
+  let key: DeviceKey | null = null, auth: Authorization | null = null, recents: string[] = [], locale: string | null = null
   return {
     keys: { load: () => Promise.resolve(key), save: (k: DeviceKey) => { key = k; return Promise.resolve() } },
     session: { get: () => Promise.resolve(auth), set: (a: Authorization) => { auth = a; return Promise.resolve() }, clear: () => { auth = null; recents = []; return Promise.resolve() },
-      recents: () => Promise.resolve(recents), setRecents: (r: string[]) => { recents = r; return Promise.resolve() } },
-    peek: () => ({ key, auth, recents }),
+      recents: () => Promise.resolve(recents), setRecents: (r: string[]) => { recents = r; return Promise.resolve() },
+      locale: () => Promise.resolve(locale), setLocale: (l: string) => { locale = l; return Promise.resolve() } },
+    peek: () => ({ key, auth, recents, locale }),
   }
 }
 /** Fake portal backed by the real backend DPoP verifier and PKCE check. */
@@ -115,6 +116,16 @@ describe('NA-0183 extension client', () => {
     await expect(c.connect()).rejects.toMatchObject({ reason: 'cancelled' })
     p.flow.launch.mockRejectedValueOnce('closed')
     await expect(c.connect()).rejects.toMatchObject({ reason: 'cancelled' })
+  })
+  it('NA-0192: keeps the portal language returned with the code, only pt-BR or en', async () => {
+    for (const [lang, expected] of [['en', 'en'], ['pt-BR', 'pt-BR'], ['fr', null], ['', null]] as const) {
+      const p = portal(), base = p.flow.launch.getMockImplementation()!
+      p.flow.launch.mockImplementation(async (url: string) => `${await base(url)}${lang ? `&lang=${lang}` : ''}`)
+      const { c, s } = client(p)
+      expect(await c.locale()).toBeNull()
+      await c.connect()
+      expect(await c.locale()).toBe(expected); expect(s.peek().locale).toBe(expected)
+    }
   })
   it('reuses one device key across connections', async () => {
     const s = stores()
