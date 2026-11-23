@@ -47,3 +47,7 @@ Skipped: `validate:sonar` (Node 24 e tokens do responsável).
 ### 2026-11-23T01:40:00-03:00 — Alinhamento com a NA-0186 e cobertura
 
 Branch refeita sobre o commit `062034059` da NA-0186 (teste novo do `UsersView.vue`, pedido pela cobertura do `sonar-real` na PR77); o teste ganhou o caso da NA-0187 (etiqueta Online, ação e janela de sessões, falha ao carregar online). Cobertura local do código novo (linhas + condições alteradas desde `062034059`): 304/349 = 87,1%. Ran: vitest `auth`, `users`, `shared`, componentes, serviços, views e utils do portal 1318 PASS; eslint do teste 0 problemas.
+
+### 2026-11-23T03:20:00-03:00 — PR78 e revisão do controle de identidade
+
+PR78 aberta. A CI reprovou `build`, `manual`, `csp-browser`, `upgrade-restore` e `sonar-real` pela mesma causa: o catálogo da Central de Segurança (`docs/security/controls-catalog.json`, controle `identity`) revisa `auth.service.ts`, `current-session.ts` e `guards.ts`, que mudaram. Revisão editorial refeita: escopo descreve a conferência do `sid` e a desconexão de uma sessão; testes mapeados incluem `current-session.test.ts` e `auth.service.login-sessions.test.ts`; texto público inalterado (não promete recurso novo ao usuário final). Ran: `node --test tools/security-center/` 7 PASS; carregamento do catálogo PASS; `vite build` do portal PASS.

@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "revision": "2026-11-16-na0178",
-  "reviewedAt": "2026-11-16",
+  "revision": "2026-11-23-na0187",
+  "reviewedAt": "2026-11-23",
   "internalClassification": "Repositório interno: evidência de implementação, não atestado operacional.",
   "controls": [
     {
@@ -9,28 +9,30 @@
       "state": "verified",
       "category": "Login e verificação de identidade",
       "owner": "Revisão de conteúdo em PR",
-      "internalDescription": "Revalidação NA-0178: afirmações de login/MFA e validação corrente preservadas; logout não oculta erro Redis. Não afirma métodos externos adicionais nem ativa VaultNAccess.",
+      "internalDescription": "Revalidação NA-0187: afirmações de login/MFA e validação corrente preservadas; sessão de login (sid) conferida em cada requisição; logout não oculta erro Redis. Não afirma métodos externos adicionais.",
       "restrictions": [
         "Os métodos disponíveis variam conforme a política da organização e o fluxo de acesso. Esta página não verifica a configuração atual da sua conta."
       ],
       "review": {
         "method": "source-review",
-        "reviewedAt": "2026-11-16",
-        "sourceRevision": "bf122f141029244b0687f549353d79b4dcbaa506",
+        "reviewedAt": "2026-11-23",
+        "sourceRevision": "abdcc1b5e1eff9c11b0f39f6a238494cdb76d89e",
         "sourceFiles": [
           "apps/backend/src/modules/auth/auth.service.ts",
           "apps/backend/src/modules/auth/auth-policy.ts",
           "apps/backend/src/modules/auth/current-session.ts",
           "apps/backend/src/shared/guards.ts"
         ],
-        "sourceHash": "262368c4cee06e44b67aebea5f3ac150367a11888dd554c1a468c4f1d1575312",
+        "sourceHash": "cc5b62f67155e61e8d25f9e09b212c7e1f97f48d9d370ac4221d16e4deccbd99",
         "testFiles": [
           "apps/backend/src/modules/auth/auth.service.temp-token.test.ts",
           "apps/backend/src/modules/auth/auth-policy.test.ts",
-          "apps/backend/src/modules/auth/auth.service.refresh.test.ts"
+          "apps/backend/src/modules/auth/auth.service.refresh.test.ts",
+          "apps/backend/src/modules/auth/current-session.test.ts",
+          "apps/backend/src/modules/auth/auth.service.login-sessions.test.ts"
         ],
         "testsExecuted": false,
-        "scope": "Revalidação editorial NA-0178: somente logout mudou para não confirmar revogação se Redis.del falhar. Login/MFA, guards, estado atual e logout-all preservados. Base em sourceRevision; hash identifica candidato. Revisão independente PASS; testes e SHA final registrados separadamente, sem alegação de Vault ativado."
+        "scope": "Revalidação editorial NA-0187: o access token passa a levar o identificador da sessão de login (sid) e cada requisição confere que a sessão continua ativa, o que permite ao administrador desconectar uma sessão específica; login/MFA, guards, estado atual, logout e logout-all preservados. Base em sourceRevision; hash identifica candidato. Revisão independente PASS_WITH_WARNINGS; testes e SHA final registrados separadamente."
       },
       "public": {
         "title": "Login e verificação de identidade",
