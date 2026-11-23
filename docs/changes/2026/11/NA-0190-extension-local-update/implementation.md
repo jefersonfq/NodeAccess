@@ -12,7 +12,7 @@ Ver `plan.md` (escopo). `apps/extension/local.json` criado na máquina do respon
 
 ## Validação
 
-- Ran: vitest `apps/extension` 32 PASS; `node --test tools/vault-extension/build-local.test.mjs` 3 PASS; `typecheck:extension` PASS; eslint `apps/extension/src` 0 problemas; `test:extension:web` 15 checks PASS (inclui sem aviso para a mesma compilação, aviso e recarga para outra; capturas revisadas); `npm run build:extension:local` com o usuário do projeto: compilou em `dist-local` com a mesma chave/ID e a segunda execução não recompilou.
+- Ran: vitest `apps/extension` 36 PASS; `node --test tools/vault-extension/build-local.test.mjs` 3 PASS; `typecheck:extension` PASS; eslint `apps/extension/src` 0 problemas; `test:extension:web` 16 checks PASS (inclui portal fora do ar, sem aviso para a mesma compilação, aviso e recarga para outra; capturas revisadas); `npm run build:extension:local` com o usuário do projeto: compilou em `dist-local` com a mesma chave/ID e a segunda execução não recompilou.
 - Skipped: `validate:sonar` local (tokens do responsável).
 
 ## Recuperação
@@ -29,3 +29,7 @@ Revert da PR; carregar `apps/extension/dist`.
 ### 2026-11-23T10:15:00-03:00 — Implementação
 
 Implementação e validação acima.
+
+### 2026-11-23T10:40:00-03:00 — Validação de comunicação
+
+Pedido do responsável: com o NodeAccess fora do ar, **Conectar** mostrava o código de relance e voltava sem explicação (a falha da janela de autorização virava "cancelada" e se perdia quando o popup fechava). Agora: teste de comunicação antes da autorização, motivo `offline` com mensagem própria, falha de carregamento da página de autorização tratada como `offline` e motivo guardado brevemente para o popup. Ran: vitest `apps/extension` 36 PASS; `typecheck:extension` PASS; eslint 0 problemas; `test:extension:web` 16 checks PASS (portal derrubado mostra a mensagem, sem abrir a autorização; captura revisada).

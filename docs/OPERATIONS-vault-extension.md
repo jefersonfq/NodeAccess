@@ -38,6 +38,7 @@ VAULTNACCESS_PORTAL_ORIGIN=https://<portal> [VAULTNACCESS_VERSION=0.1.0] [VAULTN
 - `npm run dev` compila a extensão em `apps/extension/dist-local` (separada da `dist` dos testes) antes de subir o ambiente; `npm run build:extension:local` faz o mesmo sob demanda. Sem origem configurada, não faz nada; uma falha não impede o ambiente de subir.
 - O identificador da compilação vem do código da extensão e da configuração: sem mudança no código, não recompila nem pede atualização. Ele aparece em `chrome://extensions` como `version_name`.
 - Carregue `apps/extension/dist-local` sem compactação uma única vez (no Windows com WSL: `\\wsl.localhost\<distribuição>\…\apps\extension\dist-local`). Depois, quando o portal de desenvolvimento anunciar outra compilação (`/vaultnaccess-build.json`), o popup mostra **Nova versão da extensão disponível** com **Atualizar**, que recarrega a extensão a partir da pasta.
+- Se o portal não responder, **Conectar ao NodeAccess** mostra "Não foi possível conectar ao NodeAccess" sem abrir a janela de autorização; confira se o ambiente está no ar e a origem configurada.
 - Mantenha a mesma chave pública para o ID não mudar (o ID precisa estar em `VAULT_EXTENSION_IDS`). Compilações de teste e de produção não têm identificador e nunca consultam o portal para isso; a atualização automática em produção é a fatia E6 (pacote assinado e `update_url`).
 
 ## Conceder e revogar a permissão

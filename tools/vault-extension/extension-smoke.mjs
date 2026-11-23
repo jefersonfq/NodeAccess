@@ -31,6 +31,8 @@ try {
   execFileSync(resolveExecutable('openssl'), ['req', '-x509', '-newkey', 'ec', '-pkeyopt', 'ec_paramgen_curve:P-256', '-nodes', '-days', '1', '-subj', '/CN=vault.example.test',
     '-addext', 'subjectAltName=DNS:vault.example.test', '-keyout', join(profile, 'key.pem'), '-out', join(profile, 'cert.pem')], { stdio: 'ignore' })
   server = createServer({ key: readFileSync(join(profile, 'key.pem')), cert: readFileSync(join(profile, 'cert.pem')) }, (req, res) => {
+    // NA-0190: portal down — the connection is dropped without any HTTP answer.
+    if (seen.offline) { req.socket.destroy(); return }
     let raw = ''
     req.on('data', chunk => { raw += chunk })
     req.on('end', () => {
@@ -91,6 +93,12 @@ try {
   await popup.getByTestId('vaultnaccess-connect').waitFor({ timeout: 10_000 })
   check('popup-disconnected', true)
   await shots('disconnected')
+  seen.offline = true
+  await popup.getByTestId('vaultnaccess-connect').click()
+  await popup.getByTestId('vaultnaccess-error').filter({ hasText: /Não foi possível conectar ao NodeAccess|Could not reach NodeAccess/ }).waitFor({ timeout: 15_000 })
+  await shots('offline')
+  check('offline-portal-explained', await popup.getByTestId('vaultnaccess-connect').isEnabled())
+  seen.offline = false
   await popup.getByTestId('vaultnaccess-connect').click()
   await popup.getByTestId('vaultnaccess-results').getByText('smoke-item').waitFor({ timeout: 20_000 })
   check('connect-and-search', seen.token === 2 && seen.items >= 1, JSON.stringify({ token: seen.token, items: seen.items }))

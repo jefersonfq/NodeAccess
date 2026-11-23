@@ -16,7 +16,7 @@ const pt: Messages = {
   errors: {
     denied: 'Sem permissão para usar a extensão. Fale com os gestores do cofre.', cancelled: 'Conexão cancelada.',
     expired: 'A conexão expirou. Conecte novamente.', upgrade: 'Atualize a extensão para continuar.',
-    unavailable: 'NodeAccess indisponível. Tente novamente.', invalid: 'Resposta inválida do portal. Conecte novamente.',
+    unavailable: 'NodeAccess indisponível. Tente novamente.', offline: 'Não foi possível conectar ao NodeAccess. Verifique se o portal está no ar e tente novamente.', invalid: 'Resposta inválida do portal. Conecte novamente.',
   },
 }
 const en: Messages = {
@@ -29,7 +29,7 @@ const en: Messages = {
   errors: {
     denied: 'You are not allowed to use the extension. Ask the vault managers.', cancelled: 'Connection cancelled.',
     expired: 'The connection expired. Connect again.', upgrade: 'Update the extension to continue.',
-    unavailable: 'NodeAccess unavailable. Try again.', invalid: 'Invalid answer from the portal. Connect again.',
+    unavailable: 'NodeAccess unavailable. Try again.', offline: 'Could not reach NodeAccess. Check that the portal is up and try again.', invalid: 'Invalid answer from the portal. Connect again.',
   },
 }
 export function message(language: string): Messages { return language.toLowerCase().startsWith('pt') ? pt : en }

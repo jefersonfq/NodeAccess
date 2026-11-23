@@ -8,7 +8,9 @@ import PopupIcon from './PopupIcon.vue'
 
 /** `update` (NA-0190, local builds): whether the portal announces a newer build on disk, and how to reload it. */
 const props = defineProps<{ client: ExtensionClient; requestConnection: () => Promise<{ ok: boolean; reason?: ExtensionFailure }>; open: (url: string) => Promise<unknown>
-  update?: { check: UpdateCheck; apply: () => void } }>()
+  update?: { check: UpdateCheck; apply: () => void }
+  /** NA-0190: reason of a connection attempt that failed after the popup closed (read once). */
+  lastFailure?: () => Promise<ExtensionFailure | null> }>()
 // Same language as the NodeAccess portal (pt-BR), whatever the browser UI language is.
 const t = message('pt-BR')
 const phase = ref<'loading' | 'disconnected' | 'connecting' | 'connected'>('loading')
@@ -64,7 +66,12 @@ async function openItem(item: VaultItemSummary): Promise<void> {
 onMounted(() => { void props.update?.check.available().then(value => { updateAvailable.value = value }) })
 function applyUpdate(): void { props.update?.apply() }
 onMounted(async () => {
-  if (!await props.client.connected()) { phase.value = 'disconnected'; return }
+  if (!await props.client.connected()) {
+    phase.value = 'disconnected'
+    const failure = await props.lastFailure?.().catch(() => null)
+    if (failure && !error.value) error.value = failure
+    return
+  }
   phase.value = 'connected'
   recents.value = await props.client.recents()
   await search()

@@ -118,4 +118,15 @@ describe('NA-0183 extension popup', () => {
     }
     expect(apply).toHaveBeenCalledTimes(2)
   })
+  it('NA-0190: shows why a connection attempt failed after the popup had closed', async () => {
+    const lastFailure = vi.fn().mockResolvedValue('offline')
+    const f = mount({ client: asClient(fakeClient(false)), requestConnection: vi.fn(), open: vi.fn(), lastFailure }); await flush()
+    expect(f.state.error).toBe('offline')
+    expect(await f.html()).toContain('Não foi possível conectar ao NodeAccess.')
+    f.unmount()
+    const quiet = mount({ client: asClient(fakeClient(false)), requestConnection: vi.fn(), open: vi.fn(), lastFailure: vi.fn().mockRejectedValue(new Error('x')) }); await flush()
+    expect(quiet.state.error).toBe(''); quiet.unmount()
+    const live = mount({ client: asClient(fakeClient(false)), requestConnection: vi.fn().mockResolvedValue({ ok: false, reason: 'offline' }), open: vi.fn() }); await flush()
+    await live.state.connect(); expect(live.state.error).toBe('offline'); expect(live.state.phase).toBe('disconnected'); live.unmount()
+  })
 })

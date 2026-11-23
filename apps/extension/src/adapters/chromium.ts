@@ -1,4 +1,5 @@
 import type { AuthFlow, Authorization, DeviceKey, DeviceKeyStore, ExtensionInfo, SessionStore } from '../core/ports'
+import type { ExtensionFailure } from '../core/client'
 
 /** Chromium (Chrome/Edge) adapter: identity, storage.session, IndexedDB and tabs. Nothing in storage.local/sync. */
 export function extensionInfo(): ExtensionInfo {
@@ -12,7 +13,8 @@ export const chromiumAuthFlow: AuthFlow = {
     return result
   },
 }
-const AUTH = 'authorization', RECENTS = 'recents'
+const AUTH = 'authorization', RECENTS = 'recents', FAILURE = 'connectFailure'
+const FAILURES: readonly string[] = ['denied', 'cancelled', 'expired', 'upgrade', 'unavailable', 'invalid', 'offline']
 export const chromiumSession: SessionStore = {
   async get(): Promise<Authorization | null> {
     const value = (await chrome.storage.session.get(AUTH))[AUTH] as Partial<Authorization> | undefined
@@ -20,12 +22,27 @@ export const chromiumSession: SessionStore = {
       ? { accessToken: value.accessToken, portalOrigin: value.portalOrigin, expiresAt: value.expiresAt } : null
   },
   set: (value: Authorization): Promise<void> => chrome.storage.session.set({ [AUTH]: value }),
-  clear: (): Promise<void> => chrome.storage.session.remove([AUTH, RECENTS]),
+  clear: (): Promise<void> => chrome.storage.session.remove([AUTH, RECENTS, FAILURE]),
   async recents(): Promise<string[]> {
     const value = (await chrome.storage.session.get(RECENTS))[RECENTS]
     return Array.isArray(value) ? value.filter((k): k is string => typeof k === 'string') : []
   },
   setRecents: (keys: string[]): Promise<void> => chrome.storage.session.set({ [RECENTS]: keys }),
+}
+/**
+ * NA-0190: why the last connection failed, kept briefly for a popup that closed while the service worker tried
+ * (the consent window takes focus). Read once; older than two minutes is ignored. Only the reason code is stored.
+ */
+export async function rememberFailure(reason: string | null): Promise<void> {
+  if (reason === null) await chrome.storage.session.remove([FAILURE])
+  else await chrome.storage.session.set({ [FAILURE]: { reason, at: Date.now() } })
+}
+export async function takeFailure(): Promise<ExtensionFailure | null> {
+  const value = (await chrome.storage.session.get(FAILURE))[FAILURE] as { reason?: unknown; at?: unknown } | undefined
+  if (value === undefined) return null
+  await chrome.storage.session.remove([FAILURE])
+  const fresh = typeof value.at === 'number' && Date.now() - value.at < 120_000
+  return fresh && typeof value.reason === 'string' && FAILURES.includes(value.reason) ? value.reason as ExtensionFailure : null
 }
 /** Session storage stays out of reach of any (future) content script. */
 export async function restrictSession(): Promise<void> {

@@ -1,6 +1,6 @@
 ---
 change_id: NA-0190
-title: Extensão VaultNAccess — compilação local ao subir o ambiente e aviso de atualização no popup
+title: Extensão VaultNAccess — compilação local ao subir o ambiente, aviso de atualização e validação de comunicação
 type: feature
 status: ready-for-review
 created_at: 2026-11-23T10:00:00-03:00
@@ -28,6 +28,7 @@ Pedido do responsável (2026-11-23): a cada mudança na extensão, atualizar o p
 - `tools/vault-extension/build-local.mjs` (+ testes): compila em `apps/extension/dist-local` com origem/chave/versão de variáveis ou de `apps/extension/local.json` (ignorado no Git), identificador derivado do conteúdo (sem mudança, sem recompilar), e publica `apps/frontend/public/vaultnaccess-build.json` para o portal de desenvolvimento. `npm run dev` chama em modo tolerante; `npm run build:extension:local` sob demanda.
 - `vite.config.ts`/`manifest.ts`: `VAULTNACCESS_BUILD_ID` e `VAULTNACCESS_OUT_DIR` (só `dist` ou `dist-local`); `version_name` com o identificador.
 - `src/core/update.ts`: o popup consulta o identificador anunciado (sem credenciais, sem cache, resposta limitada e validada) só em compilações locais; diferente do próprio → **Nova versão da extensão disponível** com **Atualizar** (`chrome.runtime.reload()`).
+- Validação de comunicação (pedido do responsável na mesma data): antes de abrir a autorização, a extensão testa se o portal responde (qualquer resposta HTTP em até 5 s, sem credenciais); sem resposta, ou se a página de autorização não carregar, mostra **Não foi possível conectar ao NodeAccess. Verifique se o portal está no ar e tente novamente.** em vez de voltar em silêncio. O motivo da última falha fica 2 minutos em `storage.session` (só o código), lido uma vez pelo popup, para aparecer mesmo que o popup tenha fechado durante a tentativa.
 - Teste de fumaça: mesmo identificador não pede; identificador novo mostra o aviso e **Atualizar** recarrega a extensão; capturas.
 - Docs: `OPERATIONS-vault-extension.md`.
 
@@ -40,6 +41,7 @@ Fora: pacote assinado, `update_url` e instalação por política (E6); servidor/
 - [x] Com outra compilação anunciada, o popup mostra o aviso e **Atualizar** recarrega a extensão.
 - [x] Compilações de teste/produção não consultam o portal para isso.
 - [x] Mesma chave → mesmo ID da extensão; permissões e CSP inalteradas.
+- [x] Com o portal fora do ar, **Conectar** mostra que não foi possível conectar, sem abrir a janela de autorização.
 
 ## Riscos e mitigações
 
