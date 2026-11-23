@@ -22,6 +22,7 @@ import type { AuthMethod, JwtPayload, TempTokenPayload, RefreshTokenPayload } fr
 import type { EmailConfigService } from '../email/email-config.service.js'
 import type { EmailService } from '../email/email.service.js'
 import { LOGIN_REJECTED_MESSAGE, SSO_REJECTED_MESSAGE } from './auth-public-errors.js'
+import type { LoginSessionRegistry } from './login-session.registry.js'
 
 const MAX_FAILED_ATTEMPTS = 5
 const LOCK_DURATION_MS    = 15 * 60 * 1000 // 15 minutos
@@ -93,6 +94,7 @@ export class AuthService {
     private readonly ldapIdentityProvider?:  IdentityProvider,
     private readonly passwordLoginPolicy?: PasswordLoginPolicyProvider,
     private readonly appEventBus?: AppEventBus,
+    private readonly loginSessions?: LoginSessionRegistry,
   ) {}
 
   // ---------------------------------------------------------------------------
@@ -290,7 +292,7 @@ export class AuthService {
 
     const isPlatformAdmin = await this.userRepo.isPlatformAdmin(user.id)
     const canViewLiveSessions = await this.userRepo.canViewLiveSessions(user.id)
-    return this.issueTokens(user.id, user.email, user.role, isPlatformAdmin, payload.tenantId, user.canManageHosts, canViewLiveSessions, user.forcePasswordChange, payload.authMethod ?? 'local')
+    return this.issueTokens(user.id, user.email, user.role, isPlatformAdmin, payload.tenantId, user.canManageHosts, canViewLiveSessions, user.forcePasswordChange, payload.authMethod ?? 'local', meta)
   }
 
   // ---------------------------------------------------------------------------
@@ -325,14 +327,14 @@ export class AuthService {
 
     const isPlatformAdmin = await this.userRepo.isPlatformAdmin(user.id)
     const canViewLiveSessions = await this.userRepo.canViewLiveSessions(user.id)
-    return this.issueTokens(user.id, user.email, user.role, isPlatformAdmin, payload.tenantId, user.canManageHosts, canViewLiveSessions, user.forcePasswordChange, payload.authMethod ?? 'local')
+    return this.issueTokens(user.id, user.email, user.role, isPlatformAdmin, payload.tenantId, user.canManageHosts, canViewLiveSessions, user.forcePasswordChange, payload.authMethod ?? 'local', meta)
   }
 
   // ---------------------------------------------------------------------------
   // Refresh — emite novo access token a partir do refresh token
   // ---------------------------------------------------------------------------
 
-  async refresh(refreshToken: string): Promise<Pick<AuthTokens, 'accessToken'>> {
+  async refresh(refreshToken: string, meta: { ip?: string; userAgent?: string } = {}): Promise<Pick<AuthTokens, 'accessToken'>> {
     let payload: RefreshTokenPayload
     try {
       payload = jwt.verify(refreshToken, env.JWT_SECRET) as RefreshTokenPayload
@@ -389,6 +391,7 @@ export class AuthService {
       avatarVersion: avatar?.avatarUpdatedAt ? String(avatar.avatarUpdatedAt.getTime()) : null,
       forcePasswordChange: user.forcePasswordChange,
       sessionVersion,
+      sid: payload.jti,
       stage: 'authenticated',
     }
 
@@ -398,6 +401,7 @@ export class AuthService {
       env.JWT_SECRET,
       signOptionsWithExpiry(tokenLifetime.accessTokenExpiresIn),
     )
+    await this.loginSessions?.touch(payload.jti, { userId, tenantId, authMethod: payload.authMethod ?? 'local' }, meta).catch(() => {})
     return { accessToken }
   }
 
@@ -480,7 +484,9 @@ export class AuthService {
       // Invalid/expired tokens are already unusable. Storage failures must not confirm revocation.
       return
     }
-    if (payload.stage === 'refresh') await this.redis.del(`${REFRESH_KEY_PREFIX}${payload.jti}`)
+    if (payload.stage !== 'refresh') return
+    await this.redis.del(`${REFRESH_KEY_PREFIX}${payload.jti}`)
+    await this.loginSessions?.forget(payload.jti).catch(() => {})
   }
 
   async logoutAll(userId: number, tenantId: number, expectedSessionVersion: number): Promise<void> {
@@ -494,7 +500,7 @@ export class AuthService {
       reason: 'logout_all', changedAt: new Date().toISOString() })
   }
 
-  async issueTokensForUser(user: User, tenantId: number, authMethod: AuthMethod): Promise<AuthTokens> {
+  async issueTokensForUser(user: User, tenantId: number, authMethod: AuthMethod, meta: { ip?: string; userAgent?: string } = {}): Promise<AuthTokens> {
     if (!user.active || user.deletedAt || user.tenantId !== tenantId) throw new UnauthorizedError()
     const [isPlatformAdmin, canViewLiveSessions] = await Promise.all([
       this.userRepo.isPlatformAdmin(user.id),
@@ -510,6 +516,7 @@ export class AuthService {
       canViewLiveSessions,
       user.forcePasswordChange,
       authMethod,
+      meta,
     )
   }
 
@@ -580,7 +587,7 @@ export class AuthService {
 
     const isPlatformAdmin = await this.userRepo.isPlatformAdmin(user.id)
     const canViewLiveSessions = await this.userRepo.canViewLiveSessions(user.id)
-    return this.issueTokens(user.id, user.email, user.role, isPlatformAdmin, tenant.id, user.canManageHosts, canViewLiveSessions, user.forcePasswordChange, 'google')
+    return this.issueTokens(user.id, user.email, user.role, isPlatformAdmin, tenant.id, user.canManageHosts, canViewLiveSessions, user.forcePasswordChange, 'google', meta)
   }
 
   // ---------------------------------------------------------------------------
@@ -664,7 +671,7 @@ export class AuthService {
 
     const isPlatformAdmin = await this.userRepo.isPlatformAdmin(userId)
     const canViewLiveSessions = await this.userRepo.canViewLiveSessions(user.id)
-    return this.issueTokens(user.id, user.email, user.role, isPlatformAdmin, payload.tenantId, user.canManageHosts, canViewLiveSessions, user.forcePasswordChange, payload.authMethod ?? 'local')
+    return this.issueTokens(user.id, user.email, user.role, isPlatformAdmin, payload.tenantId, user.canManageHosts, canViewLiveSessions, user.forcePasswordChange, payload.authMethod ?? 'local', meta)
   }
 
   // ---------------------------------------------------------------------------
@@ -728,6 +735,7 @@ export class AuthService {
     canViewLiveSessions: boolean,
     forcePasswordChange: boolean,
     authMethod: AuthMethod,
+    meta: { ip?: string; userAgent?: string } = {},
   ): Promise<AuthTokens> {
     await assertTrialAccess(tenantId)
     const jti = randomUUID()
@@ -749,6 +757,7 @@ export class AuthService {
       avatarVersion: avatar?.avatarUpdatedAt ? String(avatar.avatarUpdatedAt.getTime()) : null,
       forcePasswordChange,
       sessionVersion,
+      sid: jti,
       stage: 'authenticated',
     }
 
@@ -782,6 +791,8 @@ export class AuthService {
       'EX',
       tokenLifetime.refreshTokenTtlSeconds,
     )
+    // NA-0187: IP/browser record for the admin view; never blocks the login.
+    await this.loginSessions?.record(jti, { userId, tenantId, authMethod }, meta, tokenLifetime.refreshTokenTtlSeconds).catch(() => {})
 
     return { accessToken, refreshToken }
   }

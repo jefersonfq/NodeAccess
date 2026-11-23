@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { assertCurrentUserSession, assertCurrentUserVersion, configureCurrentSessionReader, type CurrentSessionState } from './current-session.js'
+import { assertCurrentUserSession, assertCurrentUserVersion, configureCurrentSessionReader, configureLoginSessionChecker, type CurrentSessionState } from './current-session.js'
 import type { JwtPayload } from '../../shared/guards.js'
 const state = (): CurrentSessionState => ({ tenantId: 2, active: true, deletedAt: null, tenantActive: true,
   targetTenantActive: true, sessionVersion: 0, role: 'ADMIN', isPlatformAdmin: false, canManageHosts: true, canViewLiveSessions: true })
@@ -65,4 +65,31 @@ describe('current authenticated session boundary', () => {
     }
   })
 
+})
+
+describe('NA-0187 login session (sid) check', () => {
+  const sid = '00000000-0000-4000-8000-000000000001'
+  beforeEach(() => configureCurrentSessionReader(() => Promise.resolve(state())))
+  afterEach(() => { configureCurrentSessionReader(undefined); configureLoginSessionChecker(undefined) })
+  it('accepts a live session and refuses a disconnected one', async () => {
+    const checker = vi.fn(() => Promise.resolve(true)); configureLoginSessionChecker(checker)
+    await expect(assertCurrentUserSession({ ...token(), sid })).resolves.toBeUndefined()
+    expect(checker).toHaveBeenCalledWith(sid)
+    checker.mockResolvedValue(false)
+    await expect(assertCurrentUserSession({ ...token(), sid })).rejects.toMatchObject({ statusCode: 401 })
+  })
+  it('keeps tokens without sid on the previous rule, without asking storage', async () => {
+    const checker = vi.fn(() => Promise.resolve(false)); configureLoginSessionChecker(checker)
+    await expect(assertCurrentUserSession(token())).resolves.toBeUndefined()
+    expect(checker).not.toHaveBeenCalled()
+  })
+  it.each(['', 'refresh-jti', 42, null])('refuses a malformed sid %s', async bad => {
+    configureLoginSessionChecker(() => Promise.resolve(true))
+    await expect(assertCurrentUserSession({ ...token(), sid: bad } as unknown as JwtPayload)).rejects.toMatchObject({ statusCode: 401 })
+  })
+  it('fails closed (503) when the checker is missing or storage fails', async () => {
+    await expect(assertCurrentUserSession({ ...token(), sid })).rejects.toMatchObject({ statusCode: 503 })
+    configureLoginSessionChecker(() => Promise.reject(new Error('redis down')))
+    await expect(assertCurrentUserSession({ ...token(), sid })).rejects.toMatchObject({ statusCode: 503 })
+  })
 })

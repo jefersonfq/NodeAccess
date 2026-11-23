@@ -36,7 +36,7 @@ export class OidcAuthService {
     return this.flow.begin(tenant.id, callbackUrl())
   }
 
-  async complete(state: string, code: string): Promise<AuthTokens | LoginResult> {
+  async complete(state: string, code: string, meta: { ip?: string; userAgent?: string } = {}): Promise<AuthTokens | LoginResult> {
     try {
       const completed = await this.flow.complete(state, code)
       const identity = completed.identity
@@ -58,7 +58,7 @@ export class OidcAuthService {
         this.observability.login('local_mfa_required')
         return result
       }
-      const result = await this.auth.issueTokensForUser(user, completed.tenantId, 'oidc')
+      const result = await this.auth.issueTokensForUser(user, completed.tenantId, 'oidc', meta)
       this.observability.login('success')
       return result
     } catch (error) {

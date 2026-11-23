@@ -4,7 +4,7 @@ import type { AuthService } from './auth.service.js'
 import type { AuthRateLimitService } from './auth-rate-limit.service.js'
 import { env } from '../../config/env.js'
 
-function meta(request: FastifyRequest): { ip: string; userAgent?: string } {
+export function meta(request: FastifyRequest): { ip: string; userAgent?: string } {
   const userAgent = request.headers['user-agent']
   return {
     ip:        request.ip,
@@ -111,7 +111,7 @@ export class AuthController {
     reply: FastifyReply,
   ): Promise<FastifyReply> {
     await this.rateLimit.check({ action: 'refresh', ip: request.ip, identity: request.body.refreshToken })
-    const result = await this.authService.refresh(request.body.refreshToken)
+    const result = await this.authService.refresh(request.body.refreshToken, meta(request))
     return reply.send(result)
   }
 

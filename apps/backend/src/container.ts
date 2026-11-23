@@ -12,7 +12,9 @@ import { DpopNonces, DpopVerifier } from './modules/vault-security/vault-extensi
 import type { VaultIdentity } from './modules/vault-security/vault-domain.js'
 import type { VaultItemSummary } from '@nodeaccess/shared'
 import { UserSessionRevocationService } from './modules/auth/user-session-revocation.service.js'
-import { configureCurrentSessionReader } from './modules/auth/current-session.js'
+import { configureCurrentSessionReader, configureLoginSessionChecker } from './modules/auth/current-session.js'
+import { LoginSessionRegistry } from './modules/auth/login-session.registry.js'
+import { UserLoginSessionsService } from './modules/users/user-login-sessions.service.js'
 import { SessionAuditReconstructionRepository } from './modules/session-audit/session-audit-reconstruction.repository.js'
 import { TacacsHealthStore } from './modules/network-access/tacacs-health.js'
 import { NetworkAccessService } from './modules/network-access/network-access.service.js'
@@ -253,6 +255,9 @@ import { env } from './config/env.js'
 // ---------------------------------------------------------------------------
 const userRepository         = new UserRepository(prisma)
 configureCurrentSessionReader((userId, tenantId) => userRepository.findCurrentSessionState(userId, tenantId))
+// NA-0187: an access token with `sid` is valid only while its login session (refresh token) exists.
+const loginSessionRegistry = new LoginSessionRegistry(redis)
+configureLoginSessionChecker(sid => loginSessionRegistry.isActive(sid))
 const groupRepository        = new GroupRepository(prisma)
 const settingsRepository     = new SettingsRepository(prisma)
 const sessionsRepository     = new SessionsRepository(prisma)
@@ -319,6 +324,7 @@ const tenantAuthPolicyService = new TenantAuthPolicyService(tenantAuthPolicyRepo
 // ---------------------------------------------------------------------------
 const totpService        = new TotpService()
 const userService        = new UserService(userRepository, webhookService, appEventBus)
+const userLoginSessionsService = new UserLoginSessionsService(userRepository, loginSessionRegistry, appEventBus)
 const onePasswordService = new OnePasswordService(integrationRepository, secretRepository)
 const openAiIntegrationService = new OpenAiIntegrationService()
 const localAiIntegrationService = new LocalAiIntegrationService()
@@ -350,7 +356,7 @@ const vaultSecurityService = new VaultService(vaultStore, vaultOrigin,
     oidcFlow: () => oidcFlowService, links: externalIdentityRepository, google: googleService, users: userRepository, redirectUri: oidcCallbackUrl,
   }))
 const vaultAdministrationService = new VaultAdministrationService(vaultSecurityService, vaultEntropy)
-const authService        = new AuthService(userRepository, totpService, redis, googleService, emailConfigService, emailService, localIdentityProvider, ldapIdentityProvider, tenantAuthPolicyService, appEventBus)
+const authService        = new AuthService(userRepository, totpService, redis, googleService, emailConfigService, emailService, localIdentityProvider, ldapIdentityProvider, tenantAuthPolicyService, appEventBus, loginSessionRegistry)
 const authRateLimitService = new AuthRateLimitService(redis, {
   windowSeconds: env.AUTH_RATE_LIMIT_WINDOW_SECONDS,
   ip: env.AUTH_RATE_LIMIT_IP_MAX_REQUESTS,
@@ -646,6 +652,7 @@ export const container = {
   // HTTP
   authController,
   userController,
+  userLoginSessionsService,
   groupController,
   hostController,
   settingsController,

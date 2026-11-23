@@ -29,7 +29,7 @@ function harness() {
     identities,
     auth,
     policies,
-    service: new OidcAuthService(users as never, configs as never, flow as never, identities as never, auth as never, policies as never),
+    service: new OidcAuthService(users as never, configs as never, flow as never, identities as never, auth as never, policies),
   }
 }
 
@@ -100,7 +100,7 @@ describe('OidcAuthService', () => {
       emailVerified: true,
     }))
     expect(users.logAuthEvent).toHaveBeenCalledWith({ userId: 20, eventType: 'SSO_LOGIN', success: true })
-    expect(auth.issueTokensForUser).toHaveBeenCalledWith(user, 7, 'oidc')
+    expect(auth.issueTokensForUser).toHaveBeenCalledWith(user, 7, 'oidc', {})
   })
 
   it('uses local MFA when tenant policy requires it and upstream assurance is insufficient', async () => {
@@ -145,7 +145,7 @@ describe('OidcAuthService', () => {
     await expect(service.complete('state', 'code')).resolves.toEqual({
       accessToken: 'access', refreshToken: 'refresh',
     })
-    expect(auth.issueTokensForUser).toHaveBeenCalledWith(user, 7, 'oidc')
+    expect(auth.issueTokensForUser).toHaveBeenCalledWith(user, 7, 'oidc', {})
     expect(auth.beginMfaForUser).not.toHaveBeenCalled()
   })
 

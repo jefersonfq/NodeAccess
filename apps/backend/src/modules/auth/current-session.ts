@@ -15,6 +15,25 @@ export interface CurrentSessionState {
 }
 export type CurrentSessionReader = (userId: number, targetTenantId: number) => Promise<CurrentSessionState | null>
 let readSession: CurrentSessionReader | undefined
+/** NA-0187: is the login session (refresh token) behind an access token still alive? */
+export type LoginSessionChecker = (sid: string) => Promise<boolean>
+let loginSessionActive: LoginSessionChecker | undefined
+
+export function configureLoginSessionChecker(checker: LoginSessionChecker | undefined): void {
+  loginSessionActive = checker
+}
+const SID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
+/** Tokens without `sid` (issued before NA-0187, or delegated) keep the previous rule until they expire. */
+async function assertLoginSession(sid: unknown): Promise<void> {
+  if (sid === undefined) return
+  if (typeof sid !== 'string' || !SID.test(sid)) throw new UnauthorizedError()
+  if (!loginSessionActive) throw new AppError('Validação de sessão indisponível', 503, 'SESSION_VALIDATION_UNAVAILABLE')
+  let active: boolean
+  try { active = await loginSessionActive(sid) } catch {
+    throw new AppError('Validação de sessão indisponível', 503, 'SESSION_VALIDATION_UNAVAILABLE')
+  }
+  if (!active) throw new UnauthorizedError()
+}
 
 /** Installed once for both API and gateway. Missing storage wiring must never accept a JWT. */
 export function configureCurrentSessionReader(reader: CurrentSessionReader | undefined): void {
@@ -44,6 +63,7 @@ export async function assertCurrentUserVersion(userId: number, tenantId: number,
 export async function assertCurrentUserSession(payload: JwtPayload): Promise<void> {
   const userId = Number(payload.sub)
   const state = await currentState(userId, payload.tenantId, payload.sessionVersion)
+  await assertLoginSession(payload.sid)
   const delegated = payload.platformTenantId !== undefined || payload.actingTenantId !== undefined || payload.impersonatedByUserId !== undefined
   if (delegated) {
     if (state.isPlatformAdmin !== true || payload.isPlatformAdmin !== true || payload.platformTenantId !== state.tenantId

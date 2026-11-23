@@ -3543,6 +3543,29 @@
         "title": "Vault permissions: {name}",
         "hint": "Same rules as VaultNAccess: you propose and another manager approves. The person receiving the permission cannot approve."
       },
+      "online": "Online \u00b7 {count}",
+      "loginSessions": {
+        "title": "Login sessions: {name}",
+        "hint": "Active logins of this user, with the IP of the last use. Disconnect ends only that session at its next request; terminals it already opened keep running until closed. Disconnect all also ends terminals and graphical sessions.",
+        "ip": "IP",
+        "browser": "Browser",
+        "method": "Method",
+        "started": "Started",
+        "lastSeen": "Last use",
+        "loginIp": "login from {ip}",
+        "current": "This session",
+        "disconnect": "Disconnect",
+        "disconnectAll": "Disconnect all",
+        "cancel": "Cancel",
+        "confirmTitle": "Disconnect session",
+        "confirmOne": "Disconnect the session from IP {ip}? The person will need to sign in again on that device.",
+        "confirmAll": "Disconnect all sessions of {name}? Open terminals and graphical sessions will also end.",
+        "revoked": "Session disconnected.",
+        "revokedAll": "All sessions were disconnected.",
+        "error": "Could not disconnect. Refresh and try again.",
+        "loadError": "Could not load the sessions.",
+        "empty": "No active login sessions."
+      },
       "actions": {
         "access": "Access",
         "edit": "Edit",
@@ -3551,6 +3574,7 @@
         "resetPassword": "Reset password",
         "resetMfa": "Reset MFA",
         "vault": "Vault permissions",
+        "loginSessions": "Login sessions",
         "delete": "Delete",
         "restore": "Restore",
         "promoteSuperadmin": "Promote superadmin"

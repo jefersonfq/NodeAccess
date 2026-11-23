@@ -48,3 +48,7 @@ PR77 aberta. A CI reprovou `change-governance` (corpo da PR sem as seções do m
 ### 2026-11-23T01:20:00-03:00 — Cobertura de código novo (sonar-real)
 
 `sonar-real` reprovou: cobertura do código novo 55,8% (< 80%; linhas + condições), porque o `UsersView.vue` não tinha teste e as linhas alteradas (tipos, ação nova, template) contavam sem cobertura. Novo `views/admin/users-view.test.ts` (carga, opções e roteamento das ações, colunas, modais, erros e manipuladores do template). Medição local com o mesmo critério (linhas + condições alteradas desde `7c973fce8`): 224/265 = 84,5%. Ran: vitest cofre/serviços/views 1205 PASS; `vue-tsc` PASS; `lint:changed` 0 problemas.
+
+### 2026-11-23T02:50:00-03:00 — Merge e encerramento
+
+PR77 mergeada em `master` (`abdcc1b5e`, 2026-11-23) com os 12 checks remotos verdes; o `sonar-real` falhou uma vez só pelo teste instável `tacacs-tls.test.ts` (tempo esgotado, falha também no `master` local) e passou na reexecução (gate OK, cobertura nova 85,1%). `master` local sincronizado. Status `closed`. Seguem: homologação pelo responsável (roteiro em Pendências) e `validate:sonar` local (tokens do responsável). Encerramento registrado na branch da NA-0187.
