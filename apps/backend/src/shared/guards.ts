@@ -18,6 +18,8 @@ export interface JwtPayload {
   avatarVersion?: string | null
   forcePasswordChange: boolean
   sessionVersion?: number
+  /** NA-0187: login session id (the refresh token jti); absent in delegated and older tokens. */
+  sid?: string
   stage: 'authenticated'
 }
 

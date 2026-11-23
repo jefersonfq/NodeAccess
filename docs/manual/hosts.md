@@ -120,6 +120,14 @@ Na seção **Permissões do cofre (gestores)** do VaultNAccess, **Tempo de confi
 
 O tempo vale só enquanto o cofre estiver aberto: sem atividade por 5 minutos, ou após 30 minutos, o cofre bloqueia de qualquer forma. Administrar permissões e conectar a extensão continuam pedindo confirmação de 1 minuto.
 
+### Sessões de login dos usuários (administradores)
+Em **Administração › Usuários**, a etiqueta **Online** ao lado do nome mostra quem usou o NodeAccess nos últimos 15 minutos e quantas sessões de login estão ativas. No menu de ações do usuário, **Sessões de login** lista cada login com o IP do último uso (e o IP do login, quando mudou), navegador, método de login, início e último uso. A sua própria sessão aparece como **Esta sessão** e não pode ser desconectada por aqui; use **Sair**.
+
+1. Para encerrar um login desconhecido, selecione **Desconectar** na linha do IP e confirme. A sessão perde o acesso na próxima ação, e a pessoa precisa entrar de novo naquele dispositivo. As outras sessões continuam.
+2. Para encerrar tudo, selecione **Desconectar todas** e confirme. Todas as sessões da pessoa terminam, inclusive terminais e acessos gráficos abertos.
+
+Desconectar uma única sessão não fecha terminais que ela já tinha aberto; para isso, use **Desconectar todas** ou encerre o terminal em **Sessões**. Logins feitos antes desta versão aparecem na lista depois do primeiro uso (em até 15 minutos).
+
 ## Entenda os indicadores
 - Cards e listas reutilizam os ícones de protocolo do acesso rápido. O ícone da rota informa acesso direto, automático ou por Agent/conector. Passe o mouse, toque ou use **Tab** para consultar a descrição e a disponibilidade; **Esc** fecha a dica. O botão **Conectar** informa o motivo quando uma rota obrigatória não está disponível.
 - No **Acesso rápido**, a pasta aparece junto ao endereço quando há espaço, seguida do relógio e da data do último acesso em **dia/mês**; a dica mostra a data por extenso e o horário. **Raiz** indica que o host está no diretório raiz do inventário. A dica da pasta mostra o caminho disponível, como **Raiz → Banco de dados → Dbs**. Se um ancestral não estiver disponível, o caminho pode aparecer parcial; a interface não presume pastas que você não pode consultar. O ícone no canto superior direito do card identifica o protocolo: terminal com cadeado para SSH, monitor para RDP, terminal com T para Telnet e monitor com V para VNC. Passe o mouse ou toque no ícone para consultar seu protocolo sem conectar. Passe o mouse ou toque no relógio para consultar o último acesso sem conectar. Pelo teclado, focar o card mostra o protocolo e o último acesso; **Esc** fecha a dica. **Sessão ativa** continua visível no card.

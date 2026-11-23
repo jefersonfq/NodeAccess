@@ -2,7 +2,7 @@
 change_id: NA-0186
 title: Permissões do cofre pela guia Usuários e tempo de confirmação por tenant
 type: feature
-status: ready-for-review
+status: closed
 created_at: 2026-11-22T20:00:00-03:00
 base_branch: master
 base_sha: 7c973fce81737b48b321c7e50555c4fb5ef255dc

@@ -19,6 +19,8 @@ import UserAvatar from '@/components/UserAvatar.vue'
 import VaultAdministration from '@/components/vault/VaultAdministration.vue'
 import { createVaultTransport } from '@/services/vault-http'
 import { isVaultManager } from '@/services/vault-manager'
+import UserLoginSessions from '@/components/users/UserLoginSessions.vue'
+import { loginSessionsService } from '@/services/login-sessions.service'
 
 const { t } = useI18n()
 const router = useRouter()
@@ -41,6 +43,14 @@ const accessEntries = ref<UserInventoryAccessEntry[]>([])
 // NA-0186: vault permissions per user, only for vault managers (NodeAccess admin alone is not enough).
 const vaultManager = ref(false)
 const vaultUser = ref<UserPublic | null>(null)
+// NA-0187: who is online (session used in the last 15 min) and one user's login sessions.
+const onlineUsers = ref(new Map<number, number>())
+const sessionsUser = ref<UserPublic | null>(null)
+async function loadOnline(): Promise<void> {
+  try {
+    onlineUsers.value = new Map((await loginSessionsService.online()).map(u => [u.userId, u.sessions]))
+  } catch { onlineUsers.value = new Map() }
+}
 
 const groupOptions = ref<{ label: string; value: number }[]>([])
 const userOptions = computed(() =>
@@ -71,6 +81,7 @@ type UserActionKey =
   | 'reset-password'
   | 'reset-mfa'
   | 'vault'
+  | 'login-sessions'
   | 'delete'
   | 'restore'
 
@@ -286,6 +297,7 @@ function userActionOptions(user: UserPublic): Array<DropdownOption | DropdownDiv
     { label: t('admin.users.actions.resetPassword'), key: 'reset-password' },
     { label: t('admin.users.actions.resetMfa'), key: 'reset-mfa' },
     ...(vaultManager.value && user.active ? [{ label: t('admin.users.actions.vault'), key: 'vault' }] : []),
+    { label: t('admin.users.actions.loginSessions'), key: 'login-sessions' },
     { type: 'divider', key: 'danger-divider' },
     {
       label: (): VNode => h('span', { class: 'user-action-danger' }, t('admin.users.actions.delete')),
@@ -304,6 +316,7 @@ function handleUserAction(action: UserActionKey, user: UserPublic): void | Promi
   if (action === 'reset-password') return resetPwd(user.id)
   if (action === 'reset-mfa') return confirmResetMfa(user)
   if (action === 'vault') { vaultUser.value = user; return }
+  if (action === 'login-sessions') { sessionsUser.value = user; return }
   if (action === 'delete') return confirmDeleteUser(user)
   if (action === 'restore') return restoreUser(user)
 }
@@ -318,7 +331,13 @@ const columns = computed<DataTableColumns<UserPublic>>(() => [
     render: (row): VNode => h('div', { class: 'users-name-cell' }, [
       h(UserAvatar, { user: row, size: 32 }),
       h('div', { class: 'users-name-cell__text' }, [
-        h('span', { class: 'users-name-cell__name' }, row.name),
+        h('span', { class: 'users-name-cell__name' }, [
+          row.name,
+          onlineUsers.value.has(row.id)
+            ? h(NTag, { size: 'tiny', type: 'success', round: true, class: 'ml-2', 'data-testid': `user-online-${row.id}` },
+              () => t('admin.users.online', { count: onlineUsers.value.get(row.id) ?? 0 }))
+            : null,
+        ]),
         h('span', { class: 'users-name-cell__email' }, row.email),
       ]),
     ]),
@@ -397,6 +416,7 @@ onMounted(() => {
   void load()
   void loadGroups()
   void isVaultManager(createVaultTransport(), auth).then(value => { vaultManager.value = value })
+  void loadOnline()
 })
 
 async function toggleActive(user: UserPublic, active: boolean): Promise<void> {
@@ -800,6 +820,24 @@ function confirmPromotePlatformAdmin(user: UserPublic): void {
         v-if="vaultUser"
         :key="vaultUser.id"
         :user-id="vaultUser.id"
+      />
+    </NModal>
+
+    <NModal
+      :show="sessionsUser !== null"
+      preset="card"
+      :title="$t('admin.users.loginSessions.title', { name: sessionsUser?.name ?? '' })"
+      style="width: min(880px, 100vw)"
+      data-testid="users-login-sessions-modal"
+      @update:show="(value) => { if (!value) sessionsUser = null }"
+    >
+      <UserLoginSessions
+        v-if="sessionsUser"
+        :key="sessionsUser.id"
+        :user-id="sessionsUser.id"
+        :user-name="sessionsUser.name"
+        :self="sessionsUser.id === auth.user?.id"
+        @changed="loadOnline"
       />
     </NModal>
 

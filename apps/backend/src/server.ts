@@ -29,6 +29,7 @@ import { GatewayDrainState, waitForGatewayDrain } from './shared/gateway-drain.j
 import { container } from './container.js'
 import { authRoutes }     from './modules/auth/auth.routes.js'
 import { userRoutes }     from './modules/users/user.routes.js'
+import { userLoginSessionRoutes } from './modules/users/user-login-sessions.routes.js'
 import { groupRoutes }    from './modules/groups/group.routes.js'
 import { hostRoutes }     from './modules/hosts/host.routes.js'
 import { sshRoutes }      from './modules/ssh/ssh.routes.js'
@@ -464,6 +465,7 @@ async function buildApiApp(): Promise<FastifyInstance<RawServerDefault, Incoming
       await api.register(async (r) => authRoutes(r,     container.authController),     { prefix: '/auth' })
       await api.register(async (r) => oidcAuthRoutes(r, container.oidcAuthController), { prefix: '/auth/oidc' })
       await api.register(async (r) => userRoutes(r,     container.userController),     { prefix: '/users' })
+      await api.register(async (r) => userLoginSessionRoutes(r, container.userLoginSessionsService), { prefix: '/users' })
       await api.register(async (r) => groupRoutes(r,    container.groupController),    { prefix: '/groups' })
       await api.register(async (r) => hostRoutes(r,     container.hostController),     { prefix: '/hosts' })
       await api.register(async (r) => hostDashboardRoutes(r, container.hostDashboardController), { prefix: '/hosts' })

@@ -7,7 +7,7 @@ import UsersView from './UsersView.vue'
 const mocks = vi.hoisted(() => ({
   users: { list: vi.fn(), get: vi.fn(), listInventoryAccess: vi.fn(), create: vi.fn(), update: vi.fn(), activate: vi.fn(), deactivate: vi.fn(),
     delete: vi.fn(), restore: vi.fn(), resetPassword: vi.fn(), resetMfa: vi.fn() },
-  groups: { list: vi.fn() }, platform: { promoteUser: vi.fn() }, push: vi.fn(), vaultManager: vi.fn(), handlers: [] as Array<Record<string, unknown>>,
+  groups: { list: vi.fn() }, platform: { promoteUser: vi.fn() }, push: vi.fn(), vaultManager: vi.fn(), online: vi.fn(), handlers: [] as Array<Record<string, unknown>>,
   dialog: { warning: vi.fn(), info: vi.fn() }, message: { success: vi.fn(), error: vi.fn() },
 }))
 const auth = reactive({ isPlatformAdmin: true, user: { id: 1, tenantId: 7 } })
@@ -16,6 +16,8 @@ vi.mock('@/services/group.service', () => ({ groupService: mocks.groups }))
 vi.mock('@/services/platform-admin.service', () => ({ platformAdminService: mocks.platform }))
 vi.mock('@/services/vault-manager', () => ({ isVaultManager: mocks.vaultManager }))
 vi.mock('@/services/vault-http', () => ({ createVaultTransport: () => ({}) }))
+vi.mock('@/services/login-sessions.service', () => ({ loginSessionsService: { online: mocks.online } }))
+vi.mock('@/components/users/UserLoginSessions.vue', () => ({ default: defineComponent({ render: () => null }) }))
 vi.mock('@/stores/auth', () => ({ useAuthStore: () => auth }))
 vi.mock('vue-router', () => ({ useRouter: () => ({ push: mocks.push }) }))
 vi.mock('vue-i18n', () => ({ useI18n: () => ({ t: (key: string, values?: Record<string, unknown>) => (values ? `${key}:${JSON.stringify(values)}` : key) }) }))
@@ -48,7 +50,7 @@ const user = (patch: Partial<UserPublic> = {}): UserPublic => ({ id: 2, name: 'B
 type Column = { key: string; render?: (row: UserPublic) => VNode }
 type Option = { key: string; label?: unknown }
 interface View {
-  users: UserPublic[]; vaultManager: boolean; vaultUser: UserPublic | null; error: string | null; tempPassword: string | null
+  users: UserPublic[]; vaultManager: boolean; vaultUser: UserPublic | null; sessionsUser: UserPublic | null; onlineUsers: Map<number, number>; loadOnline(): Promise<void>; error: string | null; tempPassword: string | null
   showCreateModal: boolean; showEditModal: boolean; editingId: number | null; accessDrawerUser: UserPublic | null; accessError: string
   createForm: { password?: string }; copyGroupsFromCreateUserId: number | null; copyGroupsFromEditUserId: number | null; editForm: { groupIds: number[] }
   columns: Column[]; userActionOptions(u: UserPublic): Option[]; handleUserAction(a: string, u: UserPublic): unknown
@@ -62,6 +64,7 @@ beforeEach(() => {
   mocks.groups.list.mockResolvedValue({ data: [{ id: 3, name: 'Ops' }] })
   mocks.users.get.mockResolvedValue({ data: user({ groupIds: [3, 4] }) })
   mocks.vaultManager.mockResolvedValue(true)
+  mocks.online.mockResolvedValue([{ userId: 2, sessions: 2, lastSeenAt: 1 }])
   for (const fn of ['create', 'update', 'activate', 'deactivate', 'delete', 'restore', 'resetMfa', 'listInventoryAccess'] as const) mocks.users[fn].mockResolvedValue({ data: [] })
   mocks.users.resetPassword.mockResolvedValue({ data: { temporaryPassword: 'temp-fixture' } })
   mocks.platform.promoteUser.mockResolvedValue({ data: { temporaryPassword: 'temp-fixture' } })
@@ -156,6 +159,18 @@ describe('Users view (NA-0186)', () => {
     mocks.groups.list.mockRejectedValueOnce(new Error('x')); mocks.vaultManager.mockResolvedValueOnce(false)
     const f = mount<View>(UsersView); await flush()
     expect(f.state.vaultManager).toBe(false); expect(f.state.users).toHaveLength(1)
+    f.unmount()
+  })
+  it('NA-0187: marks online users and opens the login sessions of one user', async () => {
+    const f = mount<View>(UsersView); await flush()
+    expect(f.state.onlineUsers.get(2)).toBe(2)
+    const name = f.state.columns.find(c => c.key === 'name')!.render!(user())
+    expect(JSON.stringify(name.children)).toContain('user-online-2')
+    expect(f.state.userActionOptions(user()).map(o => o.key)).toContain('login-sessions')
+    f.state.handleUserAction('login-sessions', user()); expect(f.state.sessionsUser?.id).toBe(2)
+    mocks.handlers.length = 0; await f.html()
+    expect(mocks.handlers.some(a => String(a.title).startsWith('admin.users.loginSessions.title'))).toBe(true)
+    mocks.online.mockRejectedValueOnce(new Error('x')); await f.state.loadOnline(); expect(f.state.onlineUsers.size).toBe(0)
     f.unmount()
   })
 })

@@ -3557,6 +3557,29 @@
         "title": "Permissões do cofre: {name}",
         "hint": "Mesmas regras do VaultNAccess: você propõe e outro gestor aprova. Quem recebe a permissão não aprova."
       },
+      "online": "Online \u00b7 {count}",
+      "loginSessions": {
+        "title": "Sessões de login: {name}",
+        "hint": "Logins ativos deste usuário, com o IP do último uso. Desconectar encerra só aquela sessão na próxima requisição; terminais já abertos por ela continuam até fechar. Desconectar todas encerra também terminais e acessos gráficos.",
+        "ip": "IP",
+        "browser": "Navegador",
+        "method": "Método",
+        "started": "Início",
+        "lastSeen": "Último uso",
+        "loginIp": "login em {ip}",
+        "current": "Esta sessão",
+        "disconnect": "Desconectar",
+        "disconnectAll": "Desconectar todas",
+        "cancel": "Cancelar",
+        "confirmTitle": "Desconectar sessão",
+        "confirmOne": "Desconectar a sessão do IP {ip}? A pessoa precisará entrar de novo nesse dispositivo.",
+        "confirmAll": "Desconectar todas as sessões de {name}? Terminais e acessos gráficos abertos também serão encerrados.",
+        "revoked": "Sessão desconectada.",
+        "revokedAll": "Todas as sessões foram desconectadas.",
+        "error": "Não foi possível desconectar. Atualize e tente de novo.",
+        "loadError": "Não foi possível carregar as sessões.",
+        "empty": "Nenhuma sessão de login ativa."
+      },
       "actions": {
         "access": "Acessos",
         "edit": "Editar",
@@ -3565,6 +3588,7 @@
         "resetPassword": "Reset senha",
         "resetMfa": "Resetar MFA",
         "vault": "Permissões do cofre",
+        "loginSessions": "Sessões de login",
         "delete": "Excluir",
         "restore": "Restaurar",
         "promoteSuperadmin": "Promover superadmin"
