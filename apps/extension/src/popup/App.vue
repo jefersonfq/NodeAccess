@@ -190,6 +190,8 @@ onMounted(() => { void props.update?.check.available().then(value => { updateAva
 function applyUpdate(): void { props.update?.apply() }
 onMounted(async () => {
   await useLocale()
+  // NA-0195: the footer names this device as the portal lists it (Connected devices), so a revoke is unambiguous.
+  fingerprint.value = await props.client.fingerprint().catch(() => '')
   if (!await props.client.connected()) {
     const failure = await props.lastFailure?.().catch(() => null)
     // A connection attempt that just failed is explained instead of being retried silently.
@@ -595,7 +597,18 @@ defineExpose({ search, connect, disconnect, openItem, setKind, applyUpdate, onKe
     </section>
 
     <footer class="foot">
-      <span class="note">
+      <span
+        v-if="phase === 'connected' && fingerprint"
+        class="note"
+        :title="t.deviceTitle"
+        data-testid="vaultnaccess-device"
+      >
+        <PopupIcon name="lock" />{{ t.device }} <code class="device">{{ fingerprint }}</code>
+      </span>
+      <span
+        v-else
+        class="note"
+      >
         <PopupIcon name="lock" />{{ t.footer }}
       </span>
       <button
@@ -721,6 +734,7 @@ ul { list-style: none; margin: 0; padding: 0; }
 @keyframes shimmer { to { background-position: -200% 0; } }
 @media (prefers-reduced-motion: reduce) { .skeleton span { animation: none; } }
 
+.foot .device { font: 600 11px/1 ui-monospace, Menlo, Consolas, monospace; letter-spacing: .04em; color: var(--text); }
 .foot { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: auto; padding: 10px 14px; border-top: 1px solid var(--border); color: var(--muted); font-size: 11px; }
 .note { display: inline-flex; align-items: center; gap: 6px; }
 .note .icon { width: 12px; height: 12px; }

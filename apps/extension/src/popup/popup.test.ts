@@ -53,9 +53,13 @@ describe('NA-0183 extension popup', () => {
     const client = fakeClient(true)
     const f = mount({ client: asClient(client), requestConnection: vi.fn(), open: vi.fn() }); await flush()
     expect(f.state.phase).toBe('connected'); expect(f.state.recents).toEqual(['secret:3'])
+    // NA-0195: the footer names this device as the portal lists it, so the user knows which one to revoke.
+    let html = await f.html()
+    expect(html).toContain('vaultnaccess-device'); expect(html).toContain('abcd-efgh-ijkl-mnop')
     client.search.mockRejectedValueOnce(new ExtensionError('denied'))
     await f.state.search()
     expect(f.state.phase).toBe('disconnected'); expect(f.state.error).toBe('denied')
+    html = await f.html(); expect(html).not.toContain('vaultnaccess-device')
     f.unmount()
   })
   it('reports a failed or cancelled connection', async () => {

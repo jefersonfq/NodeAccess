@@ -200,6 +200,9 @@ try {
   check('copy-to-clipboard', clip === SECRET && seen.deliveries === 2, clip === SECRET ? '' : 'clipboard differs')
   const kept = await popup.evaluate(async () => JSON.stringify({ s: await chrome.storage.session.get(null), l: await chrome.storage.local.get(null), ls: { ...localStorage } }))
   check('value-not-stored', !kept.includes(SECRET))
+  // NA-0195: the footer names the device as the portal's Connected devices does (first 16 chars of the key thumbprint, in groups of 4).
+  const device = (await popup.getByTestId('vaultnaccess-device').textContent())?.trim() ?? ''
+  check('device-identifier-footer', /^(Dispositivo|Device) [A-Za-z0-9_-]{4}(-[A-Za-z0-9_-]{4}){3}$/.test(device), device)
   await shots('connected')
   check('popup-layout-fits', layout.every(Boolean), JSON.stringify(layout))
   // NA-0193: an extension reload drops the session authorization; the trusted device comes back by itself while the portal login lives.

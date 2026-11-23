@@ -68,6 +68,8 @@ Revert da PR; sem migração. Para desligar sem deploy: política do tenant (rev
 
 - 2026-11-23 (revisão independente, PASS_WITH_WARNINGS): erros do código para revelar passam a contar com a confiança do dispositivo (5º erro encerra confiança e autorização); validade da entrega limitada também pela janela da prova; extensão confere validade (relógio do servidor) e origem do contexto; cópia pendente expira em 15 s; memória limpa em falha; respostas tardias descartadas; regra de TOTP do contrato com referência à exceção.
 
+- 2026-11-23 (pedido do responsável): o rodapé do popup conectado mostra a identificação do dispositivo no mesmo formato de **Dispositivos conectados** do portal (NA-0196), para revogar sabendo qual navegador; o texto antigo "Valores secretos ficam no portal" deixou de valer com a E2 e foi trocado por um texto neutro.
+
 ## Aprovação
 
 Decisão: `GO_WITH_RISKS` — responsável aprovou E6 e E2 de ponta a ponta em 2026-11-23. Risco: valores de senha passam a ser exibidos também na extensão.
