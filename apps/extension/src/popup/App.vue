@@ -3,14 +3,17 @@ import { computed, onMounted, ref } from 'vue'
 import type { VaultItemKind, VaultItemSummary } from '@nodeaccess/shared'
 import { ExtensionError, type ExtensionClient, type ExtensionFailure } from '../core/client'
 import { message } from './messages'
+import type { UpdateCheck } from '../core/update'
 import PopupIcon from './PopupIcon.vue'
 
-const props = defineProps<{ client: ExtensionClient; requestConnection: () => Promise<{ ok: boolean; reason?: ExtensionFailure }>; open: (url: string) => Promise<unknown> }>()
+/** `update` (NA-0190, local builds): whether the portal announces a newer build on disk, and how to reload it. */
+const props = defineProps<{ client: ExtensionClient; requestConnection: () => Promise<{ ok: boolean; reason?: ExtensionFailure }>; open: (url: string) => Promise<unknown>
+  update?: { check: UpdateCheck; apply: () => void } }>()
 // Same language as the NodeAccess portal (pt-BR), whatever the browser UI language is.
 const t = message('pt-BR')
 const phase = ref<'loading' | 'disconnected' | 'connecting' | 'connected'>('loading')
 const query = ref(''), kind = ref<VaultItemKind | ''>(''), items = ref<VaultItemSummary[]>([]), next = ref<string | null>(null)
-const fingerprint = ref('')
+const fingerprint = ref(''), updateAvailable = ref(false)
 const recents = ref<string[]>([]), error = ref<ExtensionFailure | ''>(''), searching = ref(false)
 const kinds: Array<{ value: VaultItemKind | ''; label: string }> = [{ value: '', label: t.all }, { value: 'secret', label: t.secret }, { value: 'pem', label: t.pem }]
 const busy = computed(() => searching.value && !items.value.length)
@@ -58,13 +61,15 @@ async function openItem(item: VaultItemSummary): Promise<void> {
     await props.open(url)
   } catch (failure) { fail(failure) }
 }
+onMounted(() => { void props.update?.check.available().then(value => { updateAvailable.value = value }) })
+function applyUpdate(): void { props.update?.apply() }
 onMounted(async () => {
   if (!await props.client.connected()) { phase.value = 'disconnected'; return }
   phase.value = 'connected'
   recents.value = await props.client.recents()
   await search()
 })
-defineExpose({ search, connect, disconnect, openItem, setKind })
+defineExpose({ search, connect, disconnect, openItem, setKind, applyUpdate })
 </script>
 
 <template>
@@ -94,6 +99,23 @@ defineExpose({ search, connect, disconnect, openItem, setKind })
         />{{ t.connected }}
       </span>
     </header>
+
+    <div
+      v-if="updateAvailable"
+      class="update"
+      role="status"
+      data-testid="vaultnaccess-update"
+    >
+      <span>{{ t.updateAvailable }}</span>
+      <button
+        type="button"
+        class="update-button"
+        data-testid="vaultnaccess-update-apply"
+        @click="applyUpdate"
+      >
+        {{ t.update }}
+      </button>
+    </div>
 
     <p
       v-if="error"
@@ -326,6 +348,9 @@ button:disabled { cursor: default; opacity: .6; }
 .status { display: inline-flex; align-items: center; gap: 6px; padding: 2px 8px; border-radius: 999px; background: var(--primary-soft); color: var(--primary); font-size: 11px; font-weight: 600; white-space: nowrap; }
 .dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
 
+.update { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 10px 14px 0; padding: 8px 10px; border-radius: 6px; background: var(--primary-soft); color: var(--text); font-size: 12px; }
+.update-button { flex: none; padding: 4px 10px; border: 0; border-radius: 4px; background: var(--primary); color: var(--primary-text); font-weight: 600; font-size: 12px; }
+.update-button:hover { background: var(--primary-hover); }
 .alert { display: flex; gap: 8px; align-items: flex-start; margin: 10px 14px 0; padding: 8px 10px; border-radius: 6px; background: var(--danger-soft); color: var(--danger); }
 .alert .icon { margin-top: 1px; }
 

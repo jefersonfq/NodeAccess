@@ -3,6 +3,7 @@ declare namespace chrome {
   namespace runtime {
     const id: string
     function getManifest(): { version: string }
+    function reload(): void
     function sendMessage<T = unknown>(message: unknown): Promise<T>
     const onMessage: { addListener(listener: (message: unknown, sender: { id?: string }, respond: (reply: unknown) => void) => boolean | undefined): void }
   }
@@ -24,3 +25,5 @@ declare namespace chrome {
   }
 }
 declare const __PORTAL_ORIGIN__: string
+/** NA-0190: content-derived id of a local build; empty in test/production builds. */
+declare const __BUILD_ID__: string

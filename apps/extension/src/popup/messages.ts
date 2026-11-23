@@ -3,7 +3,7 @@ import type { ExtensionFailure } from '../core/client'
 interface Messages {
   intro: string; connect: string; connecting: string; disconnect: string; search: string; kind: string; all: string
   compare: string; secret: string; pem: string; personal: string; shared: string; recents: string; empty: string; open: string; more: string
-  subtitle: string; connected: string; items: string; footer: string
+  subtitle: string; connected: string; items: string; footer: string; updateAvailable: string; update: string
   errors: Record<ExtensionFailure, string>
 }
 const pt: Messages = {
@@ -12,7 +12,7 @@ const pt: Messages = {
   compare: 'Confira se o portal mostra este mesmo código de dispositivo:',
   search: 'Buscar itens', kind: 'Tipo', all: 'Todos', secret: 'Secret', pem: 'Chave PEM', personal: 'Pessoal', shared: 'Compartilhado',
   recents: 'Recentes', empty: 'Nenhum item encontrado.', open: 'Abrir no portal', more: 'Carregar mais',
-  subtitle: 'Cofre NodeAccess', connected: 'Conectado', items: 'Itens', footer: 'Valores secretos ficam no portal.',
+  subtitle: 'Cofre NodeAccess', connected: 'Conectado', items: 'Itens', footer: 'Valores secretos ficam no portal.', updateAvailable: 'Nova versão da extensão disponível.', update: 'Atualizar',
   errors: {
     denied: 'Sem permissão para usar a extensão. Fale com os gestores do cofre.', cancelled: 'Conexão cancelada.',
     expired: 'A conexão expirou. Conecte novamente.', upgrade: 'Atualize a extensão para continuar.',
@@ -25,7 +25,7 @@ const en: Messages = {
   compare: 'Check that the portal shows this same device code:',
   search: 'Search items', kind: 'Type', all: 'All', secret: 'Secret', pem: 'PEM key', personal: 'Personal', shared: 'Shared',
   recents: 'Recent', empty: 'No items found.', open: 'Open in portal', more: 'Load more',
-  subtitle: 'NodeAccess vault', connected: 'Connected', items: 'Items', footer: 'Secret values stay in the portal.',
+  subtitle: 'NodeAccess vault', connected: 'Connected', items: 'Items', footer: 'Secret values stay in the portal.', updateAvailable: 'A new extension version is available.', update: 'Update',
   errors: {
     denied: 'You are not allowed to use the extension. Ask the vault managers.', cancelled: 'Connection cancelled.',
     expired: 'The connection expired. Connect again.', upgrade: 'Update the extension to continue.',

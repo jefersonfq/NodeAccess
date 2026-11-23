@@ -106,3 +106,7 @@ __pycache__/
 
 # Notas locais de acesso a hosts (nomeadas por IP); nunca versionar
 /docs/[0-9]*.[0-9]*.[0-9]*.[0-9]*.txt
+# NA-0190: local extension build, its config (public values) and the dev-server announcement
+apps/extension/dist-local/
+apps/extension/local.json
+apps/frontend/public/vaultnaccess-build.json

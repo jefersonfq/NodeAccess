@@ -12,6 +12,7 @@ import { resolveExecutable } from '../shared/trusted-executable.cjs'
 
 const ROOT = resolve(import.meta.dirname, '../..')
 const PORTAL = 'https://vault.example.test'
+const BUILD = 'aaaaaaaaaaaa'
 // Coverage runs (tools/coverage/browser.mjs) supply a private artifacts directory and the pinned Chromium.
 const OUT = process.env.ARTIFACTS_DIR ? resolve(process.env.ARTIFACTS_DIR) : resolve(ROOT, '.tmp/NA-0183/extension-smoke')
 mkdirSync(OUT, { recursive: true })
@@ -19,11 +20,11 @@ const result = { startedAt: new Date().toISOString(), checks: {}, status: 'faile
 const check = (name, ok, detail = '') => { result.checks[name] = ok ? 'PASS' : `FAIL ${detail}`.trim(); if (!ok) throw new Error(`${name} ${detail}`) }
 
 execFileSync(process.execPath, [resolve(ROOT, 'node_modules/vite/bin/vite.js'), 'build', '--config', 'apps/extension/vite.config.ts', '--logLevel', 'error'],
-  { cwd: ROOT, env: { ...process.env, VAULTNACCESS_PORTAL_ORIGIN: PORTAL }, stdio: 'inherit' })
+  { cwd: ROOT, env: { ...process.env, VAULTNACCESS_PORTAL_ORIGIN: PORTAL, VAULTNACCESS_BUILD_ID: BUILD, VAULTNACCESS_OUT_DIR: 'dist' }, stdio: 'inherit' })
 const dist = resolve(ROOT, 'apps/extension/dist')
 const profile = mkdtempSync(join(OUT, 'profile-'))
 const access = 'A'.repeat(43), code = 'C'.repeat(43)
-const seen = { token: 0, items: 0, consentQuery: null, urls: [], id: '' }
+const seen = { token: 0, items: 0, consentQuery: null, urls: [], id: '', announced: BUILD }
 let context, server
 try {
   // Disposable self-signed certificate; the browser is told to trust it only for this run.
@@ -37,6 +38,8 @@ try {
       seen.urls.push(url.pathname + url.search)
       ;(seen.origins ??= []).push(`${req.method} ${url.pathname} ${headers.origin ?? '-'}`)
       const send = (status, body, extra = {}, type = 'application/json') => { res.writeHead(status, { 'Content-Type': type, 'DPoP-Nonce': 'abc.' + 'n'.repeat(32), 'Cache-Control': 'no-store', ...extra }); res.end(body) }
+      // NA-0190: build id announced by the portal dev server.
+      if (url.pathname === '/vaultnaccess-build.json') return send(200, JSON.stringify({ buildId: seen.announced }))
       if (url.pathname === '/vault/extension/connect') {
         seen.consentQuery = Object.fromEntries(url.searchParams)
         const back = `${url.searchParams.get('redirectUri')}?code=${code}&state=${url.searchParams.get('state')}`
@@ -116,6 +119,16 @@ try {
   await popup.getByTestId('vaultnaccess-connect').waitFor({ timeout: 10_000 })
   const after = await popup.evaluate(async () => chrome.storage.session.get(null))
   check('disconnect-clears-session', Object.keys(after).length === 0, JSON.stringify(Object.keys(after)))
+  // NA-0190: same build => no prompt; another build announced => "Update" reloads the unpacked extension.
+  check('no-update-prompt-for-same-build', await popup.getByTestId('vaultnaccess-update').count() === 0)
+  seen.announced = 'bbbbbbbbbbbb'
+  await popup.reload()
+  await popup.getByTestId('vaultnaccess-update').waitFor({ timeout: 10_000 })
+  await shots('update')
+  const closed = popup.waitForEvent('close', { timeout: 10_000 })
+  await popup.getByTestId('vaultnaccess-update-apply').click()
+  await closed
+  check('update-reloads-extension', true)
   result.status = 'passed'
 } catch (error) {
   result.error = String(error?.message ?? error).slice(0, 400)
