@@ -14,7 +14,8 @@ vi.mock('@/services/vault-delivery', () => ({ createVaultDelivery: mocks.create 
 vi.mock('@/services/vault-provider-confirm', () => ({ openVaultProviderWindow: vi.fn(), requestGoogleIdToken: vi.fn() }))
 vi.mock('@/stores/auth', () => ({ useAuthStore: () => auth }))
 vi.mock('vue-router', () => ({ useRoute: () => route }))
-vi.mock('vue-i18n', () => ({ useI18n: () => ({ t: (key: string) => key, d: () => 'date' }) }))
+const portalLocale = { value: 'pt-BR' }
+vi.mock('vue-i18n', () => ({ useI18n: () => ({ t: (key: string) => key, d: () => 'date', locale: portalLocale }) }))
 vi.mock('naive-ui', () => ({ ...Object.fromEntries(['NAlert', 'NButton', 'NCard', 'NFormItem', 'NInput', 'NSpace', 'NText'].map(name => [name,
   defineComponent({ inheritAttrs: false, setup: (_, { attrs, slots }) => () => h(name, attrs, slots.default?.()) })])) }))
 interface HostNode { parent: HostNode | null; children: HostNode[] }
@@ -53,7 +54,7 @@ describe('NA-0183 extension consent page', () => {
     expect(mocks.unlock).toHaveBeenCalledWith('pw', '123456')
     expect(f.state.password).toBe(''); expect(f.state.token).toBe('')
     expect(mocks.authorize).toHaveBeenCalledWith({ extensionId: EXT, redirectUri: valid.redirectUri, state: valid.state, codeChallenge: valid.codeChallenge, deviceJkt: valid.deviceJkt })
-    expect(replaced).toEqual([`${valid.redirectUri}?code=${'k'.repeat(43)}&state=${valid.state}`])
+    expect(replaced).toEqual([`${valid.redirectUri}?code=${'k'.repeat(43)}&state=${valid.state}&lang=pt-BR`])
     f.unmount(); expect(mocks.dispose).toHaveBeenCalled()
   })
   it('uses the provider step-up for OIDC/Google sessions', async () => {
@@ -70,8 +71,17 @@ describe('NA-0183 extension consent page', () => {
     expect(replaced).toEqual([])
     f.state.deny()
     expect(mocks.lock).toHaveBeenCalled()
-    expect(replaced).toEqual([`${valid.redirectUri}?error=access_denied&state=${valid.state}`])
+    expect(replaced).toEqual([`${valid.redirectUri}?error=access_denied&state=${valid.state}&lang=pt-BR`])
     f.unmount()
+  })
+  it('NA-0192: tells the extension the portal language (only pt-BR or en)', async () => {
+    portalLocale.value = 'en'
+    try {
+      const f = mount<Connect>(ExtensionConnectView); await flush()
+      f.state.deny()
+      expect(replaced).toEqual([`${valid.redirectUri}?error=access_denied&state=${valid.state}&lang=en`])
+      f.unmount()
+    } finally { portalLocale.value = 'pt-BR' }
   })
   it('refuses a malformed request without contacting the vault', async () => {
     route.query = { ...valid, redirectUri: 'https://evil.example/' }

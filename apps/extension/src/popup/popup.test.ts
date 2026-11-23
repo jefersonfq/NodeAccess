@@ -8,7 +8,8 @@ import { message } from './messages'
 interface HostNode { parent: HostNode | null; children: HostNode[] }
 const node = (): HostNode => ({ parent: null, children: [] })
 interface Popup { phase: string; items: unknown[]; error: string; query: string; next: string | null; recents: string[]
-  search(more?: boolean): Promise<void>; connect(): Promise<void>; disconnect(): Promise<void>; openItem(item: unknown): Promise<void>; setKind(value: string): void; applyUpdate(): void }
+  search(more?: boolean): Promise<void>; connect(): Promise<void>; disconnect(): Promise<void>; openItem(item: unknown): Promise<void>; setKind(value: string): void; applyUpdate(): void
+  onKey(event: unknown): void; focusItem(index: number): void; active: number }
 function mount(props: Record<string, unknown>) {
   const renderer = createRenderer<HostNode, HostNode>({ createElement: node, createText: node, createComment: node, setText: () => {}, setElementText: () => {}, patchProp: () => {},
     parentNode: n => n.parent, nextSibling: () => null, insert: (n, p) => { n.parent = p; p.children.push(n) }, remove: n => { if (n.parent) n.parent.children = n.parent.children.filter(c => c !== n) } })
@@ -22,7 +23,7 @@ function fakeClient(connected: boolean) {
   return {
     connect: vi.fn(), connected: vi.fn().mockResolvedValue(connected), disconnect: vi.fn().mockResolvedValue(undefined), capabilities: vi.fn(),
     search: vi.fn().mockResolvedValue({ items: [item], nextCursor: '50' }), remember: vi.fn().mockResolvedValue(undefined),
-    recents: vi.fn().mockResolvedValue(['secret:3']), fingerprint: vi.fn().mockResolvedValue('abcd-efgh-ijkl-mnop'), portalUrl: vi.fn((p: string) => `https://vault.example.test${p}`),
+    recents: vi.fn().mockResolvedValue(['secret:3']), locale: vi.fn().mockResolvedValue(null), fingerprint: vi.fn().mockResolvedValue('abcd-efgh-ijkl-mnop'), portalUrl: vi.fn((p: string) => `https://vault.example.test${p}`),
   }
 }
 const asClient = (c: ReturnType<typeof fakeClient>): ExtensionClient => c
@@ -62,15 +63,17 @@ describe('NA-0183 extension popup', () => {
     await g.state.connect(); expect(g.state.error).toBe('unavailable')
     f.unmount(); g.unmount()
   })
-  it('always renders in pt-BR, even in an English browser', async () => {
-    vi.stubGlobal('navigator', { language: 'en-US' })
-    try {
-      const f = mount({ client: asClient(fakeClient(false)), requestConnection: vi.fn(), open: vi.fn() }); await flush()
-      const html = await f.html()
-      f.unmount()
-      expect(html).toContain(message('pt-BR').connect)
-      expect(html).not.toContain(message('en-US').connect)
-    } finally { vi.unstubAllGlobals() }
+  it('NA-0192: uses the browser language until a connection tells the portal language', async () => {
+    const en = mount({ client: asClient(fakeClient(false)), requestConnection: vi.fn(), open: vi.fn(), browserLanguage: 'en-US' }); await flush()
+    expect(await en.html()).toContain(message('en-US').connect); en.unmount()
+    const plain = mount({ client: asClient(fakeClient(false)), requestConnection: vi.fn(), open: vi.fn() }); await flush()
+    expect(await plain.html()).toContain(message('pt-BR').connect); plain.unmount()
+    const client = fakeClient(true); client.locale.mockResolvedValue('pt-BR')
+    const pt = mount({ client: asClient(client), requestConnection: vi.fn(), open: vi.fn(), browserLanguage: 'en-US' }); await flush()
+    expect(await pt.html()).toContain('Conectado'); pt.unmount()
+    const later = fakeClient(false); later.locale.mockResolvedValue('en')
+    const g = mount({ client: asClient(later), requestConnection: vi.fn().mockResolvedValue({ ok: true }), open: vi.fn() }); await flush()
+    await g.state.connect(); expect(await g.html()).toContain('Connected'); g.unmount()
   })
   it('has every message in both languages', () => {
     const pt = message('pt-BR'), en = message('en-US')
@@ -128,5 +131,36 @@ describe('NA-0183 extension popup', () => {
     expect(quiet.state.error).toBe(''); quiet.unmount()
     const live = mount({ client: asClient(fakeClient(false)), requestConnection: vi.fn().mockResolvedValue({ ok: false, reason: 'offline' }), open: vi.fn() }); await flush()
     await live.state.connect(); expect(live.state.error).toBe('offline'); expect(live.state.phase).toBe('disconnected'); live.unmount()
+  })
+  it('NA-0192: searches while typing, once, after a short pause', async () => {
+    vi.useFakeTimers()
+    try {
+      const client = fakeClient(true)
+      const f = mount({ client: asClient(client), requestConnection: vi.fn(), open: vi.fn() }); await flush()
+      const before = client.search.mock.calls.length
+      f.state.query = 'd'; await nextTick(); f.state.query = 'db'; await nextTick()
+      await vi.advanceTimersByTimeAsync(299); expect(client.search.mock.calls.length).toBe(before)
+      await vi.advanceTimersByTimeAsync(1); expect(client.search).toHaveBeenLastCalledWith('db', undefined, undefined)
+      expect(client.search.mock.calls.length).toBe(before + 1)
+      f.unmount()
+    } finally { vi.useRealTimers() }
+  })
+  it('NA-0192: keyboard — slash focuses the search, arrows move through results, Esc clears', async () => {
+    const client = fakeClient(true)
+    client.search.mockResolvedValue({ items: [item, { ...item, sourceId: 4, label: 'web', portalPath: '/vault?kind=secret&id=4' }], nextCursor: null })
+    const f = mount({ client: asClient(client), requestConnection: vi.fn(), open: vi.fn() }); await flush()
+    const key = (k: string, target: unknown = {}) => { const prevent = vi.fn(); f.state.onKey({ key: k, target, preventDefault: prevent }); return prevent }
+    expect(key('/')).toHaveBeenCalled()
+    key('ArrowDown'); expect(f.state.active).toBe(0)
+    key('ArrowDown'); key('ArrowDown'); expect(f.state.active).toBe(1)
+    key('ArrowUp'); expect(f.state.active).toBe(0)
+    key('ArrowUp'); expect(f.state.active).toBe(-1)
+    f.state.query = 'db'; expect(key('Escape')).toHaveBeenCalled(); expect(f.state.query).toBe('')
+    expect(key('Escape')).not.toHaveBeenCalled()
+    expect(key('x')).not.toHaveBeenCalled()
+    f.unmount()
+    const off = mount({ client: asClient(fakeClient(false)), requestConnection: vi.fn(), open: vi.fn() }); await flush()
+    const prevent = vi.fn(); off.state.onKey({ key: '/', target: {}, preventDefault: prevent }); expect(prevent).not.toHaveBeenCalled()
+    off.state.focusItem(0); off.unmount()
   })
 })

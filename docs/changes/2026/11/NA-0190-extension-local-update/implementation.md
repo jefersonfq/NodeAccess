@@ -41,3 +41,7 @@ Branch refeita sobre o merge da NA-0189 (`740d58273`), com o encerramento da NA-
 ### 2026-11-23T12:40:00-03:00 — CI da PR81
 
 `sonar-real` reprovou só por um apontamento novo (S4036: `git` resolvido pelo PATH em `build-local.mjs`); cobertura nova 86,9%. Corrigido com `resolveExecutable('git')` (mesmo auxiliar dos outros harnesses). Branch refeita sobre o merge da NA-0191 (`7f728c2c2`), com o encerramento da NA-0191. Ran: `build-local.test.mjs` 4 PASS; compilação local com o usuário do projeto PASS.
+
+### 2026-11-23T13:50:00-03:00 — Merge e encerramento
+
+PR81 mergeada em `master` (`1bfae8fa5`, 2026-11-23) com todos os checks remotos verdes (job `native-agent (macos-latest)` cancelado uma vez, reexecutado e aprovado). `master` local sincronizado. Status `closed`. Segue: `validate:sonar` local (tokens do responsável). Encerramento registrado na branch da NA-0192.

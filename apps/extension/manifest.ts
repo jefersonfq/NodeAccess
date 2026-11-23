@@ -11,6 +11,8 @@ export function manifest(origin: string, extensionVersion: string, key?: string,
     version: extensionVersion,
     minimum_chrome_version: '116',
     action: { default_title: 'VaultNAccess', default_popup: 'popup.html' },
+    // NA-0192: keyboard shortcut to open the popup (no permission; Ctrl+Shift+V is Chrome's paste as plain text).
+    commands: { _execute_action: { suggested_key: { default: 'Alt+Shift+V' }, description: 'Abrir o VaultNAccess' } },
     background: { service_worker: 'background.js', type: 'module' },
     permissions: ['identity', 'storage'],
     host_permissions: [`${origin}/*`],

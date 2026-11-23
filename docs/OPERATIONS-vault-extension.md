@@ -32,6 +32,8 @@ VAULTNACCESS_PORTAL_ORIGIN=https://<portal> [VAULTNACCESS_VERSION=0.1.0] [VAULTN
 - O ID de uma extensão sem compactação depende do caminho. Para um ID estável entre máquinas, gere um par de chaves para a extensão e informe a chave pública em `VAULTNACCESS_MANIFEST_KEY`; guarde a chave privada fora do repositório. Cadastre o ID resultante em `VAULT_EXTENSION_IDS`.
 - Permissões do manifest: `identity`, `storage` e a origem do portal. Sem content scripts, `externally_connectable` ou `web_accessible_resources`.
 
+- Atalho do manifesto (NA-0192): `commands._execute_action` com `Alt+Shift+V` (sem permissão nova); o usuário troca em `chrome://extensions/shortcuts`. A página de conexão devolve `lang=pt-BR|en`, guardado só como código em `storage.session` junto da autorização.
+
 ### Homologação local com atualização ao subir o ambiente (NA-0190)
 
 - Configure uma vez `apps/extension/local.json` (fora do Git, só valores públicos): `{ "portalOrigin": "https://127.0.0.1:5173", "manifestKey": "<chave pública base64>", "version": "0.1.0" }`. As variáveis `VAULTNACCESS_PORTAL_ORIGIN`, `VAULTNACCESS_MANIFEST_KEY` e `VAULTNACCESS_VERSION` têm prioridade.

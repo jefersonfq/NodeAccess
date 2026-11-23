@@ -22,6 +22,9 @@ export interface SessionStore {
   clear(): Promise<void>
   recents(): Promise<string[]>
   setRecents(keys: string[]): Promise<void>
+  /** NA-0192: language the portal was using at the last connection (`pt-BR` | `en`). */
+  locale(): Promise<string | null>
+  setLocale(locale: string): Promise<void>
 }
 /** Interactive consent window; resolves with the final redirect URL. */
 export interface AuthFlow {

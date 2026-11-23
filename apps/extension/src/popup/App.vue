@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import type { VaultItemKind, VaultItemSummary } from '@nodeaccess/shared'
 import { ExtensionError, type ExtensionClient, type ExtensionFailure } from '../core/client'
 import { message } from './messages'
@@ -10,14 +10,19 @@ import PopupIcon from './PopupIcon.vue'
 const props = defineProps<{ client: ExtensionClient; requestConnection: () => Promise<{ ok: boolean; reason?: ExtensionFailure }>; open: (url: string) => Promise<unknown>
   update?: { check: UpdateCheck; apply: () => void }
   /** NA-0190: reason of a connection attempt that failed after the popup closed (read once). */
-  lastFailure?: () => Promise<ExtensionFailure | null> }>()
-// Same language as the NodeAccess portal (pt-BR), whatever the browser UI language is.
-const t = message('pt-BR')
+  lastFailure?: () => Promise<ExtensionFailure | null>
+  /** NA-0192: browser language, used until a connection tells the portal's (default pt-BR). */
+  browserLanguage?: string }>()
+const language = ref(props.browserLanguage ?? 'pt-BR')
+const t = computed(() => message(language.value))
 const phase = ref<'loading' | 'disconnected' | 'connecting' | 'connected'>('loading')
 const query = ref(''), kind = ref<VaultItemKind | ''>(''), items = ref<VaultItemSummary[]>([]), next = ref<string | null>(null)
 const fingerprint = ref(''), updateAvailable = ref(false)
 const recents = ref<string[]>([]), error = ref<ExtensionFailure | ''>(''), searching = ref(false)
-const kinds: Array<{ value: VaultItemKind | ''; label: string }> = [{ value: '', label: t.all }, { value: 'secret', label: t.secret }, { value: 'pem', label: t.pem }]
+const kinds = computed((): Array<{ value: VaultItemKind | ''; label: string }> => [{ value: '', label: t.value.all }, { value: 'secret', label: t.value.secret }, { value: 'pem', label: t.value.pem }])
+// NA-0192: search as you type and keyboard navigation of the results.
+const searchInput = ref<HTMLInputElement | null>(null), itemButtons = ref<HTMLButtonElement[]>([]), active = ref(-1)
+let typing: ReturnType<typeof setTimeout> | undefined
 const busy = computed(() => searching.value && !items.value.length)
 const recentItems = computed(() => recents.value.map(key => items.value.find(i => `${i.kind}:${i.sourceId}` === key)).filter((i): i is VaultItemSummary => !!i))
 let generation = 0
@@ -28,6 +33,7 @@ function fail(failure: unknown): void {
   if (reason === 'expired' || reason === 'denied') { phase.value = 'disconnected'; items.value = [] }
 }
 async function search(more = false): Promise<void> {
+  clearTimeout(typing)
   const current = ++generation
   searching.value = true; error.value = ''
   try {
@@ -35,6 +41,7 @@ async function search(more = false): Promise<void> {
     if (current !== generation) return
     items.value = more ? [...items.value, ...reply.items] : reply.items
     next.value = reply.nextCursor
+    if (!more) active.value = -1
   } catch (failure) { if (current === generation) fail(failure) } finally { if (current === generation) searching.value = false }
 }
 function setKind(value: VaultItemKind | ''): void {
@@ -42,12 +49,43 @@ function setKind(value: VaultItemKind | ''): void {
   kind.value = value
   void search()
 }
+watch(query, () => {
+  if (phase.value !== 'connected') return
+  clearTimeout(typing)
+  typing = setTimeout(() => { void search() }, 300)
+})
+async function useLocale(): Promise<void> {
+  const locale = await props.client.locale().catch(() => null)
+  if (locale) language.value = locale
+}
+function focusItem(index: number): void {
+  if (!items.value.length) return
+  active.value = Math.max(0, Math.min(items.value.length - 1, index))
+  void nextTick(() => itemButtons.value[active.value]?.focus())
+}
+/** `/` focuses the search; ↑/↓ move through the results; Esc clears the search (Enter on an item opens it). */
+function onKey(event: KeyboardEvent): void {
+  if (phase.value !== 'connected') return
+  const inSearch = event.target === searchInput.value
+  if (event.key === '/' && !inSearch) { event.preventDefault(); searchInput.value?.focus(); return }
+  if (event.key === 'ArrowDown') { event.preventDefault(); focusItem(inSearch ? 0 : active.value + 1); return }
+  if (event.key === 'ArrowUp') {
+    event.preventDefault()
+    if (active.value <= 0) { active.value = -1; searchInput.value?.focus() } else focusItem(active.value - 1)
+    return
+  }
+  if (event.key === 'Escape' && query.value) { event.preventDefault(); query.value = ''; searchInput.value?.focus() }
+}
+// The popup page is the whole document; `globalThis` keeps the component testable outside a browser.
+onMounted(() => { globalThis.addEventListener?.('keydown', onKey) })
+onBeforeUnmount(() => { globalThis.removeEventListener?.('keydown', onKey); clearTimeout(typing) })
 async function connect(): Promise<void> {
   phase.value = 'connecting'; error.value = ''
   fingerprint.value = await props.client.fingerprint().catch(() => '')
   const reply = await props.requestConnection().catch(() => ({ ok: false, reason: 'unavailable' as const }))
   if (!reply.ok) { phase.value = 'disconnected'; error.value = reply.reason ?? 'unavailable'; return }
   phase.value = 'connected'
+  await useLocale()
   await search()
 }
 async function disconnect(): Promise<void> {
@@ -73,10 +111,11 @@ onMounted(async () => {
     return
   }
   phase.value = 'connected'
+  await useLocale()
   recents.value = await props.client.recents()
   await search()
 })
-defineExpose({ search, connect, disconnect, openItem, setKind, applyUpdate })
+defineExpose({ search, connect, disconnect, openItem, setKind, applyUpdate, onKey, focusItem })
 </script>
 
 <template>
@@ -188,10 +227,11 @@ defineExpose({ search, connect, disconnect, openItem, setKind, applyUpdate })
       >
         <PopupIcon name="search" />
         <input
+          ref="searchInput"
           v-model="query"
           type="search"
           :aria-label="t.search"
-          :placeholder="t.search"
+          :placeholder="t.searchHint"
           maxlength="100"
           autocomplete="off"
           data-testid="vaultnaccess-search"
@@ -260,13 +300,16 @@ defineExpose({ search, connect, disconnect, openItem, setKind, applyUpdate })
           data-testid="vaultnaccess-results"
         >
           <li
-            v-for="item in items"
+            v-for="(item, index) in items"
             :key="`${item.kind}:${item.sourceId}`"
           >
             <button
+              :ref="(el) => { if (el) itemButtons[index] = el as HTMLButtonElement }"
               type="button"
               class="item"
+              :class="{ active: index === active }"
               :title="t.open"
+              @focus="active = index"
               @click="openItem(item)"
             >
               <span
@@ -392,7 +435,7 @@ ul { list-style: none; margin: 0; padding: 0; }
 
 .results { display: flex; flex-direction: column; gap: 2px; }
 .item { display: flex; align-items: center; gap: 10px; width: 100%; padding: 8px; border: 0; border-radius: 6px; background: none; text-align: left; }
-.item:hover, .item:focus-visible { background: var(--surface); }
+.item:hover, .item:focus-visible, .item.active { background: var(--surface); }
 .kind { display: grid; place-items: center; width: 30px; height: 30px; flex: none; border-radius: 6px; }
 .kind.secret { background: var(--secret-soft); color: var(--secret); }
 .kind.pem { background: var(--pem-soft); color: var(--pem); }
@@ -402,7 +445,7 @@ ul { list-style: none; margin: 0; padding: 0; }
 .meta { display: flex; gap: 4px; }
 .tag { padding: 0 6px; border-radius: 4px; background: var(--surface-2); color: var(--muted); font-size: 11px; }
 .go { color: var(--muted); opacity: 0; transition: opacity .12s; }
-.item:hover .go, .item:focus-visible .go { opacity: 1; }
+.item:hover .go, .item:focus-visible .go, .item.active .go { opacity: 1; }
 .more { width: 100%; margin-top: 6px; padding: 6px; border: 1px solid var(--border); border-radius: 6px; background: none; color: var(--primary); }
 .empty { display: flex; flex-direction: column; align-items: center; gap: 6px; margin: 0; padding: 18px 0; color: var(--muted); }
 .empty .icon { width: 22px; height: 22px; opacity: .6; }

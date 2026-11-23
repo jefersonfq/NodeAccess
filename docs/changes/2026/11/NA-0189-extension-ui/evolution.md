@@ -16,6 +16,7 @@ Garantias que valem para todas as fatias: nenhum valor secreto persistido na ext
 ## Ordem recomendada
 
 ### 1. E1.2 — Uso diário (baixo risco, sem mudar segurança)
+- Entregue na NA-0192 (busca ao digitar, teclado, `Alt+Shift+V`, idioma do portal). O host do item virou frente própria: o portal só lista hosts de um Secret para quem pode gerenciá-lo e sem filtrar pela ACL de hosts do usuário.
 - Busca enquanto digita (com espera curta) e navegação por teclado (↑/↓/Enter, `/` para focar a busca).
 - Atalho de teclado para abrir o popup (`commands` do manifesto, sem permissão nova).
 - Mostrar o host associado ao item quando o portal já devolver (só metadado) e abrir o host no portal.
