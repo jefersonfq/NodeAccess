@@ -26,7 +26,7 @@ const published = { available: true, version: '0.2.0', extensionId: ID, zip: { s
 interface Install { copy(kind: string, value: string): Promise<void>; copied: string; load(): Promise<void> }
 beforeEach(() => {
   vi.clearAllMocks(); auth.isAdmin = true
-  vi.stubGlobal('window', { location: { origin: 'https://portal.test' }, isSecureContext: true })
+  vi.stubGlobal('window', { location: { origin: 'https://portal.test', protocol: 'https:' }, isSecureContext: true })
 })
 
 describe('NA-0194 extension install card', () => {
@@ -65,10 +65,13 @@ describe('NA-0194 extension install card', () => {
     const f = mount<Install>(ExtensionInstall); await flush()
     expect(await f.html()).not.toContain('vault-extension-install'); f.unmount()
   })
-  it('makes no Vault API request outside HTTPS (HTTP boundary)', async () => {
-    vi.stubGlobal('window', { location: { origin: 'http://portal.test' }, isSecureContext: false })
+  it('makes no Vault API request outside HTTPS (HTTP boundary), even where the browser calls http://localhost secure', async () => {
     mocks.get.mockResolvedValue({ data: published })
-    const f = mount<Install>(ExtensionInstall); await flush()
-    expect(mocks.get).not.toHaveBeenCalled(); expect(await f.html()).not.toContain('vault-extension-install'); f.unmount()
+    for (const secure of [false, true]) {
+      vi.stubGlobal('window', { location: { origin: 'http://127.0.0.1:5173', protocol: 'http:' }, isSecureContext: secure })
+      const f = mount<Install>(ExtensionInstall); await flush()
+      expect(await f.html()).not.toContain('vault-extension-install'); f.unmount()
+    }
+    expect(mocks.get).not.toHaveBeenCalled()
   })
 })

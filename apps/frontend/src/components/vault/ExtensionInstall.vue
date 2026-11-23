@@ -24,7 +24,8 @@ function valid(value: unknown): value is PackageInfo {
 }
 async function load(): Promise<void> {
   // Outside HTTPS the vault page makes no Vault API request (contract of the HTTP boundary); the extension needs HTTPS anyway.
-  if (typeof window === 'undefined' || !window.isSecureContext) { info.value = null; return }
+  // Same rule as every vault request: browsers treat http://localhost as a secure context, so the scheme is checked too.
+  if (typeof window === 'undefined' || !window.isSecureContext || window.location?.protocol !== 'https:') { info.value = null; return }
   try {
     const { data } = await api.get<unknown>('/vault-security/extension/package')
     info.value = valid(data) ? data : null

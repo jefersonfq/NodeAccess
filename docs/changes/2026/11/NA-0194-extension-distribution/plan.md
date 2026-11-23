@@ -71,6 +71,7 @@ Revert da PR; sem migração. Sem `VAULT_EXTENSION_PACKAGE_DIR`, nada é publica
 ## Correções necessárias fora do escopo
 
 - 2026-11-23 (CI `sonar-real`, harness do cofre no navegador): em HTTP, a tela do cofre não pode chamar a API do cofre, mas o cartão de instalação consultava `/extension/package`. O cartão agora só consulta em contexto seguro (a extensão exige HTTPS).
+  Ajuste seguinte (mesmo dia): o navegador trata `http://127.0.0.1` como contexto seguro, então o cartão passou a exigir também `https:` no endereço, como os demais componentes do cofre (harness `test:vault:frontend` reproduziu e confirmou).
   Capítulo `hosts` do manual revalidado (fonte mapeada mudou; procedimento sem alteração, pois o cartão já não servia em HTTP).
 
 - 2026-11-23: `tacacs-tls.test.ts` (NA-0169) bloqueava o `sonar-real` de forma determinística em OpenSSL 3: o pacote em texto puro forma um cabeçalho TLS que anuncia 256 bytes, o servidor espera o resto até o tempo do handshake (5 s) e o teste estoura (5 s). O cliente agora fecha a escrita (`end`), o servidor recusa na hora e o teste continua exigindo que nada seja despachado. Sem mudança no servidor TACACS.
