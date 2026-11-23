@@ -2,7 +2,7 @@
 change_id: NA-0191
 title: Mensagem própria quando a confirmação de identidade do cofre falha
 type: security
-status: ready-for-review
+status: closed
 created_at: 2026-11-23T11:00:00-03:00
 base_branch: master
 base_sha: 740d58273bd7e01aa34a284a08842817d1fc7cc5

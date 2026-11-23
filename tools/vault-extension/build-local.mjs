@@ -12,6 +12,7 @@ import { createHash } from 'node:crypto'
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { resolveExecutable } from '../shared/trusted-executable.cjs'
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../..')
 const OUT = join(ROOT, 'apps/extension/dist-local')
@@ -35,7 +36,7 @@ export function buildIdFor(files, read, config) {
   return digest.digest('hex').slice(0, 12)
 }
 export function sourceFiles(root = ROOT) {
-  const listed = execFileSync('git', ['ls-files', '--cached', '--others', '--exclude-standard', 'apps/extension', 'packages/shared/src'], { cwd: root, encoding: 'utf8' })
+  const listed = execFileSync(resolveExecutable('git'), ['ls-files', '--cached', '--others', '--exclude-standard', 'apps/extension', 'packages/shared/src'], { cwd: root, encoding: 'utf8' })
   return listed.split('\n').filter(file => file && !/\.test\.ts$/.test(file) && existsSync(join(root, file)))
 }
 

@@ -37,3 +37,7 @@ Pedido do responsável: com o NodeAccess fora do ar, **Conectar** mostrava o có
 ### 2026-11-23T11:50:00-03:00 — Publicação
 
 Branch refeita sobre o merge da NA-0189 (`740d58273`), com o encerramento da NA-0189. Revalidado antes do push (ver abaixo no PR).
+
+### 2026-11-23T12:40:00-03:00 — CI da PR81
+
+`sonar-real` reprovou só por um apontamento novo (S4036: `git` resolvido pelo PATH em `build-local.mjs`); cobertura nova 86,9%. Corrigido com `resolveExecutable('git')` (mesmo auxiliar dos outros harnesses). Branch refeita sobre o merge da NA-0191 (`7f728c2c2`), com o encerramento da NA-0191. Ran: `build-local.test.mjs` 4 PASS; compilação local com o usuário do projeto PASS.
