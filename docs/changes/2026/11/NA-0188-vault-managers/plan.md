@@ -60,15 +60,15 @@ Fora de escopo: notificação global/push e e-mail; mudar o bootstrap; papel aut
 
 ## Critérios de aceitação
 
-1. Gestor A propõe tornar C gestor; gestor B aprova; C passa a ser gestor (aparece a etiqueta e as opções do cofre).
-2. A não consegue propor mudança de gestor para si; C não aprova a própria promoção.
-3. Com só 2 gestores, a proposta de permissão para um deles é recusada pelo servidor (`VAULT_NO_APPROVER`) e o botão fica desabilitado com o motivo na tela.
-4. Remover um gestor que deixaria menos de 2 é recusado na proposta e na aprovação (não há aprovador distinto).
-5. Validade configurável de 2 min a 24 h (minutos inteiros) por dois gestores; a nova proposta vence no prazo configurado; valor inválido recusado.
-6. Gestor vê a contagem de pendências que pode aprovar na guia Usuários e na tela do cofre sem desbloquear; não gestor não recebe contagem.
-7. Admin que não é gestor vê a explicação, sem ações que falhariam.
-8. Toda aprovação continua exigindo confirmação de identidade recente e incrementando a versão da política; ADMIN sem gestão continua sem poder no cofre.
-9. E2E Playwright cobre os itens acima em desktop e mobile, sem erros no navegador e sem rolagem horizontal.
+- [x] Gestor A propõe tornar C gestor; gestor B aprova; C passa a ser gestor (aparece a etiqueta e as opções do cofre).
+- [x] A não consegue propor mudança de gestor para si; C não aprova a própria promoção.
+- [x] Com só 2 gestores, a proposta de permissão para um deles é recusada pelo servidor (`VAULT_NO_APPROVER`) e o botão fica desabilitado com o motivo na tela.
+- [x] Remover um gestor que deixaria menos de 2 é recusado na proposta e na aprovação (não há aprovador distinto).
+- [x] Validade configurável de 2 min a 24 h (minutos inteiros) por dois gestores; a nova proposta vence no prazo configurado; valor inválido recusado.
+- [x] Gestor vê a contagem de pendências que pode aprovar na guia Usuários e na tela do cofre sem desbloquear; não gestor não recebe contagem.
+- [x] Admin que não é gestor vê a explicação, sem ações que falhariam.
+- [x] Toda aprovação continua exigindo confirmação de identidade recente e incrementando a versão da política; ADMIN sem gestão continua sem poder no cofre.
+- [x] E2E Playwright cobre os itens acima em desktop e mobile, sem erros no navegador e sem rolagem horizontal.
 
 ## Estratégia técnica
 

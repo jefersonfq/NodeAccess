@@ -6,6 +6,7 @@
 import { randomBytes } from 'node:crypto'
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
+import { tmpdir } from 'node:os'
 import { fileURLToPath } from 'node:url'
 import { execFileSync } from 'node:child_process'
 import { createRequire } from 'node:module'
@@ -18,10 +19,27 @@ const { securityCenterPlugin } = require('../security-center/build.cjs')
 const { runVaultAdministrationFlow } = require('./administration-flow.cjs')
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '../..')
 
-export async function executeAdministrationHarness(): Promise<{ report: Record<string, unknown>; evidence: string }> {
+const environmentKeys = ['TMPDIR', 'NODE_ENV', 'DATABASE_URL', 'REDIS_URL', 'JWT_SECRET', 'PEM_ENCRYPTION_KEY', 'PEM_ENCRYPTION_PREVIOUS_KEYS'] as const
+export interface AdministrationHarnessResult { report: Record<string, unknown>; evidence: string }
+
+/** Runs in the caller's process (Vitest collects coverage of this harness, fixture and flow); restores env and umask. */
+export async function executeAdministrationHarness(): Promise<AdministrationHarnessResult> {
+  const saved = new Map(environmentKeys.map(key => [key, process.env[key]] as const))
+  const previousUmask = process.umask()
+  try {
+    process.umask(0o077)
+    return await isolatedRun()
+  } finally {
+    for (const [key, value] of saved) { if (value === undefined) delete process.env[key]; else process.env[key] = value }
+    process.umask(previousUmask)
+  }
+}
+
+async function isolatedRun(): Promise<AdministrationHarnessResult> {
   const outputRoot = join(root, '.tmp/NA-0188'); mkdirSync(outputRoot, { recursive: true, mode: 0o700 })
   const output = mkdtempSync(join(outputRoot, 'administration-'))
-  const runtime = mkdtempSync(join(root, '.tmp/va-'))
+  // Chromium Unix socket paths must fit sun_path: a short private directory under the system temp dir.
+  const runtime = mkdtempSync(join(tmpdir(), 'va-'))
   // Overwrite deployment credentials before importing backend modules; never open a real database or Redis.
   Object.assign(process.env, { NODE_ENV: 'test', DATABASE_URL: `mysql://fixture:${randomBytes(24).toString('hex')}@127.0.0.1:1/unused`, REDIS_URL: 'redis://127.0.0.1:1',
     JWT_SECRET: randomBytes(32).toString('hex'), PEM_ENCRYPTION_KEY: randomBytes(32).toString('hex'), PEM_ENCRYPTION_PREVIOUS_KEYS: '' })
