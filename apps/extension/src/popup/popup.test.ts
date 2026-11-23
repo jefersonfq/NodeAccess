@@ -8,7 +8,7 @@ import { message } from './messages'
 interface HostNode { parent: HostNode | null; children: HostNode[] }
 const node = (): HostNode => ({ parent: null, children: [] })
 interface Popup { phase: string; items: unknown[]; error: string; query: string; next: string | null; recents: string[]
-  search(more?: boolean): Promise<void>; connect(): Promise<void>; disconnect(): Promise<void>; openItem(item: unknown): Promise<void> }
+  search(more?: boolean): Promise<void>; connect(): Promise<void>; disconnect(): Promise<void>; openItem(item: unknown): Promise<void>; setKind(value: string): void }
 function mount(props: Record<string, unknown>) {
   const renderer = createRenderer<HostNode, HostNode>({ createElement: node, createText: node, createComment: node, setText: () => {}, setElementText: () => {}, patchProp: () => {},
     parentNode: n => n.parent, nextSibling: () => null, insert: (n, p) => { n.parent = p; p.children.push(n) }, remove: n => { if (n.parent) n.parent.children = n.parent.children.filter(c => c !== n) } })
@@ -76,5 +76,33 @@ describe('NA-0183 extension popup', () => {
     const pt = message('pt-BR'), en = message('en-US')
     expect(Object.keys(pt.errors)).toEqual(Object.keys(en.errors))
     expect(pt.connect).not.toBe(en.connect)
+  })
+  it('NA-0189: type filter as buttons, item details and the connected state', async () => {
+    const client = fakeClient(true)
+    client.search.mockResolvedValue({ items: [item, { ...item, kind: 'pem' as const, sourceId: 4, label: 'gateway', description: 'Bastion key', scope: 'personal' as const, portalPath: '/vault?kind=pem&id=4' }], nextCursor: null })
+    const f = mount({ client: asClient(client), requestConnection: vi.fn(), open: vi.fn() }); await flush()
+    const html = await f.html()
+    expect(html).toContain('Conectado'); expect(html).toContain('aria-pressed="true"'); expect(html).toContain('Bastion key')
+    expect(html).toContain('Chave PEM'); expect(html).toContain('Pessoal'); expect(html).toContain('Recentes')
+    f.state.setKind('pem'); await flush()
+    expect(client.search).toHaveBeenLastCalledWith('', 'pem', undefined)
+    const calls = client.search.mock.calls.length
+    f.state.setKind('pem'); await flush()
+    expect(client.search).toHaveBeenCalledTimes(calls)
+    f.state.setKind(''); await flush()
+    expect(client.search).toHaveBeenLastCalledWith('', undefined, undefined)
+    f.unmount()
+  })
+  it('NA-0189: shows the device code while waiting and a placeholder while loading', async () => {
+    const client = fakeClient(false)
+    let finish!: (v: { ok: boolean }) => void
+    const f = mount({ client: asClient(client), requestConnection: vi.fn(() => new Promise(done => { finish = done })), open: vi.fn() })
+    expect(await f.html()).toContain('skeleton')
+    await flush()
+    const pending = f.state.connect(); await flush()
+    const html = await f.html()
+    expect(html).toContain('vaultnaccess-fingerprint'); expect(html).toContain('abcd-efgh-ijkl-mnop'); expect(html).toContain('spinner')
+    finish({ ok: true }); await pending
+    f.unmount()
   })
 })

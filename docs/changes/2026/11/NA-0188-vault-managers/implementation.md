@@ -50,3 +50,7 @@ Revisão independente (subagente, somente leitura): PASS_WITH_WARNINGS, nenhum c
 ### 2026-11-23T09:30:00-03:00 — CI da PR79
 
 `change-governance` reprovou: critérios de aceitação do plano não estavam em checklist (convertidos). `sonar-real` reprovou com cobertura nova de 41,8%: os arquivos do e2e (`tools/vault-security/administration-*`) contam como código novo e não rodavam na CI. Novo `vault.administration.frontend.test.ts` executa o harness quando a CI coleta cobertura (mesmo padrão do `vault.frontend.test.ts`); o harness restaura ambiente e umask e usa diretório temporário curto para o Chromium. O harness de navegador `ha` (Alta disponibilidade, sem relação com esta frente) falhou uma vez; segue na reexecução. Ran: wrapper vitest com o harness 2 PASS; cobertura local das linhas alteradas incluindo o harness 786/881 = 89,2%.
+
+### 2026-11-23T09:55:00-03:00 — Merge e encerramento
+
+PR79 mergeada em `master` (`660b08096`, 2026-11-23) com todos os checks remotos verdes (após converter os critérios em checklist e pôr o harness e2e sob cobertura). `master` local sincronizado. Status `closed`. Seguem: homologação pelo responsável (roteiro no PR) e `validate:sonar` local (tokens do responsável). Encerramento registrado na branch da NA-0189.
