@@ -253,6 +253,15 @@ describe('vault lifecycle and release boundaries', () => {
     await expect(admin.overview(identity,c.clientId,origin,s.sessionId)).rejects.toMatchObject({status:423})
     await expect(admin.approveReference(identity,c.clientId,origin,s.sessionId,reference)).rejects.toMatchObject({status:423})
   })
+  it('NA-0196: availability needs only the exact origin and reports the policy with own grants and visible released items',async()=>{
+    const f=fixture(),{c,s}=await f.setup(),admin=new VaultAdministrationService(f.service,entropy)
+    const view=await admin.overview(identity,c.clientId,origin,s.sessionId)
+    expect([typeof view.policy.reveal,typeof view.policy.copy,typeof view.policy.tenantQuota]).toEqual(['boolean','boolean','number'])
+    const policy=view.policy
+    // Store without the read: nothing granted, nothing released.
+    await expect(admin.availability(identity,origin)).resolves.toEqual({policy:{reveal:policy.reveal,copy:policy.copy},grants:{reveal:false,copy:false},items:[]})
+    await expect(admin.availability(identity,'https://other.test')).rejects.toMatchObject({status:403})
+  })
   it('NA-0183: without the administration reads the overview is unavailable and status is false',async()=>{
     const f=fixture(),{c,s}=await f.setup(),admin=new VaultAdministrationService(f.service,entropy)
     f.withoutAdministration()

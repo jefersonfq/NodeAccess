@@ -328,6 +328,25 @@ describe.skipIf(!enabled)('Vault SQL/Redis isolated integration', () => {
     expect(rows[0]).toMatchObject({ version: 3, revealType: 'BOOLEAN', copyType: 'BOOLEAN', config: { reveal: false, copy: true, tenantQuota: 17 } })
     await expect(f.service.current(f.identity, f.clientId, origin)).rejects.toMatchObject({ code: 'VAULT_LOCKED' })
   }, 10_000)
+  it('NA-0196: availability limits released items to the visible scope; overview lists released items and names item proposals', async () => {
+    const f = await fixture(), admin = new VaultAdministrationService(f.service, entropy)
+    const other = await db.group.create({ data: { name: 'Other group', tenantId: f.tenant.id } })
+    const hidden = await db.secret.create({ data: { tenantId: f.tenant.id, alias: 'other-team', scope: 'GROUP', groupId: other.id, encryptedValue: 'x', iv: 'y' } })
+    const pending = await db.secret.create({ data: { tenantId: f.tenant.id, alias: 'to-release', scope: 'TENANT', encryptedValue: 'x', iv: 'y' } })
+    await db.$executeRaw`INSERT INTO vault_web_items(tenant_id,secret_id,enabled) VALUES(${f.tenant.id},${hidden.id},TRUE)`
+    const mine = await admin.availability(f.identity, origin)
+    expect(mine).toEqual({ policy: { reveal: policy.reveal, copy: policy.copy }, grants: { reveal: true, copy: false }, items: [f.secret.id] })
+    const a = await managerSession(f, f.manager1.id), b = await managerSession(f, f.manager2.id)
+    // Administrators see every released item; their own grants are none.
+    expect(await admin.availability(a.identity, origin)).toEqual({ policy: { reveal: policy.reveal, copy: policy.copy }, grants: { reveal: false, copy: false },
+      items: [f.secret.id, hidden.id].sort((x, y) => x - y) })
+    await admin.propose(a.identity, a.clientId, origin, a.sessionId, { kind: 'item', secretId: pending.id, enabled: true })
+    const view = await admin.overview(b.identity, b.clientId, origin, b.sessionId)
+    expect(view.items.map(i => i.alias)).toEqual(['other-team', 'vault-fixture'])
+    expect(view.proposals[0]).toMatchObject({ change: { kind: 'item', secretId: pending.id, enabled: true }, item: { id: pending.id, alias: 'to-release' }, beneficiary: null })
+    expect(view.policy).toMatchObject({ reveal: policy.reveal, copy: policy.copy, tenantQuota: policy.tenantQuota })
+    expect((await admin.status(b.identity, origin)).pending).toBe(1)
+  }, 10_000)
   it('NA-0186: applies the confirmation time as a JSON integer the policy loader accepts', async () => {
     const f = await fixture(), a = await managerSession(f, f.manager1.id), b = await managerSession(f, f.manager2.id)
     const admin = new VaultAdministrationService(f.service, entropy)

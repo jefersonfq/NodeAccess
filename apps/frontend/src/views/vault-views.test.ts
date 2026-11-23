@@ -9,7 +9,7 @@ import { secretFixture, pemFixture } from '@/services/vault-catalog.fixtures'
 import VaultView from './VaultView.vue'
 import SecretsView from './SecretsView.vue'
 import PemKeysView from './PemKeysView.vue'
-const mocks = vi.hoisted(() => ({ features: vi.fn(), secrets: vi.fn(), pem: vi.fn(), groups: vi.fn() }))
+const mocks = vi.hoisted(() => ({ features: vi.fn(), secrets: vi.fn(), pem: vi.fn(), groups: vi.fn(), availability: vi.fn(), manager: vi.fn() }))
 const auth = reactive({ isAdmin: false, user: { id: 41, tenantId: 7, actingTenantId: undefined as number | undefined, canManageHosts: true } })
 vi.mock('@/stores/auth', () => ({ useAuthStore: () => auth }))
 vi.mock('vue-i18n', () => ({ useI18n: () => ({ t: (key: string, values?: { name?: string; id?: number }) => key === 'vault.pemOwnerNamed' ? `${key}:${values?.name} (#${values?.id})` : key }) }))
@@ -17,6 +17,7 @@ vi.mock('@/services/features.service', () => ({ FEATURES_UPDATED_EVENT: 'feature
 vi.mock('@/services/secret.service', () => ({ secretService: { list: mocks.secrets } }))
 vi.mock('@/services/pem-key.service', () => ({ pemKeyService: { list: mocks.pem } }))
 vi.mock('@/services/group.service', () => ({ groupService: { list: mocks.groups } }))
+vi.mock('@/services/vault-manager', async original => ({ ...await original<typeof import('@/services/vault-manager')>(), vaultAvailability: mocks.availability, isVaultManager: mocks.manager }))
 vi.mock('@/components/vault/SecretActions.vue', () => ({ default: defineComponent({ render: () => null }) }))
 vi.mock('@/components/vault/PemKeyActions.vue', () => ({ default: defineComponent({ render: () => null }) }))
 vi.mock('@/components/vault/ExtensionDevices.vue', () => ({ default: defineComponent({ render: () => null }) }))
@@ -56,6 +57,7 @@ interface PemState { keys:PemKeyPublic[]; loading:boolean; error:string|null; co
 beforeEach(()=>{
  for(const mock of Object.values(mocks))mock.mockReset()
  auth.isAdmin=false;Object.assign(auth.user,{id:41,tenantId:7,actingTenantId:undefined,canManageHosts:true})
+ mocks.availability.mockResolvedValue(null);mocks.manager.mockResolvedValue(false)
  mocks.features.mockResolvedValue({secretsLicensed:true});mocks.secrets.mockResolvedValue({data:secrets()});mocks.pem.mockResolvedValue({data:keys()});mocks.groups.mockResolvedValue({data:[{id:8,name:'Ops'}]})
  vi.stubGlobal('window',new EventTarget())
 })
@@ -103,6 +105,43 @@ describe('Unified vault presentation and context',()=>{
   const f=mount<VaultState>(VaultView);await flush();f.state.search='old';f.state.kind='pem';f.state.includeRevoked=true
   auth.user.tenantId=8;auth.user.canManageHosts=false;await flush();expect(f.state.search).toBe('');expect(f.state.kind).toBe('all');expect(f.state.includeRevoked).toBe(false);expect(f.state.filtered.map(e=>e.kind)).toEqual(['secret'])
   auth.isAdmin=true;mocks.pem.mockRejectedValueOnce(new Error('offline'));await flush();expect(f.state.partialError).toBe(true);expect(await f.html()).toContain('vault.pemError')
+  f.unmount()
+ })
+})
+describe('NA-0196 reveal/copy guidance and item delivery',()=>{
+ const on={policy:{reveal:true,copy:true},grants:{reveal:true,copy:true},items:[] as number[]}
+ interface Guided extends VaultState { block:string|null; manager:boolean; itemModal:{id:number;name:string}|null; refreshAvailability:()=>Promise<void> }
+ it('says why reveal/copy are not offered before any password is asked, and offers only allowed actions',async()=>{
+  mocks.availability.mockResolvedValue({...on,policy:{reveal:false,copy:false}})
+  const f=mount<Guided>(VaultView);await flush()
+  const id=secretFixture.id
+  let html=await f.html()
+  expect(f.state.block).toBe('policy');expect(html).toContain('vault-delivery-block');expect(html).toContain('vaultDelivery.block.policyTitle')
+  expect(html).toContain('vaultDelivery.reasons.unavailable');expect(html).not.toContain('vaultDelivery.reveal')
+  // Only managers get the shortcut to the settings.
+  expect(html).not.toContain('vault-delivery-open-settings')
+  mocks.availability.mockResolvedValue(on);await f.state.refreshAvailability()
+  html=await f.html();expect(f.state.block).toBeNull();expect(html).toContain(`vault-delivery-reason-${id}`);expect(html).toContain('vaultDelivery.reasons.item')
+  mocks.availability.mockResolvedValue({...on,policy:{reveal:true,copy:false},items:[id]});await f.state.refreshAvailability()
+  html=await f.html();expect(html).toContain('vaultDelivery.reveal');expect(html).not.toContain('vaultDelivery.copy');expect(html).not.toContain('vault-delivery-reason-')
+  f.unmount()
+ })
+ it('gives managers Actions → Item delivery, also on items they do not own, and opens it focused on the item',async()=>{
+  mocks.manager.mockResolvedValue(true);mocks.availability.mockResolvedValue({...on,policy:{reveal:false,copy:false}})
+  const f=mount<Guided>(VaultView);await flush();const s=f.state
+  expect(await f.html()).toContain('vault-delivery-open-settings')
+  const other=secretEntries([{...secretFixture,ownerUserId:99,createdByUserId:99}])[0]
+  expect(s.actionOptions(other).map(o=>o.key)).toEqual(['delivery'])
+  expect(s.actionOptions(s.filtered[0]).map(o=>o.key)[0]).toBe('delivery')
+  s.act(other,'delivery');expect(s.itemModal).toEqual({id:other.record.id,name:other.name})
+  const revoked=secretEntries([{...secretFixture,revokedAt:secretFixture.createdAt}])[0]
+  expect(s.actionOptions(revoked).map(o=>o.key)).not.toContain('delivery')
+  f.unmount()
+ })
+ it('never offers item delivery to someone who is not a manager',async()=>{
+  const f=mount<Guided>(VaultView);await flush();const s=f.state
+  const other=secretEntries([{...secretFixture,ownerUserId:99,createdByUserId:99}])[0]
+  expect(s.actionOptions(other).map(o=>o.key)).toEqual([]);s.act(other,'delivery');expect(s.itemModal).toBeNull()
   f.unmount()
  })
 })

@@ -6807,6 +6807,8 @@
     "reviewScope": "This date identifies the content review, not an audit of your organization or a guarantee that vulnerabilities are absent."
   },
   "vault": {
+    "itemDelivery": "Item delivery…",
+    "itemDeliveryTitle": "Reveal and copy: {name}",
     "subtitle": "Manage your Secrets and SSH keys in one place.",
     "allTypes": "All types",
     "secretType": "Secret",
@@ -6833,6 +6835,21 @@
     "groupsError": "Groups could not be loaded. Try again before saving a group Secret."
   },
   "vaultDelivery": {
+    "reasons": {
+      "unavailable": "Unavailable",
+      "policy": "Off for the tenant",
+      "grant": "No permission",
+      "item": "Item not released"
+    },
+    "block": {
+      "policyTitle": "Reveal and copy are turned off for this tenant",
+      "policy": "Ask the vault managers to turn reveal and copy on for the tenant.",
+      "policyManager": "Turn them on in Vault permissions → Password delivery for the tenant; another manager approves.",
+      "grantManager": "Another vault manager proposes Reveal or Copy for you and a third one approves (the person receiving it cannot approve).",
+      "grantTitle": "You do not have permission to reveal or copy yet",
+      "grant": "Ask the vault managers for the Reveal or Copy permissions (each one is approved by two managers).",
+      "openSettings": "Open vault permissions"
+    },
     "locked": "Vault locked",
     "sessionActive": "Vault session active",
     "lock": "Lock vault",
@@ -6871,6 +6888,8 @@
     }
   },
   "vaultExtension": {
+    "devicesButton": "Connected devices ({count})",
+    "devicesHint": "Each connected browser has an identifier. The same identifier is shown at the bottom of the extension: check it before revoking.",
     "connectTitle": "Connect the VaultNAccess extension",
     "connectIntro": "A browser extension asked for read access to your vault metadata. Continue only if you started this connection and the device below matches the one shown in the extension.",
     "extensionId": "Extension",
@@ -6906,6 +6925,27 @@
     "showAll": "Show all"
   },
   "vaultAdministration": {
+    "itemIntro": "Releasing an item for reveal and copy takes two managers: one proposes, another approves.",
+    "waiting": "Awaiting approval",
+    "on": "on",
+    "off": "off",
+    "unknownItem": "item #{id}",
+    "proposalItemRelease": "Release {item} for reveal and copy",
+    "proposalItemWithdraw": "Withdraw the release of {item}",
+    "proposalPolicy": "Tenant delivery: reveal {reveal}, copy {copy}, up to {quota} deliveries per minute",
+    "policyTitle": "Password delivery for the tenant",
+    "policyHint": "Now: reveal {reveal}, copy {copy}. When off, nobody reveals or copies, even with permission.",
+    "policyReveal": "Allow reveal",
+    "policyCopy": "Allow copy",
+    "policyQuota": "Deliveries per minute in the tenant",
+    "policyPropose": "Propose change",
+    "itemsTitle": "Items released for reveal and copy ({count})",
+    "itemsHint": "To release an item, use Actions → Item delivery… in the vault list.",
+    "itemReleased": "{item} is released for reveal and copy.",
+    "itemNotReleased": "{item} is not released for reveal and copy yet.",
+    "itemHint": "Users with the Reveal or Copy permission and access to the item can use it once another manager approves.",
+    "itemRelease": "Propose release",
+    "itemWithdraw": "Withdraw release",
     "title": "Vault permissions (managers)",
     "intro": "Grant or remove reveal, copy, extension use and vault manager per user. Every change needs two managers:",
     "step1": "1. One manager proposes the change.",

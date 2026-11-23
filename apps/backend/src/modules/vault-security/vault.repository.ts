@@ -84,6 +84,21 @@ class SqlVaultTransaction implements VaultTransaction {
     const rows = await this.db.$queryRaw<Array<{ count: number }>>`SELECT count FROM vault_limits WHERE tenant_id=${this.identity.tenantId} AND bucket_hash=${bucket} FOR UPDATE`
     if ((rows[0]?.count ?? max + 1) > max) throw new VaultError('VAULT_RATE_LIMIT', 429)
   }
+  /** NA-0196: same grant rule as secret(); released items limited to what this identity can see (same scope rule). */
+  async availability(): Promise<{ grants: { reveal: boolean; copy: boolean }; items: number[] }> {
+    const rows = await this.db.$queryRaw<Array<{ action: string; enabled: unknown; grantedBy: number; approvedBy: number }>>`SELECT action,enabled,
+      granted_by AS grantedBy,approved_by AS approvedBy FROM vault_entitlements WHERE tenant_id=${this.identity.tenantId} AND user_id=${this.identity.userId}
+      AND action IN ('reveal','copy')`
+    const valid = (action: VaultAction): boolean => rows.some(g => g.action === action && truth(g.enabled) && g.grantedBy !== g.approvedBy
+      && g.grantedBy !== this.identity.userId && g.approvedBy !== this.identity.userId)
+    const items = this.authority.role === 'ADMIN'
+      ? await this.db.$queryRaw<Array<{ id: number }>>`SELECT s.id FROM vault_web_items w JOIN secrets s ON s.id=w.secret_id AND s.tenant_id=w.tenant_id
+          WHERE w.tenant_id=${this.identity.tenantId} AND w.enabled=TRUE AND s.revoked_at IS NULL ORDER BY s.id LIMIT 1000`
+      : await this.db.$queryRaw<Array<{ id: number }>>`SELECT s.id FROM vault_web_items w JOIN secrets s ON s.id=w.secret_id AND s.tenant_id=w.tenant_id
+          WHERE w.tenant_id=${this.identity.tenantId} AND w.enabled=TRUE AND s.revoked_at IS NULL AND (s.owner_user_id=${this.identity.userId} OR s.scope='TENANT'
+          OR (s.group_id IS NOT NULL AND EXISTS(SELECT 1 FROM user_groups g WHERE g.user_id=${this.identity.userId} AND g.group_id=s.group_id))) ORDER BY s.id LIMIT 1000`
+    return { grants: { reveal: valid('reveal'), copy: valid('copy') }, items: items.map(i => Number(i.id)) }
+  }
   async secret(id: number, action: VaultAction): Promise<VaultSecret> {
     if (this.authority.policy[action] !== true) denied()
     const grants = await this.db.$queryRaw<Array<{ enabled: boolean; grantedBy: number; approvedBy: number }>>`SELECT enabled,granted_by AS grantedBy,approved_by AS approvedBy

@@ -2,7 +2,7 @@
  * NA-0186 — shared "is the signed-in user a vault manager?" check, used by the vault section and the Users tab.
  * Same rules as every vault request: HTTPS page, own tenant (no acting/managed tenant) and both portal tokens.
  */
-import { VaultAdministrationStatusSchema, type VaultAdministrationStatus } from '@nodeaccess/shared'
+import { VaultAdministrationStatusSchema, VaultAvailabilitySchema, type VaultAdministrationStatus, type VaultAvailability } from '@nodeaccess/shared'
 import type { useAuthStore } from '@/stores/auth'
 import type { VaultPortalIdentity, VaultTransport } from '@/services/vault-http'
 
@@ -37,4 +37,29 @@ export function formatDuration(seconds: number, units: { s: string; min: string;
   if (minutes < 60) return `${minutes} ${units.min}`
   const h = Math.floor(minutes / 60), m = minutes % 60
   return m ? `${h} ${units.h} ${m} ${units.min}` : `${h} ${units.h}`
+}
+/** NA-0196: tenant policy, own grants and released items visible to the user. `null` when unknown (same cases as the
+ * status): the page then keeps today's behaviour and the server explains on request. Guidance only. */
+export async function vaultAvailability(transport: VaultTransport, auth: AuthStore): Promise<VaultAvailability | null> {
+  const who = vaultPortalIdentity(auth)
+  if (!who) return null
+  try { return VaultAvailabilitySchema.parse(await transport.post('availability', {}, who)) } catch { return null }
+}
+export type DeliveryAction = 'reveal' | 'copy'
+/** Why reveal/copy are not offered: tenant policy off, no own permission, or item not released. */
+export type DeliveryReason = 'policy' | 'grant' | 'item'
+/** Reason that holds for every item (shown once, above the list), or null. */
+export function deliveryBlock(a: VaultAvailability | null): Exclude<DeliveryReason, 'item'> | null {
+  if (!a) return null
+  if (!a.policy.reveal && !a.policy.copy) return 'policy'
+  return (['reveal', 'copy'] as const).some(action => a.policy[action] && a.grants[action]) ? null : 'grant'
+}
+/** Actions offered for one Secret and, when none, the reason. Unknown availability offers both (the server decides). */
+export function deliveryFor(a: VaultAvailability | null, secretId: number): { actions: DeliveryAction[]; reason: DeliveryReason | null } {
+  if (!a) return { actions: ['reveal', 'copy'], reason: null }
+  const block = deliveryBlock(a)
+  if (block) return { actions: [], reason: block }
+  // The server lists at most 1000 released items: a full list is not proof that an item is missing.
+  if (!a.items.includes(secretId) && a.items.length < 1000) return { actions: [], reason: 'item' }
+  return { actions: (['reveal', 'copy'] as const).filter(action => a.policy[action] && a.grants[action]), reason: null }
 }

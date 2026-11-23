@@ -2,7 +2,7 @@
 change_id: NA-0194
 title: Extensão VaultNAccess E6 — distribuição pelo portal (ícones, pacote assinado, atualização por política)
 type: feature
-status: ready-for-review
+status: delivered
 created_at: 2026-11-23T17:20:00-03:00
 base_branch: master
 base_sha: fa757ac8200ac7f5058a6da04f9eac6e4186e049

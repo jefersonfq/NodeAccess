@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { formatDuration, hasApprover, isVaultManager, vaultAdministrationStatus, vaultPortalIdentity } from './vault-manager'
+import { deliveryBlock, deliveryFor, formatDuration, hasApprover, isVaultManager, vaultAdministrationStatus, vaultAvailability, vaultPortalIdentity } from './vault-manager'
 import type { VaultTransport } from './vault-http'
 
 type Auth = Parameters<typeof vaultPortalIdentity>[0]
@@ -51,5 +51,30 @@ describe('NA-0188 helpers', () => {
     const u = { s: 's', min: 'min', h: 'h' }
     expect([0, 45, 60, 61, 300, 3599, 3600, 5400, 86400, -5].map(v => formatDuration(v, u)))
       .toEqual(['0 s', '45 s', '1 min', '2 min', '5 min', '1 h', '1 h', '1 h 30 min', '24 h', '0 s'])
+  })
+})
+
+describe('NA-0196 delivery guidance', () => {
+  const on = { policy: { reveal: true, copy: true }, grants: { reveal: true, copy: true }, items: [4] }
+  it('reads the availability and returns null (unknown) on any doubt', async () => {
+    expect(await vaultAvailability(transport(on), auth())).toEqual(on)
+    expect(await vaultAvailability(transport({ ...on, extra: 1 }), auth())).toBeNull()
+    expect(await vaultAvailability(transport(new Error('down')), auth())).toBeNull()
+    expect(await vaultAvailability(transport(on), auth({ user: null }))).toBeNull()
+  })
+  it('explains once what holds for every item, and per item what does not', () => {
+    expect(deliveryBlock(null)).toBeNull()
+    expect(deliveryBlock({ ...on, policy: { reveal: false, copy: false } })).toBe('policy')
+    expect(deliveryBlock({ ...on, grants: { reveal: false, copy: false } })).toBe('grant')
+    // Copy allowed by the policy but granted only for reveal (which the policy turns off): nothing to do.
+    expect(deliveryBlock({ ...on, policy: { reveal: false, copy: true }, grants: { reveal: true, copy: false } })).toBe('grant')
+    expect(deliveryFor(null, 4)).toEqual({ actions: ['reveal', 'copy'], reason: null })
+    expect(deliveryFor(on, 4)).toEqual({ actions: ['reveal', 'copy'], reason: null })
+    expect(deliveryFor(on, 5)).toEqual({ actions: [], reason: 'item' })
+    expect(deliveryFor({ ...on, policy: { reveal: true, copy: false } }, 4)).toEqual({ actions: ['reveal'], reason: null })
+    expect(deliveryFor({ ...on, grants: { reveal: false, copy: true } }, 4)).toEqual({ actions: ['copy'], reason: null })
+    expect(deliveryFor({ ...on, policy: { reveal: false, copy: false } }, 4)).toEqual({ actions: [], reason: 'policy' })
+    const full = { ...on, items: Array.from({ length: 1000 }, (_, i) => i + 10) }
+    expect(deliveryFor(full, 4)).toEqual({ actions: ['reveal', 'copy'], reason: null })
   })
 })

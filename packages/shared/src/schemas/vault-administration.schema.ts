@@ -27,9 +27,19 @@ export const VaultAdministrationOverviewSchema = z.object({
     reference: z.string().regex(/^[a-f0-9]{64}$/), change: VaultAdministrationChangeSchema,
     proposedBy: z.object({ id: z.number().int().positive(), name: z.string().max(255) }).strict(), mine: z.boolean(), expiresAt: z.number().int(),
     beneficiary: z.object({ id: z.number().int().positive(), name: z.string().max(255), email: z.string().max(320) }).strict().nullable(),
+    item: z.object({ id: z.number().int().positive(), alias: z.string().max(120) }).strict().nullable(),
   }).strict()).max(50),
   policy: z.object({ confirmationSeconds: z.number().int().min(60).max(900).multipleOf(60),
-    proposalSeconds: z.number().int().min(120).max(86400).multipleOf(60) }).strict(),
+    proposalSeconds: z.number().int().min(120).max(86400).multipleOf(60),
+    reveal: z.boolean(), copy: z.boolean(), tenantQuota: z.number().int().min(1).max(300) }).strict(),
+  items: z.array(z.object({ id: z.number().int().positive(), alias: z.string().max(120) }).strict()).max(1000),
   serverNow: z.number().int(),
 }).strict()
+/** NA-0196: guidance for the signed-in user before unlocking; the server still decides every delivery. */
+export const VaultAvailabilitySchema = z.object({
+  policy: z.object({ reveal: z.boolean(), copy: z.boolean() }).strict(),
+  grants: z.object({ reveal: z.boolean(), copy: z.boolean() }).strict(),
+  items: z.array(z.number().int().positive()).max(1000),
+}).strict()
+export type VaultAvailability = z.infer<typeof VaultAvailabilitySchema>
 export type VaultAdministrationOverview = z.infer<typeof VaultAdministrationOverviewSchema>

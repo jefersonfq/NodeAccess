@@ -204,8 +204,8 @@ describe('Vault provider step-up in the portal (NA-0184)', () => {
 })
 
 describe('Vault administration from the portal (NA-0183)', () => {
-  const reference = 'a'.repeat(64), overview = { policy: { confirmationSeconds: 60, proposalSeconds: 120 }, users: [{ id: 2, name: 'Bruno', email: 'b@example.test', manager: false, grants: { reveal: false, copy: false, extension: true } }],
-    proposals: [{ reference, change: { kind: 'grant', userId: 2, action: 'extension', enabled: false }, proposedBy: { id: 3, name: 'Carla' }, mine: false, expiresAt: 2_100_000, beneficiary: { id: 2, name: 'Bruno', email: 'b@example.test' } }], serverNow: 2_000_000 }
+  const reference = 'a'.repeat(64), overview = { policy: { confirmationSeconds: 60, proposalSeconds: 120, reveal: true, copy: false, tenantQuota: 30 }, items: [], users: [{ id: 2, name: 'Bruno', email: 'b@example.test', manager: false, grants: { reveal: false, copy: false, extension: true } }],
+    proposals: [{ reference, change: { kind: 'grant', userId: 2, action: 'extension', enabled: false }, proposedBy: { id: 3, name: 'Carla' }, mine: false, expiresAt: 2_100_000, beneficiary: { id: 2, name: 'Bruno', email: 'b@example.test' }, item: null }], serverNow: 2_000_000 }
   function admin(replies: Record<string, unknown>) {
     const f = fixture(), base = f.post.getMockImplementation()!
     f.post.mockImplementation((path: string, body: Record<string, unknown>) => (path in replies ? Promise.resolve(replies[path]) : base(path, body)))

@@ -2,6 +2,7 @@
  * NA-0188 — synthetic tenant for the vault-administration browser flow: real Fastify vault routes, VaultService,
  * VaultAdministrationService, bcrypt, TOTP and JWT; the administration rules run in memory with the same contract
  * as SqlVaultAdministration (the SQL itself is covered by vault.mysql.test.ts). No database or external endpoint.
+ * NA-0196: tenant Secrets (metadata only), released items, delivery policy proposals and the user availability read.
  */
 import { randomBytes, randomUUID, createHash } from 'node:crypto'
 import Fastify from 'fastify'
@@ -38,7 +39,10 @@ export async function createAdministrationFixture() {
     managers: new Set<number>([41, 42]),
     grants: new Map<string, { enabled: boolean; grantedBy: number; approvedBy: number }>(),
     proposals: new Map<string, Proposal>(),
-    policy: { version: 1, unlock: true, reveal: true, copy: true, localReauth: true, origin: '', tenantQuota: 300 } as VaultPolicy,
+    // As delivered: reveal and copy off until two managers turn them on (NA-0196 flow).
+    policy: { version: 1, unlock: true, reveal: false, copy: false, localReauth: true, origin: '', tenantQuota: 300 } as VaultPolicy,
+    secrets: new Map<number, string>([[5, 'secret-ssh-teste2'], [6, 'db-backup']]),
+    released: new Set<number>(),
     events: [] as VaultEvent[],
   }
   let records = new Map<string, object>(), counts = new Map<string, number>(), tail = Promise.resolve()
@@ -58,7 +62,7 @@ export async function createAdministrationFixture() {
         const ids = managerIds()
         if (!ids.includes(actor)) return { manager: false, pending: 0, managers: [] }
         const pending = [...state.proposals.values()].filter(p => p.expiresAt > now() && p.proposedBy !== actor && ids.includes(p.proposedBy)
-          && p.change.kind !== 'item' && p.change.kind !== 'policy' && !('userId' in p.change && p.change.userId === actor)).length
+          && !('userId' in p.change && p.change.userId === actor)).length
         return { manager: true, pending, managers: ids }
       },
       overview: async (): Promise<VaultAdministrationOverview> => {
@@ -70,9 +74,12 @@ export async function createAdministrationFixture() {
             grants: { reveal: !!state.grants.get(`${u.id}:reveal`)?.enabled, copy: !!state.grants.get(`${u.id}:copy`)?.enabled, extension: !!state.grants.get(`${u.id}:extension`)?.enabled } })),
           proposals: [...state.proposals.entries()].filter(([, p]) => p.expiresAt > now() && ids.includes(p.proposedBy)).sort((a, b) => a[1].expiresAt - b[1].expiresAt).map(([reference, p]) => {
             const b = 'userId' in p.change ? users.get(p.change.userId) : undefined
+            const alias = p.change.kind === 'item' ? state.secrets.get(p.change.secretId) : undefined
             return { reference, change: p.change, proposedBy: { id: p.proposedBy, name: users.get(p.proposedBy)?.name ?? '' }, mine: p.proposedBy === actor,
-              expiresAt: p.expiresAt, beneficiary: b ? { id: b.id, name: b.name, email: b.email } : null }
+              expiresAt: p.expiresAt, beneficiary: b ? { id: b.id, name: b.name, email: b.email } : null,
+              item: alias && p.change.kind === 'item' ? { id: p.change.secretId, alias } : null }
           }),
+          items: [...state.released].map(id => ({ id, alias: state.secrets.get(id) ?? '' })).sort((a, b) => a.alias.localeCompare(b.alias)),
         }
       },
       propose: (id, change, window = PROPOSAL_DEFAULT_SECONDS) => {
@@ -100,6 +107,10 @@ export async function createAdministrationFixture() {
           for (const open of state.proposals.values()) open.expiresAt = Math.min(open.expiresAt, now() + change.seconds * 1000)
         }
         else if (change.kind === 'confirmation') state.policy.confirmationSeconds = change.seconds
+        else if (change.kind === 'item') {
+          if (!state.secrets.has(change.secretId)) denied()
+          if (change.enabled) state.released.add(change.secretId); else state.released.delete(change.secretId)
+        } else if (change.kind === 'policy') Object.assign(state.policy, { reveal: change.reveal, copy: change.copy, tenantQuota: change.tenantQuota })
         else denied()
         state.policy.version += 1
         state.proposals.delete(reference)
@@ -131,6 +142,14 @@ export async function createAdministrationFixture() {
       propose: async (id, change, window) => admin.propose(id, change, window),
       approve: async (id, byReference = false) => admin.approve(id, byReference),
       administration: admin,
+      // Same grant rule as delivery; every synthetic Secret has tenant scope, so released items are visible to all.
+      availability: async () => {
+        const valid = (action: 'reveal' | 'copy'): boolean => {
+          const g = state.grants.get(`${user.id}:${action}`)
+          return !!g && g.enabled && g.grantedBy !== g.approvedBy && g.grantedBy !== user.id && g.approvedBy !== user.id
+        }
+        return { grants: { reveal: valid('reveal'), copy: valid('copy') }, items: [...state.released].sort((a, b) => a - b) }
+      },
     }) } catch (error) { records = before; counts = beforeCounts; throw error }
     finally { release() }
   } }
@@ -154,6 +173,9 @@ export async function createAdministrationFixture() {
   }
   return {
     app, users, state, tokens,
+    /** Secret metadata the portal list shows (never a value). */
+    secrets: () => [...state.secrets].map(([id, alias]) => ({ id, tenantId: TENANT, alias, description: null, scope: 'TENANT', ownerUserId: 41, groupId: null,
+      createdByUserId: 41, createdByUsername: 'Ana Gestora', source: 'MANUAL', createdAt: '2026-11-20T12:00:00Z', updatedAt: '2026-11-20T12:00:00Z', rotatedAt: null, revokedAt: null })),
     totp: (id: number) => speakeasy.totp({ secret: users.get(id)!.mfaSecret, encoding: 'base32' }),
     /** Between scenarios only: the per-user rate limits are covered by the unit tests, not by this flow. */
     resetLimits: () => { counts.clear() },

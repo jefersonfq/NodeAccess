@@ -8,9 +8,11 @@
  * NA-0188 — "vault manager" is a per-user permission changed by the same flow; the tenant sets how long proposals stay
  * open (2 min–24 h); managers see how many proposals await them before unlocking; actions nobody could approve are
  * disabled with the reason (the server refuses them too); a NodeAccess admin who is not a manager gets an explanation.
+ * NA-0196 — tenant delivery policy (reveal, copy, quota) and released items are changed here by the same flow; `item`
+ * focuses the section on one Secret (vault list → Actions → Item delivery).
  */
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
-import { NAlert, NButton, NFormItem, NInput, NInputNumber, NSelect, NSpace, NText } from 'naive-ui'
+import { NAlert, NButton, NCheckbox, NFormItem, NInput, NInputNumber, NSelect, NSpace, NText } from 'naive-ui'
 import { useI18n } from 'vue-i18n'
 import type { VaultAdministrationChange, VaultAdministrationOverview, VaultGrantAction } from '@nodeaccess/shared'
 import { useAuthStore } from '@/stores/auth'
@@ -20,7 +22,9 @@ import { useVaultProviderStepUp } from '@/composables/useVaultProviderStepUp'
 import { formatDuration, hasApprover, vaultAdministrationStatus, vaultPortalIdentity } from '@/services/vault-manager'
 
 /** `review`: Users-tab review of pending changes — opens at once and shows only the proposals (no table or tenant settings). */
-const props = defineProps<{ transport?: VaultTransport; delivery?: VaultDelivery; userId?: number; review?: boolean }>()
+const props = defineProps<{ transport?: VaultTransport; delivery?: VaultDelivery; userId?: number; review?: boolean; item?: { id: number; name: string } }>()
+/** `changed`: an approval was applied (the page refreshes what users may reveal/copy). */
+const emit = defineEmits<{ changed: [] }>()
 const { t } = useI18n(), auth = useAuthStore()
 const transport = props.transport ?? createVaultTransport()
 const identity = (): VaultPortalIdentity | null => vaultPortalIdentity(auth)
@@ -33,9 +37,22 @@ const busy = computed(() => state.phase === 'unlocking' || state.phase === 'deli
 const unlocked = computed(() => state.phase === 'unlocked' || state.phase === 'delivering')
 const me = computed(() => auth.user?.id)
 const focused = computed(() => props.userId !== undefined)
-const compact = computed(() => focused.value || props.review === true)
+const itemFocus = computed(() => props.item !== undefined)
+const compact = computed(() => focused.value || itemFocus.value || props.review === true)
+/** Element ids per instance: the page section and a window (item, user, review) can be on screen together. */
+const idp = props.item ? `-item-${props.item.id}` : props.userId !== undefined ? `-user-${props.userId}` : props.review ? '-review' : ''
 const users = computed(() => overview.value?.users.filter(u => !focused.value || u.id === props.userId) ?? [])
-const proposals = computed(() => overview.value?.proposals.filter(p => !focused.value || ((p.change.kind === 'grant' || p.change.kind === 'manager') && p.change.userId === props.userId)) ?? [])
+const proposals = computed(() => overview.value?.proposals.filter(p => {
+  if (itemFocus.value) return p.change.kind === 'item' && p.change.secretId === props.item?.id
+  return !focused.value || ((p.change.kind === 'grant' || p.change.kind === 'manager') && p.change.userId === props.userId)
+}) ?? [])
+/** NA-0196: released items and the tenant delivery policy (from the unlocked overview). */
+const released = computed(() => overview.value?.items ?? [])
+const itemReleased = computed(() => released.value.some(i => i.id === props.item?.id))
+const policyNow = computed(() => overview.value?.policy ?? null)
+const policyReveal = ref(false), policyCopy = ref(false), policyQuota = ref<number | null>(null)
+const policyChanged = computed(() => !!policyNow.value && policyQuota.value !== null && (policyReveal.value !== policyNow.value.reveal
+  || policyCopy.value !== policyNow.value.copy || policyQuota.value !== policyNow.value.tenantQuota))
 const currentMinutes = computed(() => overview.value ? overview.value.policy.confirmationSeconds / 60 : null)
 const currentWindow = computed(() => overview.value?.policy.proposalSeconds ?? null)
 /** Managers from the unlocked overview (fresh), else from the status read. */
@@ -60,11 +77,16 @@ async function detect(): Promise<void> {
 async function open(): Promise<void> {
   opened.value = true
   await delivery.prepare()
+  // NA-0196: a session shared with the page (item window) may already be unlocked.
+  if (unlocked.value && !overview.value) await load()
 }
 async function load(): Promise<void> {
   const reply = await delivery.administrationOverview()
   overview.value = reply
-  if (reply) { clockSkew = reply.serverNow - Date.now(); minutes.value = reply.policy.confirmationSeconds / 60; windowSeconds.value = reply.policy.proposalSeconds }
+  if (reply) {
+    clockSkew = reply.serverNow - Date.now(); minutes.value = reply.policy.confirmationSeconds / 60; windowSeconds.value = reply.policy.proposalSeconds
+    policyReveal.value = reply.policy.reveal; policyCopy.value = reply.policy.copy; policyQuota.value = reply.policy.tenantQuota
+  }
 }
 async function confirm(): Promise<void> {
   if (busy.value) return
@@ -83,7 +105,7 @@ async function submit(change: VaultAdministrationChange): Promise<void> {
   if (await delivery.proposeChange(change)) { notice.value = 'proposed'; await load() }
 }
 async function propose(userId: number, action: VaultGrantAction, enabled: boolean): Promise<void> {
-  if (busy.value || userId === me.value || !canPropose(userId)) return
+  if (busy.value || userId === me.value || !canPropose(userId) || waiting({ kind: 'grant', userId, action, enabled })) return
   await submit({ kind: 'grant', userId, action, enabled })
 }
 async function proposeManager(userId: number, enabled: boolean): Promise<void> {
@@ -100,9 +122,20 @@ async function proposeConfirmation(): Promise<void> {
   if (busy.value || value === null || !Number.isInteger(value) || value < 1 || value > 15 || value === currentMinutes.value || !canPropose()) return
   await submit({ kind: 'confirmation', seconds: value * 60 })
 }
+async function proposePolicy(): Promise<void> {
+  const quota = policyQuota.value
+  if (busy.value || !policyChanged.value || quota === null || !Number.isInteger(quota) || quota < 1 || quota > 300 || !canPropose()) return
+  const change = { kind: 'policy' as const, reveal: policyReveal.value, copy: policyCopy.value, tenantQuota: quota }
+  if (waiting(change)) return
+  await submit(change)
+}
+async function proposeItem(secretId: number, enabled: boolean): Promise<void> {
+  if (busy.value || !canPropose() || waiting({ kind: 'item', secretId, enabled })) return
+  await submit({ kind: 'item', secretId, enabled })
+}
 async function approve(reference: string): Promise<void> {
   if (busy.value) return
-  if (await delivery.approveProposal(reference)) { notice.value = 'applied'; overview.value = null; void detect() }
+  if (await delivery.approveProposal(reference)) { notice.value = 'applied'; overview.value = null; void detect(); emit('changed') }
 }
 function lock(): void { delivery.lock(); overview.value = null; password.value = ''; token.value = '' }
 type Proposal = VaultAdministrationOverview['proposals'][number]
@@ -116,20 +149,31 @@ function describe(proposal: Proposal): string {
   if (change.kind === 'confirmation') return t('vaultAdministration.proposalConfirmation', { minutes: change.seconds / 60 })
   if (change.kind === 'proposalWindow') return t('vaultAdministration.proposalWindow', { time: duration(change.seconds) })
   if (change.kind === 'manager') return t(change.enabled ? 'vaultAdministration.proposalManagerAdd' : 'vaultAdministration.proposalManagerRemove', { user: userName(proposal, change.userId) })
-  if (change.kind !== 'grant') return t('vaultAdministration.proposalOther')
+  if (change.kind === 'item') {
+    const name = proposal.item?.alias ?? t('vaultAdministration.unknownItem', { id: change.secretId })
+    return t(change.enabled ? 'vaultAdministration.proposalItemRelease' : 'vaultAdministration.proposalItemWithdraw', { item: name })
+  }
+  if (change.kind === 'policy') return t('vaultAdministration.proposalPolicy', { reveal: t(change.reveal ? 'vaultAdministration.on' : 'vaultAdministration.off'),
+    copy: t(change.copy ? 'vaultAdministration.on' : 'vaultAdministration.off'), quota: change.tenantQuota })
   return t('vaultAdministration.proposalGrant', { action: t(`vaultAdministration.${change.action}`), user: userName(proposal, change.userId),
     state: t(change.enabled ? 'vaultAdministration.proposeEnable' : 'vaultAdministration.proposeDisable') })
 }
-/** Permission, manager, confirmation-time and proposal-validity proposals are approved here, with their content on screen;
- * policy/item changes stay in the API. */
+/** Every proposal is approved here with its content on screen (NA-0196: tenant policy and items included). */
 function approvable(change: VaultAdministrationChange, mine: boolean): boolean {
   if (mine) return false
-  if (change.kind === 'confirmation' || change.kind === 'proposalWindow') return true
+  if (change.kind === 'confirmation' || change.kind === 'proposalWindow' || change.kind === 'policy' || change.kind === 'item') return true
   return (change.kind === 'grant' || change.kind === 'manager') && change.userId !== me.value
+}
+/** NA-0196: an identical proposal already waiting replaces the button (no duplicate proposals for the approver to untangle). */
+function waiting(change: VaultAdministrationChange): boolean {
+  // Key order independent: the same fields with the same values.
+  const key = (c: VaultAdministrationChange): string => JSON.stringify(Object.entries(c).sort(([x], [y]) => x.localeCompare(y)))
+  const wanted = key(change)
+  return overview.value?.proposals.some(p => key(p.change) === wanted) ?? false
 }
 const forMe = (change: VaultAdministrationChange): boolean => (change.kind === 'grant' || change.kind === 'manager') && change.userId === me.value
 const steps = ['step1', 'step2', 'step3'] as const
-onMounted(() => { if (focused.value || props.review) void open() })
+onMounted(() => { if (focused.value || itemFocus.value || props.review) void open() })
 const remaining = (expiresAt: number): string => duration(Math.max(0, Math.ceil((expiresAt - now.value - clockSkew) / 1000)))
 onMounted(() => {
   void detect()
@@ -154,7 +198,15 @@ defineExpose({ detect })
     >
       {{ t('vaultAdministration.title') }}
     </h2>
+    <p
+      v-if="itemFocus"
+      class="mb-3 text-sm text-gray-400"
+      data-testid="vault-administration-how"
+    >
+      {{ t('vaultAdministration.itemIntro') }}
+    </p>
     <div
+      v-else
       class="mb-3 text-sm text-gray-400"
       data-testid="vault-administration-how"
     >
@@ -219,11 +271,11 @@ defineExpose({ detect })
         >
           <NFormItem
             :label="t('vaultDelivery.otp')"
-            :label-props="{ for: 'vault-administration-provider-otp' }"
+            :label-props="{ for: `vault-administration-provider-otp${idp}` }"
           >
             <NInput
               v-model:value="providerToken"
-              :input-props="{ id: 'vault-administration-provider-otp', autocomplete: 'one-time-code', inputmode: 'numeric' }"
+              :input-props="{ id: `vault-administration-provider-otp${idp}`, autocomplete: 'one-time-code', inputmode: 'numeric' }"
               maxlength="6"
             />
           </NFormItem>
@@ -252,23 +304,23 @@ defineExpose({ detect })
       >
         <NFormItem
           :label="t('vaultDelivery.password')"
-          :label-props="{ for: 'vault-administration-password' }"
+          :label-props="{ for: `vault-administration-password${idp}` }"
           :show-feedback="false"
         >
           <NInput
             v-model:value="password"
             type="password"
-            :input-props="{ id: 'vault-administration-password', autocomplete: 'current-password' }"
+            :input-props="{ id: `vault-administration-password${idp}`, autocomplete: 'current-password' }"
           />
         </NFormItem>
         <NFormItem
           :label="t('vaultDelivery.otp')"
-          :label-props="{ for: 'vault-administration-otp' }"
+          :label-props="{ for: `vault-administration-otp${idp}` }"
           :show-feedback="false"
         >
           <NInput
             v-model:value="token"
-            :input-props="{ id: 'vault-administration-otp', autocomplete: 'one-time-code', inputmode: 'numeric' }"
+            :input-props="{ id: `vault-administration-otp${idp}`, autocomplete: 'one-time-code', inputmode: 'numeric' }"
             maxlength="6"
           />
         </NFormItem>
@@ -301,6 +353,36 @@ defineExpose({ detect })
           {{ t('vaultAdministration.lock') }}
         </NButton>
       </NSpace>
+      <div
+        v-if="itemFocus"
+        class="mb-4"
+        data-testid="vault-administration-item"
+      >
+        <p class="mb-2 text-sm">
+          {{ t(itemReleased ? 'vaultAdministration.itemReleased' : 'vaultAdministration.itemNotReleased', { item: item?.name }) }}
+        </p>
+        <p class="mb-2 text-sm text-gray-400">
+          {{ t('vaultAdministration.itemHint') }}
+        </p>
+        <NText
+          v-if="waiting({ kind: 'item', secretId: item!.id, enabled: !itemReleased })"
+          depth="3"
+          data-testid="vault-administration-item-waiting"
+        >
+          {{ t('vaultAdministration.waiting') }}
+        </NText>
+        <NButton
+          v-else
+          size="small"
+          :type="itemReleased ? 'default' : 'primary'"
+          :disabled="busy || !canPropose()"
+          :aria-describedby="canPropose() ? undefined : `vault-administration-blocked${idp}`"
+          data-testid="vault-administration-item-propose"
+          @click="proposeItem(item!.id, !itemReleased)"
+        >
+          {{ t(itemReleased ? 'vaultAdministration.itemWithdraw' : 'vaultAdministration.itemRelease') }}
+        </NButton>
+      </div>
       <h3 class="mb-2 text-sm font-semibold">
         {{ t('vaultAdministration.pending') }}
       </h3>
@@ -351,7 +433,7 @@ defineExpose({ detect })
         </li>
       </ul>
       <div
-        v-if="!review"
+        v-if="!review && !itemFocus"
         class="overflow-x-auto"
       >
         <table class="w-full min-w-[44rem] text-sm">
@@ -390,11 +472,18 @@ defineExpose({ detect })
                 class="py-1 pr-3"
               >
                 <span class="mr-2">{{ t(user.grants[action] ? 'vaultAdministration.enabled' : 'vaultAdministration.disabled') }}</span>
+                <NText
+                  v-if="user.id !== me && waiting({ kind: 'grant', userId: user.id, action, enabled: !user.grants[action] })"
+                  depth="3"
+                  :data-testid="`vault-administration-waiting-${user.id}-${action}`"
+                >
+                  {{ t('vaultAdministration.waiting') }}
+                </NText>
                 <NButton
-                  v-if="user.id !== me"
+                  v-else-if="user.id !== me"
                   size="tiny"
                   :disabled="busy || !canPropose(user.id)"
-                  :aria-describedby="canPropose(user.id) ? undefined : 'vault-administration-blocked'"
+                  :aria-describedby="canPropose(user.id) ? undefined : `vault-administration-blocked${idp}`"
                   :data-testid="`vault-administration-propose-${user.id}-${action}`"
                   @click="propose(user.id, action, !user.grants[action])"
                 >
@@ -403,11 +492,17 @@ defineExpose({ detect })
               </td>
               <td class="py-1 pr-3">
                 <span class="mr-2">{{ t(user.manager ? 'vaultAdministration.enabled' : 'vaultAdministration.disabled') }}</span>
+                <NText
+                  v-if="user.id !== me && waiting({ kind: 'manager', userId: user.id, enabled: !user.manager })"
+                  depth="3"
+                >
+                  {{ t('vaultAdministration.waiting') }}
+                </NText>
                 <NButton
-                  v-if="user.id !== me"
+                  v-else-if="user.id !== me"
                   size="tiny"
                   :disabled="busy || !canPropose(user.id)"
-                  :aria-describedby="canPropose(user.id) ? undefined : 'vault-administration-blocked'"
+                  :aria-describedby="canPropose(user.id) ? undefined : `vault-administration-blocked${idp}`"
                   :data-testid="`vault-administration-manager-${user.id}`"
                   @click="proposeManager(user.id, !user.manager)"
                 >
@@ -419,13 +514,104 @@ defineExpose({ detect })
         </table>
       </div>
       <p
-        v-if="blocked && !review"
-        id="vault-administration-blocked"
+        v-if="(blocked && !review && !itemFocus) || (itemFocus && !canPropose())"
+        :id="`vault-administration-blocked${idp}`"
         class="mt-2 text-sm text-gray-400"
         data-testid="vault-administration-blocked"
       >
         {{ t('vaultAdministration.blockedHint') }}
       </p>
+      <div
+        v-if="!compact && policyNow"
+        class="mt-4"
+        data-testid="vault-administration-policy"
+      >
+        <h3 class="mb-1 text-sm font-semibold">
+          {{ t('vaultAdministration.policyTitle') }}
+        </h3>
+        <p class="mb-2 text-sm text-gray-400">
+          {{ t('vaultAdministration.policyHint', { reveal: t(policyNow.reveal ? 'vaultAdministration.on' : 'vaultAdministration.off'),
+                                                   copy: t(policyNow.copy ? 'vaultAdministration.on' : 'vaultAdministration.off') }) }}
+        </p>
+        <form
+          class="flex flex-wrap items-end gap-3"
+          @submit.prevent="proposePolicy"
+        >
+          <NCheckbox
+            v-model:checked="policyReveal"
+            data-testid="vault-administration-policy-reveal"
+          >
+            {{ t('vaultAdministration.policyReveal') }}
+          </NCheckbox>
+          <NCheckbox
+            v-model:checked="policyCopy"
+            data-testid="vault-administration-policy-copy"
+          >
+            {{ t('vaultAdministration.policyCopy') }}
+          </NCheckbox>
+          <NFormItem
+            :label="t('vaultAdministration.policyQuota')"
+            :label-props="{ for: `vault-administration-quota${idp}` }"
+            :show-feedback="false"
+          >
+            <NInputNumber
+              v-model:value="policyQuota"
+              :min="1"
+              :max="300"
+              :precision="0"
+              :input-props="{ id: `vault-administration-quota${idp}` }"
+            />
+          </NFormItem>
+          <NButton
+            size="small"
+            attr-type="submit"
+            :disabled="busy || !policyChanged || !canPropose()"
+            data-testid="vault-administration-policy-propose"
+          >
+            {{ t('vaultAdministration.policyPropose') }}
+          </NButton>
+        </form>
+      </div>
+      <div
+        v-if="!compact"
+        class="mt-4"
+        data-testid="vault-administration-items"
+      >
+        <h3 class="mb-1 text-sm font-semibold">
+          {{ t('vaultAdministration.itemsTitle', { count: released.length }) }}
+        </h3>
+        <p class="mb-2 text-sm text-gray-400">
+          {{ t('vaultAdministration.itemsHint') }}
+        </p>
+        <ul
+          v-if="released.length"
+          class="space-y-1"
+        >
+          <li
+            v-for="entry in released"
+            :key="entry.id"
+            class="flex flex-wrap items-center gap-3"
+            :data-testid="`vault-administration-released-${entry.id}`"
+          >
+            <code>{{ entry.alias }}</code>
+            <NText
+              v-if="waiting({ kind: 'item', secretId: entry.id, enabled: false })"
+              depth="3"
+            >
+              {{ t('vaultAdministration.waiting') }}
+            </NText>
+            <NButton
+              v-else
+              size="tiny"
+              :disabled="busy || !canPropose()"
+              :aria-label="`${t('vaultAdministration.itemWithdraw')}: ${entry.alias}`"
+              @click="proposeItem(entry.id, false)"
+            >
+              {{ t('vaultAdministration.itemWithdraw') }}
+            </NButton>
+          </li>
+        </ul>
+      </div>
       <div
         v-if="!compact"
         class="mt-4"
@@ -443,7 +629,7 @@ defineExpose({ detect })
         >
           <NFormItem
             :label="t('vaultAdministration.confirmationMinutes')"
-            :label-props="{ for: 'vault-administration-minutes' }"
+            :label-props="{ for: `vault-administration-minutes${idp}` }"
             :show-feedback="false"
           >
             <NInputNumber
@@ -451,7 +637,7 @@ defineExpose({ detect })
               :min="1"
               :max="15"
               :precision="0"
-              :input-props="{ id: 'vault-administration-minutes' }"
+              :input-props="{ id: `vault-administration-minutes${idp}` }"
             />
           </NFormItem>
           <NButton
@@ -481,14 +667,14 @@ defineExpose({ detect })
         >
           <NFormItem
             :label="t('vaultAdministration.windowLabel')"
-            :label-props="{ for: 'vault-administration-window' }"
+            :label-props="{ for: `vault-administration-window${idp}` }"
             :show-feedback="false"
           >
             <NSelect
               v-model:value="windowSeconds"
               class="min-w-[10rem]"
               :options="windowOptions"
-              :input-props="{ id: 'vault-administration-window' }"
+              :input-props="{ id: `vault-administration-window${idp}` }"
               data-testid="vault-administration-window-select"
             />
           </NFormItem>
