@@ -6866,7 +6866,8 @@
       "login": "Portal authentication needs renewal. No operation was automatically retried.",
       "clipboard": "Could not confirm the copy. The value was discarded; check browser permissions before requesting another operation.",
       "unsupported": "This flow requires HTTPS and an eligible local session, without delegated tenant management.",
-      "noApprover": "No other manager could approve this proposal (the proposer and the person affected cannot approve). Make one more user a vault manager and try again."
+      "noApprover": "No other manager could approve this proposal (the proposer and the person affected cannot approve). Make one more user a vault manager and try again.",
+      "reauth": "Your identity could not be confirmed. Check the password and authenticator code of the signed-in account and try again."
     }
   },
   "vaultExtension": {

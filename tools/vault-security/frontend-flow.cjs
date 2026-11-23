@@ -79,7 +79,7 @@ async function runVaultFrontendFlow(browser, base, fixture, output) {
     await scenario('HTTPS, real bcrypt/TOTP/JWE, failed password, explicit hide and memory-only capabilities', async h => {
       await h.page.locator('[data-vault-id="pem:1"]').getByText('Proprietário: pem-owner-fixture (#73)', { exact: true }).waitFor()
       await h.open('reveal'); await h.unlock('incorrect-synthetic-password')
-      await h.page.getByRole('alert').waitFor(); check(h.releaseCount() === 0, 'Wrong password authorized a release')
+      await h.page.getByRole('alert').filter({ hasText: 'Não foi possível confirmar sua identidade' }).waitFor(); check(h.releaseCount() === 0, 'Wrong password authorized a release')
       await h.unlock(); await h.visible(); check(h.releaseCount() === 1, 'Reveal did not commit exactly one release')
       check(await h.page.locator('#vault-unlock-password').count() === 0, 'Password form remains after unlock')
       await h.page.getByRole('button', { name: 'Ocultar senha', exact: true }).click(); await h.noValue(); await h.assertPrivate()

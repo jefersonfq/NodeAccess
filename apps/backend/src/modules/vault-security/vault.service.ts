@@ -1,4 +1,4 @@
-import { assertPolicy, assertSession, denied, grantDeadline, operationProofWindowMs, unavailable, vaultEnvelopeContext, VaultError } from './vault-domain.js'
+import { assertPolicy, assertSession, denied, grantDeadline, operationProofWindowMs, reauthFailed, unavailable, vaultEnvelopeContext, VaultError } from './vault-domain.js'
 import type { VaultAuthMethod, VaultEnvelopeContext, VaultAction, VaultChallenge, VaultClient, VaultIdentity, VaultOperation, VaultSession } from './vault-domain.js'
 import type { EnvelopeSealer, OriginVerifier, ProviderMethod, ProviderProofInput, ProviderStart, ProviderStepUp, Reauthentication, VaultEntropy, VaultStore, VaultTransaction } from './vault-ports.js'
 
@@ -61,7 +61,7 @@ export class VaultService {
     })
     if (!await this.reauth.verify(password, otp, proof.authority, proof.method, identity)) {
       await this.store.transaction(identity, tx => tx.audit({ type: 'UNLOCK_DENIED', clientId, policyVersion: tx.authority.policy.version }))
-      denied()
+      reauthFailed()
     }
     return this.openSession(identity, clientId, origin, proof)
   }
@@ -94,7 +94,7 @@ export class VaultService {
         await tx.remove('challenge', challengeId)
         await tx.audit({ type: 'UNLOCK_DENIED', clientId, policyVersion: tx.authority.policy.version, reasonCode: 'PROVIDER_PROOF_FAILED' })
       })
-      denied()
+      reauthFailed()
     }
     const mfa = proof.mfa
     await this.store.transaction(identity, async tx => {
@@ -114,7 +114,9 @@ export class VaultService {
     })
     if (!proof.valid || (!proof.mfa && !this.reauth.verifySecondFactor(otp ?? '', proof.authority))) {
       await this.store.transaction(identity, tx => tx.audit({ type: 'UNLOCK_DENIED', clientId, policyVersion: tx.authority.policy.version }))
-      denied()
+      // A proof that belongs to another client is a forged/mixed request, not a mistyped credential.
+      if (!proof.valid) denied()
+      reauthFailed()
     }
     return this.openSession(identity, clientId, origin, proof)
   }

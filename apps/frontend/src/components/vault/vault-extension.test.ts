@@ -100,6 +100,8 @@ describe('NA-0183 extension consent page', () => {
     const f = mount<Connect>(ExtensionConnectView); await flush()
     state.error = 'denied'; expect(await f.html()).toContain('vaultExtension.denied')
     state.error = 'unavailable'; expect(await f.html()).toContain('vaultDelivery.errors.unavailable')
+    // NA-0191: a failed identity confirmation is not presented as a missing permission.
+    state.error = 'reauth'; { const html = await f.html(); expect(html).toContain('vaultDelivery.errors.reauth'); expect(html).not.toContain('vaultExtension.denied') }
     state.error = null; f.state.password = 'pw'; f.state.token = '123456'; await f.state.allow()
     expect(await f.html()).toContain('vaultExtension.returning')
     await f.state.allow(); expect(mocks.unlock).toHaveBeenCalledTimes(2)

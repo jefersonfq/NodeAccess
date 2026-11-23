@@ -161,7 +161,7 @@ export function createVaultDelivery(deps: VaultDeliveryDependencies): VaultDeliv
       let token = ''
       if (done.totpRequired !== false) {
         state.providerPending = true; token = await confirm.totp(signal); state.providerPending = false
-        guard(version, identity); if (!/^\d{6}$/.test(token)) fail('denied')
+        guard(version, identity); if (!/^\d{6}$/.test(token)) fail('reauth')
       }
       const at = start(), reply = await transport.post<SessionReply>('sessions/unlock-provider', token ? { challengeId, token } : { challengeId }, identity, clientId, signal)
       token = ''
