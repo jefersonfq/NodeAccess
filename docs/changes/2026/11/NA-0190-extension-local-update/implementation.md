@@ -1,6 +1,6 @@
 # NA-0190 — Registro da implementação
 
-Base: `660b08096` + branch da NA-0189 (PR80). Branch: feature/NA-0190-20261123-extension-local-update.
+Base: `740d58273` (merge da NA-0189). Branch: feature/NA-0190-20261123-extension-local-update.
 
 ## Pedido e objetivo
 
@@ -33,3 +33,7 @@ Implementação e validação acima.
 ### 2026-11-23T10:40:00-03:00 — Validação de comunicação
 
 Pedido do responsável: com o NodeAccess fora do ar, **Conectar** mostrava o código de relance e voltava sem explicação (a falha da janela de autorização virava "cancelada" e se perdia quando o popup fechava). Agora: teste de comunicação antes da autorização, motivo `offline` com mensagem própria, falha de carregamento da página de autorização tratada como `offline` e motivo guardado brevemente para o popup. Ran: vitest `apps/extension` 36 PASS; `typecheck:extension` PASS; eslint 0 problemas; `test:extension:web` 16 checks PASS (portal derrubado mostra a mensagem, sem abrir a autorização; captura revisada).
+
+### 2026-11-23T11:50:00-03:00 — Publicação
+
+Branch refeita sobre o merge da NA-0189 (`740d58273`), com o encerramento da NA-0189. Revalidado antes do push (ver abaixo no PR).

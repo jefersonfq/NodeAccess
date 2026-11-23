@@ -5,7 +5,7 @@ type: feature
 status: ready-for-review
 created_at: 2026-11-23T10:00:00-03:00
 base_branch: master
-base_sha: 660b080966541814f3d2894e2cf4d0fe62d019f5
+base_sha: 740d58273bd7e01aa34a284a08842817d1fc7cc5
 branch: feature/NA-0190-20261123-extension-local-update
 owner: Jeferson Quintana
 planner: Claude Code
@@ -57,7 +57,7 @@ vitest `apps/extension`; `node --test tools/vault-extension/build-local.test.mjs
 
 ## Baseline
 
-`660b08096` + NA-0189 (PR80): vitest `apps/extension` 29 PASS; `test:extension:web` PASS.
+`660b08096` + NA-0189 (PR80, mergeada depois em `740d58273`): vitest `apps/extension` 29 PASS; `test:extension:web` PASS.
 
 ## Rollback ou recuperação
 
