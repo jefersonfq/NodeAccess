@@ -84,7 +84,7 @@ Este piloto exige HTTPS, autenticador TOTP do NodeAccess, licença Secrets e hab
 4. Ao copiar, selecione **Confirmar cópia** em até 15 segundos. Essa ação não exibe a senha e exige autorização própria. Confira a confirmação; se o navegador negar acesso à área de transferência, o valor é descartado e uma nova tentativa exige nova operação.
 5. Use **Bloquear cofre** para encerrar a sessão local do cofre. Sair da tela, ocultar a aba, perder o foco da janela ou mudar o contexto também descarta os valores. Enquanto você confirma no provedor de login, a janela do provedor pode tirar o foco sem cancelar a confirmação; nenhum valor é exibido nessa etapa, que expira em cinco minutos. Isso não faz logout do portal nem encerra as conexões do terminal.
 
-A prova de identidade precisa ser renovada após aproximadamente um minuto. Sem atividade, o backend limita a sessão a cinco minutos, com duração absoluta de até trinta minutos; a interface pode bloquear antes por privacidade. Novos registros de cliente são limitados a dez por hora por usuário: alternar frequentemente entre o cofre e outras telas pode atingir esse limite. Aguarde se isso ocorrer.
+Por padrão, a prova de identidade para revelar e copiar precisa ser renovada após aproximadamente um minuto; os gestores do cofre podem ampliar esse tempo no tenant para até 15 minutos (veja **Tempo de confirmação** abaixo). Sem atividade, o backend limita a sessão a cinco minutos, com duração absoluta de até trinta minutos; a interface pode bloquear antes por privacidade. Novos registros de cliente são limitados a dez por hora por usuário: alternar frequentemente entre o cofre e outras telas pode atingir esse limite. Aguarde se isso ocorrer.
 
 **Acesso negado:** consulte os gestores do cofre; ser administrador não contorna a política. **Autorização expirada ou resposta perdida:** não há repetição automática da entrega; feche a janela e solicite uma nova operação. **Autenticação do portal precisa ser renovada:** renove sua sessão do portal antes de tentar novamente. **Janela do provedor não abriu:** permita pop-ups do portal e selecione **Confirmar no provedor de login** de novo. **Confirmação não concluída:** feche a janela do provedor e tente novamente; cada tentativa vale uma vez. Falhas do cofre não iniciam recuperação global do terminal.
 
@@ -105,7 +105,7 @@ Em **VaultNAccess**, a seção **Extensão do navegador: dispositivos conectados
 **Acesso negado:** peça aos gestores do cofre a permissão **Usar extensão**. **Pedido de conexão inválido:** inicie a conexão de novo pela extensão. **A conexão expirou:** conecte novamente. **Atualize a extensão:** a instalação exige uma versão mais nova.
 
 ### Conceder permissões do cofre (gestores)
-Gestores do cofre veem, em **VaultNAccess**, a seção **Permissões do cofre (gestores)**. Ela concede ou retira, por usuário, **Revelar**, **Copiar** e **Usar extensão**. Cada mudança é proposta por um gestor e aprovada por outro gestor em até 2 minutos; a pessoa que recebe a permissão nunca participa, e você não altera as suas próprias permissões. A seção não aparece para quem não é gestor.
+Gestores do cofre veem, em **VaultNAccess**, a seção **Permissões do cofre (gestores)**. Também podem abrir as permissões de uma pessoa direto em **Administração › Usuários**: no menu de ações do usuário, selecione **Permissões do cofre**. A janela mostra só aquele usuário e as propostas dele, com as mesmas regras e os mesmos passos abaixo. Ela concede ou retira, por usuário, **Revelar**, **Copiar** e **Usar extensão**. Cada mudança é proposta por um gestor e aprovada por outro gestor em até 2 minutos; a pessoa que recebe a permissão nunca participa, e você não altera as suas próprias permissões. A seção não aparece para quem não é gestor.
 
 1. Selecione **Administrar permissões** e confirme sua identidade (senha e código do autenticador, ou **Confirmar no provedor**). A confirmação vale por 1 minuto; depois disso, confirme de novo.
 2. Na linha do usuário, selecione **Propor ativar** ou **Propor retirar** na permissão desejada. A proposta aparece em **Propostas aguardando aprovação**, com o tempo restante.
@@ -114,6 +114,11 @@ Gestores do cofre veem, em **VaultNAccess**, a seção **Permissões do cofre (g
 Ser administrador do NodeAccess não torna ninguém gestor do cofre: os gestores são definidos na ativação do cofre do tenant.
 
 Cada aprovação bloqueia o cofre para todos, inclusive para os gestores: quem estava com o cofre aberto precisa confirmar a identidade de novo. Retirar **Usar extensão** desconecta na hora todos os dispositivos daquela pessoa. Mudanças de política do cofre e de itens aparecem na lista sem o botão **Aprovar**: são revisadas e aprovadas pela administração da instalação.
+
+### Tempo de confirmação (gestores)
+Na seção **Permissões do cofre (gestores)** do VaultNAccess, **Tempo de confirmação para revelar e copiar** mostra por quantos minutos, depois de confirmar a identidade, revelar e copiar ficam liberados sem pedir a confirmação de novo. O padrão é 1 minuto, e o máximo é 15. Para mudar, informe os **Minutos** e selecione **Propor novo tempo**; outro gestor aprova na lista de propostas, como numa permissão. Ao aprovar, o cofre é bloqueado para todos.
+
+O tempo vale só enquanto o cofre estiver aberto: sem atividade por 5 minutos, ou após 30 minutos, o cofre bloqueia de qualquer forma. Administrar permissões e conectar a extensão continuam pedindo confirmação de 1 minuto.
 
 ## Entenda os indicadores
 - Cards e listas reutilizam os ícones de protocolo do acesso rápido. O ícone da rota informa acesso direto, automático ou por Agent/conector. Passe o mouse, toque ou use **Tab** para consultar a descrição e a disponibilidade; **Esc** fecha a dica. O botão **Conectar** informa o motivo quando uma rota obrigatória não está disponível.

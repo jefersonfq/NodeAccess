@@ -23,6 +23,8 @@ export interface VaultAdministrationProposal { reference: string; change: VaultC
   /** Grant beneficiary (same tenant), even when outside the bounded user list. */
   beneficiary: { id: number; name: string; email: string } | null }
 export interface VaultAdministrationOverview { users: VaultAdministrationUser[]; proposals: VaultAdministrationProposal[]; serverNow: number }
+/** NA-0186: the overview also shows the tenant's current confirmation time (read from the locked policy). */
+export interface VaultAdministrationView extends VaultAdministrationOverview { policy: { confirmationSeconds: number } }
 export interface AdministrationReads {
   isManager(): Promise<boolean>
   overview(): Promise<VaultAdministrationOverview>

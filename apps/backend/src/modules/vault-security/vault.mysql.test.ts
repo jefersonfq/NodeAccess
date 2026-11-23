@@ -326,6 +326,17 @@ describe.skipIf(!enabled)('Vault SQL/Redis isolated integration', () => {
     expect(rows[0]).toMatchObject({ version: 3, revealType: 'BOOLEAN', copyType: 'BOOLEAN', config: { reveal: false, copy: true, tenantQuota: 17 } })
     await expect(f.service.current(f.identity, f.clientId, origin)).rejects.toMatchObject({ code: 'VAULT_LOCKED' })
   }, 10_000)
+  it('NA-0186: applies the confirmation time as a JSON integer the policy loader accepts', async () => {
+    const f = await fixture(), a = await managerSession(f, f.manager1.id), b = await managerSession(f, f.manager2.id)
+    const admin = new VaultAdministrationService(f.service, entropy)
+    const proposal = await admin.propose(a.identity, a.clientId, origin, a.sessionId, { kind: 'confirmation', seconds: 300 })
+    await admin.approve(b.identity, b.clientId, origin, b.sessionId, proposal.proposalId)
+    const rows = await db.$queryRaw<Array<{ version: number; seconds: number; kind: string }>>`SELECT version,JSON_EXTRACT(config,'$.confirmationSeconds') AS seconds,JSON_TYPE(JSON_EXTRACT(config,'$.confirmationSeconds')) AS kind FROM vault_policies WHERE tenant_id=${f.tenant.id}`
+    expect(rows[0]).toMatchObject({ version: 2, kind: 'INTEGER' })
+    expect(Number(rows[0]!.seconds)).toBe(300)
+    const c = await managerSession(f, f.manager1.id)
+    await expect(admin.overview(c.identity, c.clientId, origin, c.sessionId)).resolves.toMatchObject({ policy: { confirmationSeconds: 300 } })
+  }, 10_000)
   it('executes deployment bootstrap, bounded cleanup and disable CLI against the disposable database', async () => {
     const cli = promisify(execFile)
     const suffix = randomUUID(), tenant = await db.tenant.create({ data: { name: 'CLI fixture', slug: `cli-${suffix}` } })

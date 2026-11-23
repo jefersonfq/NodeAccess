@@ -1,6 +1,6 @@
 import type { Prisma } from '@prisma/client'
 import { createHash } from 'node:crypto'
-import { denied, unavailable, type VaultChange, type VaultIdentity } from './vault-domain.js'
+import { denied, unavailable, validConfirmationSeconds, type VaultChange, type VaultIdentity } from './vault-domain.js'
 import type { AdministrationReads, VaultAdministrationOverview, VaultAdministrationUser } from './vault-ports.js'
 
 const hash = (s: string): string => createHash('sha256').update(s).digest('hex')
@@ -43,6 +43,7 @@ export class SqlVaultAdministration implements AdministrationReads {
   async propose(id: string, change: VaultChange): Promise<void> {
     await this.manager(this.actor.userId)
     if (change.kind === 'grant' && change.userId === this.actor.userId) denied()
+    if (change.kind === 'confirmation' && !validConfirmationSeconds(change.seconds)) denied()
     await this.db.$executeRaw`INSERT INTO vault_proposals(tenant_id,proposal_hash,proposed_by,payload,expires_at)
       VALUES(${this.actor.tenantId},${hash(id)},${this.actor.userId},${JSON.stringify(change)},${new Date(this.now()+120_000)})`
   }
@@ -74,6 +75,9 @@ export class SqlVaultAdministration implements AdministrationReads {
       await this.db.$executeRaw`INSERT INTO vault_web_items(tenant_id,secret_id,enabled) VALUES(${this.actor.tenantId},${change.secretId},${change.enabled}) ON DUPLICATE KEY UPDATE enabled=VALUES(enabled)`
     } else if (change.kind === 'policy') {
       await this.db.$executeRaw`UPDATE vault_policies SET config=JSON_SET(config,'$.reveal',CAST(${JSON.stringify(change.reveal)} AS JSON),'$.copy',CAST(${JSON.stringify(change.copy)} AS JSON),'$.tenantQuota',${change.tenantQuota}) WHERE tenant_id=${this.actor.tenantId}`
+    } else if (change.kind === 'confirmation') {
+      if (!validConfirmationSeconds(change.seconds)) denied()
+      await this.db.$executeRaw`UPDATE vault_policies SET config=JSON_SET(config,'$.confirmationSeconds',${change.seconds}) WHERE tenant_id=${this.actor.tenantId}`
     } else denied()
     // Every administrative change invalidates ALL older sessions/grants, including disable/re-enable.
     await this.db.$executeRaw`UPDATE vault_policies SET version=version+1 WHERE tenant_id=${this.actor.tenantId}`

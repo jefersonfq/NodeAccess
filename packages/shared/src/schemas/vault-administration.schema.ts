@@ -7,6 +7,8 @@ export const VaultAdministrationChangeSchema = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('grant'), userId: z.number().int().positive(), action: VaultGrantActionSchema, enabled: z.boolean() }).strict(),
   z.object({ kind: z.literal('item'), secretId: z.number().int().positive(), enabled: z.boolean() }).strict(),
   z.object({ kind: z.literal('policy'), reveal: z.boolean(), copy: z.boolean(), tenantQuota: z.number().int().min(1).max(300) }).strict(),
+  /** NA-0186: how long an unlock stays valid for reveal/copy in the tenant (60 s default, 15 min max). */
+  z.object({ kind: z.literal('confirmation'), seconds: z.number().int().min(60).max(900).multipleOf(60) }).strict(),
 ])
 export type VaultAdministrationChange = z.infer<typeof VaultAdministrationChangeSchema>
 export const VaultAdministrationStatusSchema = z.object({ manager: z.boolean() }).strict()
@@ -20,6 +22,7 @@ export const VaultAdministrationOverviewSchema = z.object({
     proposedBy: z.object({ id: z.number().int().positive(), name: z.string().max(255) }).strict(), mine: z.boolean(), expiresAt: z.number().int(),
     beneficiary: z.object({ id: z.number().int().positive(), name: z.string().max(255), email: z.string().max(320) }).strict().nullable(),
   }).strict()).max(50),
+  policy: z.object({ confirmationSeconds: z.number().int().min(60).max(900).multipleOf(60) }).strict(),
   serverNow: z.number().int(),
 }).strict()
 export type VaultAdministrationOverview = z.infer<typeof VaultAdministrationOverviewSchema>

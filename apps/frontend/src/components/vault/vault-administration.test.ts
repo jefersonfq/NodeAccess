@@ -8,7 +8,7 @@ const auth = reactive({ isManagingTenant: false, accessToken: 'portal-fixture', 
 vi.mock('@/stores/auth', () => ({ useAuthStore: () => auth }))
 vi.mock('@/services/vault-provider-confirm', () => ({ openVaultProviderWindow: vi.fn(), requestGoogleIdToken: vi.fn() }))
 vi.mock('vue-i18n', () => ({ useI18n: () => ({ t: (key: string, values?: Record<string, unknown>) => (values ? `${key}:${JSON.stringify(values)}` : key) }) }))
-vi.mock('naive-ui', () => ({ ...Object.fromEntries(['NAlert', 'NButton', 'NFormItem', 'NInput', 'NSpace', 'NText'].map(name => [name,
+vi.mock('naive-ui', () => ({ ...Object.fromEntries(['NAlert', 'NButton', 'NFormItem', 'NInput', 'NInputNumber', 'NSpace', 'NText'].map(name => [name,
   defineComponent({ inheritAttrs: false, setup: (_, { attrs, slots }) => () => h(name, attrs, slots.default?.()) })])) }))
 interface HostNode { parent: HostNode | null; children: HostNode[] }
 const node = (): HostNode => ({ parent: null, children: [] })
@@ -23,6 +23,7 @@ const flush = async (): Promise<void> => { for (let i = 0; i < 6; i++) { await P
 const reference = 'a'.repeat(64), other = 'b'.repeat(64)
 const overview = {
   serverNow: Date.now(),
+  policy: { confirmationSeconds: 60 },
   users: [
     { id: 1, name: 'Ana', email: 'ana@example.test', grants: { reveal: true, copy: false, extension: false } },
     { id: 2, name: 'Bruno', email: 'bruno@example.test', grants: { reveal: false, copy: false, extension: true } },
@@ -52,7 +53,7 @@ function fakeDelivery() {
 interface Admin { manager: boolean; opened: boolean; open(): Promise<void>; password: string; token: string; notice: string; overview: unknown
   confirm(): Promise<void>; confirmWithProvider(): Promise<void>; propose(userId: number, action: string, enabled: boolean): Promise<void>
   approve(reference: string): Promise<void>; lock(): void; load(): Promise<void>; remaining(at: number): number; detect(): Promise<void>
-  describe(change: unknown): string }
+  describe(change: unknown): string; minutes: number | null; proposeConfirmation(): Promise<void> }
 // The mock is kept apart from the transport object so assertions never detach a method.
 const transport = (manager: boolean | Error) => {
   const post = vi.fn(() => (manager instanceof Error ? Promise.reject(manager) : Promise.resolve({ manager })))
@@ -134,6 +135,53 @@ describe('NA-0183 vault administration screen', () => {
     await f.state.confirm(); expect(f.state.overview).toEqual(overview)
     state.phase = 'locked'; vi.advanceTimersByTime(1000)
     expect(d.tick).toHaveBeenCalled(); expect(f.state.overview).toBeNull()
+    f.unmount()
+  })
+})
+
+const confirmationProposal = { reference: 'e'.repeat(64), change: { kind: 'confirmation' as const, seconds: 300 }, proposedBy: { id: 3, name: 'Carla' }, mine: false,
+  expiresAt: Date.now() + 30_000, beneficiary: null }
+async function unlocked(props: Record<string, unknown>) {
+  const d = fakeDelivery(), f = mount<Admin>(VaultAdministration, { transport: transport(true), delivery: d, ...props }); await flush()
+  return { d, f }
+}
+describe('NA-0186 Users tab and confirmation time', () => {
+  it('focused on one user, opens by itself and shows only that user and the proposals for them', async () => {
+    const { d, f } = await unlocked({ userId: 2 })
+    expect(d.prepare).toHaveBeenCalledTimes(1)
+    f.state.password = 'pw'; f.state.token = '123456'; await f.state.confirm()
+    const html = await f.html()
+    expect(html).toContain('vault-administration-user-2'); expect(html).not.toContain('vault-administration-user-1')
+    expect(html).toContain(`vault-administration-approve-${reference}`)
+    expect(html).not.toContain(`vault-administration-proposal-${other}`); expect(html).not.toContain(`vault-administration-proposal-${'d'.repeat(64)}`)
+    expect(html).not.toContain('vault-administration-confirmation'); expect(html).not.toContain('vaultAdministration.title')
+    f.unmount()
+  })
+  it('a focused section with no proposals for that user says so', async () => {
+    const { d, f } = await unlocked({ userId: 2 })
+    d.administrationOverview.mockResolvedValue({ ...overview, proposals: overview.proposals.filter(p => p.reference !== reference) })
+    f.state.password = 'pw'; f.state.token = '123456'; await f.state.confirm()
+    expect(await f.html()).toContain('vaultAdministration.noPending')
+    f.unmount()
+  })
+  it('shows the current time and proposes a new one in whole minutes from 1 to 15', async () => {
+    const { d, f } = await unlocked({})
+    await f.state.open(); f.state.password = 'pw'; f.state.token = '123456'; await f.state.confirm()
+    expect(await f.html()).toContain('vault-administration-confirmation-propose')
+    expect(f.state.minutes).toBe(1)
+    for (const value of [1, 0, 16, 2.5, null]) { f.state.minutes = value; await f.state.proposeConfirmation() }
+    expect(d.proposeChange).not.toHaveBeenCalled()
+    f.state.minutes = 5; await f.state.proposeConfirmation()
+    expect(d.proposeChange).toHaveBeenCalledWith({ kind: 'confirmation', seconds: 300 }); expect(f.state.notice).toBe('proposed')
+    f.unmount()
+  })
+  it('lets another manager approve a confirmation-time proposal with its value on screen, never the proposer', async () => {
+    const { d, f } = await unlocked({})
+    d.administrationOverview.mockResolvedValue({ ...overview, proposals: [confirmationProposal, { ...confirmationProposal, reference: 'f'.repeat(64), mine: true }] })
+    await f.state.open(); f.state.password = 'pw'; f.state.token = '123456'; await f.state.confirm()
+    const html = await f.html()
+    expect(html).toContain(`vault-administration-approve-${'e'.repeat(64)}`); expect(html).not.toContain(`vault-administration-approve-${'f'.repeat(64)}`)
+    expect(f.state.describe(confirmationProposal)).toBe('vaultAdministration.proposalConfirmation:{"minutes":5}')
     f.unmount()
   })
 })

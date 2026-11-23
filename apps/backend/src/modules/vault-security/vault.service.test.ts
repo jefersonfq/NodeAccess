@@ -110,6 +110,34 @@ describe('vault lifecycle and release boundaries', () => {
     if(kind==='rotated')f.rotate();if(kind==='expired')f.advance(30000);if(kind==='step-up')f.advance(60000)
     await expect(f.service.consume(identity,client,o,session,op.operationId)).rejects.toBeDefined();expect(f.sealer.seal).not.toHaveBeenCalled()
   })
+  it('NA-0186: the tenant confirmation time widens reveal/copy only, never administration',async()=>{
+    const f=fixture();f.authority.policy.confirmationSeconds=300
+    const {c,s,request}=await f.setup(),admin=new VaultAdministrationService(f.service,entropy)
+    f.advance(240000)
+    const op=await request()
+    await expect(f.service.consume(identity,c.clientId,origin,s.sessionId,op.operationId)).resolves.toHaveProperty('envelope')
+    await expect(admin.overview(identity,c.clientId,origin,s.sessionId)).rejects.toMatchObject({status:423})
+    f.advance(61000)
+    await expect(request()).rejects.toMatchObject({status:423})
+  })
+  it('NA-0186: unlock tells the client the reveal/copy window, never beyond the session',async()=>{
+    const f=fixture(),{s}=await f.setup()
+    expect(s.proofUntil-s.serverNow).toBe(60000)
+    const g=fixture();g.authority.policy.confirmationSeconds=900
+    const {s:t}=await g.setup()
+    expect(t.proofUntil-t.serverNow).toBe(900000);expect(t.proofUntil).toBeLessThanOrEqual(t.expiresAt)
+  })
+  it('NA-0186: without the setting the proof keeps the 60 s contract default',async()=>{
+    const f=fixture(),{request}=await f.setup()
+    f.advance(60000)
+    await expect(request()).rejects.toMatchObject({status:423})
+  })
+  it('NA-0186: the overview reports the confirmation time (default 60 s)',async()=>{
+    const f=fixture(),{c,s}=await f.setup(),admin=new VaultAdministrationService(f.service,entropy)
+    await expect(admin.overview(identity,c.clientId,origin,s.sessionId)).resolves.toMatchObject({policy:{confirmationSeconds:60}})
+    f.authority.policy.confirmationSeconds=900
+    await expect(admin.overview(identity,c.clientId,origin,s.sessionId)).resolves.toMatchObject({policy:{confirmationSeconds:900}})
+  })
   it('audit failure rolls consumption back and never returns envelope',async()=>{
     const f=fixture(),{c,s,request}=await f.setup(),op=await request();f.failAudit(true)
     await expect(f.service.consume(identity,c.clientId,origin,s.sessionId,op.operationId)).rejects.toThrow('audit unavailable')
@@ -238,7 +266,7 @@ describe('vault lifecycle and release boundaries', () => {
   })
 })
 describe('policy fails closed',()=>{
-  it.each([{unlock:'false'},{localReauth:1},{reveal:'true'},{copy:undefined},{version:0},{tenantQuota:0},{tenantQuota:301},{origin:'http://vault.test'},{origin:'https://vault.test/path'},{origin:'invalid'}])('rejects malformed policy %j', patch=>{
+  it.each([{unlock:'false'},{localReauth:1},{reveal:'true'},{copy:undefined},{version:0},{tenantQuota:0},{tenantQuota:301},{confirmationSeconds:59},{confirmationSeconds:901},{confirmationSeconds:120.5},{confirmationSeconds:90},{confirmationSeconds:'300'},{origin:'http://vault.test'},{origin:'https://vault.test/path'},{origin:'invalid'}])('rejects malformed policy %j', patch=>{
     const p=fixture().authority.policy;expect(()=>assertPolicy({...p,...patch} as typeof p)).toThrow(VaultError)
   })
 })

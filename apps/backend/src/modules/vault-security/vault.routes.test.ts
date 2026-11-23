@@ -182,6 +182,8 @@ describe('Vault private HTTP adapter', () => {
         { kind: 'grant', userId: 99, action: 'copy', enabled: true },
         { kind: 'item', secretId: 19, enabled: false },
         { kind: 'policy', reveal: false, copy: true, tenantQuota: 30 },
+        { kind: 'confirmation', seconds: 60 },
+        { kind: 'confirmation', seconds: 900 },
       ]
       for (const change of changes) {
         expect((await h.post('/administration/proposals', { sessionId, change })).statusCode).toBe(200)
@@ -190,7 +192,8 @@ describe('Vault private HTTP adapter', () => {
       expect((await h.post('/administration/approve', { sessionId, proposalId })).json()).toEqual({ state: 'APPLIED' })
       expect(h.administration.approve).toHaveBeenCalledWith({ userId: 42, tenantId: 7, sessionVersion: 3 }, h.clientId, origin, sessionId, proposalId)
       h.administration.propose.mockClear()
-      for (const change of [{ kind: 'grant', userId: 99, action: 'fill', enabled: true }, { kind: 'policy', reveal: true, copy: true, tenantQuota: 301 }, { kind: 'item', secretId: 19, enabled: 'true' }, { ...changes[0], approvedBy: 42 }]) {
+      for (const change of [{ kind: 'grant', userId: 99, action: 'fill', enabled: true }, { kind: 'policy', reveal: true, copy: true, tenantQuota: 301 }, { kind: 'item', secretId: 19, enabled: 'true' }, { ...changes[0], approvedBy: 42 },
+        { kind: 'confirmation', seconds: 59 }, { kind: 'confirmation', seconds: 901 }, { kind: 'confirmation', seconds: 90.5 }, { kind: 'confirmation', seconds: 90 }, { kind: 'confirmation', seconds: 120, extra: 1 }]) {
         expect((await h.post('/administration/proposals', { sessionId, change })).statusCode).toBe(400)
       }
       expect(h.administration.propose).not.toHaveBeenCalled()

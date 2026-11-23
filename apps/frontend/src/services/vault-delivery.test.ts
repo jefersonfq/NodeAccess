@@ -201,7 +201,7 @@ describe('Vault provider step-up in the portal (NA-0184)', () => {
 })
 
 describe('Vault administration from the portal (NA-0183)', () => {
-  const reference = 'a'.repeat(64), overview = { users: [{ id: 2, name: 'Bruno', email: 'b@example.test', grants: { reveal: false, copy: false, extension: true } }],
+  const reference = 'a'.repeat(64), overview = { policy: { confirmationSeconds: 60 }, users: [{ id: 2, name: 'Bruno', email: 'b@example.test', grants: { reveal: false, copy: false, extension: true } }],
     proposals: [{ reference, change: { kind: 'grant', userId: 2, action: 'extension', enabled: false }, proposedBy: { id: 3, name: 'Carla' }, mine: false, expiresAt: 2_100_000, beneficiary: { id: 2, name: 'Bruno', email: 'b@example.test' } }], serverNow: 2_000_000 }
   function admin(replies: Record<string, unknown>) {
     const f = fixture(), base = f.post.getMockImplementation()!
@@ -243,5 +243,40 @@ describe('Vault administration from the portal (NA-0183)', () => {
     await unlock(f); f.identity({ userId: 99 })
     expect(await f.delivery.administrationOverview()).toBeNull()
     expect(f.delivery.state.phase).toBe('locked')
+  })
+})
+
+describe('Tenant confirmation time (NA-0186)', () => {
+  function windowed(seconds: number) {
+    const f = fixture(), base = f.post.getMockImplementation()!
+    f.post.mockImplementation((path: string, body: Record<string, unknown>) => (path === 'sessions/unlock'
+      ? Promise.resolve({ sessionId, idleUntil: f.serverNow + 300000, expiresAt: f.serverNow + 1800000, serverNow: f.serverNow, proofUntil: f.serverNow + seconds * 1000 })
+      : base(path, body)))
+    return f
+  }
+  it('keeps reveal/copy available within the server window, but administration and extension consent need 60 s', async () => {
+    const f = windowed(300); await unlock(f)
+    f.advance(120000); f.delivery.tick(); expect(f.delivery.state.phase).toBe('unlocked')
+    await f.delivery.deliver('reveal', 4); expect(f.delivery.state.value).toBe('synthetic-value')
+    f.delivery.dismiss()
+    expect(await f.delivery.administrationOverview()).toBeNull()
+    expect(f.post.mock.calls.some(([p]) => p === 'administration/overview')).toBe(false)
+    expect(f.delivery.state.phase).toBe('locked')
+  })
+  it('renews inactivity on each authorized operation, never past the absolute end, and locks when the window ends', async () => {
+    const f = windowed(900); await unlock(f)
+    f.advance(240000); await f.delivery.deliver('reveal', 4); f.delivery.dismiss()
+    f.advance(240000); f.delivery.tick(); expect(f.delivery.state.phase).toBe('unlocked')
+    await f.delivery.deliver('copy', 4); expect(f.delivery.state.phase).toBe('copy-ready'); f.delivery.dismiss()
+    f.advance(421000); f.delivery.tick(); expect(f.delivery.state.phase).toBe('locked')
+  })
+  it('without renewal the 5-minute inactivity still locks, and a window above 15 min is capped', async () => {
+    const f = windowed(900); await unlock(f); f.advance(300000); f.delivery.tick(); expect(f.delivery.state.phase).toBe('locked')
+    const g = windowed(3600); await unlock(g)
+    for (let i = 0; i < 4; i++) { g.advance(240000); await g.delivery.deliver('reveal', 4); g.delivery.dismiss() }
+    expect(g.delivery.state.phase).toBe('locked')
+  })
+  it('an older server without proofUntil keeps the 60 s default', async () => {
+    const f = fixture(); await unlock(f); f.advance(60000); f.delivery.tick(); expect(f.delivery.state.phase).toBe('locked')
   })
 })

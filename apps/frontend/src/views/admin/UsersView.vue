@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, h, computed } from 'vue'
+import { ref, onMounted, h, computed, type VNode } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import {
@@ -7,7 +7,7 @@ import {
   NModal, NForm, NFormItem, NSelect, NSwitch, NTransfer, NCheckbox,
   NDrawer, NDrawerContent, NEmpty, NTooltip, NDropdown, useMessage, useDialog,
 } from 'naive-ui'
-import type { DataTableColumns } from 'naive-ui'
+import type { DataTableColumns, DropdownDividerOption, DropdownOption } from 'naive-ui'
 import type { UserPublic, CreateUserDto, UpdateUserDto } from '@nodeaccess/shared'
 import { userService, type UserInventoryAccessEntry } from '@/services/user.service'
 import { groupService } from '@/services/group.service'
@@ -16,6 +16,9 @@ import { useAuthStore } from '@/stores/auth'
 import SkeletonTable from '@/components/SkeletonTable.vue'
 import SessionSupervisionPermission from '@/components/SessionSupervisionPermission.vue'
 import UserAvatar from '@/components/UserAvatar.vue'
+import VaultAdministration from '@/components/vault/VaultAdministration.vue'
+import { createVaultTransport } from '@/services/vault-http'
+import { isVaultManager } from '@/services/vault-manager'
 
 const { t } = useI18n()
 const router = useRouter()
@@ -35,13 +38,16 @@ const accessDrawerUser = ref<UserPublic | null>(null)
 const accessLoading = ref(false)
 const accessError = ref('')
 const accessEntries = ref<UserInventoryAccessEntry[]>([])
+// NA-0186: vault permissions per user, only for vault managers (NodeAccess admin alone is not enough).
+const vaultManager = ref(false)
+const vaultUser = ref<UserPublic | null>(null)
 
 const groupOptions = ref<{ label: string; value: number }[]>([])
 const userOptions = computed(() =>
   users.value.map((user) => ({ label: `${user.name} (${user.email})`, value: user.id })),
 )
 
-async function loadGroups() {
+async function loadGroups(): Promise<void> {
   try {
     const { data } = await groupService.list()
     groupOptions.value = data.map((g) => ({ label: g.name, value: g.id }))
@@ -64,6 +70,7 @@ type UserActionKey =
   | 'deactivate'
   | 'reset-password'
   | 'reset-mfa'
+  | 'vault'
   | 'delete'
   | 'restore'
 
@@ -77,14 +84,14 @@ const createForm = ref<CreateUserDto>({
 })
 const copyGroupsFromCreateUserId = ref<number | null>(null)
 
-function openCreate() {
+function openCreate(): void {
   createForm.value = { name: '', email: '', role: 'user', canManageHosts: false, canViewLiveSessions: false, groupIds: [], password: '' }
   tempPassword.value = null
   copyGroupsFromCreateUserId.value = null
   showCreateModal.value = true
 }
 
-async function createUser() {
+async function createUser(): Promise<void> {
   createLoading.value = true
   tempPassword.value  = null
   try {
@@ -97,7 +104,7 @@ async function createUser() {
       showCreateModal.value = false
     }
     msg.success(t('admin.users.messages.created'))
-    load()
+    void load()
   } catch (err: unknown) {
     const e = err as { response?: { data?: { message?: string } } }
     msg.error(e.response?.data?.message ?? t('admin.users.messages.createError'))
@@ -116,7 +123,7 @@ const editForm = ref<UpdateUserDto>({
 })
 const copyGroupsFromEditUserId = ref<number | null>(null)
 
-async function openEdit(user: UserPublic) {
+async function openEdit(user: UserPublic): Promise<void> {
   editingId.value = user.id
   editForm.value  = {
     name:           user.name,
@@ -135,7 +142,7 @@ async function openEdit(user: UserPublic) {
   }
 }
 
-async function copyGroups(target: 'create' | 'edit') {
+async function copyGroups(target: 'create' | 'edit'): Promise<void> {
   const sourceId = target === 'create' ? copyGroupsFromCreateUserId.value : copyGroupsFromEditUserId.value
   if (!sourceId) return
 
@@ -156,14 +163,14 @@ const editCopyUserOptions = computed(() =>
   userOptions.value.filter((option) => option.value !== editingId.value),
 )
 
-async function saveEdit() {
+async function saveEdit(): Promise<void> {
   if (editingId.value === null) return
   editLoading.value = true
   try {
     await userService.update(editingId.value, editForm.value)
     msg.success(t('admin.users.messages.updated'))
     showEditModal.value = false
-    load()
+    void load()
   } catch (err: unknown) {
     const e = err as { response?: { data?: { message?: string } } }
     msg.error(e.response?.data?.message ?? t('admin.users.messages.updateError'))
@@ -172,7 +179,7 @@ async function saveEdit() {
   }
 }
 
-function openUserDashboard(userId: number) {
+function openUserDashboard(userId: number): void {
   void router.push({ name: 'admin-dashboard-user', params: { userId } })
 }
 
@@ -185,7 +192,7 @@ function permissionLabels(entry: UserInventoryAccessEntry): string[] {
   ].filter((label): label is string => typeof label === 'string')
 }
 
-async function openAccessDrawer(user: UserPublic) {
+async function openAccessDrawer(user: UserPublic): Promise<void> {
   accessDrawerUser.value = user
   accessLoading.value = true
   accessError.value = ''
@@ -200,13 +207,13 @@ async function openAccessDrawer(user: UserPublic) {
   }
 }
 
-function closeAccessDrawer() {
+function closeAccessDrawer(): void {
   accessDrawerUser.value = null
   accessEntries.value = []
   accessError.value = ''
 }
 
-function renderStateIcon(enabled: boolean, label: string, tooltip = label) {
+function renderStateIcon(enabled: boolean, label: string, tooltip = label): VNode {
   const icon = enabled
     ? h('svg', {
       class: 'user-state-icon',
@@ -246,12 +253,12 @@ function renderStateIcon(enabled: boolean, label: string, tooltip = label) {
   })
 }
 
-function userStatusLabel(user: UserPublic) {
+function userStatusLabel(user: UserPublic): string {
   if (user.deletedAt) return t('admin.users.status.deleted')
   return user.active ? t('admin.users.status.active') : t('admin.users.status.inactive')
 }
 
-function userActionOptions(user: UserPublic) {
+function userActionOptions(user: UserPublic): Array<DropdownOption | DropdownDividerOption> {
   if (user.deletedAt) {
     return [
       { label: t('admin.users.actions.restore'), key: 'restore' },
@@ -278,15 +285,16 @@ function userActionOptions(user: UserPublic) {
     },
     { label: t('admin.users.actions.resetPassword'), key: 'reset-password' },
     { label: t('admin.users.actions.resetMfa'), key: 'reset-mfa' },
+    ...(vaultManager.value && user.active ? [{ label: t('admin.users.actions.vault'), key: 'vault' }] : []),
     { type: 'divider', key: 'danger-divider' },
     {
-      label: () => h('span', { class: 'user-action-danger' }, t('admin.users.actions.delete')),
+      label: (): VNode => h('span', { class: 'user-action-danger' }, t('admin.users.actions.delete')),
       key: 'delete',
     },
   ]
 }
 
-function handleUserAction(action: UserActionKey, user: UserPublic) {
+function handleUserAction(action: UserActionKey, user: UserPublic): void | Promise<void> {
   if (action === 'dashboard') return openUserDashboard(user.id)
   if (action === 'access') return openAccessDrawer(user)
   if (action === 'edit') return openEdit(user)
@@ -295,6 +303,7 @@ function handleUserAction(action: UserActionKey, user: UserPublic) {
   if (action === 'deactivate') return toggleActive(user, false)
   if (action === 'reset-password') return resetPwd(user.id)
   if (action === 'reset-mfa') return confirmResetMfa(user)
+  if (action === 'vault') { vaultUser.value = user; return }
   if (action === 'delete') return confirmDeleteUser(user)
   if (action === 'restore') return restoreUser(user)
 }
@@ -306,7 +315,7 @@ const columns = computed<DataTableColumns<UserPublic>>(() => [
     title: t('admin.users.columns.name'),
     key: 'name',
     minWidth: 220,
-    render: (row) => h('div', { class: 'users-name-cell' }, [
+    render: (row): VNode => h('div', { class: 'users-name-cell' }, [
       h(UserAvatar, { user: row, size: 32 }),
       h('div', { class: 'users-name-cell__text' }, [
         h('span', { class: 'users-name-cell__name' }, row.name),
@@ -316,7 +325,7 @@ const columns = computed<DataTableColumns<UserPublic>>(() => [
   },
   {
     title: t('admin.users.columns.role'), key: 'role',
-    render: (row) => h(NTag, { type: row.role === 'admin' ? 'warning' : 'default', size: 'small' }, () =>
+    render: (row): VNode => h(NTag, { type: row.role === 'admin' ? 'warning' : 'default', size: 'small' }, () =>
       row.role === 'admin' ? t('admin.users.roles.admin') : t('admin.users.roles.user'),
     ),
   },
@@ -324,7 +333,7 @@ const columns = computed<DataTableColumns<UserPublic>>(() => [
     title: t('admin.users.columns.canManageHosts'), key: 'canManageHosts',
     align: 'center',
     width: 124,
-    render: (row) => renderStateIcon(
+    render: (row): VNode => renderStateIcon(
       row.canManageHosts,
       row.canManageHosts ? t('admin.users.manage.yes') : t('admin.users.manage.no'),
       row.canManageHosts
@@ -334,17 +343,17 @@ const columns = computed<DataTableColumns<UserPublic>>(() => [
   },
   {
     title: 'Sessões abertas', key: 'canViewLiveSessions',
-    render: (row) => h(NTag, { type: row.canViewLiveSessions ? 'success' : 'default', size: 'small' }, () => row.canViewLiveSessions ? t('admin.users.manage.yes') : t('admin.users.manage.no')),
+    render: (row): VNode => h(NTag, { type: row.canViewLiveSessions ? 'success' : 'default', size: 'small' }, () => row.canViewLiveSessions ? t('admin.users.manage.yes') : t('admin.users.manage.no')),
   },
   {
     title: t('admin.users.columns.status'), key: 'active',
     align: 'center',
     width: 92,
-    render: (row) => renderStateIcon(row.active && !row.deletedAt, userStatusLabel(row), userStatusLabel(row)),
+    render: (row): VNode => renderStateIcon(row.active && !row.deletedAt, userStatusLabel(row), userStatusLabel(row)),
   },
   {
     title: t('admin.users.columns.groups'), key: 'groupIds',
-    render: (row) => h(NTag, { type: row.groupIds.length > 0 ? 'info' : 'default', size: 'small' }, () =>
+    render: (row): VNode => h(NTag, { type: row.groupIds.length > 0 ? 'info' : 'default', size: 'small' }, () =>
       row.groupIds.length > 0
         ? t('admin.users.groupsCount', { count: row.groupIds.length })
         : t('admin.users.noGroups'),
@@ -354,11 +363,11 @@ const columns = computed<DataTableColumns<UserPublic>>(() => [
     title: t('admin.users.columns.actions'), key: 'actions',
     align: 'right',
     width: 96,
-    render: (row) => h(NDropdown, {
+    render: (row): VNode => h(NDropdown, {
       trigger: 'click',
       placement: 'bottom-end',
       options: userActionOptions(row),
-      onSelect: (key: string) => handleUserAction(key as UserActionKey, row),
+      onSelect: (key: string) => { void handleUserAction(key as UserActionKey, row) },
     }, {
       default: () => h(NButton, { size: 'small', secondary: true }, () => t('admin.users.columns.actions')),
     }),
@@ -367,7 +376,7 @@ const columns = computed<DataTableColumns<UserPublic>>(() => [
 
 // ─── Ações ───────────────────────────────────────────────────────────────────
 
-async function load() {
+async function load(): Promise<void> {
   loading.value = true
   error.value   = null
   try {
@@ -385,22 +394,23 @@ async function load() {
 }
 
 onMounted(() => {
-  load()
-  loadGroups()
+  void load()
+  void loadGroups()
+  void isVaultManager(createVaultTransport(), auth).then(value => { vaultManager.value = value })
 })
 
-async function toggleActive(user: UserPublic, active: boolean) {
+async function toggleActive(user: UserPublic, active: boolean): Promise<void> {
   try {
     if (active) await userService.activate(user.id)
     else        await userService.deactivate(user.id)
     msg.success(active ? t('admin.users.messages.activated') : t('admin.users.messages.deactivated'))
-    load()
+    void load()
   } catch {
     msg.error(t('admin.users.messages.updateError'))
   }
 }
 
-function confirmDeleteUser(user: UserPublic) {
+function confirmDeleteUser(user: UserPublic): void {
   dialog.warning({
     title:        t('admin.users.deleteConfirm.title'),
     content:      t('admin.users.deleteConfirm.content', { name: user.name, email: user.email }),
@@ -410,7 +420,7 @@ function confirmDeleteUser(user: UserPublic) {
       try {
         await userService.delete(user.id)
         msg.success(t('admin.users.messages.deleted'))
-        load()
+        void load()
       } catch (err: unknown) {
         const e = err as { response?: { data?: { message?: string } } }
         msg.error(e.response?.data?.message ?? t('admin.users.messages.deleteError'))
@@ -419,18 +429,18 @@ function confirmDeleteUser(user: UserPublic) {
   })
 }
 
-async function restoreUser(user: UserPublic) {
+async function restoreUser(user: UserPublic): Promise<void> {
   try {
     await userService.restore(user.id)
     msg.success(t('admin.users.messages.restored'))
-    load()
+    void load()
   } catch (err: unknown) {
     const e = err as { response?: { data?: { message?: string } } }
     msg.error(e.response?.data?.message ?? t('admin.users.messages.restoreError'))
   }
 }
 
-async function resetPwd(id: number) {
+function resetPwd(id: number): void {
   dialog.warning({
     title:        t('admin.users.resetPassword.dialogTitle'),
     content:      t('admin.users.resetPassword.dialogContent'),
@@ -450,7 +460,7 @@ async function resetPwd(id: number) {
   })
 }
 
-function confirmResetMfa(user: UserPublic) {
+function confirmResetMfa(user: UserPublic): void {
   dialog.warning({
     title:        t('admin.users.resetMfa.dialogTitle'),
     content:      t('admin.users.resetMfa.dialogContent', { name: user.name, email: user.email }),
@@ -469,7 +479,7 @@ function confirmResetMfa(user: UserPublic) {
   })
 }
 
-function confirmPromotePlatformAdmin(user: UserPublic) {
+function confirmPromotePlatformAdmin(user: UserPublic): void {
   dialog.warning({
     title: t('admin.users.promoteSuperadmin.dialogTitle'),
     content: t('admin.users.promoteSuperadmin.dialogContent', { name: user.name, email: user.email }),
@@ -501,56 +511,134 @@ function confirmPromotePlatformAdmin(user: UserPublic) {
 <template>
   <div class="p-6">
     <div class="flex items-center justify-between mb-6">
-      <h1 class="text-xl font-semibold text-white">{{ $t('admin.users.title') }}</h1>
-      <NButton type="primary" @click="openCreate">{{ $t('admin.users.newUser') }}</NButton>
+      <h1 class="text-xl font-semibold text-white">
+        {{ $t('admin.users.title') }}
+      </h1>
+      <NButton
+        type="primary"
+        @click="openCreate"
+      >
+        {{ $t('admin.users.newUser') }}
+      </NButton>
     </div>
 
-    <NSpace class="mb-4" align="center">
-      <NInput v-model:value="search" :placeholder="$t('admin.users.searchPlaceholder')" clearable style="width:240px" @keyup.enter="load" />
-      <NButton @click="load">{{ $t('common.search') }}</NButton>
-      <NCheckbox v-model:checked="includeDeleted" @update:checked="load">
+    <NSpace
+      class="mb-4"
+      align="center"
+    >
+      <NInput
+        v-model:value="search"
+        :placeholder="$t('admin.users.searchPlaceholder')"
+        clearable
+        style="width:240px"
+        @keyup.enter="load"
+      />
+      <NButton @click="load">
+        {{ $t('common.search') }}
+      </NButton>
+      <NCheckbox
+        v-model:checked="includeDeleted"
+        @update:checked="load"
+      >
         {{ $t('admin.users.showDeleted') }}
       </NCheckbox>
     </NSpace>
 
-    <NAlert v-if="error" type="error" class="mb-4" :title="error" />
+    <NAlert
+      v-if="error"
+      type="error"
+      class="mb-4"
+      :title="error"
+    />
 
-    <SkeletonTable v-if="loading && users.length === 0" :rows="6" :columns="5" />
-    <NSpin v-else :show="loading">
+    <SkeletonTable
+      v-if="loading && users.length === 0"
+      :rows="6"
+      :columns="5"
+    />
+    <NSpin
+      v-else
+      :show="loading"
+    >
       <NDataTable
         :columns="columns"
         :data="users"
         :row-key="(r) => r.id"
         :bordered="false"
       >
-        <template v-if="!loading && users.length === 0" #empty>
+        <template
+          v-if="!loading && users.length === 0"
+          #empty
+        >
           <div class="py-16 flex flex-col items-center gap-3">
-            <svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="#444" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>
-              <path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+            <svg
+              viewBox="0 0 24 24"
+              width="40"
+              height="40"
+              fill="none"
+              stroke="#444"
+              stroke-width="1.5"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle
+                cx="9"
+                cy="7"
+                r="4"
+              />
+              <path d="M22 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" />
             </svg>
-            <p class="text-sm text-gray-500">{{ $t('admin.users.emptyDesc') }}</p>
-            <NButton type="primary" size="small" @click="openCreate">{{ $t('admin.users.createFirst') }}</NButton>
+            <p class="text-sm text-gray-500">
+              {{ $t('admin.users.emptyDesc') }}
+            </p>
+            <NButton
+              type="primary"
+              size="small"
+              @click="openCreate"
+            >
+              {{ $t('admin.users.createFirst') }}
+            </NButton>
           </div>
         </template>
       </NDataTable>
     </NSpin>
 
     <!-- Modal: criar usuário -->
-    <NModal v-model:show="showCreateModal" preset="card" :title="$t('admin.users.createModal.title')" style="width: 480px">
-      <NAlert v-if="tempPassword" type="success" class="mb-4"
+    <NModal
+      v-model:show="showCreateModal"
+      preset="card"
+      :title="$t('admin.users.createModal.title')"
+      style="width: 480px"
+    >
+      <NAlert
+        v-if="tempPassword"
+        type="success"
+        class="mb-4"
         :title="$t('admin.users.resetPassword.tempPasswordLabel', { password: tempPassword })"
-        :description="$t('admin.users.createModal.tempPasswordNote')" />
+        :description="$t('admin.users.createModal.tempPasswordNote')"
+      />
 
-      <NForm v-if="!tempPassword" @submit.prevent="createUser">
+      <NForm
+        v-if="!tempPassword"
+        @submit.prevent="createUser"
+      >
         <NFormItem :label="$t('admin.users.createModal.nameLabel')">
-          <NInput v-model:value="createForm.name" :input-props="{ autocomplete: 'off' }" />
+          <NInput
+            v-model:value="createForm.name"
+            :input-props="{ autocomplete: 'off' }"
+          />
         </NFormItem>
         <NFormItem :label="$t('admin.users.createModal.emailLabel')">
-          <NInput v-model:value="createForm.email" :input-props="{ inputmode: 'email', autocomplete: 'off' }" />
+          <NInput
+            v-model:value="createForm.email"
+            :input-props="{ inputmode: 'email', autocomplete: 'off' }"
+          />
         </NFormItem>
         <NFormItem :label="$t('admin.users.createModal.roleLabel')">
-          <NSelect v-model:value="createForm.role" :options="roleOptions" />
+          <NSelect
+            v-model:value="createForm.role"
+            :options="roleOptions"
+          />
         </NFormItem>
         <NFormItem :label="$t('admin.users.createModal.canManageLabel')">
           <NSwitch v-model:value="createForm.canManageHosts" />
@@ -570,7 +658,10 @@ function confirmPromotePlatformAdmin(user: UserPublic) {
         </NFormItem>
         <NFormItem :label="$t('admin.users.createModal.groupsLabel')">
           <div class="w-full flex flex-col gap-3">
-            <NAlert type="info" :show-icon="false">
+            <NAlert
+              type="info"
+              :show-icon="false"
+            >
               {{ $t('admin.users.groupAclHint') }}
             </NAlert>
             <div class="text-xs text-gray-400">
@@ -597,24 +688,45 @@ function confirmPromotePlatformAdmin(user: UserPublic) {
           </div>
         </NFormItem>
         <div class="flex justify-end gap-2 mt-2">
-          <NButton @click="showCreateModal = false">{{ $t('admin.users.createModal.cancel') }}</NButton>
-          <NButton type="primary" :loading="createLoading" @click="createUser">{{ $t('admin.users.createModal.create') }}</NButton>
+          <NButton @click="showCreateModal = false">
+            {{ $t('admin.users.createModal.cancel') }}
+          </NButton>
+          <NButton
+            type="primary"
+            :loading="createLoading"
+            @click="createUser"
+          >
+            {{ $t('admin.users.createModal.create') }}
+          </NButton>
         </div>
       </NForm>
 
-      <div v-if="tempPassword" class="flex justify-end mt-2">
-        <NButton @click="showCreateModal = false">{{ $t('common.close') }}</NButton>
+      <div
+        v-if="tempPassword"
+        class="flex justify-end mt-2"
+      >
+        <NButton @click="showCreateModal = false">
+          {{ $t('common.close') }}
+        </NButton>
       </div>
     </NModal>
 
     <!-- Modal: editar usuário -->
-    <NModal v-model:show="showEditModal" preset="card" :title="$t('admin.users.editModal.title')" style="width: 480px">
+    <NModal
+      v-model:show="showEditModal"
+      preset="card"
+      :title="$t('admin.users.editModal.title')"
+      style="width: 480px"
+    >
       <NForm @submit.prevent="saveEdit">
         <NFormItem :label="$t('admin.users.createModal.nameLabel')">
           <NInput v-model:value="editForm.name" />
         </NFormItem>
         <NFormItem :label="$t('admin.users.createModal.roleLabel')">
-          <NSelect v-model:value="editForm.role" :options="roleOptions" />
+          <NSelect
+            v-model:value="editForm.role"
+            :options="roleOptions"
+          />
         </NFormItem>
         <NFormItem :label="$t('admin.users.createModal.canManageLabel')">
           <NSwitch v-model:value="editForm.canManageHosts" />
@@ -622,10 +734,17 @@ function confirmPromotePlatformAdmin(user: UserPublic) {
         <NFormItem label="Pode visualizar sessões abertas">
           <NSwitch v-model:value="editForm.canViewLiveSessions" />
         </NFormItem>
-        <SessionSupervisionPermission v-if="editingId" :key="editingId" :user-id="editingId" />
+        <SessionSupervisionPermission
+          v-if="editingId"
+          :key="editingId"
+          :user-id="editingId"
+        />
         <NFormItem :label="$t('admin.users.editModal.groupsLabel')">
           <div class="w-full flex flex-col gap-3">
-            <NAlert type="info" :show-icon="false">
+            <NAlert
+              type="info"
+              :show-icon="false"
+            >
               {{ $t('admin.users.groupAclHint') }}
             </NAlert>
             <div class="text-xs text-gray-400">
@@ -652,10 +771,36 @@ function confirmPromotePlatformAdmin(user: UserPublic) {
           </div>
         </NFormItem>
         <div class="flex justify-end gap-2 mt-2">
-          <NButton @click="showEditModal = false">{{ $t('admin.users.editModal.cancel') }}</NButton>
-          <NButton type="primary" :loading="editLoading" @click="saveEdit">{{ $t('admin.users.editModal.save') }}</NButton>
+          <NButton @click="showEditModal = false">
+            {{ $t('admin.users.editModal.cancel') }}
+          </NButton>
+          <NButton
+            type="primary"
+            :loading="editLoading"
+            @click="saveEdit"
+          >
+            {{ $t('admin.users.editModal.save') }}
+          </NButton>
         </div>
       </NForm>
+    </NModal>
+
+    <NModal
+      :show="vaultUser !== null"
+      preset="card"
+      :title="$t('admin.users.vaultModal.title', { name: vaultUser?.name ?? '' })"
+      style="width: min(760px, 100vw)"
+      data-testid="users-vault-modal"
+      @update:show="(value) => { if (!value) vaultUser = null }"
+    >
+      <p class="mb-3 text-sm text-gray-400">
+        {{ $t('admin.users.vaultModal.hint') }}
+      </p>
+      <VaultAdministration
+        v-if="vaultUser"
+        :key="vaultUser.id"
+        :user-id="vaultUser.id"
+      />
     </NModal>
 
     <NDrawer
@@ -664,12 +809,24 @@ function confirmPromotePlatformAdmin(user: UserPublic) {
       placement="right"
       @update:show="(value) => { if (!value) closeAccessDrawer() }"
     >
-      <NDrawerContent :title="$t('admin.users.access.title', { name: accessDrawerUser?.name ?? '' })" closable>
+      <NDrawerContent
+        :title="$t('admin.users.access.title', { name: accessDrawerUser?.name ?? '' })"
+        closable
+      >
         <NSpin :show="accessLoading">
-          <NAlert v-if="accessError" type="error" class="mb-4">
+          <NAlert
+            v-if="accessError"
+            type="error"
+            class="mb-4"
+          >
             {{ accessError }}
           </NAlert>
-          <NAlert v-else type="info" :show-icon="false" class="mb-4">
+          <NAlert
+            v-else
+            type="info"
+            :show-icon="false"
+            class="mb-4"
+          >
             {{ $t('admin.users.access.description') }}
           </NAlert>
 
@@ -678,7 +835,10 @@ function confirmPromotePlatformAdmin(user: UserPublic) {
             :description="$t('admin.users.access.empty')"
           />
 
-          <div v-else class="space-y-3">
+          <div
+            v-else
+            class="space-y-3"
+          >
             <div
               v-for="entry in accessEntries"
               :key="entry.aclEntryId"
@@ -687,7 +847,10 @@ function confirmPromotePlatformAdmin(user: UserPublic) {
               <div class="flex flex-wrap items-start justify-between gap-3">
                 <div class="min-w-0">
                   <div class="flex flex-wrap items-center gap-2">
-                    <NTag size="small" :type="entry.inventoryNodeType === 'HOST' ? 'warning' : 'info'">
+                    <NTag
+                      size="small"
+                      :type="entry.inventoryNodeType === 'HOST' ? 'warning' : 'info'"
+                    >
                       {{ entry.inventoryNodeType === 'ROOT' ? $t('hosts.inventoryFolders.root') : entry.inventoryNodeType }}
                     </NTag>
                     <span class="truncate text-sm font-semibold text-white">

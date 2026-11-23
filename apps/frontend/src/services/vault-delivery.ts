@@ -6,7 +6,8 @@ import { VaultAdministrationOverviewSchema, type VaultAdministrationChange, type
 type Action = 'reveal' | 'copy'
 interface Deadline { mono: number; wall: number }
 interface Clock { mono(): number; wall(): number }
-interface SessionReply { sessionId: string; idleUntil: number; expiresAt: number; serverNow: number }
+/** NA-0186: `proofUntil` is the tenant's reveal/copy window (absent from older servers = 60 s). */
+interface SessionReply { sessionId: string; idleUntil: number; expiresAt: number; serverNow: number; proofUntil?: number }
 export type VaultStepUp = 'password_totp' | 'provider'
 interface ClientReply { clientId: string; expiresAt: number; serverNow: number; stepUp?: unknown }
 type ProviderStart = { kind: 'redirect'; authorizationUrl: string } | { kind: 'google'; clientId: string; nonce: string }
@@ -66,6 +67,8 @@ export function createVaultDelivery(deps: VaultDeliveryDependencies): VaultDeliv
   let epoch = 0, disposed = false, abort = new AbortController()
   let owner: VaultPortalIdentity | null = null, clientId = '', sessionId = '', operationId = '', pendingCopy = ''
   let clientUntil: Deadline | null = null, sessionUntil: Deadline | null = null, proofUntil: Deadline | null = null, valueUntil: Deadline | null = null
+  // Administration and extension consent always need a proof younger than 60 s; the absolute session end bounds idle renewals.
+  let strictProofUntil: Deadline | null = null, sessionEnd: Deadline | null = null
   const start = (): Deadline => ({ mono: clock.mono(), wall: clock.wall() })
   const live = (d: Deadline | null): boolean => !!d && clock.mono() < d.mono && clock.wall() < d.wall
   function deadline(at: Deadline, serverNow: number, expiresAt: number, cap: number): Deadline {
@@ -82,15 +85,28 @@ export function createVaultDelivery(deps: VaultDeliveryDependencies): VaultDeliv
   }
   function lock(): void {
     const old = owner, client = clientId, operation = operationId
-    invalidate(); owner = null; clientId = ''; sessionId = ''; clientUntil = null; sessionUntil = null; proofUntil = null
+    invalidate(); owner = null; clientId = ''; sessionId = ''; clientUntil = null; sessionUntil = null; proofUntil = null; strictProofUntil = null; sessionEnd = null
     state.phase = 'locked'; state.error = null; state.stepUp = null; state.providerPending = false
     cleanup(old, client, operation, true)
   }
   function guard(version: number, identity: VaultPortalIdentity): void {
     if (disposed || version !== epoch || !sameIdentity(identity, deps.identity())) fail('locked')
   }
-  function requireProof(): void {
-    if (!live(clientUntil) || !live(sessionUntil) || !live(proofUntil) || !sessionId) fail('locked')
+  function requireProof(strict = false): void {
+    if (!live(clientUntil) || !live(sessionUntil) || !live(proofUntil) || !sessionId || (strict && !live(strictProofUntil))) fail('locked')
+  }
+  function opened(at: Deadline, reply: SessionReply): void {
+    sessionUntil = deadline(at, reply.serverNow, Math.min(reply.expiresAt, reply.idleUntil), 300000)
+    sessionEnd = deadline(at, reply.serverNow, reply.expiresAt, 1800000)
+    const window = typeof reply.proofUntil === 'number' ? reply.proofUntil : reply.serverNow + 60000
+    proofUntil = deadline(at, reply.serverNow, window, 900000)
+    strictProofUntil = deadline(at, reply.serverNow, reply.serverNow + 60000, 60000)
+    if (!live(sessionUntil) || !live(clientUntil) || !live(proofUntil)) fail('expired')
+  }
+  /** The server renews inactivity (5 min) on each authorized operation; mirror it without passing the absolute end. */
+  function renewed(at: Deadline): void {
+    const idle = { mono: at.mono + 299000, wall: at.wall + 299000 }
+    sessionUntil = sessionEnd && (sessionEnd.mono < idle.mono || sessionEnd.wall < idle.wall) ? sessionEnd : idle
   }
   function failure(error: unknown, version: number): void {
     if (version !== epoch || disposed) return
@@ -150,9 +166,7 @@ export function createVaultDelivery(deps: VaultDeliveryDependencies): VaultDeliv
       const at = start(), reply = await transport.post<SessionReply>('sessions/unlock-provider', token ? { challengeId, token } : { challengeId }, identity, clientId, signal)
       token = ''
       guard(version, identity); if (!opaque(reply.sessionId)) fail()
-      sessionUntil = deadline(at, reply.serverNow, Math.min(reply.expiresAt, reply.idleUntil), 300000)
-      proofUntil = deadline(at, reply.serverNow, reply.serverNow + 60000, 60000)
-      if (!live(sessionUntil) || !live(clientUntil) || !live(proofUntil)) fail('expired')
+      opened(at, reply)
       sessionId = reply.sessionId; state.phase = 'unlocked'
     } catch (error) { state.providerPending = false; failure(error, version) }
   }
@@ -171,9 +185,7 @@ export function createVaultDelivery(deps: VaultDeliveryDependencies): VaultDeliv
       const at = start(), reply = await transport.post<SessionReply>('sessions/unlock', { challengeId: challenge.challengeId, password, token }, identity, clientId, signal)
       password = ''; token = ''
       guard(version, identity); if (!opaque(reply.sessionId)) fail()
-      sessionUntil = deadline(at, reply.serverNow, Math.min(reply.expiresAt, reply.idleUntil), 300000)
-      proofUntil = deadline(at, reply.serverNow, reply.serverNow + 60000, 60000)
-      if (!live(sessionUntil) || !live(clientUntil) || !live(proofUntil)) fail('expired')
+      opened(at, reply)
       sessionId = reply.sessionId; state.phase = 'unlocked'
     } catch (error) { failure(error, version) } finally { password = ''; token = '' }
   }
@@ -194,7 +206,7 @@ export function createVaultDelivery(deps: VaultDeliveryDependencies): VaultDeliv
       const client = clientId, at = start()
       const reply = await transport.post<Authorization>('operations', { sessionId, action, secretId, recipient: key.recipient }, identity, client, signal)
       try { guard(version, identity) } catch (error) { if (opaque(reply.operationId)) cleanup(identity, client, reply.operationId); throw error }
-      requireProof(); assertVaultEnvelopeContext(reply.context)
+      requireProof(); assertVaultEnvelopeContext(reply.context); renewed(at)
       const context = reply.context
       if (!opaque(reply.operationId) || reply.state !== 'AUTHORIZED' || context.operationId !== reply.operationId || context.expiresAt !== reply.expiresAt
         || context.tenantId !== identity.tenantId || context.userId !== identity.userId || context.clientId !== clientDigest || context.action !== action
@@ -219,7 +231,7 @@ export function createVaultDelivery(deps: VaultDeliveryDependencies): VaultDeliv
     invalidate(); const version = epoch, signal = abort.signal
     state.phase = 'delivering'; state.error = null
     try {
-      requireProof()
+      requireProof(true)
       const reply = await transport.post<{ code?: unknown }>('extension/authorize', { ...request, sessionId }, identity, clientId, signal)
       guard(version, identity)
       const code = reply.code
@@ -237,7 +249,7 @@ export function createVaultDelivery(deps: VaultDeliveryDependencies): VaultDeliv
     invalidate(); const version = epoch, signal = abort.signal
     state.phase = 'delivering'; state.error = null
     try {
-      requireProof()
+      requireProof(true)
       const reply = await transport.post<unknown>(path, { ...body, sessionId }, identity, clientId, signal)
       guard(version, identity)
       const result = run(reply)

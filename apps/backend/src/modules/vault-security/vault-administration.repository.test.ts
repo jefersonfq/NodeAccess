@@ -66,6 +66,27 @@ describe('vault administration reads', () => {
     expect(reads[2]?.sql).toContain('b.tenant_id=p.tenant_id')
     expect(reads[2]?.values).toEqual([7, new Date(1_000)])
   })
+  it('NA-0186: applies the confirmation time through the two-manager flow and bumps the policy version', async () => {
+    const { db, calls } = database(sql => {
+      if (sql.includes('vault_managers')) return [{ id: 1 }]
+      if (sql.includes('vault_proposals')) return [{ proposedBy: 2, payload: { kind: 'confirmation', seconds: 300 }, expiresAt: new Date(5_000) }]
+      return []
+    })
+    expect(await admin(db).approve(sha('p'), true)).toEqual({ change: { kind: 'confirmation', seconds: 300 }, proposedBy: 2 })
+    const update = calls.find(c => c.sql.includes('$.confirmationSeconds'))
+    expect(update?.values).toEqual([300, 7])
+    expect(calls.some(c => c.sql.includes('version=version+1'))).toBe(true)
+  })
+  it.each([59, 901, 120.5, 90])('NA-0186: refuses a confirmation time of %s at proposal and approval', async seconds => {
+    const { db, calls } = database(sql => {
+      if (sql.includes('vault_managers')) return [{ id: 1 }]
+      if (sql.includes('vault_proposals')) return [{ proposedBy: 2, payload: { kind: 'confirmation', seconds }, expiresAt: new Date(5_000) }]
+      return []
+    })
+    await expect(admin(db).propose('x', { kind: 'confirmation', seconds })).rejects.toMatchObject({ status: 403 })
+    await expect(admin(db).approve(sha('p'), true)).rejects.toMatchObject({ status: 403 })
+    expect(calls.some(c => c.sql.startsWith('INSERT') || c.sql.includes('version=version+1'))).toBe(false)
+  })
   it('approves by stored reference without hashing it again, and by id with the hash', async () => {
     for (const [id, byReference, key] of [[sha('p'), true, sha('p')], ['p', false, sha('p')]] as const) {
       const { db, calls } = database(sql => {
