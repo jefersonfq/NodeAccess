@@ -49,6 +49,13 @@ export const VaultExtensionTokenReplySchema = z.object({
   serverNow: z.number().int(),
 }).strict()
 export type VaultExtensionTokenReply = z.infer<typeof VaultExtensionTokenReplySchema>
+/** NA-0193: renewal by a trusted device — automatic (no `otp`) or with the NodeAccess authenticator code. */
+export const VaultExtensionRenewRequestSchema = z.object({
+  extensionId: VaultExtensionIdSchema,
+  otp: z.string().regex(/^\d{6}$/).optional(),
+}).strict()
+export type VaultExtensionRenewRequest = z.infer<typeof VaultExtensionRenewRequestSchema>
+export const VaultExtensionForgetRequestSchema = z.object({ extensionId: VaultExtensionIdSchema }).strict()
 
 export const VaultItemKindSchema = z.enum(['secret', 'pem'])
 export type VaultItemKind = z.infer<typeof VaultItemKindSchema>

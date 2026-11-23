@@ -34,3 +34,7 @@ Revert da PR e recompilar a extensão.
 ### 2026-11-23T13:50:00-03:00 — Implementação
 
 Implementação e validação acima.
+
+### 2026-11-23T15:55:00-03:00 — Merge e encerramento
+
+PR83 mergeada em `master` (`b8d99fd8e`, 2026-11-23) com todos os checks remotos verdes. `master` local sincronizado. Status `closed`. Segue: `validate:sonar` local (tokens do responsável). Encerramento registrado na branch da NA-0193.

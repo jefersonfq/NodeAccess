@@ -1,14 +1,23 @@
-import type { VaultIdentity, VaultOrigin } from './vault-domain.js'
+import type { VaultAuthMethod, VaultIdentity, VaultOrigin } from './vault-domain.js'
 
 /** NA-0183 — browser extension (slice E1): one-time PKCE code and DPoP-bound opaque authorization. */
-export type ExtensionTokenKind = 'code' | 'access'
+/** `trust` (NA-0193): one row per trusted device (`trust:<jkt>`), alive 7 days from the last full consent. */
+export type ExtensionTokenKind = 'code' | 'access' | 'trust'
 export interface ExtensionCode {
   sessionVersion: number; extensionId: string; redirectUri: string; codeChallenge: string
   origin: VaultOrigin; policyVersion: number; expiresAt: number
 }
+/** `origin` is the consenting central session; `null` (NA-0193) when renewed with the authenticator code only. */
 export interface ExtensionAccess {
-  sessionVersion: number; extensionId: string; origin: VaultOrigin; policyVersion: number; expiresAt: number
+  sessionVersion: number; extensionId: string; origin: VaultOrigin | null; policyVersion: number; expiresAt: number
+  /** Code mode (origin null): login method of the consent, still checked against the tenant policy on every use. */
+  method?: VaultAuthMethod
 }
+/** NA-0193 trusted device: renewal without the portal consent page while alive. */
+export interface ExtensionTrust {
+  sessionVersion: number; extensionId: string; origin: VaultOrigin; failures: number; expiresAt: number
+}
+export type ExtensionTokenValue = ExtensionCode | ExtensionAccess | ExtensionTrust
 export interface ExtensionDeviceRow {
   jkt: string; extensionId: string; state: 'ACTIVE' | 'REVOKED'; createdAt: number; lastUsedAt: number | null
 }
@@ -21,10 +30,14 @@ export interface ExtensionRecords {
   touchDevice(jkt: string): Promise<void>
   revokeDevice(jkt: string): Promise<boolean>
   devices(): Promise<ExtensionDeviceRow[]>
-  put(kind: ExtensionTokenKind, token: string, jkt: string, value: ExtensionCode | ExtensionAccess, expiresAt: number): Promise<void>
+  put(kind: ExtensionTokenKind, token: string, jkt: string, value: ExtensionTokenValue, expiresAt: number): Promise<void>
   /** Reads and deletes in one step: the token cannot be presented again whatever happens next. */
-  take<T extends ExtensionCode | ExtensionAccess>(kind: ExtensionTokenKind, token: string): Promise<{ jkt: string; value: T } | null>
-  get<T extends ExtensionCode | ExtensionAccess>(kind: ExtensionTokenKind, token: string): Promise<{ jkt: string; value: T } | null>
+  take<T extends ExtensionTokenValue>(kind: ExtensionTokenKind, token: string): Promise<{ jkt: string; value: T } | null>
+  /** NA-0193: one trust per device key — removes the trust of this key for any user (a new full consent wins). */
+  releaseTrust(jkt: string): Promise<void>
+  /** NA-0193: every authorization of this key for this user. */
+  dropAccess(jkt: string): Promise<void>
+  get<T extends ExtensionTokenValue>(kind: ExtensionTokenKind, token: string): Promise<{ jkt: string; value: T } | null>
 }
 /** Global, unlocked lookup of who a public token claims to belong to; every claim is re-checked under lock. */
 export interface ExtensionLocator {

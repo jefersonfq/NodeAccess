@@ -2,7 +2,7 @@
 change_id: NA-0192
 title: Extensão VaultNAccess E1.2 — busca enquanto digita, teclado, atalho e idioma do portal
 type: feature
-status: ready-for-review
+status: closed
 created_at: 2026-11-23T13:10:00-03:00
 base_branch: master
 base_sha: 1bfae8fa5ad59fb8356d69b7a687eb036ba25987

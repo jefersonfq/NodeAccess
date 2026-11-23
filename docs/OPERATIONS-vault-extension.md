@@ -34,6 +34,14 @@ VAULTNACCESS_PORTAL_ORIGIN=https://<portal> [VAULTNACCESS_VERSION=0.1.0] [VAULTN
 
 - Atalho do manifesto (NA-0192): `commands._execute_action` com `Alt+Shift+V` (sem permissão nova); o usuário troca em `chrome://extensions/shortcuts`. A página de conexão devolve `lang=pt-BR|en`, guardado só como código em `storage.session` junto da autorização.
 
+### Dispositivo confiável (NA-0193)
+
+- A primeira conexão (página do portal com senha e código) torna o navegador confiável por 7 dias, contados a partir da última autorização completa.
+- Depois disso, ao abrir o popup sem autorização (por exemplo, após **Atualizar** a extensão ou reabrir o navegador), a extensão chama `POST /api/v1/vault-security/extension/renew` assinado com a chave do dispositivo: automático enquanto o login do portal que autorizou continuar ativo; se esse login acabou, o popup pede só o código do autenticador.
+- Cinco códigos errados, **Revogar** em **Dispositivos conectados**, retirar **Usar extensão**, **Desconectar todas** (versão de sessão) ou **Desconectar** na extensão (`POST /extension/forget`) encerram a confiança: volta a exigir a página do portal.
+- Auditoria: `EXTENSION_RENEWED` (`SESSION`/`OTP`), `EXTENSION_RENEW_DENIED` (`OTP_INVALID`/`TRUST_ENDED`), `EXTENSION_TRUST_ENDED`.
+- Migração `20261123170000_vault_extension_trust` (aditiva: tipo `trust` em `vault_extension_tokens`).
+
 ### Homologação local com atualização ao subir o ambiente (NA-0190)
 
 - Configure uma vez `apps/extension/local.json` (fora do Git, só valores públicos): `{ "portalOrigin": "https://127.0.0.1:5173", "manifestKey": "<chave pública base64>", "version": "0.1.0" }`. As variáveis `VAULTNACCESS_PORTAL_ORIGIN`, `VAULTNACCESS_MANIFEST_KEY` e `VAULTNACCESS_VERSION` têm prioridade.

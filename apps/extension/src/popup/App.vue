@@ -15,10 +15,12 @@ const props = defineProps<{ client: ExtensionClient; requestConnection: () => Pr
   browserLanguage?: string }>()
 const language = ref(props.browserLanguage ?? 'pt-BR')
 const t = computed(() => message(language.value))
-const phase = ref<'loading' | 'disconnected' | 'connecting' | 'connected'>('loading')
+/** `code` (NA-0193): trusted device whose portal login ended — only the authenticator code is asked. */
+const phase = ref<'loading' | 'disconnected' | 'connecting' | 'code' | 'connected'>('loading')
+const otp = ref(''), renewing = ref(false)
 const query = ref(''), kind = ref<VaultItemKind | ''>(''), items = ref<VaultItemSummary[]>([]), next = ref<string | null>(null)
 const fingerprint = ref(''), updateAvailable = ref(false)
-const recents = ref<string[]>([]), error = ref<ExtensionFailure | ''>(''), searching = ref(false)
+const recents = ref<string[]>([]), error = ref<ExtensionFailure | 'trustEnded' | ''>(''), searching = ref(false)
 const kinds = computed((): Array<{ value: VaultItemKind | ''; label: string }> => [{ value: '', label: t.value.all }, { value: 'secret', label: t.value.secret }, { value: 'pem', label: t.value.pem }])
 // NA-0192: search as you type and keyboard navigation of the results.
 const searchInput = ref<HTMLInputElement | null>(null), itemButtons = ref<HTMLButtonElement[]>([]), active = ref(-1)
@@ -88,6 +90,29 @@ async function connect(): Promise<void> {
   await useLocale()
   await search()
 }
+/** NA-0193: reconnect a trusted device; `null` = automatic. Ends in `connected`, `code` or `disconnected`. */
+async function renew(code: string | null): Promise<boolean> {
+  renewing.value = true
+  try {
+    await props.client.renew(code ?? undefined)
+    otp.value = ''; error.value = ''; phase.value = 'connected'
+    await useLocale()
+    recents.value = await props.client.recents()
+    await search()
+    return true
+  } catch (failure) {
+    const reason = failure instanceof ExtensionError ? failure.reason : 'unavailable'
+    if (reason === 'reauthRequired') phase.value = 'code'
+    else if (reason === 'otpInvalid') { phase.value = 'code'; error.value = 'otpInvalid'; otp.value = '' }
+    else if (code !== null) { phase.value = 'disconnected'; error.value = reason === 'expired' ? 'trustEnded' : reason }
+    else phase.value = 'disconnected'
+    return false
+  } finally { renewing.value = false }
+}
+async function submitCode(): Promise<void> {
+  if (renewing.value || !/^\d{6}$/.test(otp.value)) return
+  await renew(otp.value)
+}
 async function disconnect(): Promise<void> {
   ++generation
   await props.client.disconnect()
@@ -104,10 +129,12 @@ async function openItem(item: VaultItemSummary): Promise<void> {
 onMounted(() => { void props.update?.check.available().then(value => { updateAvailable.value = value }) })
 function applyUpdate(): void { props.update?.apply() }
 onMounted(async () => {
+  await useLocale()
   if (!await props.client.connected()) {
-    phase.value = 'disconnected'
     const failure = await props.lastFailure?.().catch(() => null)
-    if (failure && !error.value) error.value = failure
+    // A connection attempt that just failed is explained instead of being retried silently.
+    if (failure) { phase.value = 'disconnected'; if (!error.value) error.value = failure; return }
+    await renew(null)
     return
   }
   phase.value = 'connected'
@@ -115,7 +142,7 @@ onMounted(async () => {
   recents.value = await props.client.recents()
   await search()
 })
-defineExpose({ search, connect, disconnect, openItem, setKind, applyUpdate, onKey, focusItem })
+defineExpose({ search, connect, disconnect, openItem, setKind, applyUpdate, onKey, focusItem, renew, submitCode })
 </script>
 
 <template>
@@ -214,6 +241,71 @@ defineExpose({ search, connect, disconnect, openItem, setKind, applyUpdate, onKe
         <span>{{ t.compare }}</span>
         <code>{{ fingerprint }}</code>
       </div>
+    </section>
+
+    <section
+      v-else-if="phase === 'code'"
+      class="welcome"
+      data-testid="vaultnaccess-code"
+    >
+      <span
+        class="hero"
+        aria-hidden="true"
+      ><PopupIcon name="lock" /></span>
+      <p class="intro">
+        {{ t.codeIntro }}
+      </p>
+      <form
+        class="code-form"
+        autocomplete="off"
+        @submit.prevent="submitCode"
+      >
+        <label
+          for="vaultnaccess-otp"
+          class="code-label"
+        >{{ t.codeLabel }}</label>
+        <input
+          id="vaultnaccess-otp"
+          v-model="otp"
+          class="code-input"
+          inputmode="numeric"
+          autocomplete="one-time-code"
+          maxlength="6"
+          pattern="[0-9]{6}"
+          data-testid="vaultnaccess-otp"
+        >
+        <button
+          type="submit"
+          class="primary"
+          :disabled="renewing || !/^[0-9]{6}$/.test(otp)"
+          data-testid="vaultnaccess-otp-submit"
+        >
+          <span
+            v-if="renewing"
+            class="spinner"
+            aria-hidden="true"
+          />
+          {{ t.codeSubmit }}
+        </button>
+      </form>
+      <span class="code-links">
+        <button
+          type="button"
+          class="link"
+          data-testid="vaultnaccess-use-portal"
+          @click="connect"
+        >
+          {{ t.usePortal }}
+        </button>
+        <button
+          type="button"
+          class="link"
+          data-testid="vaultnaccess-code-disconnect"
+          @click="disconnect"
+        >
+          {{ t.disconnect }}
+        </button>
+      </span>
     </section>
 
     <section
@@ -413,6 +505,11 @@ button:disabled { cursor: default; opacity: .6; }
 .spinner { width: 12px; height: 12px; border: 2px solid currentColor; border-right-color: transparent; border-radius: 50%; animation: spin .8s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) { .spinner { animation: none; } }
+.code-form { display: flex; flex-direction: column; gap: 8px; width: 100%; text-align: left; }
+.code-links { display: flex; gap: 16px; justify-content: center; }
+.code-label { color: var(--muted); font-size: 12px; }
+.code-input { padding: 9px 10px; border: 1px solid var(--border); border-radius: 6px; background: var(--surface); text-align: center; font: 600 18px/1 ui-monospace, Menlo, Consolas, monospace; letter-spacing: .3em; }
+.code-input:focus { border-color: var(--primary); outline: none; box-shadow: 0 0 0 2px var(--focus); }
 .fingerprint { display: flex; flex-direction: column; gap: 6px; width: 100%; padding: 10px; border: 1px dashed var(--border); border-radius: 6px; background: var(--surface); color: var(--muted); font-size: 12px; }
 .fingerprint code { color: var(--text); font: 600 15px/1.3 ui-monospace, Menlo, Consolas, monospace; letter-spacing: .08em; overflow-wrap: anywhere; }
 

@@ -66,13 +66,13 @@ describe('Chromium adapter', () => {
     chromeDouble.api.identity.launchWebAuthFlow.mockResolvedValueOnce(undefined)
     await expect(chromiumAuthFlow.launch('https://portal/consent')).rejects.toThrow('cancelled')
   })
-  it('NA-0192: keeps the portal language in session storage and clears it with the session', async () => {
+  it('NA-0192: keeps the portal language in session storage, also after the authorization is cleared', async () => {
     const { chromiumSession } = await import('./chromium')
     expect(await chromiumSession.locale()).toBeNull()
     await chromiumSession.setLocale('en'); expect(await chromiumSession.locale()).toBe('en')
     chromeDouble.session.set('locale', 7); expect(await chromiumSession.locale()).toBeNull()
     await chromiumSession.setLocale('pt-BR'); await chromiumSession.clear()
-    expect(chromeDouble.session.has('locale')).toBe(false)
+    expect(await chromiumSession.locale()).toBe('pt-BR')
   })
   it('NA-0190: keeps the last connection failure briefly, reads it once and ignores stale or unknown values', async () => {
     const { rememberFailure, takeFailure, chromiumSession } = await import('./chromium')

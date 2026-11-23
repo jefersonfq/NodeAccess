@@ -350,8 +350,9 @@ const vaultEntropy = { token: (): string => randomBytes(32).toString('base64url'
 const vaultDatabase = new VaultDatabase(env.DATABASE_URL)
 const vaultStore = new SqlVaultStore(() => vaultDatabase.client())
 const vaultOrigin = new RedisVaultOrigin(redis, env.JWT_SECRET, Date.now, 500, env.VAULT_STEP_UP_EXTERNAL_ENABLED)
+const vaultReauthentication = new MethodVaultReauthentication(totpService, ldapIdentityProvider)
 const vaultSecurityService = new VaultService(vaultStore, vaultOrigin,
-  new MethodVaultReauthentication(totpService, ldapIdentityProvider), new JweVaultEnvelope(),
+  vaultReauthentication, new JweVaultEnvelope(),
   vaultEntropy, Date.now, createVaultProviderStepUp({
     oidcFlow: () => oidcFlowService, links: externalIdentityRepository, google: googleService, users: userRepository, redirectUri: oidcCallbackUrl,
   }))
@@ -561,7 +562,8 @@ const vaultExtensionService = new VaultExtensionService(vaultSecurityService, va
     list: async (identity: VaultIdentity, admin: boolean): Promise<VaultItemSummary[]> => catalogSummaries(
       await secretService.list(identity.userId, identity.tenantId, admin ? 'admin' : 'user'),
       await pemKeyService.list(identity.userId, identity.tenantId, admin), identity.userId),
-  }, { enabled: env.VAULT_EXTENSION_ENABLED, extensionIds: env.VAULT_EXTENSION_IDS.split(',').filter(Boolean), minVersion: env.VAULT_EXTENSION_MIN_VERSION })
+  }, { enabled: env.VAULT_EXTENSION_ENABLED, extensionIds: env.VAULT_EXTENSION_IDS.split(',').filter(Boolean), minVersion: env.VAULT_EXTENSION_MIN_VERSION },
+  Date.now, vaultReauthentication)
 const groupService     = new GroupService(groupRepository, logRepository)
 
 // ---------------------------------------------------------------------------

@@ -26,6 +26,7 @@ export class RedisVaultOrigin implements OriginVerifier {
     await this.assert(origin, identity)
     return origin
   }
+  allows(method: VaultAuthMethod): boolean { return vaultAuthMethod(method, this.external) === method }
   async assert(origin: VaultOrigin, identity: VaultIdentity): Promise<void> {
     // Re-evaluated on every use: turning the external flag off stops already registered clients too.
     if (vaultAuthMethod(origin.authMethod, this.external) !== origin.authMethod) throw new VaultError('VAULT_ORIGIN_INVALID', 423)

@@ -3,7 +3,7 @@ import { createHash, randomBytes } from 'node:crypto'
 import { calculateJwkThumbprint, exportJWK, generateKeyPair, SignJWT, type CryptoKey, type JWK } from 'jose'
 import { DpopNonces, DpopVerifier, pkceMatches, sha256b64 } from './vault-extension-dpop.js'
 import { catalogSummaries, pageOf, VaultExtensionService, type VaultCatalog } from './vault-extension.service.js'
-import { extensionRedirectUri, versionAtLeast, type ExtensionAccess, type ExtensionCode, type ExtensionDeviceRow, type ExtensionRecords, type ExtensionTokenKind } from './vault-extension-domain.js'
+import { extensionRedirectUri, versionAtLeast, type ExtensionAccess, type ExtensionDeviceRow, type ExtensionRecords, type ExtensionTokenKind, type ExtensionTokenValue, type ExtensionTrust } from './vault-extension-domain.js'
 import { VaultError, type VaultAuthority, type VaultIdentity, type VaultOrigin } from './vault-domain.js'
 import type { OriginVerifier, VaultStore, VaultTransaction } from './vault-ports.js'
 import type { VaultService } from './vault.service.js'
@@ -12,6 +12,7 @@ const EXT = 'abcdefghijklmnopabcdefghijklmnop'
 const PORTAL = 'https://vault.example.test'
 const TOKEN_URL = `${PORTAL}/api/v1/vault-security/extension/token`
 const ITEMS_URL = `${PORTAL}/api/v1/vault-security/extension/items`
+const RENEW_URL = `${PORTAL}/api/v1/vault-security/extension/renew`
 const identity: VaultIdentity = { userId: 7, tenantId: 3, sessionVersion: 2 }
 const centralOrigin: VaultOrigin = { jti: '00000000-0000-4000-8000-000000000000', expiresAt: Date.now() + 3_600_000, authMethod: 'local' }
 const token = (): string => randomBytes(32).toString('base64url')
@@ -124,9 +125,9 @@ describe('NA-0183 DPoP verification', () => {
 })
 
 /** In-memory model of the locked SQL records, scoped by identity like the real adapter. */
-function harness(options: { entitled?: boolean; role?: 'ADMIN' | 'USER' } = {}) {
+function harness(options: { entitled?: boolean; role?: 'ADMIN' | 'USER'; secondFactor?: boolean } = {}) {
   const state = { entitled: options.entitled ?? true, policyVersion: 1, originAlive: true, methods: { local: true, ldap: true, oidc: true, google: true } }
-  const tokens = new Map<string, { kind: ExtensionTokenKind; owner: string; jkt: string; value: ExtensionCode | ExtensionAccess }>()
+  const tokens = new Map<string, { kind: ExtensionTokenKind; owner: string; jkt: string; value: ExtensionTokenValue }>()
   const devices = new Map<string, ExtensionDeviceRow>()
   const audits: Array<{ type: string; reasonCode?: string | undefined }> = []
   const owner = (i: VaultIdentity): string => `${i.tenantId}:${i.userId}`
@@ -142,12 +143,17 @@ function harness(options: { entitled?: boolean; role?: 'ADMIN' | 'USER' } = {}) 
       return Promise.resolve(true)
     },
     devices: () => Promise.resolve([...devices.entries()].filter(([k]) => k.startsWith(`${owner(i)}:`)).map(([, d]) => d)),
-    put: (kind, t, jkt, value) => { tokens.set(t, { kind, owner: owner(i), jkt, value }); return Promise.resolve() },
-    get: <T extends ExtensionCode | ExtensionAccess>(kind: ExtensionTokenKind, t: string) => {
+    put: (kind, t, jkt, value) => {
+      if (tokens.has(t)) return Promise.reject(new Error('duplicate key'))
+      tokens.set(t, { kind, owner: owner(i), jkt, value }); return Promise.resolve()
+    },
+    releaseTrust: jkt => { tokens.delete(`trust:${jkt}`); return Promise.resolve() },
+    dropAccess: jkt => { for (const [k, t] of tokens) if (t.kind === 'access' && t.jkt === jkt && t.owner === owner(i)) tokens.delete(k); return Promise.resolve() },
+    get: <T extends ExtensionTokenValue>(kind: ExtensionTokenKind, t: string) => {
       const row = tokens.get(t)
       return Promise.resolve(row && row.kind === kind && row.owner === owner(i) ? { jkt: row.jkt, value: row.value as T } : null)
     },
-    take: <T extends ExtensionCode | ExtensionAccess>(kind: ExtensionTokenKind, t: string) => {
+    take: <T extends ExtensionTokenValue>(kind: ExtensionTokenKind, t: string) => {
       const row = tokens.get(t)
       if (!row || row.kind !== kind || row.owner !== owner(i)) return Promise.resolve(null)
       tokens.delete(t); return Promise.resolve({ jkt: row.jkt, value: row.value as T })
@@ -176,7 +182,8 @@ function harness(options: { entitled?: boolean; role?: 'ADMIN' | 'USER' } = {}) 
   const nonces = new DpopNonces('svc')
   const catalog: VaultCatalog = { list: (_i, admin) => Promise.resolve(catalogSummaries([{ id: 1, alias: admin ? 'admin-item' : 'mine', description: null, scope: 'PERSONAL', ownerUserId: 7 }], [], 7)) }
   const service = new VaultExtensionService(vault, store, locator, originVerifier, new DpopVerifier(nonces, replayGuard()), nonces,
-    { token, digest: v => createHash('sha256').update(v).digest('hex') }, catalog, { enabled: true, extensionIds: [EXT], minVersion: '0.1.0' })
+    { token, digest: v => createHash('sha256').update(v).digest('hex') }, catalog, { enabled: true, extensionIds: [EXT], minVersion: '0.1.0' },
+    Date.now, ...(options.secondFactor === false ? [] : [{ verifySecondFactor: (otp: string) => otp === '123456' }]))
   return { state, tokens, devices, audits, service, nonces }
 }
 async function connect(h: ReturnType<typeof harness>, key?: Awaited<ReturnType<typeof deviceKey>>) {
@@ -303,4 +310,108 @@ describe('NA-0183 extension service', () => {
     await expect(connect(h)).rejects.toMatchObject({ code: 'EXTENSION_DISABLED', status: 404 })
     await expect(h.service.devices(identity, PORTAL)).rejects.toMatchObject({ code: 'EXTENSION_DISABLED' })
   })
+})
+
+async function renew(h: ReturnType<typeof harness>, device: Awaited<ReturnType<typeof deviceKey>>, otp?: string, override: Partial<{ origin: string; version: string; extensionId: string }> = {}) {
+  return h.service.renew({ requestOrigin: override.origin ?? `chrome-extension://${EXT}`, version: override.version ?? '0.1.0', url: RENEW_URL,
+    proof: await proof(device, { htm: 'POST', htu: RENEW_URL, nonce: h.nonces.issue() }) }, { extensionId: override.extensionId ?? EXT, ...(otp ? { otp } : {}) })
+}
+const trustOf = (h: ReturnType<typeof harness>, jkt: string) => h.tokens.get(`trust:${jkt}`)?.value as ExtensionTrust | undefined
+describe('NA-0193 trusted device renewal', () => {
+  it('a full consent trusts the device for 7 days; renewal is automatic while the consenting portal login lives', async () => {
+    const h = harness(), c = await connect(h); await c.exchange()
+    const trust = trustOf(h, c.device.jkt)!
+    expect(trust).toMatchObject({ extensionId: EXT, failures: 0, sessionVersion: 2 })
+    expect(trust.expiresAt - Date.now()).toBeGreaterThan(7 * 24 * 3_600_000 - 5_000)
+    const renewed = await renew(h, c.device)
+    expect(renewed.tokenType).toBe('DPoP')
+    await expect(call(h, c.device, renewed.accessToken)).resolves.toMatchObject({ items: [expect.objectContaining({ label: 'mine' })] })
+    expect(h.audits).toContainEqual({ type: 'EXTENSION_RENEWED', reasonCode: 'SESSION' })
+    expect((h.tokens.get(renewed.accessToken)?.value as ExtensionAccess).origin).toEqual(centralOrigin)
+  })
+  it('after the portal login ended it asks for the code; a right code renews without a central session', async () => {
+    const h = harness(), c = await connect(h); await c.exchange()
+    h.state.originAlive = false
+    await expect(renew(h, c.device)).rejects.toMatchObject({ code: 'EXTENSION_REAUTH_REQUIRED', status: 401 })
+    await expect(renew(h, c.device, '000000')).rejects.toMatchObject({ code: 'VAULT_REAUTH_FAILED', status: 403 })
+    expect(trustOf(h, c.device.jkt)?.failures).toBe(1)
+    expect(h.audits).toContainEqual({ type: 'EXTENSION_RENEW_DENIED', reasonCode: 'OTP_INVALID' })
+    const renewed = await renew(h, c.device, '123456')
+    expect(trustOf(h, c.device.jkt)?.failures).toBe(0)
+    expect((h.tokens.get(renewed.accessToken)?.value as ExtensionAccess).origin).toBeNull()
+    await expect(call(h, c.device, renewed.accessToken)).resolves.toMatchObject({ items: [expect.objectContaining({ label: 'mine' })] })
+    expect(h.audits).toContainEqual({ type: 'EXTENSION_RENEWED', reasonCode: 'OTP' })
+  })
+  it('the fifth wrong code ends the trust: a full consent is needed again', async () => {
+    const h = harness(), c = await connect(h); await c.exchange()
+    for (let i = 1; i < 5; i++) await expect(renew(h, c.device, '000000')).rejects.toMatchObject({ code: 'VAULT_REAUTH_FAILED' })
+    await expect(renew(h, c.device, '000000')).rejects.toMatchObject({ code: 'EXTENSION_UNAUTHORIZED', status: 401 })
+    expect(trustOf(h, c.device.jkt)).toBeUndefined()
+    expect(h.audits).toContainEqual({ type: 'EXTENSION_RENEW_DENIED', reasonCode: 'TRUST_ENDED' })
+    await expect(renew(h, c.device, '123456')).rejects.toMatchObject({ code: 'EXTENSION_UNAUTHORIZED' })
+  })
+  it('ends with the device or the 7 days (session version: MySQL test); keeps the trust while the permission is off', async () => {
+    const h = harness(), c = await connect(h); await c.exchange()
+    h.state.entitled = false
+    await expect(renew(h, c.device)).rejects.toMatchObject({ code: 'EXTENSION_FORBIDDEN', status: 403 })
+    expect(trustOf(h, c.device.jkt)).toBeDefined()
+    h.state.entitled = true
+    trustOf(h, c.device.jkt)!.expiresAt = Date.now() - 1
+    await expect(renew(h, c.device)).rejects.toMatchObject({ code: 'EXTENSION_UNAUTHORIZED' })
+    expect(trustOf(h, c.device.jkt)).toBeUndefined()
+    const d = await connect(h); await d.exchange()
+    h.devices.get(`3:7:${d.device.jkt}`)!.state = 'REVOKED'
+    await expect(renew(h, d.device)).rejects.toMatchObject({ code: 'EXTENSION_UNAUTHORIZED' })
+  })
+  it('refuses another key, extension, origin or an old version before looking at any code', async () => {
+    const h = harness(), c = await connect(h); await c.exchange()
+    await expect(renew(h, await deviceKey(), '123456')).rejects.toMatchObject({ code: 'EXTENSION_UNAUTHORIZED' })
+    await expect(renew(h, c.device, '123456', { extensionId: 'p'.repeat(32) })).rejects.toMatchObject({ code: 'EXTENSION_CLIENT_INVALID' })
+    await expect(renew(h, c.device, '123456', { origin: `chrome-extension://${'p'.repeat(32)}` })).rejects.toMatchObject({ code: 'EXTENSION_CLIENT_INVALID' })
+    await expect(renew(h, c.device, '123456', { version: '0.0.9' })).rejects.toMatchObject({ code: 'EXTENSION_UPGRADE_REQUIRED', status: 426 })
+    expect(trustOf(h, c.device.jkt)?.failures).toBe(0)
+  })
+  it('renews across a policy change with the current version; without a TOTP checker no code is accepted', async () => {
+    const h = harness(), c = await connect(h), first = await c.exchange()
+    h.state.policyVersion = 2
+    await expect(call(h, c.device, first.accessToken)).rejects.toMatchObject({ code: 'EXTENSION_UNAUTHORIZED' })
+    const renewed = await renew(h, c.device)
+    expect((h.tokens.get(renewed.accessToken)?.value as ExtensionAccess).policyVersion).toBe(2)
+    const strict = harness({ secondFactor: false }), d = await connect(strict); await d.exchange()
+    strict.state.originAlive = false
+    await expect(renew(strict, d.device, '123456')).rejects.toMatchObject({ code: 'VAULT_REAUTH_FAILED' })
+  })
+  it('"Disconnect" ends the trust and authorizations by the device key alone, even with an expired authorization', async () => {
+    const h = harness(), c = await connect(h), { accessToken } = await c.exchange()
+    const forget = async (key = c.device, extensionId = EXT) => h.service.forget({ requestOrigin: `chrome-extension://${EXT}`, version: '0.1.0', url: `${PORTAL}/api/v1/vault-security/extension/forget`,
+      proof: await proof(key, { htm: 'POST', htu: `${PORTAL}/api/v1/vault-security/extension/forget`, nonce: h.nonces.issue() }) }, { extensionId })
+    h.state.originAlive = false
+    await expect(forget()).resolves.toEqual({ state: 'FORGOTTEN' })
+    expect(trustOf(h, c.device.jkt)).toBeUndefined(); expect(h.tokens.has(accessToken)).toBe(false)
+    expect(h.audits).toContainEqual({ type: 'EXTENSION_TRUST_ENDED', reasonCode: 'USER_DISCONNECTED' })
+    await expect(renew(h, c.device, '123456')).rejects.toMatchObject({ code: 'EXTENSION_UNAUTHORIZED' })
+    await expect(forget()).resolves.toEqual({ state: 'FORGOTTEN' })
+    await expect(forget(c.device, 'p'.repeat(32))).rejects.toMatchObject({ code: 'EXTENSION_CLIENT_INVALID' })
+  })
+  it('one trust per device key: a full consent by another user on the same browser replaces it', async () => {
+    const h = harness(), c = await connect(h); await c.exchange()
+    const other: VaultIdentity = { userId: 8, tenantId: 3, sessionVersion: 2 }
+    const verifier = randomBytes(48).toString('base64url')
+    const { code } = await h.service.authorize(other, 'client', PORTAL, { extensionId: EXT, redirectUri: extensionRedirectUri(EXT), state: token(),
+      codeChallenge: createHash('sha256').update(verifier).digest('base64url'), deviceJkt: c.device.jkt, sessionId: token() })
+    await h.service.token({ requestOrigin: `chrome-extension://${EXT}`, version: '0.1.0', url: TOKEN_URL, proof: await proof(c.device, { htm: 'POST', htu: TOKEN_URL, nonce: h.nonces.issue() }) },
+      { code, codeVerifier: verifier, redirectUri: extensionRedirectUri(EXT), extensionId: EXT })
+    expect(h.tokens.get(`trust:${c.device.jkt}`)?.owner).toBe('3:8')
+  })
+  it('code mode still obeys the tenant login-method policy, on renewal and on every request', async () => {
+    const h = harness(), c = await connect(h); await c.exchange()
+    h.state.originAlive = false
+    const byCode = await renew(h, c.device, '123456')
+    expect((h.tokens.get(byCode.accessToken)?.value as ExtensionAccess).method).toBe('local')
+    h.state.methods = { ...h.state.methods, local: false }
+    await expect(call(h, c.device, byCode.accessToken)).rejects.toMatchObject({ code: 'EXTENSION_UNAUTHORIZED' })
+    await expect(renew(h, c.device, '123456')).rejects.toMatchObject({ code: 'EXTENSION_UNAUTHORIZED' })
+    expect(trustOf(h, c.device.jkt)).toBeDefined()
+  })
+
 })

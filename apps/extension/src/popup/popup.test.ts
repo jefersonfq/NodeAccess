@@ -9,7 +9,7 @@ interface HostNode { parent: HostNode | null; children: HostNode[] }
 const node = (): HostNode => ({ parent: null, children: [] })
 interface Popup { phase: string; items: unknown[]; error: string; query: string; next: string | null; recents: string[]
   search(more?: boolean): Promise<void>; connect(): Promise<void>; disconnect(): Promise<void>; openItem(item: unknown): Promise<void>; setKind(value: string): void; applyUpdate(): void
-  onKey(event: unknown): void; focusItem(index: number): void; active: number }
+  onKey(event: unknown): void; focusItem(index: number): void; active: number; otp: string; submitCode(): Promise<void>; renew(code: string | null): Promise<boolean> }
 function mount(props: Record<string, unknown>) {
   const renderer = createRenderer<HostNode, HostNode>({ createElement: node, createText: node, createComment: node, setText: () => {}, setElementText: () => {}, patchProp: () => {},
     parentNode: n => n.parent, nextSibling: () => null, insert: (n, p) => { n.parent = p; p.children.push(n) }, remove: n => { if (n.parent) n.parent.children = n.parent.children.filter(c => c !== n) } })
@@ -23,7 +23,7 @@ function fakeClient(connected: boolean) {
   return {
     connect: vi.fn(), connected: vi.fn().mockResolvedValue(connected), disconnect: vi.fn().mockResolvedValue(undefined), capabilities: vi.fn(),
     search: vi.fn().mockResolvedValue({ items: [item], nextCursor: '50' }), remember: vi.fn().mockResolvedValue(undefined),
-    recents: vi.fn().mockResolvedValue(['secret:3']), locale: vi.fn().mockResolvedValue(null), fingerprint: vi.fn().mockResolvedValue('abcd-efgh-ijkl-mnop'), portalUrl: vi.fn((p: string) => `https://vault.example.test${p}`),
+    recents: vi.fn().mockResolvedValue(['secret:3']), locale: vi.fn().mockResolvedValue(null), renew: vi.fn().mockRejectedValue(new ExtensionError('expired')), fingerprint: vi.fn().mockResolvedValue('abcd-efgh-ijkl-mnop'), portalUrl: vi.fn((p: string) => `https://vault.example.test${p}`),
   }
 }
 const asClient = (c: ReturnType<typeof fakeClient>): ExtensionClient => c
@@ -162,5 +162,40 @@ describe('NA-0183 extension popup', () => {
     const off = mount({ client: asClient(fakeClient(false)), requestConnection: vi.fn(), open: vi.fn() }); await flush()
     const prevent = vi.fn(); off.state.onKey({ key: '/', target: {}, preventDefault: prevent }); expect(prevent).not.toHaveBeenCalled()
     off.state.focusItem(0); off.unmount()
+  })
+  it('NA-0193: a trusted device reconnects by itself when the popup opens', async () => {
+    const client = fakeClient(false); client.renew.mockResolvedValue(undefined)
+    const f = mount({ client: asClient(client), requestConnection: vi.fn(), open: vi.fn() }); await flush()
+    expect(client.renew).toHaveBeenCalledWith(undefined); expect(f.state.phase).toBe('connected'); expect(f.state.items).toEqual([item])
+    f.unmount()
+    const failed = fakeClient(false)
+    const g = mount({ client: asClient(failed), requestConnection: vi.fn(), open: vi.fn(), lastFailure: vi.fn().mockResolvedValue('offline') }); await flush()
+    expect(failed.renew).not.toHaveBeenCalled(); expect(g.state.error).toBe('offline'); g.unmount()
+  })
+  it('NA-0193: asks only for the authenticator code when the portal login ended', async () => {
+    const client = fakeClient(false); client.renew.mockRejectedValueOnce(new ExtensionError('reauthRequired'))
+    const f = mount({ client: asClient(client), requestConnection: vi.fn(), open: vi.fn() }); await flush()
+    expect(f.state.phase).toBe('code')
+    const html = await f.html()
+    expect(html).toContain('vaultnaccess-otp'); expect(html).toContain('Código do autenticador (6 dígitos)'); expect(html).toContain('vaultnaccess-use-portal'); expect(html).toContain('vaultnaccess-code-disconnect')
+    f.state.otp = '12'; await f.state.submitCode(); expect(client.renew).toHaveBeenCalledTimes(1)
+    client.renew.mockRejectedValueOnce(new ExtensionError('otpInvalid'))
+    f.state.otp = '000000'; await f.state.submitCode()
+    expect(f.state.phase).toBe('code'); expect(f.state.error).toBe('otpInvalid'); expect(f.state.otp).toBe('')
+    expect(await f.html()).toContain('Código incorreto.')
+    client.renew.mockResolvedValueOnce(undefined)
+    f.state.otp = '123456'; await f.state.submitCode()
+    expect(client.renew).toHaveBeenLastCalledWith('123456'); expect(f.state.phase).toBe('connected'); expect(f.state.error).toBe('')
+    f.unmount()
+  })
+  it('NA-0193: after too many codes or a revoked device it sends the user back to the portal', async () => {
+    const client = fakeClient(false); client.renew.mockRejectedValueOnce(new ExtensionError('reauthRequired')).mockRejectedValueOnce(new ExtensionError('expired'))
+    const f = mount({ client: asClient(client), requestConnection: vi.fn(), open: vi.fn() }); await flush()
+    f.state.otp = '000000'; await f.state.submitCode()
+    expect(f.state.phase).toBe('disconnected'); expect(f.state.error).toBe('trustEnded')
+    expect(await f.html()).toContain('precisa ser autorizado de novo')
+    client.renew.mockRejectedValueOnce(new ExtensionError('offline'))
+    expect(await f.state.renew('123456')).toBe(false); expect(f.state.error).toBe('offline')
+    f.unmount()
   })
 })

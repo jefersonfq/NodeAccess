@@ -127,6 +127,41 @@ describe('NA-0183 extension client', () => {
       expect(await c.locale()).toBe(expected); expect(s.peek().locale).toBe(expected)
     }
   })
+  const urls = (p: ReturnType<typeof portal>): string[] => p.fetcher.mock.calls.map(([u]) => (u instanceof Request ? u.url : u.toString()))
+  const lastInit = (p: ReturnType<typeof portal>, suffix: string): RequestInit => p.fetcher.mock.calls.filter(([u]) => (u instanceof Request ? u.url : u.toString()).endsWith(suffix)).at(-1)![1]!
+  it('NA-0193: renews a trusted device with its key and maps the server answers', async () => {
+    const p = portal(), base = p.fetcher.getMockImplementation()!
+    let answer: { status: number; code?: string } | null = null
+    p.fetcher.mockImplementation(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = input instanceof Request ? input.url : input.toString()
+      if (url === `${API}/renew` && answer) return new Response(JSON.stringify(answer.code ? { code: answer.code } : {}), { status: answer.status })
+      if (url === `${API}/renew`) return new Response(JSON.stringify({ accessToken: 'R'.repeat(43), tokenType: 'DPoP', expiresAt: 1_800_000, serverNow: 0 }), { status: 200 })
+      if (url === `${API}/forget`) return new Response(JSON.stringify({ state: 'FORGOTTEN' }), { status: 200 })
+      return base(input, init)
+    })
+    const { c, s } = client(p)
+    await expect(c.renew()).rejects.toMatchObject({ reason: 'expired' })
+    expect(urls(p).some(u => u.endsWith('/renew'))).toBe(false)
+    await c.connect(); await c.disconnect()
+    expect(urls(p).some(u => u.endsWith('/forget'))).toBe(true); expect(s.peek().auth).toBeNull()
+    expect(JSON.parse(lastInit(p, '/forget').body as string)).toEqual({ extensionId: EXT })
+    expect((lastInit(p, '/forget').headers as Record<string, string>).Authorization).toBeUndefined()
+    await c.renew()
+    expect(s.peek().auth?.accessToken).toBe('R'.repeat(43))
+    const sent = lastInit(p, '/renew')
+    expect(JSON.parse(sent.body as string)).toEqual({ extensionId: EXT }); expect((sent.headers as Record<string, string>).DPoP).toBeTruthy()
+    await c.renew('123456')
+    expect(JSON.parse(lastInit(p, '/renew').body as string)).toEqual({ extensionId: EXT, otp: '123456' })
+    await expect(c.renew('12')).rejects.toMatchObject({ reason: 'otpInvalid' })
+    for (const [status, code, reason] of [[401, 'EXTENSION_REAUTH_REQUIRED', 'reauthRequired'], [403, 'VAULT_REAUTH_FAILED', 'otpInvalid'], [401, 'EXTENSION_UNAUTHORIZED', 'expired'], [403, undefined, 'denied']] as const) {
+      answer = { status, ...(code ? { code } : {}) }
+      await expect(c.renew('123456')).rejects.toMatchObject({ reason })
+    }
+    answer = null
+    // With the authorization already gone, Disconnect still ends the trust by the device key.
+    await s.session.clear(); await c.disconnect()
+    expect(urls(p).filter(u => u.endsWith('/forget'))).toHaveLength(2)
+  })
   it('reuses one device key across connections', async () => {
     const s = stores()
     const first = portal(); await client(first, s).c.connect()

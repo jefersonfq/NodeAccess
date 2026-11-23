@@ -37,6 +37,8 @@ export interface VaultStore { transaction<T>(identity: VaultIdentity, run: (tx: 
 export interface OriginVerifier {
   bind(token: string, identity: VaultIdentity): Promise<VaultOrigin>
   assert(origin: VaultOrigin, identity: VaultIdentity): Promise<void>
+  /** NA-0193: whether a login method may unlock at all now (external methods behind their flag); absent = local only. */
+  allows?(method: VaultAuthMethod): boolean
 }
 /** Step-up chosen by the signed method of the origin session, never by the client. */
 export interface Reauthentication {
