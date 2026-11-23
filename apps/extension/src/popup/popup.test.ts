@@ -9,7 +9,9 @@ interface HostNode { parent: HostNode | null; children: HostNode[] }
 const node = (): HostNode => ({ parent: null, children: [] })
 interface Popup { phase: string; items: unknown[]; error: string; query: string; next: string | null; recents: string[]
   search(more?: boolean): Promise<void>; connect(): Promise<void>; disconnect(): Promise<void>; openItem(item: unknown): Promise<void>; setKind(value: string): void; applyUpdate(): void
-  onKey(event: unknown): void; focusItem(index: number): void; active: number; otp: string; submitCode(): Promise<void>; renew(code: string | null): Promise<boolean> }
+  onKey(event: unknown): void; focusItem(index: number): void; active: number; otp: string; submitCode(): Promise<void>; renew(code: string | null): Promise<boolean>
+  act(item: unknown, action: 'reveal' | 'copy'): Promise<void>; confirmProof(): Promise<void>; cancelProof(): void; confirmCopy(): Promise<void>
+  proofOtp: string; pending: unknown; revealed: { value: string } | null; copiedKey: string; features: { reveal: boolean; copy: boolean } }
 function mount(props: Record<string, unknown>) {
   const renderer = createRenderer<HostNode, HostNode>({ createElement: node, createText: node, createComment: node, setText: () => {}, setElementText: () => {}, patchProp: () => {},
     parentNode: n => n.parent, nextSibling: () => null, insert: (n, p) => { n.parent = p; p.children.push(n) }, remove: n => { if (n.parent) n.parent.children = n.parent.children.filter(c => c !== n) } })
@@ -21,9 +23,10 @@ const flush = async (): Promise<void> => { for (let i = 0; i < 6; i++) { await P
 const item = { kind: 'secret' as const, sourceId: 3, label: 'db', description: null, scope: 'shared' as const, portalPath: '/vault?kind=secret&id=3' }
 function fakeClient(connected: boolean) {
   return {
-    connect: vi.fn(), connected: vi.fn().mockResolvedValue(connected), disconnect: vi.fn().mockResolvedValue(undefined), capabilities: vi.fn(),
+    connect: vi.fn(), connected: vi.fn().mockResolvedValue(connected), disconnect: vi.fn().mockResolvedValue(undefined),
     search: vi.fn().mockResolvedValue({ items: [item], nextCursor: '50' }), remember: vi.fn().mockResolvedValue(undefined),
-    recents: vi.fn().mockResolvedValue(['secret:3']), locale: vi.fn().mockResolvedValue(null), renew: vi.fn().mockRejectedValue(new ExtensionError('expired')), fingerprint: vi.fn().mockResolvedValue('abcd-efgh-ijkl-mnop'), portalUrl: vi.fn((p: string) => `https://vault.example.test${p}`),
+    recents: vi.fn().mockResolvedValue(['secret:3']), locale: vi.fn().mockResolvedValue(null), renew: vi.fn().mockRejectedValue(new ExtensionError('expired')), unlock: vi.fn().mockResolvedValue(Date.now() + 60_000), deliver: vi.fn().mockResolvedValue('s3cret'),
+    capabilities: vi.fn().mockResolvedValue({ features: { reveal: true, copy: true, create: false }, serverNow: 0 }), fingerprint: vi.fn().mockResolvedValue('abcd-efgh-ijkl-mnop'), portalUrl: vi.fn((p: string) => `https://vault.example.test${p}`),
   }
 }
 const asClient = (c: ReturnType<typeof fakeClient>): ExtensionClient => c
@@ -197,5 +200,53 @@ describe('NA-0183 extension popup', () => {
     client.renew.mockRejectedValueOnce(new ExtensionError('offline'))
     expect(await f.state.renew('123456')).toBe(false); expect(f.state.error).toBe('offline')
     f.unmount()
+  })
+  it('NA-0195: reveal asks for the code once, shows the value and hides it; copy needs a second gesture', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'Date'] })
+    try {
+      const client = fakeClient(true)
+      const f = mount({ client: asClient(client), requestConnection: vi.fn(), open: vi.fn() }); await flush()
+      expect(f.state.features).toEqual({ reveal: true, copy: true })
+      expect(await f.html()).toContain('vaultnaccess-reveal-3')
+      await f.state.act(item, 'reveal')
+      expect(client.deliver).not.toHaveBeenCalled(); expect(await f.html()).toContain('vaultnaccess-proof')
+      f.state.proofOtp = '123'; await f.state.confirmProof(); expect(client.unlock).not.toHaveBeenCalled()
+      f.state.proofOtp = '123456'; await f.state.confirmProof()
+      expect(client.unlock).toHaveBeenCalledWith('123456'); expect(client.deliver).toHaveBeenCalledWith(3, 'reveal')
+      expect(f.state.revealed?.value).toBe('s3cret'); expect(await f.html()).toContain('s3cret')
+      await vi.advanceTimersByTimeAsync(15_000)
+      expect(f.state.revealed).toBeNull()
+      // A copy prepared but not confirmed also expires.
+      await f.state.act(item, 'copy'); expect(await f.html()).toContain('vaultnaccess-copy-confirm')
+      await vi.advanceTimersByTimeAsync(15_000); expect(await f.html()).not.toContain('vaultnaccess-copy-confirm')
+      await f.state.act(item, 'copy')
+      expect(client.unlock).toHaveBeenCalledTimes(1)
+      const write = vi.fn().mockResolvedValue(undefined); vi.stubGlobal('navigator', { clipboard: { writeText: write } })
+      expect(await f.html()).toContain('vaultnaccess-copy-confirm')
+      await f.state.confirmCopy()
+      expect(write).toHaveBeenCalledWith('s3cret'); expect(f.state.copiedKey).toBe('secret:3')
+      f.unmount()
+    } finally { vi.useRealTimers(); vi.unstubAllGlobals() }
+  })
+  it('NA-0195: a refused item explains itself; an expired proof asks again; features off hide the buttons', async () => {
+    const client = fakeClient(true)
+    const f = mount({ client: asClient(client), requestConnection: vi.fn(), open: vi.fn() }); await flush()
+    await f.state.act(item, 'copy'); f.state.proofOtp = '123456'; await f.state.confirmProof()
+    client.deliver.mockRejectedValueOnce(new ExtensionError('itemDenied'))
+    await f.state.act(item, 'reveal')
+    expect(f.state.error).toBe('itemDenied'); expect(await f.html()).toContain('não está liberado')
+    client.deliver.mockRejectedValueOnce(new ExtensionError('proofRequired'))
+    await f.state.act(item, 'reveal')
+    expect(f.state.pending).toBeTruthy(); f.state.cancelProof(); expect(f.state.pending).toBeNull()
+    client.unlock.mockRejectedValueOnce(new ExtensionError('otpInvalid'))
+    await f.state.act(item, 'reveal'); f.state.proofOtp = '000000'; await f.state.confirmProof()
+    expect(f.state.error).toBe('otpInvalid')
+    f.unmount()
+    const off = fakeClient(true); off.capabilities.mockResolvedValue({ features: { reveal: false, copy: false, create: false }, serverNow: 0 })
+    const g = mount({ client: asClient(off), requestConnection: vi.fn(), open: vi.fn() }); await flush()
+    expect(await g.html()).not.toContain('vaultnaccess-reveal-3'); g.unmount()
+    const broken = fakeClient(true); broken.capabilities.mockRejectedValue(new Error('x'))
+    const b = mount({ client: asClient(broken), requestConnection: vi.fn(), open: vi.fn() }); await flush()
+    expect(b.state.features).toEqual({ reveal: false, copy: false }); b.unmount()
   })
 })

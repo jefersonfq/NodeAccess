@@ -12,6 +12,8 @@ export interface ExtensionAccess {
   sessionVersion: number; extensionId: string; origin: VaultOrigin | null; policyVersion: number; expiresAt: number
   /** Code mode (origin null): login method of the consent, still checked against the tenant policy on every use. */
   method?: VaultAuthMethod
+  /** NA-0195: last authenticator-code proof in the extension (reveal/copy within the tenant window). */
+  proofAt?: number
 }
 /** NA-0193 trusted device: renewal without the portal consent page while alive. */
 export interface ExtensionTrust {
@@ -25,6 +27,8 @@ export interface ExtensionDeviceRow {
 export interface ExtensionRecords {
   /** Grant `extension` enabled with two distinct managers, none of them the beneficiary. */
   entitled(): Promise<boolean>
+  /** NA-0195: the user's own reveal/copy grant, with the same two-manager rule. */
+  granted(action: 'reveal' | 'copy'): Promise<boolean>
   device(jkt: string): Promise<ExtensionDeviceRow | null>
   activateDevice(jkt: string, extensionId: string): Promise<void>
   touchDevice(jkt: string): Promise<void>

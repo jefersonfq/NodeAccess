@@ -34,6 +34,13 @@ VAULTNACCESS_PORTAL_ORIGIN=https://<portal> [VAULTNACCESS_VERSION=0.1.0] [VAULTN
 
 - Atalho do manifesto (NA-0192): `commands._execute_action` com `Alt+Shift+V` (sem permissão nova); o usuário troca em `chrome://extensions/shortcuts`. A página de conexão devolve `lang=pt-BR|en`, guardado só como código em `storage.session` junto da autorização.
 
+### Revelar e copiar na extensão (NA-0195)
+
+- Os botões aparecem nos Secrets quando a política do tenant permite revelar/copiar e o usuário tem a permissão daquela ação (dois gestores). Cada entrega segue as regras do portal: item liberado para entrega, escopo, cotas (`operations`, `tenant:operations`) e auditoria `DELIVERY_RELEASE_COMMITTED` (com o dispositivo).
+- Prova: o popup pede o código do autenticador (`POST /extension/unlock`); vale o tempo de confirmação do tenant (1 a 15 min) para aquela autorização. Erros: `EXTENSION_UNLOCK_DENIED`; limite de 5 tentativas a cada 5 minutos.
+- Entrega: `POST /extension/deliver` devolve um JWE para uma chave efêmera do popup; o valor some em 15 s e copiar pede **Confirmar cópia**. A extensão não limpa a área de transferência (como o portal).
+- Para desligar: política do tenant (revelar/copiar) ou retirar as permissões pelos gestores.
+
 ### Pacote oficial e distribuição pelo portal (NA-0194)
 
 1. Gere uma chave RSA de assinatura (uma vez por instalação) e guarde-a fora do repositório e do servidor de aplicação: `openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048 -out vaultnaccess-signing.pem`. A chave define o ID da extensão; perdê-la ou trocá-la muda o ID (todos reinstalam e o novo ID entra em `VAULT_EXTENSION_IDS`).

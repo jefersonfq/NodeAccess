@@ -5,7 +5,7 @@ import jwt from 'jsonwebtoken'
 import bcrypt from 'bcrypt'
 import * as speakeasy from 'speakeasy'
 import { createHash, randomBytes, randomUUID } from 'node:crypto'
-import { calculateJwkThumbprint, exportJWK, generateKeyPair, SignJWT, type CryptoKey, type JWK } from 'jose'
+import { calculateJwkThumbprint, compactDecrypt, exportJWK, generateKeyPair, SignJWT, type CryptoKey, type JWK } from 'jose'
 import { VaultService } from './vault.service.js'
 import { VaultAdministrationService } from './vault-administration.service.js'
 import { SqlVaultStore } from './vault.repository.js'
@@ -68,7 +68,7 @@ describe.skipIf(!enabled)('Vault extension E1 SQL/Redis integration', () => {
     await db.userGroup.create({ data: { userId: user.id, groupId: group.id } })
     const value = encrypt(`never-leaves-${suffix}`)
     const secret = (tenantId: number, alias: string, extra: object) => db.secret.create({ data: { tenantId, alias, encryptedValue: value.encrypted, iv: value.iv, ...extra } })
-    await secret(a.id, 'mine', { scope: 'PERSONAL', ownerUserId: user.id })
+    const mine = await secret(a.id, 'mine', { scope: 'PERSONAL', ownerUserId: user.id })
     await secret(a.id, 'peer-only', { scope: 'PERSONAL', ownerUserId: peer.id })
     await secret(a.id, 'tenant-shared', { scope: 'TENANT' })
     await secret(a.id, 'ops-group', { scope: 'GROUP', groupId: group.id })
@@ -88,7 +88,7 @@ describe.skipIf(!enabled)('Vault extension E1 SQL/Redis integration', () => {
     const service = new VaultExtensionService(vault, store, new SqlExtensionLocator(db), originVerifier, new DpopVerifier(nonces, replay), nonces, entropy, {
       list: async (i: VaultIdentity, admin: boolean) => catalogSummaries(await prismaCatalog.secrets.list(i.userId, i.tenantId, admin ? 'admin' : 'user'),
         await prismaCatalog.pems.list(i.userId, i.tenantId, admin), i.userId),
-    }, { enabled: true, extensionIds: [EXT], minVersion: '0.1.0' }, Date.now, reauth)
+    }, { enabled: true, extensionIds: [EXT], minVersion: '0.1.0' }, Date.now, reauth, new JweVaultEnvelope())
 
     async function portal(u: { id: number; tenantId: number }) {
       const identity: VaultIdentity = { userId: u.id, tenantId: u.tenantId, sessionVersion: 1 }, jti = randomUUID()
@@ -100,7 +100,7 @@ describe.skipIf(!enabled)('Vault extension E1 SQL/Redis integration', () => {
       return { identity, clientId, sessionId, jti }
     }
     const code = (): string => speakeasy.totp({ secret: mfaSecret, encoding: 'base32' })
-    return { a, b, user, peer, outsider, m1, m2, redis, vault, service, nonces, portal, code }
+    return { a, b, user, peer, outsider, m1, m2, redis, vault, service, nonces, portal, code, mine, value: `never-leaves-${suffix}` }
   }
   type F = Awaited<ReturnType<typeof fixture>>
   async function device(): Promise<{ privateKey: CryptoKey; jwk: JWK; jkt: string }> {
@@ -227,5 +227,31 @@ describe.skipIf(!enabled)('Vault extension E1 SQL/Redis integration', () => {
     expect((await trustRows(f)).length).toBe(0)
     expect(Number((await db.$queryRaw<Array<{ n: bigint }>>`SELECT COUNT(*) AS n FROM vault_extension_tokens WHERE tenant_id=${f.a.id} AND user_id=${f.peer.id} AND kind='access'`)[0]!.n)).toBe(0)
     await expect(renew(f, c.key, f.code())).rejects.toMatchObject({ code: 'EXTENSION_UNAUTHORIZED' })
+  }, 30_000)
+  // NA-0195 (E2): reveal/copy in the extension against the real grant, item eligibility, policy and JWE.
+  it('NA-0195: releases the real value, sealed to the popup key, only after the authenticator code and with the grant', async () => {
+    const f = await fixture(), c = await connect(f, f.user)
+    const { accessToken } = await c.exchange()
+    const post = async (path: string) => ({ requestOrigin: `chrome-extension://${EXT}`, version: '0.1.0', url: `${BASE}/${path}`, proof: await proof(f, c.key, { htm: 'POST', htu: `${BASE}/${path}`, ath: sha256b64(accessToken) }) })
+    const ephemeral = await generateKeyPair('RSA-OAEP-256', { modulusLength: 2048 })
+    const jwk = await exportJWK(ephemeral.publicKey)
+    const recipient = { kty: 'RSA' as const, n: jwk.n!, e: 'AQAB' as const }
+    const deliver = async (action: 'reveal' | 'copy' = 'reveal') => f.service.deliver(await post('deliver'), `DPoP ${accessToken}`, { secretId: f.mine.id, action, recipient })
+    await expect(deliver()).rejects.toMatchObject({ code: 'VAULT_STEP_UP_REQUIRED' })
+    await expect(f.service.unlock(await post('unlock'), `DPoP ${accessToken}`, { otp: f.code() === '000000' ? '111111' : '000000' })).rejects.toMatchObject({ code: 'VAULT_REAUTH_FAILED' })
+    await f.service.unlock(await post('unlock'), `DPoP ${accessToken}`, { otp: f.code() })
+    await expect(deliver()).rejects.toMatchObject({ code: 'EXTENSION_ITEM_DENIED' })
+    await db.$executeRaw`INSERT INTO vault_entitlements(tenant_id,user_id,action,granted_by,approved_by,enabled) VALUES(${f.a.id},${f.user.id},'reveal',${f.m1.id},${f.m2.id},TRUE)`
+    await expect(deliver()).rejects.toMatchObject({ code: 'EXTENSION_ITEM_DENIED' })
+    await db.$executeRaw`INSERT INTO vault_web_items(tenant_id,secret_id,enabled) VALUES(${f.a.id},${f.mine.id},TRUE)`
+    const released = await deliver()
+    const { plaintext, protectedHeader } = await compactDecrypt(released.envelope, ephemeral.privateKey)
+    expect(new TextDecoder().decode(plaintext)).toBe(f.value)
+    expect(protectedHeader.vault).toEqual(released.context)
+    expect(released.context).toMatchObject({ action: 'reveal', itemRef: `secret:${f.mine.id}`, recipientThumbprint: await calculateJwkThumbprint(recipient, 'sha256') })
+    await expect(deliver('copy')).rejects.toMatchObject({ code: 'EXTENSION_ITEM_DENIED' })
+    expect(await audits(f, 'DELIVERY_RELEASE_COMMITTED')).toBe(1); expect(await audits(f, 'EXTENSION_UNLOCK_DENIED')).toBe(1)
+    const stored = await db.$queryRaw<Array<{ payload: string }>>`SELECT CAST(metadata AS CHAR) AS payload FROM vault_audit WHERE tenant_id=${f.a.id}`
+    expect(stored.map(r => r.payload).join()).not.toContain(f.value)
   }, 30_000)
 })

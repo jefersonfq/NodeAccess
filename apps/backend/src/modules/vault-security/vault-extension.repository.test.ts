@@ -33,10 +33,13 @@ describe('SqlVaultExtension', () => {
     ] as const) {
       const { db, calls } = database([[row]])
       expect(await repo(db).entitled()).toBe(expected)
-      expect(calls[0]?.sql).toContain("action='extension' FOR SHARE")
-      expect(calls[0]?.values).toEqual([7, 11])
+      expect(calls[0]?.sql).toContain('action=? FOR SHARE')
+      expect(calls[0]?.values).toEqual([7, 11, 'extension'])
     }
     expect(await repo(database([[]]).db).entitled()).toBe(false)
+    // NA-0195: reveal/copy grants use the same rule.
+    const { db, calls } = database([[{ enabled: 1, grantedBy: 2, approvedBy: 3 }]])
+    expect(await repo(db).granted('copy')).toBe(true); expect(calls[0]?.values).toEqual([7, 11, 'copy'])
   })
   it('maps device rows and scopes every device statement to the identity', async () => {
     const created = new Date(5), used = new Date(9)

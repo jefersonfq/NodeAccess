@@ -34,6 +34,7 @@ Garantias que valem para todas as fatias: nenhum valor secreto persistido na ext
 - Gate: nenhum segredo no pacote; reprodutibilidade do build; revisão de cadeia de suprimentos.
 
 ### 3. E2 — Revelar e copiar senha na extensão
+- Entregue na NA-0195: código do autenticador no popup como prova recente (janela do tenant), mesmas regras do portal por entrega, JWE para chave efêmera do popup, ocultação em 15 s e cópia por segundo gesto. Limpeza automática da área de transferência fica para quando houver permissão `offscreen` aprovada.
 - Detalhe do item com **Revelar**/**Copiar**, reutilizando a entrega do cofre (NA-0178/0179): JWE cifrado para a chave do dispositivo, confirmação de identidade pelo método do login, tempo de confirmação do tenant (NA-0186) e permissões separadas por ação.
 - Copiar com limpeza da área de transferência após prazo curto e aviso; revelar some sozinho em segundos; nada em DOM depois de fechar.
 - Gate: cenários SEC-01..12 e EXT-07..09 do contrato; teste adversarial (outra extensão, página maliciosa, perfil copiado); revisão independente de segurança.
