@@ -40,11 +40,15 @@ Fora: novas funções (E2+), ícones PNG do manifesto (entram na E6 de distribui
 - [x] Testes unitários do popup e `test:extension:web` passam sem mudar a lógica; capturas revisadas sem corte nem rolagem horizontal em 360 px.
 - [x] `evolution.md` com fatias, dependências, critérios de segurança e ordem recomendada.
 
+## Estratégia técnica
+
+Só marcação e CSS do popup (`App.vue`), um componente de ícones SVG local e textos novos; variáveis CSS com a paleta do tema Naive do portal e `prefers-color-scheme`; `data-testid` e textos usados pelos testes preservados; o teste de fumaça passa a salvar capturas para revisão visual.
+
 ## Riscos e mitigações
 
 Baixo: só visual. CSP `script-src 'self'` mantida (CSS empacotado pelo Vite, SVG inline sem script).
 
-## Matriz de testes
+## Matriz de testes e evidências
 
 vitest `apps/extension`; `typecheck:extension`; `lint`; `build:extension`; `test:extension:web` com capturas; `validate:sonar` depende dos tokens do responsável.
 
@@ -52,10 +56,10 @@ vitest `apps/extension`; `typecheck:extension`; `lint`; `build:extension`; `test
 
 2026-11-23, `518e88aa5` (branch refeita depois sobre `660b08096`, sem mudar o resultado): vitest `apps/extension` 27 PASS; `typecheck:extension` PASS; `test:extension:web` PASS.
 
-## Rollback
+## Rollback ou recuperação
 
 Revert da PR; recompilar a extensão.
 
 ## Aprovação
 
-Pedido do responsável em 2026-11-23 ("Pode dar uma estilizada nela e traçar o plano de evolução?"). Risco baixo, sem lógica nova.
+Decisão: `GO` — pedido do responsável em 2026-11-23 ("Pode dar uma estilizada nela e traçar o plano de evolução?"). Risco baixo, sem lógica nova.
