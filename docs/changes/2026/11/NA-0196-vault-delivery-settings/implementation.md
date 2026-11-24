@@ -1,6 +1,6 @@
 # NA-0196 — Registro da implementação
 
-Base: `07c004f10` (master após o merge da NA-0194; rebase sem conflito de código, hash do manual recalculado). Branch: feature/NA-0196-20261123-vault-delivery-settings.
+Base: `012ea6b69` (master com NA-0194 e NA-0197; antes `07c004f10`) (master após o merge da NA-0194; rebase sem conflito de código, hash do manual recalculado). Branch: feature/NA-0196-20261123-vault-delivery-settings.
 
 ## Pedido e objetivo
 
@@ -33,3 +33,7 @@ Revert da PR; sem migração (a API de proposta/aprovação de política e item 
 ### 2026-11-23T23:20:00-03:00 — Implementação, simulação e revisão
 
 Implementação, simulação no navegador (com ajustes de UX vindos das capturas) e revisão independente acima.
+
+### 2026-11-24T00:40:00-03:00 — Encerramento da NA-0197 e rebase
+
+NA-0197 (triagem do OpenSSL 3.5.9-r1 no Redis) mesclada em `012ea6b69`; NA-0196 atualizada sobre o master.

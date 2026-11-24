@@ -5,7 +5,7 @@ type: feature
 status: ready-for-review
 created_at: 2026-11-23T23:00:00-03:00
 base_branch: master
-base_sha: 07c004f10f6c0b0df062db39b59ada89c4886308
+base_sha: 012ea6b690797425369e9fe4dcbe678aa498ae87
 branch: feature/NA-0196-20261123-vault-delivery-settings
 owner: Jeferson Quintana
 planner: Claude Code
