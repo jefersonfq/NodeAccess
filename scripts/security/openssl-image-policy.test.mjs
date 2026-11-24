@@ -29,11 +29,23 @@ for (const [ref, distro] of Object.entries(policy.images)) {
     }
   }
 }
-test('Alpine 3.24 images use 3.5.9-r1, redis keeps 3.5.9-r0 and the openssl CLI only where it is installed', () => {
+test('every image uses 3.5.9-r1 (redis moved from r0 on 2026-11-23) and the openssl CLI only where it is installed', () => {
   for (const [ref, image] of Object.entries(policy.images)) {
-    assert.equal(image.packageVersion, ref === redis ? '3.5.9-r0' : '3.5.9-r1')
+    assert.equal(image.packageVersion, '3.5.9-r1')
     assert.deepEqual(packagesOf(ref), [backend, 'nodeaccess-tls-agent:security-local'].includes(ref) ? policy.packages : ['libssl3', 'libcrypto3'])
   }
+})
+test('NA-0197: the four CVEs Alpine fixed by backport in 3.5.9-r1 are reviewed for r1, with the reason saying so', () => {
+  for (const id of ['CVE-2026-88823', 'CVE-2026-95691', 'CVE-2026-95692', 'CVE-2026-107496']) {
+    assert.deepEqual(policy.findings.find(f => f.id === id).packageVersions, ['3.5.9-r0', '3.5.9-r1'])
+    assert.ok(policy.reason.includes(id))
+  }
+  assert.equal(policy.expiresAt, '2026-12-19')
+})
+test('a CVE reviewed only for another package revision remains blocked', () => {
+  const findings = policy.findings.map(f => f.id === 'CVE-2026-88823' ? { ...f, packageVersions: ['3.5.9-r0'] } : f)
+  assert.equal(reviewedOpensslImageFinding(backend, backendDistro, fixture('CVE-2026-88823'), { ...policy, findings }, now), null)
+  assert.equal(reviewedOpensslImageFinding(backend, backendDistro, fixture('CVE-2026-88823'), policy, now)?.reason, policy.reason)
 })
 test('non-array image package list remains blocked', () => {
   const images = { ...policy.images, [backend]: { ...policy.images[backend], packages: 'libssl3' } }
@@ -41,8 +53,8 @@ test('non-array image package list remains blocked', () => {
 })
 for (const [name, ref, version, id] of [
   ['r0 package in an r1 image', backend, '3.5.9-r0', 'CVE-2026-84786'],
-  ['r1 package in the redis image', redis, '3.5.9-r1', 'CVE-2026-84786'],
-  ['CVE reviewed only for r0 in an r1 image', backend, '3.5.9-r1', 'CVE-2026-88823'],
+  ['r0 package in the redis image', redis, '3.5.9-r0', 'CVE-2026-84786'],
+  ['r2 package (not reviewed) in the redis image', redis, '3.5.9-r2', 'CVE-2026-88823'],
 ]) test(`${name} remains blocked`, () => {
   assert.equal(reviewedOpensslImageFinding(ref, policy.images[ref], fixture(id, 'libssl3', version), policy, now), null)
 })
@@ -100,7 +112,7 @@ test('still reviewed one millisecond before expiry', () => {
   assert.ok(reviewedOpensslImageFinding(backend, backendDistro, fixture(), policy, new Date(Date.parse(`${policy.expiresAt}T00:00:00Z`) - 1)))
 })
 test('review pins the owner acceptance window and reviewed CVEs', () => {
-  assert.equal(policy.reviewedAt, '2026-11-22')
+  assert.equal(policy.reviewedAt, '2026-11-23')
   assert.equal(policy.expiresAt, '2026-12-19')
   assert.deepEqual(policy.findings.map(f => f.id).sort(), ['CVE-2026-107493', 'CVE-2026-107494', 'CVE-2026-107496', 'CVE-2026-121482',
     'CVE-2026-124709', 'CVE-2026-84786', 'CVE-2026-88823', 'CVE-2026-95691', 'CVE-2026-95692'])
