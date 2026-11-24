@@ -32,3 +32,7 @@ Revert da PR; sem migração.
 ### 2026-11-24T11:30:00-03:00 — Implementação, simulação e revisão
 
 Ver acima.
+
+### 2026-11-24T14:45:00-03:00 — Merge e encerramento
+
+CI da PR #90 verde; mesclada com autorização do responsável (`930004d4d`). Estado: MERGED, MASTER_SYNCED. Encerramento registrado na NA-0200.

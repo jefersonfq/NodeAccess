@@ -34,6 +34,13 @@ VAULTNACCESS_PORTAL_ORIGIN=https://<portal> [VAULTNACCESS_VERSION=0.1.0] [VAULTN
 
 - Atalho do manifesto (NA-0192): `commands._execute_action` com `Alt+Shift+V` (sem permissão nova); o usuário troca em `chrome://extensions/shortcuts`. A página de conexão devolve `lang=pt-BR|en`, guardado só como código em `storage.session` junto da autorização.
 
+### Confirmar no portal com Windows Hello (NA-0200)
+
+- No pedido de prova do popup, **Confirmar no portal (Windows Hello)** abre `/vault/extension/confirm?request=…`; a página mostra a identificação do dispositivo e pede a confirmação de identidade do cofre (Windows Hello quando cadastrado, senha + código ou provedor). O código no popup continua disponível.
+- Rotas: `POST /extension/proof-request` e `/extension/proof-claim` (DPoP da extensão); `/extension/proof-info` e `/extension/proof-approve` (portal; aprovação exige sessão do cofre confirmada há menos de 60 s). Pedido de 2 min em `vault_records` (`extproof`), sem token; limite de 5 pedidos a cada 5 minutos.
+- Auditoria: `EXTENSION_PROOF_REQUESTED`, `EXTENSION_PROOF_APPROVED`, `EXTENSION_UNLOCKED` com `PORTAL_CONFIRMATION`.
+- O Windows Hello exige a origem do cofre por nome (não IP) e certificado confiável (ver `OPERATIONS-vault-security.md`).
+
 ### Revelar e copiar na extensão (NA-0195)
 
 - Os botões aparecem nos Secrets quando a política do tenant permite revelar/copiar e o usuário tem a permissão daquela ação (dois gestores). Cada entrega segue as regras do portal: item liberado para entrega, escopo, cotas (`operations`, `tenant:operations`) e auditoria `DELIVERY_RELEASE_COMMITTED` (com o dispositivo).

@@ -74,6 +74,14 @@ describe('Chromium adapter', () => {
     await chromiumSession.setLocale('pt-BR'); await chromiumSession.clear()
     expect(await chromiumSession.locale()).toBe('pt-BR')
   })
+  it('NA-0200: keeps only a well-formed portal confirmation request, and forgets it on clear', async () => {
+    const { chromiumSession } = await import('./chromium')
+    expect(await chromiumSession.portalProof()).toBeNull()
+    await chromiumSession.setPortalProof('r'.repeat(43)); expect(await chromiumSession.portalProof()).toBe('r'.repeat(43))
+    chromeDouble.session.set('portalProof', 'not-a-request'); expect(await chromiumSession.portalProof()).toBeNull()
+    await chromiumSession.setPortalProof('r'.repeat(43)); await chromiumSession.setPortalProof(null); expect(await chromiumSession.portalProof()).toBeNull()
+    await chromiumSession.setPortalProof('r'.repeat(43)); await chromiumSession.clear(); expect(await chromiumSession.portalProof()).toBeNull()
+  })
   it('NA-0190: keeps the last connection failure briefly, reads it once and ignores stale or unknown values', async () => {
     const { rememberFailure, takeFailure, chromiumSession } = await import('./chromium')
     expect(await takeFailure()).toBeNull()

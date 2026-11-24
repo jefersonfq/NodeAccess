@@ -10,7 +10,7 @@ import type { AuthFlow, Authorization, DeviceKey, DeviceKeyStore, ExtensionInfo,
  * `reauthRequired` / `otpInvalid` (NA-0193): the trusted device needs the authenticator code / the code was wrong.
  * `proofRequired` / `itemDenied` / `quota` (NA-0195): reveal/copy needs a fresh code / item or grant refused / limit reached. */
 export type ExtensionFailure = 'denied' | 'cancelled' | 'expired' | 'upgrade' | 'unavailable' | 'invalid' | 'offline' | 'reauthRequired' | 'otpInvalid'
-  | 'proofRequired' | 'itemDenied' | 'quota'
+  | 'proofRequired' | 'itemDenied' | 'quota' | 'portalProofExpired' | 'portalProofUnavailable'
 export class ExtensionError extends Error {
   constructor(public readonly reason: ExtensionFailure) { super(reason) }
 }
@@ -35,6 +35,10 @@ export interface ExtensionClient {
   renew(otp?: string): Promise<void>
   /** NA-0195: authenticator-code proof for reveal/copy; resolves with the local deadline of the proof. */
   unlock(otp: string): Promise<number>
+  /** NA-0200: asks for a proof confirmed in the portal (Windows Hello or password + code); returns the page to open. */
+  requestPortalProof(): Promise<string>
+  /** NA-0200: redeems the stored request: `approved` (with the local proof deadline), `pending` or `none`. */
+  claimPortalProof(): Promise<{ state: 'none' | 'pending' } | { state: 'approved'; proofUntil: number }>
   /** NA-0195: one reveal/copy release, opened in memory with an ephemeral key; nothing is stored. */
   deliver(secretId: number, action: 'reveal' | 'copy'): Promise<string>
 }
@@ -59,6 +63,7 @@ export function createExtensionClient(deps: Deps): ExtensionClient {
     if (status === 401 && code === 'EXTENSION_REAUTH_REQUIRED') return new ExtensionError('reauthRequired')
     if (status === 403 && code === 'VAULT_REAUTH_FAILED') return new ExtensionError('otpInvalid')
     if (status === 403 && code === 'EXTENSION_ITEM_DENIED') return new ExtensionError('itemDenied')
+    if (status === 409 && code === 'EXTENSION_PROOF_UNAVAILABLE') return new ExtensionError('portalProofUnavailable')
     if (status === 423) return new ExtensionError('proofRequired')
     if (status === 429) return new ExtensionError('quota')
     if (status === 401) return new ExtensionError('expired')
@@ -186,6 +191,39 @@ export function createExtensionClient(deps: Deps): ExtensionClient {
     },
     recents(): Promise<string[]> { return deps.session.recents() },
     /** Portal URL for an item; only server-validated relative paths on the configured origin. */
+    requestPortalProof(): Promise<string> {
+      return guarded(async auth => {
+        const reply = await signed('POST', '/proof-request', { accessToken: auth.accessToken, body: {} }) as { request?: unknown; url?: unknown } | null
+        const request = reply?.request
+        if (typeof request !== 'string' || !/^[A-Za-z0-9_-]{43}$/.test(request)) throw new ExtensionError('unavailable')
+        // Only the confirmation page of the configured portal, for this very request.
+        const url = `${deps.info.portalOrigin}/vault/extension/confirm?request=${request}`
+        if (reply?.url !== url) throw new ExtensionError('unavailable')
+        await deps.session.setPortalProof(request)
+        return url
+      })
+    },
+    async claimPortalProof(): Promise<{ state: 'none' | 'pending' } | { state: 'approved'; proofUntil: number }> {
+      const request = await deps.session.portalProof()
+      if (!request) return { state: 'none' }
+      try {
+        return await guarded(async auth => {
+          const started = now()
+          const reply = await signed('POST', '/proof-claim', { accessToken: auth.accessToken, body: { request } }) as { state?: unknown; proofUntil?: unknown; serverNow?: unknown } | null
+          if (reply?.state === 'PENDING') return { state: 'pending' as const }
+          if (reply?.state !== 'APPROVED' || typeof reply.proofUntil !== 'number' || typeof reply.serverNow !== 'number') throw new ExtensionError('unavailable')
+          await deps.session.setPortalProof(null)
+          return { state: 'approved' as const, proofUntil: started + Math.max(0, reply.proofUntil - reply.serverNow) - 2_000 }
+        })
+      } catch (failure) {
+        // Only an expired, redeemed or foreign request (409) is dropped; other failures keep it and explain themselves.
+        if (failure instanceof ExtensionError && failure.reason === 'portalProofUnavailable') {
+          await deps.session.setPortalProof(null)
+          throw new ExtensionError('portalProofExpired')
+        }
+        throw failure
+      }
+    },
     unlock(otp: string): Promise<number> {
       return guarded(async auth => {
         if (!/^\d{6}$/.test(otp)) throw new ExtensionError('otpInvalid')

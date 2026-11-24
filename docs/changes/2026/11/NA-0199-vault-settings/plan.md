@@ -2,7 +2,7 @@
 change_id: NA-0199
 title: Cofre — configurações do tenant em /admin/settings (seção Cofre)
 type: feature
-status: ready-for-review
+status: delivered
 created_at: 2026-11-24T10:00:00-03:00
 base_branch: master
 base_sha: ea7b80e3b64374583633a9fbfc03f4cfb37198aa

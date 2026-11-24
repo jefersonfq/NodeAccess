@@ -40,6 +40,7 @@ Garantias que valem para todas as fatias: nenhum valor secreto persistido na ext
 - Gate: cenários SEC-01..12 e EXT-07..09 do contrato; teste adversarial (outra extensão, página maliciosa, perfil copiado); revisão independente de segurança.
 
 ### 4. E5 — Desbloqueio com Windows Hello / passkey
+- Entregue em duas fatias: NA-0198 (E5a, portal: cadastro e desbloqueio com Windows Hello/chave de acesso) e NA-0200 (E5b, extensão: confirmação na aba do portal, SEC-16).
 - WebAuthn na origem do portal como confirmação de identidade (alternativa a senha+TOTP), sem rebaixar silenciosamente para método mais fraco.
 - Gate: PoC do contrato §11 e SEC-16.
 

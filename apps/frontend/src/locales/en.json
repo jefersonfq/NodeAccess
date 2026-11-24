@@ -6895,6 +6895,12 @@
     }
   },
   "vaultExtension": {
+    "confirmTitle": "Confirm the VaultNAccess extension",
+    "confirmLoading": "Loading the extension request…",
+    "confirmIntro": "The extension in this browser asked to reveal or copy a password. Check that the device below is the one in the extension footer and confirm your identity.",
+    "confirmInvalid": "This request is not valid or has expired. Ask again in the extension.",
+    "confirmDone": "Done. Go back to the extension and select Reveal or Copy password (if it was still open, it continues by itself). You can close this tab.",
+    "confirmSubmit": "Confirm identity",
     "devicesButton": "Connected devices ({count})",
     "devicesHint": "Each connected browser has an identifier. The same identifier is shown at the bottom of the extension: check it before revoking.",
     "connectTitle": "Connect the VaultNAccess extension",

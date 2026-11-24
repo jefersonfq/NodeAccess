@@ -11,6 +11,7 @@ interface Popup { phase: string; items: unknown[]; error: string; query: string;
   search(more?: boolean): Promise<void>; connect(): Promise<void>; disconnect(): Promise<void>; openItem(item: unknown): Promise<void>; setKind(value: string): void; applyUpdate(): void
   onKey(event: unknown): void; focusItem(index: number): void; active: number; otp: string; submitCode(): Promise<void>; renew(code: string | null): Promise<boolean>
   act(item: unknown, action: 'reveal' | 'copy'): Promise<void>; confirmProof(): Promise<void>; cancelProof(): void; confirmCopy(): Promise<void>
+  confirmInPortal(): Promise<void>; stopPortal(): void; portal: string
   proofOtp: string; pending: unknown; revealed: { value: string } | null; copiedKey: string; features: { reveal: boolean; copy: boolean } }
 function mount(props: Record<string, unknown>) {
   const renderer = createRenderer<HostNode, HostNode>({ createElement: node, createText: node, createComment: node, setText: () => {}, setElementText: () => {}, patchProp: () => {},
@@ -25,7 +26,9 @@ function fakeClient(connected: boolean) {
   return {
     connect: vi.fn(), connected: vi.fn().mockResolvedValue(connected), disconnect: vi.fn().mockResolvedValue(undefined),
     search: vi.fn().mockResolvedValue({ items: [item], nextCursor: '50' }), remember: vi.fn().mockResolvedValue(undefined),
-    recents: vi.fn().mockResolvedValue(['secret:3']), locale: vi.fn().mockResolvedValue(null), renew: vi.fn().mockRejectedValue(new ExtensionError('expired')), unlock: vi.fn().mockResolvedValue(Date.now() + 60_000), deliver: vi.fn().mockResolvedValue('s3cret'),
+    recents: vi.fn().mockResolvedValue(['secret:3']), locale: vi.fn().mockResolvedValue(null),
+    requestPortalProof: vi.fn().mockResolvedValue('https://vault.example.test/vault/extension/confirm?request=' + 'q'.repeat(43)),
+    claimPortalProof: vi.fn<() => Promise<{ state: 'none' | 'pending' } | { state: 'approved'; proofUntil: number }>>().mockResolvedValue({ state: 'none' }), renew: vi.fn().mockRejectedValue(new ExtensionError('expired')), unlock: vi.fn().mockResolvedValue(Date.now() + 60_000), deliver: vi.fn().mockResolvedValue('s3cret'),
     capabilities: vi.fn().mockResolvedValue({ features: { reveal: true, copy: true, create: false }, serverNow: 0 }), fingerprint: vi.fn().mockResolvedValue('abcd-efgh-ijkl-mnop'), portalUrl: vi.fn((p: string) => `https://vault.example.test${p}`),
   }
 }
@@ -204,6 +207,39 @@ describe('NA-0183 extension popup', () => {
     client.renew.mockRejectedValueOnce(new ExtensionError('offline'))
     expect(await f.state.renew('123456')).toBe(false); expect(f.state.error).toBe('offline')
     f.unmount()
+  })
+  it('NA-0200: confirming in the portal opens the page and, while the popup stays open, continues with the action once approved', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'Date'] })
+    try {
+      const client = fakeClient(true), open = vi.fn().mockResolvedValue(undefined)
+      const f = mount({ client: asClient(client), requestConnection: vi.fn(), open }); await flush()
+      await f.state.act(item, 'reveal')
+      expect(await f.html()).toContain('vaultnaccess-proof-portal')
+      client.claimPortalProof.mockResolvedValueOnce({ state: 'pending' }).mockResolvedValueOnce({ state: 'approved', proofUntil: Date.now() + 60_000 })
+      await f.state.confirmInPortal()
+      expect(open).toHaveBeenCalledWith('https://vault.example.test/vault/extension/confirm?request=' + 'q'.repeat(43))
+      expect(f.state.portal).toBe('waiting'); expect(await f.html()).toContain('vaultnaccess-portal-waiting')
+      await vi.advanceTimersByTimeAsync(2_000); expect(client.deliver).not.toHaveBeenCalled()
+      await vi.advanceTimersByTimeAsync(2_000)
+      expect(client.deliver).toHaveBeenCalledWith(3, 'reveal'); expect(f.state.pending).toBeNull(); expect(f.state.portal).toBe('idle')
+      expect(client.unlock).not.toHaveBeenCalled()
+      f.unmount()
+    } finally { vi.useRealTimers() }
+  })
+  it('NA-0200: reopened after the portal approved, the popup restores the proof but runs nothing by itself; waiting can be cancelled', async () => {
+    const client = fakeClient(true)
+    client.claimPortalProof.mockResolvedValue({ state: 'approved', proofUntil: Date.now() + 60_000 })
+    const f = mount({ client: asClient(client), requestConnection: vi.fn(), open: vi.fn() }); await flush()
+    expect(f.state.portal).toBe('ready'); expect(await f.html()).toContain('vaultnaccess-portal-ready')
+    expect(client.deliver).not.toHaveBeenCalled()
+    await f.state.act(item, 'reveal'); expect(client.deliver).toHaveBeenCalledWith(3, 'reveal')
+    const g = fakeClient(true); g.claimPortalProof.mockResolvedValue({ state: 'pending' })
+    const h = mount({ client: asClient(g), requestConnection: vi.fn(), open: vi.fn() }); await flush()
+    expect(h.state.portal).toBe('waiting'); h.state.stopPortal(); expect(h.state.portal).toBe('idle')
+    const e = fakeClient(true); e.claimPortalProof.mockRejectedValue(new ExtensionError('portalProofExpired'))
+    const k = mount({ client: asClient(e), requestConnection: vi.fn(), open: vi.fn() }); await flush()
+    expect(k.state.error).toBe('portalProofExpired')
+    f.unmount(); h.unmount(); k.unmount()
   })
   it('NA-0195: reveal asks for the code once, shows the value and hides it; copy needs a second gesture', async () => {
     vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'Date'] })

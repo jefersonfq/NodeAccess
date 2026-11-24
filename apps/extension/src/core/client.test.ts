@@ -12,13 +12,14 @@ const API = `${PORTAL}/api/v1/vault-security/extension`
 const opaque = (): string => randomBytes(32).toString('base64url')
 
 function stores() {
-  let key: DeviceKey | null = null, auth: Authorization | null = null, recents: string[] = [], locale: string | null = null
+  let key: DeviceKey | null = null, auth: Authorization | null = null, recents: string[] = [], locale: string | null = null, portalProof: string | null = null
   return {
     keys: { load: () => Promise.resolve(key), save: (k: DeviceKey) => { key = k; return Promise.resolve() } },
     session: { get: () => Promise.resolve(auth), set: (a: Authorization) => { auth = a; return Promise.resolve() }, clear: () => { auth = null; recents = []; return Promise.resolve() },
       recents: () => Promise.resolve(recents), setRecents: (r: string[]) => { recents = r; return Promise.resolve() },
-      locale: () => Promise.resolve(locale), setLocale: (l: string) => { locale = l; return Promise.resolve() } },
-    peek: () => ({ key, auth, recents, locale }),
+      locale: () => Promise.resolve(locale), setLocale: (l: string) => { locale = l; return Promise.resolve() },
+      portalProof: () => Promise.resolve(portalProof), setPortalProof: (r: string | null) => { portalProof = r; return Promise.resolve() } },
+    peek: () => ({ key, auth, recents, locale, portalProof }),
   }
 }
 /** Fake portal backed by the real backend DPoP verifier and PKCE check. */
@@ -161,6 +162,35 @@ describe('NA-0183 extension client', () => {
     // With the authorization already gone, Disconnect still ends the trust by the device key.
     await s.session.clear(); await c.disconnect()
     expect(urls(p).filter(u => u.endsWith('/forget'))).toHaveLength(2)
+  })
+  it('NA-0200: asks for a portal confirmation, keeps only its id, and redeems it once approved', async () => {
+    const p = portal(), base = p.fetcher.getMockImplementation()!, request = 'q'.repeat(43)
+    let claim: () => Response = () => new Response(JSON.stringify({ state: 'PENDING' }), { status: 200 })
+    let url = `${PORTAL}/vault/extension/confirm?request=${request}`
+    p.fetcher.mockImplementation(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const target = input instanceof Request ? input.url : input.toString()
+      if (target === `${API}/proof-request`) return new Response(JSON.stringify({ request, url, expiresAt: 120_000, serverNow: 0 }), { status: 200 })
+      if (target === `${API}/proof-claim`) { expect(JSON.parse(init!.body as string)).toEqual({ request }); return claim() }
+      return base(input, init)
+    })
+    const { c, s } = client(p)
+    await c.connect()
+    expect(await c.claimPortalProof()).toEqual({ state: 'none' })
+    expect(await c.requestPortalProof()).toBe(url); expect(s.peek().portalProof).toBe(request)
+    expect(await c.claimPortalProof()).toEqual({ state: 'pending' })
+    claim = () => new Response(JSON.stringify({ state: 'APPROVED', proofUntil: 300_000, serverNow: 0 }), { status: 200 })
+    expect(await c.claimPortalProof()).toEqual({ state: 'approved', proofUntil: T0 + 300_000 - 2_000 }); expect(s.peek().portalProof).toBeNull()
+    // An expired or foreign request is dropped.
+    await c.requestPortalProof()
+    claim = () => new Response(JSON.stringify({ code: 'EXTENSION_PROOF_UNAVAILABLE' }), { status: 409 })
+    await expect(c.claimPortalProof()).rejects.toMatchObject({ reason: 'portalProofExpired' }); expect(s.peek().portalProof).toBeNull()
+    // A limit keeps the request (it may already be approved) and explains itself.
+    await c.requestPortalProof()
+    claim = () => new Response('{}', { status: 429 })
+    await expect(c.claimPortalProof()).rejects.toMatchObject({ reason: 'quota' }); expect(s.peek().portalProof).toBe(request)
+    // Only the confirmation page of the configured portal is opened.
+    url = 'https://evil.example/vault/extension/confirm?request=' + request
+    await expect(c.requestPortalProof()).rejects.toMatchObject({ reason: 'unavailable' })
   })
   it('NA-0195: unlocks with the code and opens a release sealed to an ephemeral key', async () => {
     const { CompactEncrypt, importJWK } = await import('jose')

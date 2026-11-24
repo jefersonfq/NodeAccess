@@ -28,6 +28,10 @@ async function harness() {
     items: vi.fn().mockResolvedValue({ items: [], nextCursor: null }),
     devices: vi.fn().mockResolvedValue({ devices: [] }),
     revokeDevice: vi.fn().mockResolvedValue({ state: 'REVOKED' }),
+    proofRequest: vi.fn().mockResolvedValue({ request: opaque(), url: 'https://portal/x', expiresAt: 1, serverNow: 0 }),
+    proofClaim: vi.fn().mockResolvedValue({ state: 'PENDING' }),
+    proofInfo: vi.fn().mockResolvedValue({ device: opaque(), expiresAt: 1, serverNow: 0 }),
+    proofApprove: vi.fn().mockResolvedValue({ state: 'APPROVED' }),
   }
   const vault = { admitted: vi.fn((run: () => Promise<unknown>) => run()) }
   configureCurrentSessionReader(() => Promise.resolve({ tenantId: 7, active: true, deletedAt: null, tenantActive: true, targetTenantActive: true,
@@ -39,6 +43,23 @@ async function harness() {
   const jwt = app.jwt.sign(user)
   return { app, service, jwt, releases }
 }
+
+describe('NA-0200 portal confirmation routes', () => {
+  it('portal: info needs the JWT and origin, approve also the vault client; bodies are strict', async () => {
+    const h = await harness()
+    try {
+      const request = opaque(), sessionId = opaque(), client = opaque(), id = { userId: 42, tenantId: 7, sessionVersion: 3 }
+      const base = { authorization: `Bearer ${h.jwt}`, origin, 'x-forwarded-proto': 'https' }
+      expect((await h.app.inject({ method: 'POST', url: '/api/v1/vault-security/extension/proof-info', payload: { request }, headers: base })).statusCode).toBe(200)
+      expect(h.service.proofInfo).toHaveBeenCalledWith(id, origin, request)
+      const approve = await h.app.inject({ method: 'POST', url: '/api/v1/vault-security/extension/proof-approve', payload: { request, sessionId }, headers: { ...base, 'x-vault-client': client } })
+      expect(approve.json()).toEqual({ state: 'APPROVED' }); expect(h.service.proofApprove).toHaveBeenCalledWith(id, client, origin, sessionId, request)
+      expect((await h.app.inject({ method: 'POST', url: '/api/v1/vault-security/extension/proof-approve', payload: { request, sessionId }, headers: base })).statusCode).toBe(400)
+      expect((await h.app.inject({ method: 'POST', url: '/api/v1/vault-security/extension/proof-info', payload: { request: 'short' }, headers: base })).statusCode).toBe(400)
+      expect((await h.app.inject({ method: 'POST', url: '/api/v1/vault-security/extension/proof-info', payload: { request }, headers: { origin, 'x-forwarded-proto': 'https' } })).statusCode).toBe(401)
+    } finally { await h.app.close() }
+  })
+})
 
 describe('NA-0183 extension routes', () => {
   it('passes the proxy-visible URL, origin, version and proof to the token exchange and always sends a nonce', async () => {

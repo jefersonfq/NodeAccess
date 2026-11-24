@@ -13,7 +13,7 @@ export const chromiumAuthFlow: AuthFlow = {
     return result
   },
 }
-const AUTH = 'authorization', RECENTS = 'recents', FAILURE = 'connectFailure', LOCALE = 'locale'
+const AUTH = 'authorization', RECENTS = 'recents', FAILURE = 'connectFailure', LOCALE = 'locale', PORTAL_PROOF = 'portalProof'
 const FAILURES: readonly string[] = ['denied', 'cancelled', 'expired', 'upgrade', 'unavailable', 'invalid', 'offline']
 export const chromiumSession: SessionStore = {
   async get(): Promise<Authorization | null> {
@@ -23,7 +23,7 @@ export const chromiumSession: SessionStore = {
   },
   set: (value: Authorization): Promise<void> => chrome.storage.session.set({ [AUTH]: value }),
   // The portal language is a display preference: it outlives an expired authorization (NA-0193 reopens with the code screen).
-  clear: (): Promise<void> => chrome.storage.session.remove([AUTH, RECENTS, FAILURE]),
+  clear: (): Promise<void> => chrome.storage.session.remove([AUTH, RECENTS, FAILURE, PORTAL_PROOF]),
   async recents(): Promise<string[]> {
     const value = (await chrome.storage.session.get(RECENTS))[RECENTS]
     return Array.isArray(value) ? value.filter((k): k is string => typeof k === 'string') : []
@@ -34,6 +34,11 @@ export const chromiumSession: SessionStore = {
     return typeof value === 'string' ? value : null
   },
   setLocale: (locale: string): Promise<void> => chrome.storage.session.set({ [LOCALE]: locale }),
+  async portalProof(): Promise<string | null> {
+    const value = (await chrome.storage.session.get(PORTAL_PROOF))[PORTAL_PROOF]
+    return typeof value === 'string' && /^[A-Za-z0-9_-]{43}$/.test(value) ? value : null
+  },
+  setPortalProof: (request: string | null): Promise<void> => (request ? chrome.storage.session.set({ [PORTAL_PROOF]: request }) : chrome.storage.session.remove([PORTAL_PROOF])),
 }
 /**
  * NA-0190: why the last connection failed, kept briefly for a popup that closed while the service worker tried

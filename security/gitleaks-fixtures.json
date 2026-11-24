@@ -202,14 +202,14 @@
       "path": "apps/frontend/src/locales/en.json",
       "rule": "private-key",
       "line": 1051,
-      "fileSha256": "1732683f86c10661d2f32accde8e61f9507fd2401ac261e200ebf7f60b1b1d1e",
+      "fileSha256": "d5ec616c1f6de4d36756288bf86c9ee6ff98f26f8b0dbde266e6d9361ef687a7",
       "reason": "NA-0179: exemplo textual de PEM com corpo literal de reticências, sem DER ou chave utilizável; marcador existente não foi alterado. Adição de traduções vaultDelivery e do nome do proprietário PEM mudou apenas o hash integral. Revisão independente confirmou material sintético; autorização restrita a regra, linha e hash."
     },
     {
       "path": "apps/frontend/src/locales/pt-BR.json",
       "rule": "private-key",
       "line": 1054,
-      "fileSha256": "e2b897e5bb759e366aa3c021d9a99aea1c55e557dd4cbdd4cb4f57ea6de01020",
+      "fileSha256": "a30611c26acf8fe1041bc6f92c46df1b1ff88d8528345c8d588d4459207a4af3",
       "reason": "NA-0179: exemplo textual de PEM com corpo literal de reticências, sem DER ou chave utilizável; marcador existente não foi alterado. Adição de traduções vaultDelivery e do nome do proprietário PEM mudou apenas o hash integral. Revisão independente confirmou material sintético; autorização restrita a regra, linha e hash."
     },
     {
