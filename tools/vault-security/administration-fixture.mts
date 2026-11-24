@@ -3,6 +3,7 @@
  * VaultAdministrationService, bcrypt, TOTP and JWT; the administration rules run in memory with the same contract
  * as SqlVaultAdministration (the SQL itself is covered by vault.mysql.test.ts). No database or external endpoint.
  * NA-0196: tenant Secrets (metadata only), released items, delivery policy proposals and the user availability read.
+ * NA-0198: Windows Hello / passkey credentials in memory with the real verifier (@simplewebauthn/server) and routes.
  */
 import { randomBytes, randomUUID, createHash } from 'node:crypto'
 import Fastify from 'fastify'
@@ -14,10 +15,12 @@ import { VaultService } from '../../apps/backend/src/modules/vault-security/vaul
 import { VaultAdministrationService } from '../../apps/backend/src/modules/vault-security/vault-administration.service.js'
 import { vaultRoutes } from '../../apps/backend/src/modules/vault-security/vault.routes.js'
 import { JweVaultEnvelope } from '../../apps/backend/src/modules/vault-security/vault-envelope.js'
+import { SimpleWebauthnVerifier } from '../../apps/backend/src/modules/vault-security/vault-webauthn.js'
+import { VaultWebauthnService } from '../../apps/backend/src/modules/vault-security/vault-webauthn.service.js'
 import { RedisVaultOrigin, MethodVaultReauthentication } from '../../apps/backend/src/modules/vault-security/vault-identity.js'
 import { denied, noApprover, unavailable, validProposalSeconds, VaultError, PROPOSAL_DEFAULT_SECONDS,
   type VaultAuthority, type VaultChange, type VaultEvent, type VaultPolicy } from '../../apps/backend/src/modules/vault-security/vault-domain.js'
-import type { AdministrationReads, VaultAdministrationOverview, VaultStore } from '../../apps/backend/src/modules/vault-security/vault-ports.js'
+import type { AdministrationReads, VaultAdministrationOverview, VaultStore, WebauthnCredential } from '../../apps/backend/src/modules/vault-security/vault-ports.js'
 import { configureCurrentSessionReader } from '../../apps/backend/src/modules/auth/current-session.js'
 import { TotpService } from '../../apps/backend/src/modules/auth/totp.service.js'
 
@@ -43,6 +46,7 @@ export async function createAdministrationFixture() {
     policy: { version: 1, unlock: true, reveal: false, copy: false, localReauth: true, origin: '', tenantQuota: 300 } as VaultPolicy,
     secrets: new Map<number, string>([[5, 'secret-ssh-teste2'], [6, 'db-backup']]),
     released: new Set<number>(),
+    webauthn: new Map<string, WebauthnCredential & { userId: number }>(),
     events: [] as VaultEvent[],
   }
   let records = new Map<string, object>(), counts = new Map<string, number>(), tail = Promise.resolve()
@@ -142,6 +146,13 @@ export async function createAdministrationFixture() {
       propose: async (id, change, window) => admin.propose(id, change, window),
       approve: async (id, byReference = false) => admin.approve(id, byReference),
       administration: admin,
+      webauthn: {
+        list: async () => [...state.webauthn.values()].filter(c => c.userId === user.id).map(({ userId: _u, ...c }) => structuredClone(c)),
+        find: async id => { const c = state.webauthn.get(id); return c && c.userId === user.id ? (({ userId: _u, ...rest }) => structuredClone(rest))(c) : null },
+        add: async c => { if (state.webauthn.has(c.id)) return false; state.webauthn.set(c.id, { ...c, userId: user.id, createdAt: now(), lastUsedAt: null }); return true },
+        used: async (id, counter) => { const c = state.webauthn.get(id); if (c && c.userId === user.id) { c.counter = counter; c.lastUsedAt = now() } },
+        remove: async id => { const c = state.webauthn.get(id); if (!c || c.userId !== user.id) return false; state.webauthn.delete(id); return true },
+      },
       // Same grant rule as delivery; every synthetic Secret has tenant scope, so released items are visible to all.
       availability: async () => {
         const valid = (action: 'reveal' | 'copy'): boolean => {
@@ -156,14 +167,25 @@ export async function createAdministrationFixture() {
   const entropy = { token: () => randomBytes(32).toString('base64url'), digest: (text: string) => sha(text) }
   const service = new VaultService(store,
     new RedisVaultOrigin({ get: async (id: string) => [...users.values()].some(u => id === `refresh:${u.jti}`) ? String(TENANT) : null }, key, now),
-    new MethodVaultReauthentication(new TotpService()), new JweVaultEnvelope(), entropy, now)
+    new MethodVaultReauthentication(new TotpService()), new JweVaultEnvelope(), entropy, now, undefined, new SimpleWebauthnVerifier())
   const administrationService = new VaultAdministrationService(service, entropy)
   // Persisted identity matching each synthetic token (the guard compares role and capabilities).
   configureCurrentSessionReader(async (userId: number) => (users.has(userId) ? { tenantId: TENANT, active: true, deletedAt: null, tenantActive: true,
     targetTenantActive: true, sessionVersion: 3, role: users.get(userId)!.role === 'admin' ? 'ADMIN' : 'USER', isPlatformAdmin: false, canManageHosts: true, canViewLiveSessions: false } : null))
   const app = Fastify({ trustProxy: '127.0.0.1', logger: false })
+  // Diagnostics for failed runs: route and error code of every refused vault call (no bodies, tokens or values).
+  const failures: Array<{ at: number; route: string; status: number; code: string }> = []
+  app.addHook('onSend', async (req, reply, payload) => {
+    if (reply.statusCode >= 400 && failures.length < 200) {
+      let code = ''
+      try { code = String((JSON.parse(String(payload)) as { code?: unknown }).code ?? '').slice(0, 64) } catch { code = '' }
+      failures.push({ at: now(), route: (req.routeOptions.url ?? '').slice(0, 120), status: reply.statusCode, code })
+    }
+    return payload
+  })
   await app.register(fastifyJwt, { secret: key })
-  await app.register(async instance => vaultRoutes(instance, service, administrationService), { prefix: '/api/v1/vault-security' })
+  const webauthnService = new VaultWebauthnService(service, entropy, new SimpleWebauthnVerifier())
+  await app.register(async instance => vaultRoutes(instance, service, administrationService, webauthnService), { prefix: '/api/v1/vault-security' })
   const tokens = (id: number): { access: string; refresh: string } => {
     const u = users.get(id)!
     const access = app.jwt.sign({ sub: String(id), tenantId: TENANT, sessionVersion: 3, stage: 'authenticated', name: u.name, email: u.email, role: u.role,
@@ -172,7 +194,7 @@ export async function createAdministrationFixture() {
     return { access, refresh }
   }
   return {
-    app, users, state, tokens,
+    app, users, state, tokens, failures,
     /** Secret metadata the portal list shows (never a value). */
     secrets: () => [...state.secrets].map(([id, alias]) => ({ id, tenantId: TENANT, alias, description: null, scope: 'TENANT', ownerUserId: 41, groupId: null,
       createdByUserId: 41, createdByUsername: 'Ana Gestora', source: 'MANUAL', createdAt: '2026-11-20T12:00:00Z', updatedAt: '2026-11-20T12:00:00Z', rotatedAt: null, revokedAt: null })),

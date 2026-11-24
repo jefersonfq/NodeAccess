@@ -38,6 +38,7 @@
     "@fastify/websocket": "11.3.3",
     "@nodeaccess/shared": "*",
     "@prisma/client": "6.19.3",
+    "@simplewebauthn/server": "14.1.0",
     "@xterm/headless": "5.5.0",
     "bcrypt": "6.0.0",
     "fastify": "5.12.7",

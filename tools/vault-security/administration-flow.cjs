@@ -12,7 +12,7 @@ function check(condition, message) { if (!condition) throw new Error(message) }
 const now = '2026-11-23T12:00:00Z'
 
 async function runVaultAdministrationFlow(browser, base, fixture, output) {
-  const scenarios = [], contexts = new Set(), screenshots = []
+  const scenarios = [], contexts = new Set(), screenshots = [], requestFailures = [], timings = []
   const people = [...fixture.users.values()].map(u => ({ id: u.id, tenantId: 7, name: u.name, email: u.email, role: u.role, isPlatformAdmin: false,
     canManageHosts: true, canViewLiveSessions: false, avatarUrl: null, avatarVersion: null, mfaEnabled: true, active: true, groupIds: [], deletedAt: null,
     createdAt: now, updatedAt: now }))
@@ -38,6 +38,21 @@ async function runVaultAdministrationFlow(browser, base, fixture, output) {
     const page = await context.newPage(), errors = []
     page.setDefaultTimeout(15000)
     page.on('pageerror', error => errors.push(error.message))
+    // Diagnostics only (route and browser reason, no bodies): included in the failure message of a scenario.
+    page.on('requestfailed', request => { const path = new URL(request.url()).pathname; if (path.startsWith('/api/')) requestFailures.push(`${path} ${request.failure()?.errorText ?? ''}`.slice(0, 160)) })
+    page.on('response', response => { const path = new URL(response.url()).pathname
+      if (!path.startsWith('/api/v1/vault-security/') || path.startsWith('/api/v1/vault-security/extension/')) return
+      const line = `${path} ${response.status()}`
+      if (response.status() < 400) { timings.push(line); return }
+      // Error code and body size only (never the request).
+      // Shape of a refused request body: field names, lengths and base64url validity (never values).
+      let shape = ''
+      try {
+        const describe = (o, prefix = '') => Object.entries(o ?? {}).map(([k, v]) => v && typeof v === 'object' ? describe(v, `${prefix}${k}.`)
+          : `${prefix}${k}:${typeof v}${typeof v === 'string' ? `/${v.length}${/^[A-Za-z0-9_-]+$/.test(v) ? '' : '!'}` : ''}`).join(',')
+        shape = describe(JSON.parse(response.request().postData() ?? '{}'))
+      } catch { shape = 'unparsed' }
+      timings.push(`${line} [${shape}]`.slice(0, 600)) })
     // Any refused vault call is a failure here, except the browser-extension panel (its routes are outside this fixture).
     page.on('response', response => {
       const path = new URL(response.url()).pathname
@@ -115,7 +130,7 @@ async function runVaultAdministrationFlow(browser, base, fixture, output) {
       // Private evidence of the failing screen(s), for diagnosis.
       let index = 0
       for (const context of contexts) for (const page of context.pages()) await page.screenshot({ path: join(output, `failure-${++index}.png`), fullPage: true }).catch(() => {})
-      throw new Error(`${name}: ${error.message}`)
+      throw new Error(`${name}: ${error.message} | failed requests: ${requestFailures.slice(-6).join('; ')} | last vault responses: ${timings.slice(-6).join('; ')}`.slice(0, 3000))
     }
   }
   try {
@@ -368,6 +383,76 @@ async function runVaultAdministrationFlow(browser, base, fixture, output) {
       await ana.page.getByTestId('vault-administration-item').waitFor()
       await review(ana.page, ana.errors, '18-mobile-item-window')
       await ana.close()
+    })
+    // NA-0198: Windows Hello / passkey with Chromium's virtual platform authenticator (user verification on), on a host-name origin.
+    async function authenticator(page, verified = true) {
+      const cdp = await page.context().newCDPSession(page)
+      await cdp.send('WebAuthn.enable')
+      const { authenticatorId } = await cdp.send('WebAuthn.addVirtualAuthenticator', { options: { protocol: 'ctap2', transport: 'internal',
+        hasResidentKey: true, hasUserVerification: true, isUserVerified: verified, automaticPresenceSimulation: true } })
+      return { verify: value => cdp.send('WebAuthn.setUserVerified', { authenticatorId, isUserVerified: value }) }
+    }
+    await scenario('Ana registers Windows Hello, unlocks with it, a non-verified attempt is refused, then she removes it', async () => {
+      const ana = await as(41)
+      const device = await authenticator(ana.page)
+      await vault(ana.page)
+      await ana.page.getByTestId('vault-webauthn-open').click()
+      const modal = ana.page.getByTestId('vault-webauthn-modal')
+      await modal.getByText('Nenhum dispositivo cadastrado.').waitFor()
+      await modal.locator('#vault-webauthn-name').fill('Notebook da Ana')
+      await modal.getByTestId('vault-webauthn-register').click()
+      await modal.getByTestId('vault-webauthn-confirm').waitFor()
+      await modal.locator('#vault-webauthn-password').fill(person(41).password)
+      await modal.locator('#vault-webauthn-otp').fill(fixture.totp(41))
+      await modal.getByTestId('vault-webauthn-confirm-submit').click()
+      await modal.getByTestId('vault-webauthn-done').waitFor()
+      await modal.getByTestId('vault-webauthn-credential-Notebook da Ana').waitFor()
+      check([...fixture.state.webauthn.values()].filter(c => c.userId === 41).length === 1, 'Credential not stored for Ana')
+      check(fixture.state.events.some(e => e.type === 'WEBAUTHN_REGISTERED'), 'Registration not audited')
+      await review(ana.page, ana.errors, '19-webauthn-registered')
+      await ana.page.keyboard.press('Escape')
+      // Unlock the managers section with Windows Hello instead of password + code.
+      await ana.page.getByTestId('vault-administration-open').click()
+      const hello = ana.page.getByTestId('vault-administration-webauthn')
+      await hello.waitFor()
+      check(await ana.page.locator('input[id^="vault-administration-password"]:visible').count() === 1, 'Password form gone while Windows Hello is offered')
+      await review(ana.page, ana.errors, '20-webauthn-offered')
+      const unlocked = fixture.state.events.filter(e => e.type === 'VAULT_UNLOCKED').length
+      await hello.getByRole('button', { name: 'Usar Windows Hello / chave de acesso' }).click()
+      await ana.page.getByTestId('vault-administration-lock').waitFor()
+      check(fixture.state.events.filter(e => e.type === 'VAULT_UNLOCKED').length === unlocked + 1, 'Unlock not audited')
+      // Without user verification the vault stays locked and the password form stays.
+      await ana.page.getByTestId('vault-administration-lock').click()
+      await device.verify(false)
+      await hello.getByRole('button', { name: 'Usar Windows Hello / chave de acesso' }).click()
+      await ana.page.locator('[role="alert"]').filter({ hasText: /Windows Hello|identidade/ }).first().waitFor()
+      check(await ana.page.getByTestId('vault-administration-lock').count() === 0, 'Unlocked without a verified user')
+      check(await ana.page.locator('input[id^="vault-administration-password"]:visible').count() === 1, 'Password form missing after a refused Windows Hello')
+      check(await hello.count() === 1, 'Windows Hello not offered again after a refused attempt')
+      await review(ana.page, ana.errors, '21-webauthn-refused')
+      // Remove the device, confirming with Windows Hello; it is no longer offered.
+      await device.verify(true)
+      await ana.page.getByTestId('vault-webauthn-open').click()
+      await modal.getByRole('button', { name: 'Remover: Notebook da Ana', exact: true }).click()
+      await modal.getByTestId('vault-webauthn-confirm').getByRole('button', { name: 'Usar Windows Hello / chave de acesso' }).click()
+      await modal.getByText('Dispositivo removido. Ele não destrava mais o cofre.').waitFor()
+      check(fixture.state.webauthn.size === 0, 'Credential not removed')
+      check(fixture.state.events.some(e => e.type === 'WEBAUTHN_REMOVED'), 'Removal not audited')
+      await ana.page.keyboard.press('Escape')
+      await vault(ana.page)
+      await ana.page.getByTestId('vault-administration-open').click()
+      await ana.page.locator('input[id^="vault-administration-password"]:visible').waitFor()
+      check(await ana.page.getByTestId('vault-administration-webauthn').count() === 0, 'Windows Hello still offered after removal')
+      await ana.close()
+    })
+    await scenario('Mobile: the Windows Hello window fits the screen', async () => {
+      const bruno = await as(42, { mobile: true })
+      await vault(bruno.page)
+      await bruno.page.getByTestId('vault-webauthn-open').click()
+      await bruno.page.getByTestId('vault-webauthn-modal').getByText('Nenhum dispositivo cadastrado.').waitFor()
+      await bruno.page.waitForTimeout(400) // let the window finish opening before the screenshot
+      await review(bruno.page, bruno.errors, '22-mobile-webauthn')
+      await bruno.close()
     })
     const proposals = fixture.state.events.filter(e => e.type === 'POLICY_CHANGE_PROPOSED').length, applied = fixture.state.events.filter(e => e.type === 'POLICY_CHANGED').length
     check(applied === 8 && proposals === 8, `Unexpected audit trail: ${proposals} proposed / ${applied} applied`)

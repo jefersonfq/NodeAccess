@@ -52,7 +52,7 @@ async function isolatedRun(): Promise<AdministrationHarnessResult> {
   let browser: Awaited<ReturnType<typeof chromium.launch>> | undefined
   const certificate = join(output, 'certificate.pem'), privateKey = join(output, 'private-key.pem')
   try {
-    execFileSync('/usr/bin/openssl', ['req', '-x509', '-newkey', 'rsa:2048', '-nodes', '-keyout', privateKey, '-out', certificate, '-days', '1', '-subj', '/CN=127.0.0.1', '-addext', 'subjectAltName=IP:127.0.0.1'], { stdio: 'ignore' })
+    execFileSync('/usr/bin/openssl', ['req', '-x509', '-newkey', 'rsa:2048', '-nodes', '-keyout', privateKey, '-out', certificate, '-days', '1', '-subj', '/CN=127.0.0.1', '-addext', 'subjectAltName=IP:127.0.0.1,DNS:localhost'], { stdio: 'ignore' })
     fixture = await createAdministrationFixture()
     const api = await fixture.app.listen({ host: '127.0.0.1', port: 0 })
     server = await createServer({ configFile: false, root: join(root, 'apps/frontend'), logLevel: 'error', cacheDir: join(output, 'vite'),
@@ -63,9 +63,11 @@ async function isolatedRun(): Promise<AdministrationHarnessResult> {
     await server.listen(); await server.environments?.client?.depsOptimizer?.scanProcessing
     const address = server.httpServer!.address()
     if (!address || typeof address === 'string') throw new Error('HTTPS address unavailable')
-    const base = `https://127.0.0.1:${address.port}`; fixture.state.policy.origin = base
+    // NA-0198: a host name, because WebAuthn refuses IP origins as RP IDs (the server still listens on 127.0.0.1).
+    const base = `https://localhost:${address.port}`; fixture.state.policy.origin = base
     browser = await chromium.launch({ headless: true, executablePath: process.env.PLAYWRIGHT_EXECUTABLE_PATH || chromium.executablePath(),
-      env: { ...process.env, TMPDIR: runtime }, args: ['--no-sandbox'] })
+      // localhost always reaches the servers bound to 127.0.0.1 (never ::1 first).
+      env: { ...process.env, TMPDIR: runtime }, args: ['--no-sandbox', '--host-resolver-rules=MAP localhost 127.0.0.1'] })
     report.browser = browser.version()
     report.flow = await runVaultAdministrationFlow(browser, base, fixture, output)
     report.status = 'passed'
@@ -74,6 +76,8 @@ async function isolatedRun(): Promise<AdministrationHarnessResult> {
     let message = error instanceof Error ? error.message : 'Unknown harness error'
     for (const user of fixture?.users.values() ?? []) message = message.split(user.password).join('[REDACTED]')
     report.error = message
+    // Refused vault calls of the run (route, status, code only) help diagnose CI-only failures.
+    report.vaultFailures = fixture?.failures.slice(-30) ?? []
   } finally {
     const cleanup = await Promise.allSettled([browser?.close(), server?.close(), fixture?.close()])
     rmSync(privateKey, { force: true }); rmSync(certificate, { force: true })

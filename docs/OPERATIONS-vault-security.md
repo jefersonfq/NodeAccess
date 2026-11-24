@@ -108,3 +108,12 @@ Manual do operador: `docs/manual/hosts.md`. Harness HTTPS: `npm run test:vault:f
 - Gestores ligam revelar/copiar e a cota por minuto do tenant (proposta `policy`) e liberam/retiram itens (proposta `item`) pelo portal, com aprovação de outro gestor; antes só pela API.
 - `POST /api/v1/vault-security/availability` (autenticado, origem exata, 30/min por usuário, sem desbloquear): `{ policy: {reveal, copy}, grants: {reveal, copy}, items: number[] }`, com a mesma regra de permissão das entregas e só os itens liberados que o usuário vê (ADMIN, dono, TENANT ou grupo). Só orienta a tela; cada entrega continua decidida no servidor.
 - Diagnóstico "o usuário tem permissão mas não revela": confira política (revelar/copiar), permissão aprovada por dois gestores distintos (nenhum é o próprio usuário), item liberado e não revogado, escopo.
+
+## Windows Hello / chave de acesso (NA-0198)
+
+- O cofre aceita WebAuthn (Windows Hello, chave de acesso) para destravar no portal, com verificação do usuário obrigatória, desafio único do servidor e origem/RP ID exatos da política do tenant. Senha + código continuam valendo. Biblioteca: `@simplewebauthn/server` (versão fixa).
+- **A origem do cofre precisa ser um nome**, não IP: navegadores recusam `https://127.0.0.1` como RP ID (o portal então não oferece o Hello). Trocar a origem de um tenant já configurado (incrementa a versão da política, encerra sessões do cofre e audita `DEPLOYMENT_ORIGIN_CHANGED`):
+  `node tools/vault-security/manage.mjs origin <tenantId> https://localhost:5173` (dry-run) e depois com `--apply`.
+- **Certificado confiável**: o Chrome/Edge não executam WebAuthn em páginas com erro de certificado. Em desenvolvimento no WSL, gere no Windows um certificado confiável para `localhost` (ex.: `mkcert -install` e `mkcert localhost 127.0.0.1`), copie para o WSL e use em `NODEACCESS_DEV_HTTPS_CERT`/`NODEACCESS_DEV_HTTPS_KEY`, com `NODEACCESS_DEV_HTTPS_HOST=localhost:5173`; abra `https://localhost:5173`.
+- Extensão local: `apps/extension/local.json` com `"portalOrigin": "https://localhost:5173"` e reconectar (o ID da extensão não muda).
+- Rotas: `POST /sessions/unlock-webauthn`, `/webauthn/credentials`, `/webauthn/registration/options`, `/webauthn/registration`, `/webauthn/credentials/remove`. Auditoria: `WEBAUTHN_REGISTERED`, `WEBAUTHN_REGISTRATION_DENIED`, `WEBAUTHN_REMOVED`, `UNLOCK_DENIED` (`WEBAUTHN_FAILED`). Até 10 dispositivos por usuário; tabela `vault_webauthn_credentials` (só chave pública).

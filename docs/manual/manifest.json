@@ -42,6 +42,7 @@
       "apps/frontend/src/views/ExtensionConnectView.vue",
       "apps/frontend/src/components/vault/ExtensionDevices.vue",
       "apps/frontend/src/components/vault/ExtensionInstall.vue",
+      "apps/frontend/src/components/vault/WebauthnCredentials.vue",
       "apps/frontend/src/services/vault-extension-consent.ts",
       "apps/frontend/src/components/vault/VaultAdministration.vue",
       "apps/frontend/src/composables/useVaultProviderStepUp.ts",
@@ -58,7 +59,7 @@
       "Conferir o destino",
       "Conectar ou retomar"
     ],
-    "reviewedSourceHash": "78cc4401b9616b536c17e2f1ae676fd8315f7a03ae3e51451f95fdcda724f2d2"
+    "reviewedSourceHash": "1c332c4d3039052acff0bd0a3a0355e270828c5edf9d9055d4b11bfe20890d16"
   },
   {
     "id": "terminal",

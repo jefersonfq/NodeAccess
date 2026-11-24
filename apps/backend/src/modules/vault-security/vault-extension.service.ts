@@ -289,11 +289,13 @@ export class VaultExtensionService {
         return { ended }
       }
       await ext.take('access', c.token)
-      await ext.put('access', c.token, c.jkt, { ...c.access, proofAt: tx.now() }, c.access.expiresAt)
+      // One instant for the stored proof and the deadline returned, so capabilities report the same proofUntil.
+      const proofAt = tx.now()
+      await ext.put('access', c.token, c.jkt, { ...c.access, proofAt }, c.access.expiresAt)
       const trust = await ext.take<ExtensionTrust>('trust', trustKey(c.jkt))
       if (trust) await ext.put('trust', trustKey(c.jkt), c.jkt, { ...trust.value, failures: 0 }, trust.value.expiresAt)
       await tx.audit({ type: 'EXTENSION_UNLOCKED', device: c.jkt, policyVersion: tx.authority.policy.version })
-      return { proofUntil: Math.min(tx.now() + operationProofWindowMs(tx.authority.policy), c.access.expiresAt), serverNow: tx.now() }
+      return { proofUntil: Math.min(proofAt + operationProofWindowMs(tx.authority.policy), c.access.expiresAt), serverNow: proofAt }
     })
     // The attempt (limit, counter, audit) is committed before the refusal.
     if ('ended' in outcome) throw outcome.ended ? new VaultError('EXTENSION_UNAUTHORIZED', 401) : new VaultError('VAULT_REAUTH_FAILED', 403)

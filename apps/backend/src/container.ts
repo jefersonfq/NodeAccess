@@ -1,5 +1,7 @@
 import { VaultDatabase } from './modules/vault-security/vault.database.js'
 import { VaultAdministrationService } from './modules/vault-security/vault-administration.service.js'
+import { VaultWebauthnService } from './modules/vault-security/vault-webauthn.service.js'
+import { SimpleWebauthnVerifier } from './modules/vault-security/vault-webauthn.js'
 import { randomBytes, createHash } from 'node:crypto'
 import { VaultService } from './modules/vault-security/vault.service.js'
 import { SqlVaultStore } from './modules/vault-security/vault.repository.js'
@@ -353,12 +355,15 @@ const vaultStore = new SqlVaultStore(() => vaultDatabase.client())
 const vaultOrigin = new RedisVaultOrigin(redis, env.JWT_SECRET, Date.now, 500, env.VAULT_STEP_UP_EXTERNAL_ENABLED)
 const vaultReauthentication = new MethodVaultReauthentication(totpService, ldapIdentityProvider)
 const vaultEnvelope = new JweVaultEnvelope()
+// NA-0198: Windows Hello / passkey (only offered when the vault origin is a host name).
+const vaultWebauthnVerifier = new SimpleWebauthnVerifier()
 const vaultSecurityService = new VaultService(vaultStore, vaultOrigin,
   vaultReauthentication, vaultEnvelope,
   vaultEntropy, Date.now, createVaultProviderStepUp({
     oidcFlow: () => oidcFlowService, links: externalIdentityRepository, google: googleService, users: userRepository, redirectUri: oidcCallbackUrl,
-  }))
+  }), vaultWebauthnVerifier)
 const vaultAdministrationService = new VaultAdministrationService(vaultSecurityService, vaultEntropy)
+const vaultWebauthnService = new VaultWebauthnService(vaultSecurityService, vaultEntropy, vaultWebauthnVerifier)
 const authService        = new AuthService(userRepository, totpService, redis, googleService, emailConfigService, emailService, localIdentityProvider, ldapIdentityProvider, tenantAuthPolicyService, appEventBus, loginSessionRegistry)
 const authRateLimitService = new AuthRateLimitService(redis, {
   windowSeconds: env.AUTH_RATE_LIMIT_WINDOW_SECONDS,
@@ -712,6 +717,7 @@ export const container = {
   // Secrets
   vaultSecurityService,
   vaultAdministrationService,
+  vaultWebauthnService,
   vaultExtensionService,
   vaultExtensionPackage,
   closeVaultDatabase: (): Promise<void> => vaultDatabase.close(),

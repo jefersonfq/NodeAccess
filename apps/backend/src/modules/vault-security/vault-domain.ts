@@ -16,7 +16,14 @@ export interface VaultAuthority {
   email: string; methods: Record<VaultAuthMethod, boolean>
 }
 export interface VaultClient { id: string; sessionVersion: number; origin: VaultOrigin; policyVersion: number; expiresAt: number }
-export interface VaultChallenge { clientId: string; credentialVersion: string; expiresAt: number }
+export interface VaultChallenge { clientId: string; credentialVersion: string; expiresAt: number; /** NA-0198: WebAuthn challenge (base64url) when offered. */ webauthn?: string }
+/** NA-0198: WebAuthn RP ID of the vault origin; null for IP literals, which browsers refuse as RP IDs. */
+export function webauthnRpId(origin: string): string | null {
+  let host: string
+  try { host = new URL(origin).hostname } catch { return null }
+  if (!host || host.startsWith('[') || /^\d{1,3}(\.\d{1,3}){3}$/.test(host)) return null
+  return host
+}
 export interface VaultSession { clientId: string; policyVersion: number; credentialVersion: string; proofAt: number; idleUntil: number; expiresAt: number }
 export interface VaultOperation {
   clientId: string; sessionId: string; action: VaultAction; secretId: number; secretVersion: string;

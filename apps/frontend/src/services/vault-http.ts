@@ -5,6 +5,7 @@ export interface VaultPortalIdentity {
 /** `noApprover` (NA-0188): the server refused a proposal no other manager could approve.
  * `reauth` (NA-0191): the identity confirmation failed (password, authenticator code or provider proof). */
 export type VaultFailure = 'unavailable' | 'denied' | 'locked' | 'expired' | 'quota' | 'login' | 'clipboard' | 'unsupported' | 'noApprover' | 'reauth'
+  /** NA-0198 */ | 'webauthn' | 'webauthnCancelled' | 'webauthnLimit'
 export class VaultClientError extends Error {
   constructor(public readonly reason: VaultFailure) { super(reason) }
 }
@@ -49,6 +50,8 @@ export function createVaultTransport(fetcher: typeof fetch = globalThis.fetch): 
         const reasons: Record<number, VaultFailure> = { 401: 'login', 403: 'denied', 404: 'unsupported', 409: 'expired', 423: 'locked', 429: 'quota' }
         const code = response.status === 409 || response.status === 403 ? await errorCode(response) : null
         if (response.status === 409 && code === 'VAULT_NO_APPROVER') throw new VaultClientError('noApprover')
+        if (response.status === 409 && code === 'VAULT_WEBAUTHN_UNSUPPORTED') throw new VaultClientError('webauthn')
+        if (response.status === 409 && code === 'VAULT_WEBAUTHN_LIMIT') throw new VaultClientError('webauthnLimit')
         if (response.status === 403 && code === 'VAULT_REAUTH_FAILED') throw new VaultClientError('reauth')
         throw new VaultClientError(reasons[response.status] ?? 'unavailable')
       }

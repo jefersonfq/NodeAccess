@@ -5,10 +5,21 @@ import { requireAuth } from '../../shared/guards.js'
 import { AppError } from '../../shared/errors.js'
 import { CONFIRMATION_DEFAULT_SECONDS, CONFIRMATION_MAX_SECONDS, PROPOSAL_DEFAULT_SECONDS, PROPOSAL_MAX_SECONDS, VaultError, type VaultIdentity } from './vault-domain.js'
 import type { VaultService } from './vault.service.js'
+import type { VaultWebauthnService } from './vault-webauthn.service.js'
 
 const opaque = z.string().regex(/^[A-Za-z0-9_-]{43}$/)
 const empty = z.object({}).strict()
 const session = z.object({ sessionId: opaque }).strict()
+// NA-0198: WebAuthn responses as the portal serializes them (base64url fields, bounded sizes).
+const b64 = (max: number): z.ZodString => z.string().regex(/^[A-Za-z0-9_-]+$/).max(max)
+const credentialId = b64(1400)
+const transportList = z.array(z.enum(['ble', 'cable', 'hybrid', 'internal', 'nfc', 'smart-card', 'usb'])).max(8)
+const webauthnBase = { id: credentialId, rawId: credentialId, type: z.literal('public-key'), clientExtensionResults: z.object({}).strict(),
+  authenticatorAttachment: z.enum(['platform', 'cross-platform']).optional() }
+const authenticationResponse = z.object({ ...webauthnBase, response: z.object({ clientDataJSON: b64(4096), authenticatorData: b64(4096),
+  signature: b64(1024), userHandle: b64(256).optional() }).strict() }).strict()
+const registrationResponse = z.object({ ...webauthnBase, response: z.object({ clientDataJSON: b64(4096), attestationObject: b64(8192),
+  transports: transportList.optional() }).strict() }).strict()
 const recipient = z.object({ kty: z.literal('RSA'), n: z.string().min(342).max(683), e: z.literal('AQAB') }).strict()
 function identity(req: FastifyRequest): VaultIdentity {
   const u = req.jwtUser
@@ -17,7 +28,7 @@ function identity(req: FastifyRequest): VaultIdentity {
   if (!Number.isSafeInteger(userId) || userId <= 0) throw new VaultError('VAULT_FORBIDDEN', 403)
   return { userId, tenantId: u.tenantId, sessionVersion: u.sessionVersion ?? 0 }
 }
-export function vaultRoutes(app: FastifyInstance, service: VaultService, administration?: VaultAdministrationService): Promise<void> {
+export function vaultRoutes(app: FastifyInstance, service: VaultService, administration?: VaultAdministrationService, webauthn?: VaultWebauthnService): Promise<void> {
   function post<T extends z.ZodTypeAny>(path: string, schema: T, run: (i: VaultIdentity, client: string, origin: string, body: z.infer<T>) => Promise<unknown>, needsClient = true): void {
     app.post(path, { preHandler: [requireAuth], bodyLimit: 16 * 1024 }, async (req, reply) => {
       reply.header('Cache-Control', 'no-store').header('Pragma', 'no-cache').header('Referrer-Policy', 'no-referrer')
@@ -54,6 +65,16 @@ export function vaultRoutes(app: FastifyInstance, service: VaultService, adminis
     (i,c,o,b) => service.providerComplete(i,c,o,b.challengeId,{ state: b.state, code: b.code, idToken: b.idToken }))
   post('/sessions/unlock-provider', z.object({ challengeId: opaque, token: z.string().regex(/^\d{6}$/).optional() }).strict(),
     (i,c,o,b) => service.unlockProvider(i,c,o,b.challengeId,b.token))
+  // NA-0198: Windows Hello / passkey answer to the same unlock challenge.
+  post('/sessions/unlock-webauthn', z.object({ challengeId: opaque, response: authenticationResponse }).strict(),
+    (i,c,o,b) => service.unlockWebauthn(i,c,o,b.challengeId,b.response))
+  if (webauthn) {
+    post('/webauthn/credentials', empty, (i,_c,o) => webauthn.credentials(i,o), false)
+    post('/webauthn/registration/options', session.extend({ name: z.string().trim().min(1).max(80).refine(n => !/[\p{Cc}\u200e\u200f\u202a-\u202e\u2066-\u2069]/u.test(n)) }).strict(), (i,c,o,b) => webauthn.registrationOptions(i,c,o,b.sessionId,b.name))
+    post('/webauthn/registration', session.extend({ response: registrationResponse }).strict(), (i,c,o,b) => webauthn.register(i,c,o,b.sessionId,b.response))
+    post('/webauthn/credentials/remove', session.extend({ id: credentialId }).strict(),
+      (i,c,o,b) => webauthn.remove(i,c,o,b.sessionId,b.id).then(() => ({ state: 'REMOVED' })))
+  }
   post('/sessions/lock', empty, (i,c,o) => service.lock(i,c,o).then(() => ({ state: 'LOCKED' })))
   post('/sessions/current', empty, (i,c,o) => service.current(i,c,o))
   post('/operations', session.extend({ action: z.enum(['reveal','copy']), secretId: z.number().int().positive(), recipient }).strict(),

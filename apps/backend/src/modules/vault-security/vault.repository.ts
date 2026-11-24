@@ -1,4 +1,5 @@
 import { SqlVaultAdministration } from './vault-administration.repository.js'
+import { SqlVaultWebauthn } from './vault-webauthn.repository.js'
 import { SqlVaultExtension } from './vault-extension.repository.js'
 import { Prisma, type PrismaClient } from '@prisma/client'
 import { createHash, randomUUID } from 'node:crypto'
@@ -52,9 +53,11 @@ async function readAuthority(db: Tx, identity: VaultIdentity, now: number): Prom
 class SqlVaultTransaction implements VaultTransaction {
   readonly extension: SqlVaultExtension
   readonly administration: SqlVaultAdministration
+  readonly webauthn: SqlVaultWebauthn
   constructor(private readonly db: Tx, private readonly identity: VaultIdentity, readonly authority: VaultAuthority, readonly now: () => number) {
     this.extension = new SqlVaultExtension(db, identity, now)
     this.administration = new SqlVaultAdministration(db, identity, now)
+    this.webauthn = new SqlVaultWebauthn(db, identity, now, authority.credentialVersion)
   }
   async get<T>(kind: RecordKind, token: string): Promise<T | null> {
     const rows = await this.db.$queryRaw<Array<{ payload: unknown }>>`SELECT payload FROM vault_records WHERE tenant_id=${this.identity.tenantId}
