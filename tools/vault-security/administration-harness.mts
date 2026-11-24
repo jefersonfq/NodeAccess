@@ -76,6 +76,8 @@ async function isolatedRun(): Promise<AdministrationHarnessResult> {
     let message = error instanceof Error ? error.message : 'Unknown harness error'
     for (const user of fixture?.users.values() ?? []) message = message.split(user.password).join('[REDACTED]')
     report.error = message
+    // Refused vault calls of the run (route, status, code only) help diagnose CI-only failures.
+    report.vaultFailures = fixture?.failures.slice(-30) ?? []
   } finally {
     const cleanup = await Promise.allSettled([browser?.close(), server?.close(), fixture?.close()])
     rmSync(privateKey, { force: true }); rmSync(certificate, { force: true })

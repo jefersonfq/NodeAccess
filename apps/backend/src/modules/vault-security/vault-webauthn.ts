@@ -8,6 +8,9 @@ import { generateAuthenticationOptions, generateRegistrationOptions, verifyAuthe
 import type { AuthenticationResponseJSON, AuthenticatorTransport, RegistrationResponseJSON } from '@simplewebauthn/server'
 import type { WebauthnVerifier } from './vault-ports.js'
 
+/** ES256 and RS256 only (Windows Hello, platform and security keys). The library also offers post-quantum ML-DSA by default,
+ * whose ~2.4 KB signatures exceed the bounded request schema; they are not offered nor accepted. */
+const ALGORITHMS = [-7, -257]
 const TRANSPORTS = new Set(['ble', 'cable', 'hybrid', 'internal', 'nfc', 'smart-card', 'usb'])
 const transports = (list: readonly string[]): AuthenticatorTransport[] => list.filter(t => TRANSPORTS.has(t)) as AuthenticatorTransport[]
 const bytes = (base64url: string): Uint8Array<ArrayBuffer> => new Uint8Array(Buffer.from(base64url, 'base64url'))
@@ -27,14 +30,14 @@ export class SimpleWebauthnVerifier implements WebauthnVerifier {
   }
   async registrationOptions(input: Parameters<WebauthnVerifier['registrationOptions']>[0]): Promise<object> {
     return generateRegistrationOptions({ rpID: input.rpID, rpName: input.rpName, userID: new Uint8Array(input.userHandle), userName: input.userName,
-      challenge: bytes(input.challenge), attestationType: 'none', timeout: 120_000,
+      challenge: bytes(input.challenge), attestationType: 'none', timeout: 120_000, supportedAlgorithmIDs: ALGORITHMS,
       authenticatorSelection: { residentKey: 'preferred', userVerification: 'required' },
       excludeCredentials: input.exclude.map(c => ({ id: c.id, transports: transports(c.transports) })) })
   }
   async verifyRegistration(input: Parameters<WebauthnVerifier['verifyRegistration']>[0]): Promise<{ id: string; publicKey: Uint8Array; counter: number; transports: string[] } | null> {
     try {
       const result = await verifyRegistrationResponse({ response: input.response as RegistrationResponseJSON, expectedChallenge: input.challenge,
-        expectedOrigin: input.origin, expectedRPID: input.rpID, requireUserVerification: true })
+        expectedOrigin: input.origin, expectedRPID: input.rpID, requireUserVerification: true, supportedAlgorithmIDs: ALGORITHMS })
       if (!result.verified || !result.registrationInfo) return null
       const { credential } = result.registrationInfo
       return { id: credential.id, publicKey: credential.publicKey, counter: credential.counter, transports: transports(credential.transports ?? []) }

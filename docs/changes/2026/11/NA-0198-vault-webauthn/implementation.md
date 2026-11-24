@@ -32,3 +32,7 @@ Revert da PR; a migração só cria a tabela nova (versões anteriores não a us
 ### 2026-11-24T03:00:00-03:00 — Implementação e simulação
 
 Implementação, testes e simulação acima; a simulação revelou que a oferta do Hello sumia após uma recusa (corrigido).
+
+### 2026-11-24T08:30:00-03:00 — Falha da CI investigada
+
+Reprodução exata da CI (vitest com cobertura, coleta e variáveis da CI) mostrou dois problemas: o prazo da prova da extensão (E2) lido duas vezes (1 ms de diferença) e assinaturas ML-DSA escolhidas pelo Chromium 156; ambos corrigidos. Reprodução completa: 4451 PASS, 0 falhas.

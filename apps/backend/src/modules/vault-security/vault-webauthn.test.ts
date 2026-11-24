@@ -166,6 +166,8 @@ describe('NA-0198 maintained verifier adapter', () => {
     expect(auth).toMatchObject({ rpId: 'localhost', challenge, userVerification: 'required', allowCredentials: [{ id: 'AAAA', type: 'public-key', transports: ['internal'] }] })
     const reg = await v.registrationOptions({ rpID: 'localhost', rpName: 'NodeAccess', userHandle: new Uint8Array(32), userName: 'u@example.test', challenge, exclude: [] }) as Record<string, unknown>
     expect(reg).toMatchObject({ rp: { id: 'localhost', name: 'NodeAccess' }, challenge, attestation: 'none', authenticatorSelection: { userVerification: 'required' } })
+    // Only ES256 and RS256: post-quantum ML-DSA signatures (~2.4 KB) are neither offered nor accepted.
+    expect((reg as { pubKeyCredParams: Array<{ alg: number }> }).pubKeyCredParams.map(p => p.alg)).toEqual([-7, -257])
     const credential = { id: 'AAAA', publicKey: new Uint8Array([1]), counter: 0, transports: [], name: 'x', createdAt: 0, lastUsedAt: null }
     expect(await v.verifyAuthentication({ response: { id: 'AAAA', rawId: 'AAAA', type: 'public-key', response: {}, clientExtensionResults: {} }, challenge, origin: 'https://localhost', rpID: 'localhost', credential })).toBeNull()
     expect(await v.verifyRegistration({ response: { id: 'AAAA' }, challenge, origin: 'https://localhost', rpID: 'localhost' })).toBeNull()

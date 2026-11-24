@@ -12,7 +12,7 @@ function check(condition, message) { if (!condition) throw new Error(message) }
 const now = '2026-11-23T12:00:00Z'
 
 async function runVaultAdministrationFlow(browser, base, fixture, output) {
-  const scenarios = [], contexts = new Set(), screenshots = []
+  const scenarios = [], contexts = new Set(), screenshots = [], requestFailures = [], timings = []
   const people = [...fixture.users.values()].map(u => ({ id: u.id, tenantId: 7, name: u.name, email: u.email, role: u.role, isPlatformAdmin: false,
     canManageHosts: true, canViewLiveSessions: false, avatarUrl: null, avatarVersion: null, mfaEnabled: true, active: true, groupIds: [], deletedAt: null,
     createdAt: now, updatedAt: now }))
@@ -38,6 +38,21 @@ async function runVaultAdministrationFlow(browser, base, fixture, output) {
     const page = await context.newPage(), errors = []
     page.setDefaultTimeout(15000)
     page.on('pageerror', error => errors.push(error.message))
+    // Diagnostics only (route and browser reason, no bodies): included in the failure message of a scenario.
+    page.on('requestfailed', request => { const path = new URL(request.url()).pathname; if (path.startsWith('/api/')) requestFailures.push(`${path} ${request.failure()?.errorText ?? ''}`.slice(0, 160)) })
+    page.on('response', response => { const path = new URL(response.url()).pathname
+      if (!path.startsWith('/api/v1/vault-security/') || path.startsWith('/api/v1/vault-security/extension/')) return
+      const line = `${path} ${response.status()}`
+      if (response.status() < 400) { timings.push(line); return }
+      // Error code and body size only (never the request).
+      // Shape of a refused request body: field names, lengths and base64url validity (never values).
+      let shape = ''
+      try {
+        const describe = (o, prefix = '') => Object.entries(o ?? {}).map(([k, v]) => v && typeof v === 'object' ? describe(v, `${prefix}${k}.`)
+          : `${prefix}${k}:${typeof v}${typeof v === 'string' ? `/${v.length}${/^[A-Za-z0-9_-]+$/.test(v) ? '' : '!'}` : ''}`).join(',')
+        shape = describe(JSON.parse(response.request().postData() ?? '{}'))
+      } catch { shape = 'unparsed' }
+      timings.push(`${line} [${shape}]`.slice(0, 600)) })
     // Any refused vault call is a failure here, except the browser-extension panel (its routes are outside this fixture).
     page.on('response', response => {
       const path = new URL(response.url()).pathname
@@ -115,7 +130,7 @@ async function runVaultAdministrationFlow(browser, base, fixture, output) {
       // Private evidence of the failing screen(s), for diagnosis.
       let index = 0
       for (const context of contexts) for (const page of context.pages()) await page.screenshot({ path: join(output, `failure-${++index}.png`), fullPage: true }).catch(() => {})
-      throw new Error(`${name}: ${error.message}`)
+      throw new Error(`${name}: ${error.message} | failed requests: ${requestFailures.slice(-6).join('; ')} | last vault responses: ${timings.slice(-6).join('; ')}`.slice(0, 3000))
     }
   }
   try {

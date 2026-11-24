@@ -173,6 +173,16 @@ export async function createAdministrationFixture() {
   configureCurrentSessionReader(async (userId: number) => (users.has(userId) ? { tenantId: TENANT, active: true, deletedAt: null, tenantActive: true,
     targetTenantActive: true, sessionVersion: 3, role: users.get(userId)!.role === 'admin' ? 'ADMIN' : 'USER', isPlatformAdmin: false, canManageHosts: true, canViewLiveSessions: false } : null))
   const app = Fastify({ trustProxy: '127.0.0.1', logger: false })
+  // Diagnostics for failed runs: route and error code of every refused vault call (no bodies, tokens or values).
+  const failures: Array<{ at: number; route: string; status: number; code: string }> = []
+  app.addHook('onSend', async (req, reply, payload) => {
+    if (reply.statusCode >= 400 && failures.length < 200) {
+      let code = ''
+      try { code = String((JSON.parse(String(payload)) as { code?: unknown }).code ?? '').slice(0, 64) } catch { code = '' }
+      failures.push({ at: now(), route: (req.routeOptions.url ?? '').slice(0, 120), status: reply.statusCode, code })
+    }
+    return payload
+  })
   await app.register(fastifyJwt, { secret: key })
   const webauthnService = new VaultWebauthnService(service, entropy, new SimpleWebauthnVerifier())
   await app.register(async instance => vaultRoutes(instance, service, administrationService, webauthnService), { prefix: '/api/v1/vault-security' })
@@ -184,7 +194,7 @@ export async function createAdministrationFixture() {
     return { access, refresh }
   }
   return {
-    app, users, state, tokens,
+    app, users, state, tokens, failures,
     /** Secret metadata the portal list shows (never a value). */
     secrets: () => [...state.secrets].map(([id, alias]) => ({ id, tenantId: TENANT, alias, description: null, scope: 'TENANT', ownerUserId: 41, groupId: null,
       createdByUserId: 41, createdByUsername: 'Ana Gestora', source: 'MANUAL', createdAt: '2026-11-20T12:00:00Z', updatedAt: '2026-11-20T12:00:00Z', rotatedAt: null, revokedAt: null })),
