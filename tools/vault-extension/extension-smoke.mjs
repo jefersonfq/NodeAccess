@@ -80,6 +80,18 @@ try {
         seen.proof = true
         return send(200, JSON.stringify({ proofUntil: 60_000, serverNow: 0 }))
       }
+      // NA-0200 (E5b): confirmation in the portal; the test approves it after the confirmation tab opens.
+      if (url.pathname.endsWith('/extension/proof-request')) {
+        seen.proofRequests = (seen.proofRequests ?? 0) + 1
+        const request = 'Q'.repeat(43)
+        return send(200, JSON.stringify({ request, url: `${PORTAL}/vault/extension/confirm?request=${request}`, expiresAt: 120_000, serverNow: 0 }))
+      }
+      if (url.pathname.endsWith('/extension/proof-claim')) {
+        if (JSON.parse(raw || '{}').request !== 'Q'.repeat(43)) return send(409, JSON.stringify({ code: 'EXTENSION_PROOF_UNAVAILABLE' }))
+        if (!seen.portalApproved) return send(200, JSON.stringify({ state: 'PENDING' }))
+        seen.proof = true; seen.portalApproved = false
+        return send(200, JSON.stringify({ state: 'APPROVED', proofUntil: 60_000, serverNow: 0 }))
+      }
       if (url.pathname.endsWith('/extension/deliver')) {
         if (!seen.proof) return send(423, JSON.stringify({ code: 'VAULT_STEP_UP_REQUIRED' }))
         const body = JSON.parse(raw || '{}')
@@ -200,6 +212,22 @@ try {
   check('copy-to-clipboard', clip === SECRET && seen.deliveries === 2, clip === SECRET ? '' : 'clipboard differs')
   const kept = await popup.evaluate(async () => JSON.stringify({ s: await chrome.storage.session.get(null), l: await chrome.storage.local.get(null), ls: { ...localStorage } }))
   check('value-not-stored', !kept.includes(SECRET))
+  // NA-0200 (E5b, SEC-16): a fresh popup without proof confirms in the portal; the confirmation tab carries only the request.
+  seen.proof = false; await popup.reload()
+  await popup.getByTestId('vaultnaccess-results').getByText('smoke-item').waitFor({ timeout: 10_000 })
+  await popup.getByTestId('vaultnaccess-reveal-3').click()
+  await shots('proof')
+  const confirmTab = context.waitForEvent('page')
+  await popup.getByTestId('vaultnaccess-proof-portal').click()
+  const confirmPage = await confirmTab
+  check('portal-confirm-tab', confirmPage.url() === `${PORTAL}/vault/extension/confirm?request=${'Q'.repeat(43)}`, confirmPage.url())
+  await popup.getByTestId('vaultnaccess-portal-waiting').waitFor({ timeout: 10_000 })
+  seen.portalApproved = true
+  await popup.getByTestId('vaultnaccess-revealed').filter({ hasText: SECRET }).waitFor({ timeout: 15_000 })
+  check('reveal-after-portal-confirmation', seen.deliveries === 3 && seen.proofRequests === 1)
+  const keptRequest = await popup.evaluate(async () => (await chrome.storage.session.get('portalProof')).portalProof ?? null)
+  check('portal-request-redeemed-once', keptRequest === null)
+  await confirmPage.close()
   // NA-0195: the footer names the device as the portal's Connected devices does (first 16 chars of the key thumbprint, in groups of 4).
   const device = (await popup.getByTestId('vaultnaccess-device').textContent())?.trim() ?? ''
   check('device-identifier-footer', /^(Dispositivo|Device) [A-Za-z0-9_-]{4}(-[A-Za-z0-9_-]{4}){3}$/.test(device), device)

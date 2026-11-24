@@ -170,7 +170,45 @@ async function confirmProof(): Promise<void> {
     fail(failure)
   }
 }
-function cancelProof(): void { pending.value = null; proofOtp.value = '' }
+function cancelProof(): void { pending.value = null; proofOtp.value = ''; stopPortal() }
+/**
+ * NA-0200 (E5b, SEC-16): the proof may come from the portal (Windows Hello or password + code). Opening the portal tab
+ * usually closes this popup; when it reopens, an approved request only restores the proof and the person selects
+ * Reveal or Copy again — nothing runs by itself after the popup was lost. While the popup stays open, it polls and
+ * continues with the pending action.
+ */
+const portal = ref<'idle' | 'waiting' | 'ready'>('idle')
+let portalTimer: ReturnType<typeof setTimeout> | undefined, portalRun = 0
+function stopPortal(): void { clearTimeout(portalTimer); portalRun++; if (portal.value === 'waiting') portal.value = 'idle' }
+async function checkPortal(continueWith?: { item: VaultItemSummary; action: 'reveal' | 'copy' }): Promise<boolean> {
+  try {
+    const result = await props.client.claimPortalProof()
+    if (result.state === 'approved') {
+      proofUntil.value = result.proofUntil; portal.value = continueWith ? 'idle' : 'ready'
+      if (continueWith && pending.value === continueWith) { pending.value = null; await release(continueWith.item, continueWith.action) }
+      return true
+    }
+    portal.value = result.state === 'pending' ? 'waiting' : 'idle'
+    return result.state !== 'pending'
+  } catch (failure) { portal.value = 'idle'; fail(failure); return true }
+}
+async function confirmInPortal(): Promise<void> {
+  const target = pending.value
+  if (!target || working.value) return
+  working.value = 'portal'; error.value = ''
+  let url: string
+  try { url = await props.client.requestPortalProof() } catch (failure) { working.value = ''; fail(failure); return }
+  working.value = ''; portal.value = 'waiting'
+  const run = ++portalRun, started = Date.now()
+  const poll = async (): Promise<void> => {
+    if (run !== portalRun) return
+    if (await checkPortal(target) || Date.now() - started > 120_000) { if (portal.value === 'waiting') { portal.value = 'idle'; error.value = 'portalProofExpired' } return }
+    portalTimer = setTimeout(() => { void poll() }, 2_000)
+  }
+  portalTimer = setTimeout(() => { void poll() }, 2_000)
+  await props.open(url)
+}
+onBeforeUnmount(() => { clearTimeout(portalTimer); portalRun++ })
 /** Second gesture: the clipboard write happens inside the user's click. */
 async function confirmCopy(): Promise<void> {
   const ready = copyReady.value
@@ -204,8 +242,9 @@ onMounted(async () => {
   recents.value = await props.client.recents()
   await search()
   void loadFeatures()
+  void checkPortal()
 })
-defineExpose({ search, connect, disconnect, openItem, setKind, applyUpdate, onKey, focusItem, renew, submitCode, act, confirmProof, cancelProof, confirmCopy, loadFeatures })
+defineExpose({ search, connect, disconnect, openItem, setKind, applyUpdate, onKey, focusItem, renew, submitCode, act, confirmProof, cancelProof, confirmCopy, loadFeatures, confirmInPortal, checkPortal, stopPortal })
 </script>
 
 <template>
@@ -253,6 +292,36 @@ defineExpose({ search, connect, disconnect, openItem, setKind, applyUpdate, onKe
       </button>
     </div>
 
+    <p
+      v-if="portal === 'ready'"
+      class="update"
+      role="status"
+      data-testid="vaultnaccess-portal-ready"
+    >
+      {{ t.portalReady }}
+    </p>
+    <div
+      v-else-if="portal === 'waiting'"
+      class="update"
+      role="status"
+      data-testid="vaultnaccess-portal-waiting"
+    >
+      <span>{{ t.portalWaiting }}</span>
+      <button
+        type="button"
+        class="update-button"
+        @click="checkPortal()"
+      >
+        {{ t.portalCheck }}
+      </button>
+      <button
+        type="button"
+        class="link"
+        @click="stopPortal"
+      >
+        {{ t.cancel }}
+      </button>
+    </div>
     <p
       v-if="error"
       class="alert"
@@ -521,6 +590,16 @@ defineExpose({ search, connect, disconnect, openItem, setKind, applyUpdate, onKe
               data-testid="vaultnaccess-proof"
               @submit.prevent="confirmProof"
             >
+              <button
+                type="button"
+                class="primary small portal-proof"
+                :disabled="!!working || portal === 'waiting'"
+                data-testid="vaultnaccess-proof-portal"
+                @click="confirmInPortal"
+              >
+                {{ t.portalProof }}
+              </button>
+              <span class="proof-or">{{ t.proofOr }}</span>
               <label
                 :for="`vaultnaccess-proof-${item.sourceId}`"
                 class="code-label"
@@ -734,6 +813,8 @@ ul { list-style: none; margin: 0; padding: 0; }
 @keyframes shimmer { to { background-position: -200% 0; } }
 @media (prefers-reduced-motion: reduce) { .skeleton span { animation: none; } }
 
+.portal-proof { width: 100%; margin-bottom: 4px; }
+.proof-or { display: block; margin-bottom: 4px; color: var(--muted); font-size: 11px; }
 .foot .device { font: 600 11px/1 ui-monospace, Menlo, Consolas, monospace; letter-spacing: .04em; color: var(--text); }
 .foot { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: auto; padding: 10px 14px; border-top: 1px solid var(--border); color: var(--muted); font-size: 11px; }
 .note { display: inline-flex; align-items: center; gap: 6px; }

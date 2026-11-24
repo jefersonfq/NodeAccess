@@ -1,6 +1,6 @@
 import type { VaultAuthMethod, VaultAuthority, VaultEvent, VaultIdentity, VaultOrigin, VaultSecret, VaultAction, VaultChange } from './vault-domain.js'
 import type { ExtensionRecords } from './vault-extension-domain.js'
-export type RecordKind = 'client' | 'challenge' | 'session' | 'operation' | 'provider' | 'webauthn'
+export type RecordKind = 'client' | 'challenge' | 'session' | 'operation' | 'provider' | 'webauthn' | 'extproof'
 export interface VaultTransaction {
   authority: VaultAuthority
   now(): number

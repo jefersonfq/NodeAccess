@@ -164,8 +164,13 @@ function harness(options: { entitled?: boolean; role?: 'ADMIN' | 'USER'; secondF
   })
   const authority = (): VaultAuthority => ({ policy: { version: state.policyVersion, unlock: true, reveal: state.policy.reveal, copy: state.policy.copy, localReauth: true, origin: PORTAL, tenantQuota: 300, confirmationSeconds: state.confirmationSeconds },
     validUntil: Number.MAX_SAFE_INTEGER, role: options.role ?? 'USER', passwordHash: null, mfaSecret: 's', credentialVersion: 'c', email: 'u@example.test', methods: state.methods })
+  const vaultRecords = new Map<string, object>()
   const store: VaultStore = { transaction: async <T>(i: VaultIdentity, run: (tx: VaultTransaction) => Promise<T>): Promise<T> => {
-    const tx = { authority: authority(), now: Date.now, extension: records(i), limit: () => Promise.resolve(), remove: () => Promise.resolve(),
+    const key = (kind: string, t: string): string => `${i.tenantId}:${i.userId}:${kind}:${t}`
+    const tx = { authority: authority(), now: Date.now, extension: records(i), limit: () => Promise.resolve(),
+      get: (kind: string, t: string) => Promise.resolve(structuredClone(vaultRecords.get(key(kind, t)) ?? null)),
+      put: (kind: string, t: string, value: object) => { vaultRecords.set(key(kind, t), structuredClone(value)); return Promise.resolve() },
+      remove: (kind: string, t: string) => { vaultRecords.delete(key(kind, t)); return Promise.resolve() },
       secret: (id: number, action: 'reveal' | 'copy') => (id === 1 && state.eligible && state.grants[action] && state.policy[action]
         ? Promise.resolve({ encrypted: 'e', iv: 'i', version: 'f'.repeat(64) }) : Promise.reject(new VaultError('VAULT_FORBIDDEN', 403))),
       audit: (e: { type: string; reasonCode?: string }) => { audits.push({ type: e.type, reasonCode: e.reasonCode }); return Promise.resolve() } } as unknown as VaultTransaction
@@ -173,6 +178,8 @@ function harness(options: { entitled?: boolean; role?: 'ADMIN' | 'USER'; secondF
   } }
   const vault = {
     admitted: <T>(run: () => Promise<T>) => run(),
+    inspect: <T>(i: VaultIdentity, o: string, _k: string, run: (tx: VaultTransaction) => Promise<T>) =>
+      o === PORTAL ? store.transaction(i, run) : Promise.reject(new VaultError('VAULT_FORBIDDEN', 403)),
     confirmed: <T>(i: VaultIdentity, _c: string, _o: string, _s: string, _k: string, run: (tx: VaultTransaction, client: { origin: VaultOrigin }) => Promise<T>) =>
       store.transaction(i, tx => run(tx, { origin: centralOrigin })),
   } as unknown as VaultService
@@ -189,7 +196,7 @@ function harness(options: { entitled?: boolean; role?: 'ADMIN' | 'USER'; secondF
   const service = new VaultExtensionService(vault, store, locator, originVerifier, new DpopVerifier(nonces, replayGuard()), nonces,
     { token, digest: v => createHash('sha256').update(v).digest('hex') }, catalog, { enabled: true, extensionIds: [EXT], minVersion: '0.1.0' },
     Date.now, options.secondFactor === false ? undefined : { verifySecondFactor: (otp: string) => otp === '123456' }, envelope)
-  return { state, tokens, devices, audits, service, nonces }
+  return { state, tokens, devices, audits, service, nonces, vaultRecords }
 }
 async function connect(h: ReturnType<typeof harness>, key?: Awaited<ReturnType<typeof deviceKey>>) {
   const device = key ?? await deviceKey()
@@ -420,10 +427,55 @@ describe('NA-0193 trusted device renewal', () => {
   })
 
   const recipient = { kty: 'RSA' as const, n: 'n'.repeat(342), e: 'AQAB' as const }
-  async function post(h: ReturnType<typeof harness>, device: Awaited<ReturnType<typeof deviceKey>>, access: string, path: 'unlock' | 'deliver') {
+  async function post(h: ReturnType<typeof harness>, device: Awaited<ReturnType<typeof deviceKey>>, access: string, path: 'unlock' | 'deliver' | 'proof-request' | 'proof-claim') {
     const url = `${PORTAL}/api/v1/vault-security/extension/${path}`
     return { requestOrigin: `chrome-extension://${EXT}`, version: '0.1.0', url, proof: await proof(device, { htm: 'POST', htu: url, nonce: h.nonces.issue(), ath: sha256b64(access) }) }
   }
+  it('NA-0200: a portal confirmation approves a request that only the same key redeems, once, into a proof for the tenant window', async () => {
+    const h = harness(), c = await connect(h), { accessToken } = await c.exchange()
+    const asked = await h.service.proofRequest(await post(h, c.device, accessToken, 'proof-request'), `DPoP ${accessToken}`)
+    expect(asked.request).toMatch(/^[A-Za-z0-9_-]{43}$/); expect(asked.url).toBe(`${PORTAL}/vault/extension/confirm?request=${asked.request}`)
+    expect(asked.expiresAt - asked.serverNow).toBeLessThanOrEqual(120_000)
+    expect(JSON.stringify([...h.vaultRecords.values()])).not.toContain(accessToken)
+    // The portal page shows which device asks (its key thumbprint).
+    expect(await h.service.proofInfo(identity, PORTAL, asked.request)).toMatchObject({ device: c.device.jkt })
+    // Pending: nothing changes.
+    expect(await h.service.proofClaim(await post(h, c.device, accessToken, 'proof-claim'), `DPoP ${accessToken}`, { request: asked.request })).toEqual({ state: 'PENDING' })
+    expect((h.tokens.get(accessToken)?.value as ExtensionAccess).proofAt).toBeUndefined()
+    expect(await h.service.proofApprove(identity, 'client', PORTAL, 's'.repeat(43), asked.request)).toEqual({ state: 'APPROVED' })
+    expect(h.audits).toContainEqual({ type: 'EXTENSION_PROOF_APPROVED', reasonCode: undefined })
+    // Approved once; the page cannot approve it again nor read it.
+    await expect(h.service.proofApprove(identity, 'client', PORTAL, 's'.repeat(43), asked.request)).rejects.toMatchObject({ code: 'EXTENSION_PROOF_UNAVAILABLE', status: 409 })
+    await expect(h.service.proofInfo(identity, PORTAL, asked.request)).rejects.toMatchObject({ code: 'EXTENSION_PROOF_UNAVAILABLE' })
+    const claimed = await h.service.proofClaim(await post(h, c.device, accessToken, 'proof-claim'), `DPoP ${accessToken}`, { request: asked.request })
+    expect(claimed).toMatchObject({ state: 'APPROVED' })
+    expect((h.tokens.get(accessToken)?.value as ExtensionAccess).proofAt).toBeTypeOf('number')
+    expect(h.audits).toContainEqual({ type: 'EXTENSION_UNLOCKED', reasonCode: 'PORTAL_CONFIRMATION' })
+    // Redeemed once.
+    await expect(h.service.proofClaim(await post(h, c.device, accessToken, 'proof-claim'), `DPoP ${accessToken}`, { request: asked.request })).rejects.toMatchObject({ code: 'EXTENSION_PROOF_UNAVAILABLE' })
+  })
+  it('NA-0200: another key cannot redeem, an unknown or expired request is refused, and a revoked device is not approved', async () => {
+    const h = harness(), c = await connect(h), { accessToken } = await c.exchange()
+    const other = await connect(h), { accessToken: otherToken } = await other.exchange()
+    const asked = await h.service.proofRequest(await post(h, c.device, accessToken, 'proof-request'), `DPoP ${accessToken}`)
+    await h.service.proofApprove(identity, 'client', PORTAL, 's'.repeat(43), asked.request)
+    await expect(h.service.proofClaim(await post(h, other.device, otherToken, 'proof-claim'), `DPoP ${otherToken}`, { request: asked.request })).rejects.toMatchObject({ code: 'EXTENSION_PROOF_UNAVAILABLE' })
+    expect((h.tokens.get(otherToken)?.value as ExtensionAccess).proofAt).toBeUndefined()
+    await expect(h.service.proofApprove(identity, 'client', PORTAL, 's'.repeat(43), 'u'.repeat(43))).rejects.toMatchObject({ code: 'EXTENSION_PROOF_UNAVAILABLE' })
+    await expect(h.service.proofInfo(identity, 'https://other.test', asked.request)).rejects.toMatchObject({ status: 403 })
+    // Another user (or tenant) sees nothing and cannot approve it: records are scoped to the identity.
+    const stranger = { userId: identity.userId + 1, tenantId: identity.tenantId, sessionVersion: identity.sessionVersion }
+    const fresh = await h.service.proofRequest(await post(h, c.device, accessToken, 'proof-request'), `DPoP ${accessToken}`)
+    await expect(h.service.proofInfo(stranger, PORTAL, fresh.request)).rejects.toMatchObject({ code: 'EXTENSION_PROOF_UNAVAILABLE' })
+    await expect(h.service.proofApprove(stranger, 'client', PORTAL, 's'.repeat(43), fresh.request)).rejects.toMatchObject({ code: 'EXTENSION_PROOF_UNAVAILABLE' })
+    await expect(h.service.proofApprove({ ...identity, tenantId: identity.tenantId + 1 }, 'client', PORTAL, 's'.repeat(43), fresh.request)).rejects.toMatchObject({ code: 'EXTENSION_PROOF_UNAVAILABLE' })
+    const late = await h.service.proofRequest(await post(h, c.device, accessToken, 'proof-request'), `DPoP ${accessToken}`)
+    for (const [k, v] of h.vaultRecords) h.vaultRecords.set(k, { ...v, expiresAt: Date.now() - 1 })
+    await expect(h.service.proofApprove(identity, 'client', PORTAL, 's'.repeat(43), late.request)).rejects.toMatchObject({ code: 'EXTENSION_PROOF_UNAVAILABLE' })
+    const again = await h.service.proofRequest(await post(h, c.device, accessToken, 'proof-request'), `DPoP ${accessToken}`)
+    for (const d of h.devices.values()) if (d.jkt === c.device.jkt) d.state = 'REVOKED'
+    await expect(h.service.proofApprove(identity, 'client', PORTAL, 's'.repeat(43), again.request)).rejects.toMatchObject({ code: 'EXTENSION_PROOF_UNAVAILABLE' })
+  })
   it('NA-0195: the authenticator code opens a proof for the tenant window; a wrong code is refused and audited', async () => {
     const h = harness(), c = await connect(h), { accessToken } = await c.exchange()
     await expect(h.service.unlock(await post(h, c.device, accessToken, 'unlock'), `DPoP ${accessToken}`, { otp: '000000' })).rejects.toMatchObject({ code: 'VAULT_REAUTH_FAILED', status: 403 })

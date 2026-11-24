@@ -6919,6 +6919,12 @@
     }
   },
   "vaultExtension": {
+    "confirmTitle": "Confirmar a extensão VaultNAccess",
+    "confirmLoading": "Carregando o pedido da extensão…",
+    "confirmIntro": "A extensão deste navegador pediu para revelar ou copiar uma senha. Confira se o dispositivo abaixo é o mesmo do rodapé da extensão e confirme sua identidade.",
+    "confirmInvalid": "Este pedido não é válido ou já venceu. Peça de novo na extensão.",
+    "confirmDone": "Pronto. Volte para a extensão e selecione Revelar senha ou Copiar senha (se ela ainda estava aberta, continua sozinha). Pode fechar esta aba.",
+    "confirmSubmit": "Confirmar identidade",
     "devicesButton": "Dispositivos conectados ({count})",
     "devicesHint": "Cada navegador conectado tem uma identificação. A mesma identificação aparece no rodapé da extensão: confira antes de revogar.",
     "connectTitle": "Conectar a extensão VaultNAccess",

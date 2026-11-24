@@ -25,6 +25,9 @@ export interface SessionStore {
   /** NA-0192: language the portal was using at the last connection (`pt-BR` | `en`). */
   locale(): Promise<string | null>
   setLocale(locale: string): Promise<void>
+  /** NA-0200: the portal confirmation request awaiting approval (an opaque id; no token or secret). */
+  portalProof(): Promise<string | null>
+  setPortalProof(request: string | null): Promise<void>
 }
 /** Interactive consent window; resolves with the final redirect URL. */
 export interface AuthFlow {

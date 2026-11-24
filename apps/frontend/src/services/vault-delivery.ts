@@ -64,6 +64,8 @@ export interface VaultDelivery {
   deliver(action: Action, secretId: number): Promise<void>
   /** NA-0183: consent for the browser extension inside the unlocked session; returns the one-time code. */
   authorizeExtension(request: ExtensionConsent): Promise<string | null>
+  /** NA-0200: approves the extension's proof request inside the freshly confirmed session; locks afterwards. */
+  approveExtensionProof(request: string): Promise<boolean>
   /** NA-0183 manager screen: users, grants and pending proposals (needs the confirmed session). */
   administrationOverview(): Promise<VaultAdministrationOverview | null>
   /** Proposes a change; another manager approves it. The session stays unlocked within the proof window. */
@@ -273,6 +275,11 @@ export function createVaultDelivery(deps: VaultDeliveryDependencies): VaultDeliv
       if (action === 'reveal') { state.value = value; state.phase = 'revealed' } else { pendingCopy = value; state.phase = 'copy-ready' }
     } catch (error) { failure(error, version) }
   }
+  async function approveExtensionProof(request: string): Promise<boolean> {
+    if (!opaque(request)) return false
+    // One approval per confirmation: the page holds no vault capability afterwards.
+    return (await administration('extension/proof-approve', { request }, reply => (reply as { state?: unknown } | null)?.state === 'APPROVED' || fail(), true)) === true
+  }
   async function authorizeExtension(request: ExtensionConsent): Promise<string | null> {
     tick()
     if (disposed || state.phase !== 'unlocked') return null
@@ -388,5 +395,5 @@ export function createVaultDelivery(deps: VaultDeliveryDependencies): VaultDeliv
   async function removeWebauthn(id: string): Promise<boolean> {
     return (await administration('webauthn/credentials/remove', { id }, reply => (reply as { state?: unknown } | null)?.state === 'REMOVED' || fail())) === true
   }
-  return { state: readonly(state), unlock, prepare, unlockWithProvider, unlockWithWebauthn, listWebauthn, registerWebauthn, removeWebauthn, deliver, authorizeExtension, administrationOverview, proposeChange, approveProposal, confirmCopy, dismiss, lock, tick, dispose }
+  return { state: readonly(state), unlock, prepare, unlockWithProvider, unlockWithWebauthn, listWebauthn, registerWebauthn, removeWebauthn, approveExtensionProof, deliver, authorizeExtension, administrationOverview, proposeChange, approveProposal, confirmCopy, dismiss, lock, tick, dispose }
 }

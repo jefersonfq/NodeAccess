@@ -57,6 +57,10 @@ export function pageOf(items: readonly VaultItemSummary[], q: string | undefined
  * session with a fresh step-up (NA-0184), the code is PKCE S256 + bound to the device key (DPoP jkt), and the
  * 30-minute authorization (no refresh) dies with the central session that consented.
  */
+/** NA-0200: portal confirmation request (vault_records of the user; no token or secret). */
+interface ProofRequest { jkt: string; expiresAt: number; approvedAt?: number }
+const PROOF_REQUEST_MS = 120_000
+
 export class VaultExtensionService {
   constructor(private readonly vault: VaultService, private readonly store: VaultStore, private readonly locator: ExtensionLocator,
     private readonly origin: OriginVerifier, private readonly dpop: DpopVerifier, readonly nonces: DpopNonces,
@@ -270,6 +274,59 @@ export class VaultExtensionService {
     return this.withAccess(req, authorization, 'GET', (tx, c) => Promise.resolve({ identity: c.identity, authority: tx.authority, access: c.access }))
   }
 
+  /**
+   * NA-0200 (E5b, contract SEC-16) — the proof may also come from an identity confirmation in the portal (Windows Hello,
+   * or password + code): the extension asks for a short-lived request bound to its key; the portal approves it with a
+   * fresh vault session of the same user; only the same key redeems it, once. The request holds no token or secret.
+   */
+  async proofRequest(req: ExtensionRequest, authorization: unknown): Promise<{ request: string; url: string; expiresAt: number; serverNow: number }> {
+    return this.withAccess(req, authorization, 'POST', async (tx, c) => {
+      await tx.limit('extension-proof', 300_000, 5)
+      const request = this.entropy.token(), expiresAt = Math.min(tx.now() + PROOF_REQUEST_MS, c.access.expiresAt)
+      await tx.put('extproof', request, { jkt: c.jkt, expiresAt } satisfies ProofRequest, expiresAt)
+      await tx.audit({ type: 'EXTENSION_PROOF_REQUESTED', device: c.jkt, policyVersion: tx.authority.policy.version })
+      return { request, url: `${tx.authority.policy.origin}/vault/extension/confirm?request=${request}`, expiresAt, serverNow: tx.now() }
+    })
+  }
+  /** Portal page: which device asks (same identifier as the extension footer), without a vault session. */
+  async proofInfo(identity: VaultIdentity, origin: string, request: string): Promise<{ device: string; expiresAt: number; serverNow: number }> {
+    this.enabled()
+    return this.vault.inspect(identity, origin, 'extension-proof-info', async tx => {
+      const r = await tx.get<ProofRequest>('extproof', request)
+      if (!r || r.expiresAt <= tx.now() || r.approvedAt !== undefined) throw new VaultError('EXTENSION_PROOF_UNAVAILABLE', 409)
+      return { device: r.jkt, expiresAt: r.expiresAt, serverNow: tx.now() }
+    })
+  }
+  /** Portal page, after a fresh identity confirmation (vault session younger than 60 s): approves the request once. */
+  async proofApprove(identity: VaultIdentity, clientId: string, origin: string, sessionId: string, request: string): Promise<{ state: 'APPROVED' }> {
+    this.enabled()
+    const approved = await this.vault.confirmed(identity, clientId, origin, sessionId, 'extension-proof', async tx => {
+      const r = await tx.get<ProofRequest>('extproof', request)
+      if (!r || r.expiresAt <= tx.now() || r.approvedAt !== undefined) return false
+      const device = await this.records(tx).device(r.jkt)
+      if (device?.state !== 'ACTIVE') return false
+      await tx.put('extproof', request, { ...r, approvedAt: tx.now() } satisfies ProofRequest, r.expiresAt)
+      await tx.audit({ type: 'EXTENSION_PROOF_APPROVED', clientId, device: r.jkt, policyVersion: tx.authority.policy.version })
+      return true
+    })
+    if (!approved) throw new VaultError('EXTENSION_PROOF_UNAVAILABLE', 409)
+    return { state: 'APPROVED' }
+  }
+  /** Extension: redeems an approved request of its own key, once; pending changes nothing. */
+  async proofClaim(req: ExtensionRequest, authorization: unknown, input: { request: string }): Promise<{ state: 'PENDING' } | { state: 'APPROVED'; proofUntil: number; serverNow: number }> {
+    return this.withAccess(req, authorization, 'POST', async (tx, c) => {
+      const r = await tx.get<ProofRequest>('extproof', input.request)
+      if (!r || r.jkt !== c.jkt || r.expiresAt <= tx.now()) throw new VaultError('EXTENSION_PROOF_UNAVAILABLE', 409)
+      if (r.approvedAt === undefined) return { state: 'PENDING' as const }
+      await tx.remove('extproof', input.request)
+      const ext = this.records(tx)
+      await ext.take('access', c.token)
+      const proofAt = tx.now()
+      await ext.put('access', c.token, c.jkt, { ...c.access, proofAt }, c.access.expiresAt)
+      await tx.audit({ type: 'EXTENSION_UNLOCKED', device: c.jkt, reasonCode: 'PORTAL_CONFIRMATION', policyVersion: tx.authority.policy.version })
+      return { state: 'APPROVED' as const, proofUntil: Math.min(proofAt + operationProofWindowMs(tx.authority.policy), c.access.expiresAt), serverNow: proofAt }
+    })
+  }
   /**
    * NA-0195 (E2): fresh identity proof in the extension — the NodeAccess authenticator code (the central password never
    * enters the extension, contract §4). Valid for the tenant's reveal/copy window (NA-0186) and only for this authorization.

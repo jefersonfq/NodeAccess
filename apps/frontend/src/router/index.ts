@@ -71,6 +71,7 @@ const router = createRouter({
         { path: 'vault', name: 'vault', component: (): Promise<typeof import('@/views/VaultView.vue')> => import('@/views/VaultView.vue') },
         // NA-0183: consent for the VaultNAccess browser extension (opened by chrome.identity.launchWebAuthFlow).
         { path: 'vault/extension/connect', name: 'vault-extension-connect', component: (): Promise<typeof import('@/views/ExtensionConnectView.vue')> => import('@/views/ExtensionConnectView.vue') },
+        { path: 'vault/extension/confirm', name: 'vault-extension-confirm', component: (): Promise<typeof import('@/views/ExtensionConfirmView.vue')> => import('@/views/ExtensionConfirmView.vue') },
         { path: 'pem-keys', name: 'pem-keys', component: (): Promise<typeof import('@/views/PemKeysView.vue')> => import('@/views/PemKeysView.vue') },
         { path: 'agents',      name: 'agents',      component: (): Promise<typeof import('@/views/AgentsView.vue')> => import('@/views/AgentsView.vue') },
         { path: 'snippets',    name: 'snippets',    component: (): Promise<typeof import('@/views/SnippetsView.vue')> => import('@/views/SnippetsView.vue') },

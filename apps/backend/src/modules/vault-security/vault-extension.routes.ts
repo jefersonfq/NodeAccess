@@ -55,6 +55,9 @@ export function vaultExtensionRoutes(app: FastifyInstance, vault: VaultService, 
   extension('POST', '/extension/forget', req => service.forget(extensionRequest(req), VaultExtensionForgetRequestSchema.parse(req.body ?? {})))
   // NA-0195 (E2): authenticator-code proof and reveal/copy release (DPoP + authorization).
   extension('POST', '/extension/unlock', req => service.unlock(extensionRequest(req), header(req, 'authorization'), VaultExtensionUnlockRequestSchema.parse(req.body ?? {})))
+  // NA-0200 (E5b): proof from an identity confirmation in the portal (Windows Hello or password + code).
+  extension('POST', '/extension/proof-request', req => service.proofRequest(extensionRequest(req), header(req, 'authorization')))
+  extension('POST', '/extension/proof-claim', req => service.proofClaim(extensionRequest(req), header(req, 'authorization'), z.object({ request: opaque }).strict().parse(req.body ?? {})))
   extension('POST', '/extension/deliver', req => service.deliver(extensionRequest(req), header(req, 'authorization'), VaultExtensionDeliverRequestSchema.parse(req.body ?? {})))
   extension('GET', '/extension/capabilities', req => service.capabilities(extensionRequest(req), header(req, 'authorization')))
   extension('GET', '/extension/items', req => service.items(extensionRequest(req), header(req, 'authorization'), VaultExtensionItemsQuerySchema.parse(req.query ?? {})))
@@ -107,6 +110,8 @@ export function vaultExtensionRoutes(app: FastifyInstance, vault: VaultService, 
   }
   portal('/extension/authorize', VaultExtensionAuthorizeSchema, (i, c, o, b) => service.authorize(i, c, o, b), true)
   portal('/extension/devices', z.object({}).strict(), (i, _c, o) => service.devices(i, o), false)
+  portal('/extension/proof-info', z.object({ request: opaque }).strict(), (i, _c, o, b) => service.proofInfo(i, o, b.request), false)
+  portal('/extension/proof-approve', z.object({ sessionId: opaque, request: opaque }).strict(), (i, c, o, b) => service.proofApprove(i, c, o, b.sessionId, b.request), true)
   portal('/extension/devices/revoke', z.object({ jkt: VaultExtensionThumbprintSchema }).strict(), (i, _c, o, b) => service.revokeDevice(i, o, b.jkt), false)
   return Promise.resolve()
 }
