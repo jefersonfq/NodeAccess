@@ -66,7 +66,8 @@ async function isolatedRun(): Promise<AdministrationHarnessResult> {
     // NA-0198: a host name, because WebAuthn refuses IP origins as RP IDs (the server still listens on 127.0.0.1).
     const base = `https://localhost:${address.port}`; fixture.state.policy.origin = base
     browser = await chromium.launch({ headless: true, executablePath: process.env.PLAYWRIGHT_EXECUTABLE_PATH || chromium.executablePath(),
-      env: { ...process.env, TMPDIR: runtime }, args: ['--no-sandbox'] })
+      // localhost always reaches the servers bound to 127.0.0.1 (never ::1 first).
+      env: { ...process.env, TMPDIR: runtime }, args: ['--no-sandbox', '--host-resolver-rules=MAP localhost 127.0.0.1'] })
     report.browser = browser.version()
     report.flow = await runVaultAdministrationFlow(browser, base, fixture, output)
     report.status = 'passed'

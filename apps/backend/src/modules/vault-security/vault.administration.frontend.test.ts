@@ -24,5 +24,5 @@ describe.skipIf(!enabled)('Vault administration HTTPS browser flow', () => {
     expect(JSON.parse(readFileSync(evidence, 'utf8'))).toEqual(report)
     expect(keys.every(key => process.env[key] === before[key])).toBe(true)
     expect(process.umask()).toBe(mask)
-  }, 360_000)
+  }, 900_000) // NA-0198: 14 scenarios; CI collects coverage (slower)
 })
