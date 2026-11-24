@@ -64,6 +64,7 @@ function fixture(credentials: unknown[] = [{ id: 'cred', name: 'Notebook', creat
     if (path === 'webauthn/registration/options') return { options: { challenge: 'AQID' } }
     if (path === 'webauthn/registration') return { id: 'cred-2' }
     if (path === 'webauthn/credentials/remove') return { state: 'REMOVED' }
+    if (path === 'extension/proof-approve') return { state: 'APPROVED' }
     return { state: 'LOCKED' }
   })
   const ceremony = { available: vi.fn(() => true), assertion: vi.fn(() => Promise.resolve({ id: 'cred' })), registration: vi.fn(() => Promise.resolve({ id: 'cred-2' })) }
@@ -110,5 +111,17 @@ describe('NA-0198 delivery with Windows Hello / passkey', () => {
     f.advance(61_000); f.delivery.tick()
     expect(await f.delivery.removeWebauthn('cred')).toBe(false)
     expect(await f.delivery.listWebauthn()).toMatchObject({ supported: true, credentials: [{ id: 'cred', name: 'Notebook' }] })
+  })
+})
+
+describe('NA-0200 extension proof approval from the portal', () => {
+  it('approves only inside a fresh session, with a well-formed request, and locks afterwards', async () => {
+    const f = fixture()
+    expect(await f.delivery.approveExtensionProof('q'.repeat(43))).toBe(false)
+    await f.delivery.unlock('pw', '123456')
+    expect(await f.delivery.approveExtensionProof('short')).toBe(false)
+    expect(await f.delivery.approveExtensionProof('q'.repeat(43))).toBe(true)
+    expect(f.post).toHaveBeenCalledWith('extension/proof-approve', { request: 'q'.repeat(43), sessionId }, expect.anything(), clientId, expect.any(AbortSignal))
+    expect(f.delivery.state.phase).toBe('locked')
   })
 })

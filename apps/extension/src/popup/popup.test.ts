@@ -226,6 +226,22 @@ describe('NA-0183 extension popup', () => {
       f.unmount()
     } finally { vi.useRealTimers() }
   })
+  it('NA-0200: a failed request explains itself, and an unanswered confirmation stops after two minutes', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'Date'] })
+    try {
+      const client = fakeClient(true), open = vi.fn().mockResolvedValue(undefined)
+      const f = mount({ client: asClient(client), requestConnection: vi.fn(), open }); await flush()
+      await f.state.act(item, 'reveal')
+      client.requestPortalProof.mockRejectedValueOnce(new ExtensionError('quota'))
+      await f.state.confirmInPortal(); expect(f.state.error).toBe('quota'); expect(open).not.toHaveBeenCalled()
+      await f.state.act(item, 'reveal')
+      client.claimPortalProof.mockResolvedValue({ state: 'pending' })
+      await f.state.confirmInPortal(); expect(f.state.portal).toBe('waiting')
+      await vi.advanceTimersByTimeAsync(124_000)
+      expect(f.state.portal).toBe('idle'); expect(f.state.error).toBe('portalProofExpired'); expect(client.deliver).not.toHaveBeenCalled()
+      f.unmount()
+    } finally { vi.useRealTimers() }
+  })
   it('NA-0200: reopened after the portal approved, the popup restores the proof but runs nothing by itself; waiting can be cancelled', async () => {
     const client = fakeClient(true)
     client.claimPortalProof.mockResolvedValue({ state: 'approved', proofUntil: Date.now() + 60_000 })

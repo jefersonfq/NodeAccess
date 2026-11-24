@@ -64,6 +64,13 @@ describe('NA-0200 extension confirmation page', () => {
     await f.state.confirmWithWebauthn(); expect(delivery.unlockWithWebauthn).toHaveBeenCalled(); expect(delivery.approveExtensionProof).toHaveBeenCalledWith(request)
     f.unmount()
   })
+  it('confirms through the login provider for OIDC/Google accounts', async () => {
+    state.stepUp = 'provider'
+    const f = mount<Page & { confirmWithProvider(): Promise<void> }>({ transport: transport({ device: jkt }) }); await flush()
+    await f.state.confirmWithProvider()
+    expect(delivery.unlockWithProvider).toHaveBeenCalled(); expect(delivery.approveExtensionProof).toHaveBeenCalledWith(request)
+    state.stepUp = 'password_totp'; f.unmount()
+  })
   it('explains an invalid or expired request, a malformed link and an insecure page', async () => {
     const f = mount<Page>({ transport: transport(new Error('409')) }); await flush()
     expect(f.state.status).toBe('invalid'); expect(await f.html()).toContain('vault-extension-confirm-invalid'); f.unmount()
