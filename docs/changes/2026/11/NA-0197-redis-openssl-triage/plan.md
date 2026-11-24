@@ -15,13 +15,17 @@ issue: null
 
 # NA-0197 — Gate de imagens: Redis com OpenSSL 3.5.9-r1
 
-## Contexto e problema
+## Contexto e situação anterior
 
 `upgrade-restore` passou a reprovar `nodeaccess-redis:8.2.10-1` em 2026-11-23 (PR #85, sem relação com a mudança): o Alpine publicou `openssl 3.5.9-r1` para a v3.22 e a triagem da NA-0185 fixava o Redis em `3.5.9-r0`. Afeta qualquer PR a partir desta data.
 
-## Objetivo e escopo
+## Problema e objetivo
 
-Reconhecer a nova revisão de pacote no Redis sem ampliar a aceitação de risco: Redis passa a `3.5.9-r1`; as quatro CVEs que o Alpine corrigiu por backport no r1 passam a aceitar r1 (falso positivo comprovado pelo secdb); as outras cinco seguem a aceitação temporária da NA-0185 com o mesmo prazo. Fora: trocar a base do Redis (não há OpenSSL 3.5.10 no Alpine).
+O gate bloqueia toda PR por uma revisão de pacote que a triagem não conhecia. Objetivo: reconhecer a nova revisão de pacote no Redis sem ampliar a aceitação de risco: Redis passa a `3.5.9-r1`; as quatro CVEs que o Alpine corrigiu por backport no r1 passam a aceitar r1 (falso positivo comprovado pelo secdb); as outras cinco seguem a aceitação temporária da NA-0185 com o mesmo prazo. 
+
+## Escopo
+
+`security/openssl-image-triage.json`, testes da política e evidência. Fora: trocar a base do Redis (não há OpenSSL 3.5.10 no Alpine) e qualquer mudança no scanner ou nas severidades.
 
 ## Estratégia técnica
 
@@ -37,6 +41,15 @@ Ajuste mínimo da triagem exata existente (`openssl-image-policy.mjs` inalterado
 ## Matriz de testes e evidências
 
 `node --test scripts/security/*.test.mjs` (264 PASS, incluindo os casos novos); `upgrade-restore` na CI (Grype fixado por digest).
+
+## Riscos e mitigações
+
+- Aceitar algo além do reportado: mitigado por correspondência exata (imagem, distro, pacote, revisão, CVE, restrição, CPE) e testes; revisão independente conferiu os 18 achados.
+- Cinco CVEs reais seguem aceitas até 2026-12-19 (decisão da NA-0185); prazo inalterado.
+
+## Baseline
+
+2026-11-23 sobre `07c004f10`: `node --test scripts/security/*.test.mjs` 264 PASS; `upgrade-restore` reprovando o Redis (run 45284757020).
 
 ## Rollback ou recuperação
 

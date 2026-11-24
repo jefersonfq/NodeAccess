@@ -2,7 +2,7 @@
 
 Base: `07c004f10` (master após a NA-0194). Branch: security/NA-0197-20261123-redis-openssl-triage.
 
-## Pedido e decisão
+## Pedido e objetivo
 
 Na PR #85, `upgrade-restore` reprovou a imagem do Redis por CVEs do OpenSSL sem relação com a mudança; o responsável autorizou o merge e uma frente separada para tratar a imagem.
 
@@ -18,6 +18,11 @@ Na PR #85, `upgrade-restore` reprovou a imagem do Redis por CVEs do OpenSSL sem 
 - Ran: `node --test scripts/security/*.test.mjs` 265 PASS.
 - Ran: revisão independente (subagente): PASS_WITH_WARNINGS — aceita só os 18 achados reportados; secdb v3.22/v3.24 conferido; ajustes aplicados (teste de CVE revisada só para outra revisão de pacote; texto do motivo).
 - Planned: `upgrade-restore` na CI da PR.
+
+## Pendências
+
+- Merge desta PR antes da NA-0196 e da NA-0195 (o `upgrade-restore` delas depende deste ajuste).
+- Revisar de novo até 2026-12-19 ou quando o Alpine publicar OpenSSL 3.5.10.
 
 ## Recuperação
 
