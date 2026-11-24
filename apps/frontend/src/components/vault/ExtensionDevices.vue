@@ -1,7 +1,9 @@
 <script setup lang="ts">
-/** NA-0183: the signed-in user's browser-extension devices; hidden when the server has the extension disabled. */
+/** NA-0183: the signed-in user's browser-extension devices; hidden when the server has the extension disabled.
+ * NA-0196: a header button (next to Import PEM key) opens them in a window instead of a block on the page; the
+ * identifier is the one the extension shows, so the user knows which browser is revoked. */
 import { computed, onMounted, ref } from 'vue'
-import { NButton, NText } from 'naive-ui'
+import { NButton, NModal, NText } from 'naive-ui'
 import { useI18n } from 'vue-i18n'
 import { VaultExtensionDevicesReplySchema, type VaultExtensionDevice } from '@nodeaccess/shared'
 import { useAuthStore } from '@/stores/auth'
@@ -11,7 +13,7 @@ import { fingerprint } from '@/services/vault-extension-consent'
 const props = defineProps<{ transport?: VaultTransport }>()
 const { t, d } = useI18n(), auth = useAuthStore()
 const transport = props.transport ?? createVaultTransport()
-const devices = ref<VaultExtensionDevice[]>([]), available = ref(false), error = ref(''), busy = ref('')
+const devices = ref<VaultExtensionDevice[]>([]), available = ref(false), error = ref(''), busy = ref(''), open = ref(false)
 const active = computed(() => devices.value.filter(device => device.state === 'ACTIVE'))
 function identity(): VaultPortalIdentity | null {
   const u = auth.user
@@ -43,49 +45,61 @@ defineExpose({ load })
 </script>
 
 <template>
-  <section
+  <NButton
     v-if="available"
-    class="mb-4"
-    data-testid="vault-extension-devices"
+    secondary
+    data-testid="vault-extension-devices-open"
+    @click="open = true; load()"
   >
-    <h2 class="mb-2 text-base font-semibold">
-      {{ t('vaultExtension.devicesTitle') }}
-    </h2>
-    <NText
-      v-if="!active.length"
-      depth="3"
-    >
-      {{ t('vaultExtension.noDevices') }}
-    </NText>
-    <ul
-      v-else
-      class="space-y-2"
-    >
-      <li
-        v-for="device in active"
-        :key="device.jkt"
-        class="flex flex-wrap items-center gap-3"
+    {{ t('vaultExtension.devicesButton', { count: active.length }) }}
+  </NButton>
+  <NModal
+    :show="open"
+    preset="card"
+    :title="t('vaultExtension.devicesTitle')"
+    style="width: min(620px, 100vw)"
+    @update:show="(value: boolean) => { open = value }"
+  >
+    <section data-testid="vault-extension-devices">
+      <p class="mb-3 text-sm text-gray-400">
+        {{ t('vaultExtension.devicesHint') }}
+      </p>
+      <NText
+        v-if="!active.length"
+        depth="3"
       >
-        <code>{{ fingerprint(device.jkt) }}</code>
-        <NText depth="3">
-          {{ t('vaultExtension.connectedAt', { date: d(new Date(device.createdAt), 'short') }) }}
-        </NText>
-        <NButton
-          size="small"
-          :loading="busy === device.jkt"
-          :data-testid="`vault-extension-revoke-${device.jkt}`"
-          @click="revoke(device.jkt)"
+        {{ t('vaultExtension.noDevices') }}
+      </NText>
+      <ul
+        v-else
+        class="space-y-2"
+      >
+        <li
+          v-for="device in active"
+          :key="device.jkt"
+          class="flex flex-wrap items-center gap-3"
         >
-          {{ t('vaultExtension.revoke') }}
-        </NButton>
-      </li>
-    </ul>
-    <NText
-      v-if="error"
-      type="warning"
-      role="alert"
-    >
-      {{ t(`vaultDelivery.errors.${error}`) }}
-    </NText>
-  </section>
+          <code>{{ fingerprint(device.jkt) }}</code>
+          <NText depth="3">
+            {{ t('vaultExtension.connectedAt', { date: d(new Date(device.createdAt), 'short') }) }}
+          </NText>
+          <NButton
+            size="small"
+            :loading="busy === device.jkt"
+            :data-testid="`vault-extension-revoke-${device.jkt}`"
+            @click="revoke(device.jkt)"
+          >
+            {{ t('vaultExtension.revoke') }}
+          </NButton>
+        </li>
+      </ul>
+      <NText
+        v-if="error"
+        type="warning"
+        role="alert"
+      >
+        {{ t(`vaultDelivery.errors.${error}`) }}
+      </NText>
+    </section>
+  </NModal>
 </template>

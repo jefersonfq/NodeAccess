@@ -2,7 +2,7 @@
 change_id: NA-0197
 title: Gate de imagens — Redis com OpenSSL 3.5.9-r1
 type: security
-status: ready-for-review
+status: delivered
 created_at: 2026-11-23T23:59:00-03:00
 base_branch: master
 base_sha: 07c004f10f6c0b0df062db39b59ada89c4886308
@@ -36,7 +36,7 @@ Ajuste mínimo da triagem exata existente (`openssl-image-policy.mjs` inalterado
 - [x] Redis com `3.5.9-r1` reconhecido; `r0` e `r2` continuam bloqueando.
 - [x] Prazo (2026-12-19) e lista de CVEs inalterados.
 - [x] Evidência do secdb (v3.22 e v3.24) registrada com hash.
-- [ ] `upgrade-restore` verde na PR.
+- [x] `upgrade-restore` verde na PR.
 
 ## Matriz de testes e evidências
 

@@ -43,9 +43,14 @@ describe('vault administration reads', () => {
       ]
       if (sql.includes('vault_proposals')) return [
         { reference, proposedBy: 3, name: 'Carla', payload: JSON.stringify({ kind: 'grant', userId: 2, action: 'extension', enabled: false }), expiresAt: new Date(60_000),
-          beneficiaryId: 2, beneficiaryName: 'Bruno', beneficiaryEmail: 'bruno@example.test' },
-        { reference: sha('mine'), proposedBy: 1, name: null, payload: { kind: 'item', secretId: 4, enabled: true }, expiresAt: new Date(90_000), beneficiaryId: null, beneficiaryName: null, beneficiaryEmail: null },
+          beneficiaryId: 2, beneficiaryName: 'Bruno', beneficiaryEmail: 'bruno@example.test', itemId: null, itemAlias: null },
+        { reference: sha('mine'), proposedBy: 1, name: null, payload: { kind: 'item', secretId: 4, enabled: true }, expiresAt: new Date(90_000), beneficiaryId: null, beneficiaryName: null, beneficiaryEmail: null,
+          itemId: 4, itemAlias: 'db-prod' },
+        // NA-0196: releasing an item that no longer exists is hidden (approval would refuse it).
+        { reference: sha('gone'), proposedBy: 3, name: 'Carla', payload: { kind: 'item', secretId: 99, enabled: true }, expiresAt: new Date(90_000), beneficiaryId: null, beneficiaryName: null, beneficiaryEmail: null,
+          itemId: null, itemAlias: null },
       ]
+      if (sql.includes('vault_web_items')) return [{ id: 4, alias: 'db-prod' }]
       return []
     })
     expect(await admin(db).overview()).toEqual({
@@ -56,12 +61,16 @@ describe('vault administration reads', () => {
       ],
       proposals: [
         { reference, proposedBy: { id: 3, name: 'Carla' }, mine: false, expiresAt: 60_000, change: { kind: 'grant', userId: 2, action: 'extension', enabled: false },
-          beneficiary: { id: 2, name: 'Bruno', email: 'bruno@example.test' } },
-        { reference: sha('mine'), proposedBy: { id: 1, name: '' }, mine: true, expiresAt: 90_000, change: { kind: 'item', secretId: 4, enabled: true }, beneficiary: null },
+          beneficiary: { id: 2, name: 'Bruno', email: 'bruno@example.test' }, item: null },
+        { reference: sha('mine'), proposedBy: { id: 1, name: '' }, mine: true, expiresAt: 90_000, change: { kind: 'item', secretId: 4, enabled: true }, beneficiary: null,
+          item: { id: 4, alias: 'db-prod' } },
       ],
+      items: [{ id: 4, alias: 'db-prod' }],
     })
     const reads = calls.slice(1)
-    expect(reads.map(c => c.values[0])).toEqual([7, 7, 7, 7])
+    expect(reads.map(c => c.values[0])).toEqual([7, 7, 7, 7, 7])
+    expect(reads[4]?.sql).toContain('w.enabled=TRUE AND s.revoked_at IS NULL')
+    expect(reads[2]?.sql).toContain('s.tenant_id=p.tenant_id')
     expect(reads[0]?.sql).toContain('active=TRUE AND deleted_at IS NULL')
     expect(reads[2]?.sql).toContain('p.expires_at >')
     expect(reads[2]?.sql).toContain('b.tenant_id=p.tenant_id')
@@ -121,12 +130,15 @@ describe('NA-0188 vault managers and proposal validity', () => {
       { proposedBy: 2, payload: JSON.stringify({ kind: 'grant', userId: 1, action: 'copy', enabled: true }) },
       { proposedBy: 3, payload: { kind: 'proposalWindow', seconds: 3600 } },
       { proposedBy: 9, payload: { kind: 'confirmation', seconds: 300 } },
-      { proposedBy: 2, payload: { kind: 'item', secretId: 4, enabled: true } },
+      { proposedBy: 2, payload: { kind: 'item', secretId: 4, enabled: true }, itemId: 4 },
+      // NA-0196: a change for a revoked or removed Secret would be refused, so it is not counted.
+      { proposedBy: 2, payload: { kind: 'item', secretId: 5, enabled: false }, itemId: null },
     ]
     const { db, calls } = database(sql => sql.includes('vault_managers') ? [{ id: 1 }, { id: 2 }, { id: 3 }] : rows)
-    expect(await admin(db).summary()).toEqual({ manager: true, pending: 2, managers: [1, 2, 3] })
+    // NA-0196: item and policy proposals are approved on screen too.
+    expect(await admin(db).summary()).toEqual({ manager: true, pending: 3, managers: [1, 2, 3] })
     const query = calls.find(c => c.sql.includes('FROM vault_proposals'))
-    expect(query?.sql).toContain('expires_at >'); expect(query?.values).toEqual([7, new Date(1_000), 1])
+    expect(query?.sql).toContain('expires_at >'); expect(query?.sql).toContain('s.revoked_at IS NULL'); expect(query?.values).toEqual([7, new Date(1_000), 1])
     const outsider = tenant([2, 3])
     expect(await admin(outsider.db).summary()).toEqual({ manager: false, pending: 0, managers: [] })
     expect(outsider.calls.some(c => c.sql.includes('vault_proposals'))).toBe(false)

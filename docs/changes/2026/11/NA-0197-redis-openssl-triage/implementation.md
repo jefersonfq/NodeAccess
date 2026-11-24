@@ -33,3 +33,7 @@ Revert da PR (o gate volta a bloquear o Redis); sem efeito em dados ou imagens.
 ### 2026-11-23T23:59:00-03:00 — Diagnóstico e ajuste
 
 Ver acima.
+
+### 2026-11-24T00:40:00-03:00 — Merge e encerramento
+
+CI da PR #87 toda verde (inclui `upgrade-restore`); mesclada com autorização do responsável (`012ea6b69`). Estado: MERGED, MASTER_SYNCED. Encerramento registrado na NA-0196.

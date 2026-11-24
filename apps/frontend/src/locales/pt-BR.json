@@ -6831,6 +6831,8 @@
     "reviewScope": "A data indica a revisão deste conteúdo, não uma auditoria da sua organização ou garantia de ausência de vulnerabilidades."
   },
   "vault": {
+    "itemDelivery": "Entrega do item…",
+    "itemDeliveryTitle": "Revelar e copiar: {name}",
     "subtitle": "Gerencie seus Secrets e chaves SSH em um só lugar.",
     "allTypes": "Todos os tipos",
     "secretType": "Secret",
@@ -6857,6 +6859,21 @@
     "groupsError": "Não foi possível carregar os grupos. Tente novamente antes de salvar um Secret de grupo."
   },
   "vaultDelivery": {
+    "reasons": {
+      "unavailable": "Indisponível",
+      "policy": "Desligado no tenant",
+      "grant": "Sem permissão",
+      "item": "Item não liberado"
+    },
+    "block": {
+      "policyTitle": "Revelar e copiar estão desligados neste tenant",
+      "policy": "Peça aos gestores do cofre para ligar revelar e copiar no tenant.",
+      "policyManager": "Ligue em Permissões do cofre → Entrega de senhas no tenant; outro gestor aprova.",
+      "grantManager": "Outro gestor do cofre propõe Revelar ou Copiar para você e um terceiro aprova (quem recebe não aprova).",
+      "grantTitle": "Você ainda não tem permissão para revelar ou copiar",
+      "grant": "Peça aos gestores do cofre as permissões Revelar ou Copiar (cada uma é aprovada por dois gestores).",
+      "openSettings": "Abrir permissões do cofre"
+    },
     "locked": "Cofre bloqueado",
     "sessionActive": "Sessão do cofre ativa",
     "lock": "Bloquear cofre",
@@ -6895,6 +6912,8 @@
     }
   },
   "vaultExtension": {
+    "devicesButton": "Dispositivos conectados ({count})",
+    "devicesHint": "Cada navegador conectado tem uma identificação. A mesma identificação aparece no rodapé da extensão: confira antes de revogar.",
     "connectTitle": "Conectar a extensão VaultNAccess",
     "connectIntro": "Uma extensão do navegador pediu acesso de leitura aos metadados do seu cofre. Prossiga somente se foi você quem iniciou esta conexão e se o dispositivo abaixo for igual ao mostrado na extensão.",
     "extensionId": "Extensão",
@@ -6930,6 +6949,27 @@
     "showAll": "Mostrar todos"
   },
   "vaultAdministration": {
+    "itemIntro": "Liberar um item para revelar e copiar precisa de dois gestores: um propõe, outro aprova.",
+    "waiting": "Aguardando aprovação",
+    "on": "ligado",
+    "off": "desligado",
+    "unknownItem": "item #{id}",
+    "proposalItemRelease": "Liberar {item} para revelar e copiar",
+    "proposalItemWithdraw": "Retirar a liberação de {item}",
+    "proposalPolicy": "Entrega no tenant: revelar {reveal}, copiar {copy}, até {quota} entregas por minuto",
+    "policyTitle": "Entrega de senhas no tenant",
+    "policyHint": "Hoje: revelar {reveal}, copiar {copy}. Desligado, ninguém revela ou copia, mesmo com permissão.",
+    "policyReveal": "Permitir revelar",
+    "policyCopy": "Permitir copiar",
+    "policyQuota": "Entregas por minuto no tenant",
+    "policyPropose": "Propor mudança",
+    "itemsTitle": "Itens liberados para revelar e copiar ({count})",
+    "itemsHint": "Para liberar um item, use Ações → Entrega do item… na lista do cofre.",
+    "itemReleased": "{item} está liberado para revelar e copiar.",
+    "itemNotReleased": "{item} ainda não está liberado para revelar e copiar.",
+    "itemHint": "Quem tem a permissão Revelar ou Copiar e acesso ao item poderá usá-lo depois que outro gestor aprovar.",
+    "itemRelease": "Propor liberação",
+    "itemWithdraw": "Retirar liberação",
     "title": "Permissões do cofre (gestores)",
     "intro": "Conceda ou retire revelar, copiar, usar a extensão e ser gestor do cofre por usuário. Toda mudança precisa de dois gestores:",
     "step1": "1. Um gestor propõe a mudança.",

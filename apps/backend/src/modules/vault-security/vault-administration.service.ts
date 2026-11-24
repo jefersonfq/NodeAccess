@@ -1,6 +1,6 @@
 import type { VaultService } from './vault.service.js'
 import { CONFIRMATION_DEFAULT_SECONDS, PROPOSAL_DEFAULT_SECONDS, unavailable, type VaultChange, type VaultIdentity } from './vault-domain.js'
-import type { VaultAdministrationSummary, VaultAdministrationView, VaultEntropy } from './vault-ports.js'
+import type { VaultAdministrationSummary, VaultAdministrationView, VaultAvailability, VaultEntropy } from './vault-ports.js'
 export class VaultAdministrationService {
   constructor(private readonly vault: VaultService, private readonly entropy: VaultEntropy) {}
   async propose(i: VaultIdentity, c: string, o: string, s: string, change: VaultChange): Promise<{ proposalId: string }> {
@@ -36,8 +36,16 @@ export class VaultAdministrationService {
     return this.vault.confirmed(i,c,o,s, 'administration-overview', async tx => {
       if (!tx.administration) unavailable()
       const overview = await tx.administration.overview()
-      return { ...overview, policy: { confirmationSeconds: tx.authority.policy.confirmationSeconds ?? CONFIRMATION_DEFAULT_SECONDS,
-        proposalSeconds: tx.authority.policy.proposalSeconds ?? PROPOSAL_DEFAULT_SECONDS } }
+      const p = tx.authority.policy
+      return { ...overview, policy: { confirmationSeconds: p.confirmationSeconds ?? CONFIRMATION_DEFAULT_SECONDS,
+        proposalSeconds: p.proposalSeconds ?? PROPOSAL_DEFAULT_SECONDS, reveal: p.reveal === true, copy: p.copy === true, tenantQuota: p.tenantQuota } }
+    })
+  }
+  /** NA-0196: guidance for the signed-in user (no unlock): tenant policy, own grants and released items visible to them. */
+  async availability(i: VaultIdentity, o: string): Promise<VaultAvailability> {
+    return this.vault.inspect(i, o, 'availability', async tx => {
+      const own = (await tx.availability?.()) ?? { grants: { reveal: false, copy: false }, items: [] }
+      return { policy: { reveal: tx.authority.policy.reveal === true, copy: tx.authority.policy.copy === true }, ...own }
     })
   }
 }

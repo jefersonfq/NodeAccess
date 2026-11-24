@@ -11,7 +11,8 @@ function fixture() {
     auth:[] as {local:boolean;sso:boolean}[],trials:[] as object[],features:{secrets:true},licenseActive:true,licenseExpires:null as Date|null,policy,policyVersion:1,
     grant:{enabled:true,grantedBy:2,approvedBy:3} as {enabled:boolean;grantedBy:number;approvedBy:number}|null,
     secret:{encrypted:'ciphertext',iv:'iv',scope:'PERSONAL',owner:1,groupId:null as number|null,revokedAt:null as Date|null} as {encrypted:string;iv:string;scope:string;owner:number|null;groupId:number|null;revokedAt:Date|null}|null,
-    eligible:true,membership:true,record:null as unknown,count:1,pending:0,manager:true,target:true,managers:[1,2,3],
+    eligible:true,membership:true,released:[] as number[],
+    grantRows:[] as {action:string;enabled:unknown;grantedBy:number;approvedBy:number}[],record:null as unknown,count:1,pending:0,manager:true,target:true,managers:[1,2,3],
     proposal:{proposedBy:2,payload:{kind:'item',secretId:9,enabled:true},expiresAt:new Date(10000)} as {proposedBy:number;payload:VaultChange;expiresAt:Date}|null}
   const queries:string[]=[],writes:{sql:string;values:unknown[]}[]=[]
   const query=vi.fn((strings:TemplateStringsArray,...values:unknown[])=>Promise.resolve().then(()=>{
@@ -23,7 +24,9 @@ function fixture() {
     if(sql.includes('FROM trial_registrations'))return state.trials
     if(sql.includes('FROM licenses'))return [{features:state.features,active:state.licenseActive,expiresAt:state.licenseExpires}]
     if(sql.includes('FROM vault_policies'))return [{version:state.policyVersion,config:JSON.stringify(state.policy)}]
+    if(sql.includes("action IN ('reveal','copy')"))return state.grantRows
     if(sql.includes('FROM vault_entitlements'))return state.grant?[state.grant]:[]
+    if(sql.includes('FROM vault_web_items w'))return state.released.map(id=>({id}))
     if(sql.includes('FROM vault_web_items'))return [{enabled:state.eligible}]
     if(sql.includes('FROM secrets'))return state.secret?[state.secret]:[]
     if(sql.includes('FROM user_groups'))return state.membership?[{userId:1}]:[]
@@ -39,6 +42,21 @@ function fixture() {
 }
 
 describe('SQL vault adapter authorization and locking contract',()=>{
+  it('NA-0196: availability applies the delivery grant rule and limits released items to the visible scope',async()=>{
+    const f=fixture()
+    f.state.grantRows=[{action:'reveal',enabled:1,grantedBy:2,approvedBy:3},{action:'copy',enabled:1,grantedBy:1,approvedBy:3}]
+    f.state.released=[4,7]
+    const own=await f.store.transaction(actor,tx=>tx.availability!())
+    // Copy approved with the user themself as proposer does not count (same rule as delivery).
+    expect(own).toEqual({grants:{reveal:true,copy:false},items:[4,7]})
+    const scoped=f.queries.find(q=>q.includes('FROM vault_web_items w'))!
+    expect(scoped).toContain("s.scope='TENANT'"); expect(scoped).toContain('FROM user_groups g'); expect(scoped).toContain('s.revoked_at IS NULL')
+    f.state.grantRows=[{action:'reveal',enabled:0,grantedBy:2,approvedBy:3},{action:'copy',enabled:true,grantedBy:2,approvedBy:2}]
+    f.state.user.role='ADMIN'; f.queries.length=0
+    expect(await f.store.transaction(actor,tx=>tx.availability!())).toEqual({grants:{reveal:false,copy:false},items:[4,7]})
+    // Administrators see every item, so their query has no scope filter.
+    expect(f.queries.find(q=>q.includes('FROM vault_web_items w'))).not.toContain('user_groups')
+  })
   it('takes authoritative locks and binds transaction timeouts',async()=>{
     const f=fixture();await f.store.transaction(actor,async tx=>tx.secret(9,'reveal'))
     for(const table of ['tenants','users','tenant_auth_policies','trial_registrations','licenses','vault_policies','secrets','vault_web_items','vault_entitlements'])

@@ -8,7 +8,7 @@ const auth = reactive({ isAdmin: true, isManagingTenant: false, accessToken: 'po
 vi.mock('@/stores/auth', () => ({ useAuthStore: () => auth }))
 vi.mock('@/services/vault-provider-confirm', () => ({ openVaultProviderWindow: vi.fn(), requestGoogleIdToken: vi.fn() }))
 vi.mock('vue-i18n', () => ({ useI18n: () => ({ t: (key: string, values?: Record<string, unknown>) => (values ? `${key}:${JSON.stringify(values)}` : key) }) }))
-vi.mock('naive-ui', () => ({ ...Object.fromEntries(['NAlert', 'NButton', 'NFormItem', 'NInput', 'NInputNumber', 'NSelect', 'NSpace', 'NText'].map(name => [name,
+vi.mock('naive-ui', () => ({ ...Object.fromEntries(['NAlert', 'NButton', 'NCheckbox', 'NFormItem', 'NInput', 'NInputNumber', 'NSelect', 'NSpace', 'NText'].map(name => [name,
   defineComponent({ inheritAttrs: false, setup: (_, { attrs, slots }) => () => h(name, attrs, slots.default?.()) })])) }))
 interface HostNode { parent: HostNode | null; children: HostNode[] }
 const node = (): HostNode => ({ parent: null, children: [] })
@@ -23,7 +23,8 @@ const flush = async (): Promise<void> => { for (let i = 0; i < 6; i++) { await P
 const reference = 'a'.repeat(64), other = 'b'.repeat(64)
 const overview = {
   serverNow: Date.now(),
-  policy: { confirmationSeconds: 60, proposalSeconds: 120 },
+  policy: { confirmationSeconds: 60, proposalSeconds: 120, reveal: false, copy: false, tenantQuota: 30 },
+  items: [{ id: 7, alias: 'db-prod' }],
   users: [
     { id: 1, name: 'Ana', email: 'ana@example.test', manager: true, grants: { reveal: true, copy: false, extension: false } },
     { id: 2, name: 'Bruno', email: 'bruno@example.test', manager: false, grants: { reveal: false, copy: false, extension: true } },
@@ -33,7 +34,8 @@ const overview = {
     { reference, change: { kind: 'grant' as const, userId: 2, action: 'extension' as const, enabled: false }, proposedBy: { id: 3, name: 'Carla' }, mine: false, expiresAt: Date.now() + 90_000,
       beneficiary: { id: 2, name: 'Bruno', email: 'bruno@example.test' } },
     { reference: other, change: { kind: 'policy' as const, reveal: true, copy: true, tenantQuota: 10 }, proposedBy: { id: 1, name: 'Ana' }, mine: true, expiresAt: Date.now() + 30_000, beneficiary: null },
-    { reference: 'c'.repeat(64), change: { kind: 'item' as const, secretId: 4, enabled: true }, proposedBy: { id: 3, name: 'Carla' }, mine: false, expiresAt: Date.now() + 30_000, beneficiary: null },
+    { reference: 'c'.repeat(64), change: { kind: 'item' as const, secretId: 4, enabled: true }, proposedBy: { id: 3, name: 'Carla' }, mine: false, expiresAt: Date.now() + 30_000, beneficiary: null,
+      item: { id: 4, alias: 'web-root' } },
     { reference: 'd'.repeat(64), change: { kind: 'grant' as const, userId: 1, action: 'copy' as const, enabled: true }, proposedBy: { id: 3, name: 'Carla' }, mine: false, expiresAt: Date.now() + 30_000,
       beneficiary: { id: 1, name: 'Ana', email: 'ana@example.test' } },
   ],
@@ -89,12 +91,16 @@ describe('NA-0183 vault administration screen', () => {
     f.state.password = 'pw'; f.state.token = '123456'; await f.state.confirm()
     expect(d.unlock).toHaveBeenCalledWith('pw', '123456'); expect(f.state.password).toBe(''); expect(f.state.token).toBe('')
     const html = await f.html()
-    expect(html).toContain('vault-administration-user-2'); expect(html).toContain('vault-administration-propose-2-extension')
+    expect(html).toContain('vault-administration-user-2'); expect(html).toContain('vault-administration-propose-2-reveal')
+    // NA-0196: the same change already waiting replaces the button (no duplicate proposals).
+    expect(html).not.toContain('vault-administration-propose-2-extension'); expect(html).toContain('vault-administration-waiting-2-extension')
     expect(html).not.toContain('vault-administration-propose-1-')
     expect(html).toContain(`vault-administration-approve-${reference}`); expect(html).not.toContain(`vault-administration-approve-${other}`)
-    // Policy/item proposals are listed but never approved blind from this screen.
-    expect(html).not.toContain(`vault-administration-approve-${'c'.repeat(64)}`)
-    expect(html).toContain('vaultAdministration.yours'); expect(html).toContain('vaultAdministration.proposalOther')
+    // NA-0196: item and policy proposals are approved here, with their content on screen.
+    expect(html).toContain(`vault-administration-approve-${'c'.repeat(64)}`)
+    expect(html).toContain('vaultAdministration.yours'); expect(html).toContain('vaultAdministration.proposalPolicy')
+    expect(f.state.describe(overview.proposals[2])).toBe('vaultAdministration.proposalItemRelease:{"item":"web-root"}')
+    expect(html).toContain('vault-administration-policy'); expect(html).toContain('vault-administration-released-7')
     // The two-manager rule is spelled out, and a manager who receives the permission is told someone else must approve.
     for (const step of ['intro', 'step1', 'step2', 'step3']) expect(html).toContain(`vaultAdministration.${step}`)
     expect(html).toContain(`vault-administration-beneficiary-${'d'.repeat(64)}`); expect(html).not.toContain(`vault-administration-approve-${'d'.repeat(64)}`)
@@ -108,8 +114,9 @@ describe('NA-0183 vault administration screen', () => {
     const d = fakeDelivery(), f = mount<Admin>(VaultAdministration, { transport: transport(true), delivery: d }); await flush(); await f.state.open()
     f.state.password = 'pw'; f.state.token = '123456'; await f.state.confirm()
     await f.state.propose(1, 'copy', true); expect(d.proposeChange).not.toHaveBeenCalled()
-    await f.state.propose(2, 'extension', false)
-    expect(d.proposeChange).toHaveBeenCalledWith({ kind: 'grant', userId: 2, action: 'extension', enabled: false })
+    await f.state.propose(2, 'extension', false); expect(d.proposeChange).not.toHaveBeenCalled()
+    await f.state.propose(2, 'copy', true)
+    expect(d.proposeChange).toHaveBeenCalledWith({ kind: 'grant', userId: 2, action: 'copy', enabled: true })
     expect(f.state.notice).toBe('proposed'); expect(d.administrationOverview).toHaveBeenCalledTimes(2)
     await f.state.approve(reference)
     expect(d.approveProposal).toHaveBeenCalledWith(reference); expect(f.state.notice).toBe('applied'); expect(f.state.overview).toBeNull()
@@ -138,6 +145,45 @@ describe('NA-0183 vault administration screen', () => {
     await f.state.confirm(); expect(f.state.overview).toEqual(overview)
     state.phase = 'locked'; vi.advanceTimersByTime(1000)
     expect(d.tick).toHaveBeenCalled(); expect(f.state.overview).toBeNull()
+    f.unmount()
+  })
+})
+
+interface Delivery { proposePolicy(): Promise<void>; proposeItem(id: number, enabled: boolean): Promise<void>; policyReveal: boolean; policyCopy: boolean
+  policyQuota: number | null; policyChanged: boolean; itemReleased: boolean; proposals: Array<{ reference: string }> }
+describe('NA-0196 tenant delivery policy and released items', () => {
+  it('proposes the tenant policy only when it changes, and releases or withdraws items', async () => {
+    const d = fakeDelivery(), f = mount<Admin & Delivery>(VaultAdministration, { transport: transport(true), delivery: d }); await flush()
+    await f.state.open(); f.state.password = 'pw'; f.state.token = '123456'; await f.state.confirm()
+    expect(f.state.policyChanged).toBe(false)
+    await f.state.proposePolicy(); expect(d.proposeChange).not.toHaveBeenCalled()
+    f.state.policyReveal = true; f.state.policyQuota = 40
+    await f.state.proposePolicy()
+    expect(d.proposeChange).toHaveBeenLastCalledWith({ kind: 'policy', reveal: true, copy: false, tenantQuota: 40 })
+    await f.state.proposeItem(7, false)
+    expect(d.proposeChange).toHaveBeenLastCalledWith({ kind: 'item', secretId: 7, enabled: false })
+    f.unmount()
+  })
+  it('focused on one item: shows its state, proposes the release and lists only its proposals', async () => {
+    const d = fakeDelivery(), f = mount<Admin & Delivery>(VaultAdministration, { transport: transport(true), delivery: d, item: { id: 4, name: 'web-root' } }); await flush()
+    expect(d.prepare).toHaveBeenCalledTimes(1)
+    f.state.password = 'pw'; f.state.token = '123456'; await f.state.confirm()
+    const html = await f.html()
+    expect(html).toContain('vault-administration-item'); expect(html).toContain('vaultAdministration.itemNotReleased')
+    expect(html).not.toContain('vault-administration-user-2'); expect(html).not.toContain('vault-administration-policy')
+    expect(f.state.proposals.map(p => p.reference)).toEqual(['c'.repeat(64)])
+    // Its release is already waiting: no second proposal, the window says so.
+    expect(html).toContain('vault-administration-item-waiting'); expect(html).not.toContain('vault-administration-item-propose')
+    await f.state.proposeItem(4, true); expect(d.proposeChange).not.toHaveBeenCalled()
+    await f.state.proposeItem(4, false)
+    expect(d.proposeChange).toHaveBeenLastCalledWith({ kind: 'item', secretId: 4, enabled: false })
+    f.unmount()
+  })
+  it('tells the page after an approval so it refreshes what users may reveal or copy', async () => {
+    const d = fakeDelivery(), changed = vi.fn()
+    const f = mount<Admin>(VaultAdministration, { transport: transport(true), delivery: d, onChanged: changed }); await flush()
+    await f.state.open(); f.state.password = 'pw'; f.state.token = '123456'; await f.state.confirm()
+    await f.state.approve('c'.repeat(64)); expect(changed).toHaveBeenCalledTimes(1)
     f.unmount()
   })
 })

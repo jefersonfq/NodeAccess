@@ -32,12 +32,14 @@ export class SqlVaultAdministration implements AdministrationReads {
   async summary(): Promise<{ manager: boolean; pending: number; managers: number[] }> {
     const managers = await this.managerIds()
     if (!managers.includes(this.actor.userId)) return { manager: false, pending: 0, managers: [] }
-    const rows = await this.db.$queryRaw<Array<{ proposedBy: number; payload: unknown }>>`SELECT proposed_by AS proposedBy,payload FROM vault_proposals
-      WHERE tenant_id=${this.actor.tenantId} AND expires_at > ${new Date(this.now())} AND proposed_by<>${this.actor.userId} LIMIT 50`
+    const rows = await this.db.$queryRaw<Array<{ proposedBy: number; payload: unknown; itemId: number | null }>>`SELECT p.proposed_by AS proposedBy,p.payload,
+      s.id AS itemId FROM vault_proposals p
+      LEFT JOIN secrets s ON s.id=CAST(JSON_UNQUOTE(JSON_EXTRACT(p.payload,'$.secretId')) AS UNSIGNED) AND s.tenant_id=p.tenant_id AND s.revoked_at IS NULL
+      WHERE p.tenant_id=${this.actor.tenantId} AND p.expires_at > ${new Date(this.now())} AND p.proposed_by<>${this.actor.userId} LIMIT 50`
     const pending = rows.filter(p => {
       const change = parse(p.payload)
-      // Only what the portal approves on screen; item/policy changes stay in the API.
-      if (change.kind === 'item' || change.kind === 'policy') return false
+      // NA-0196: every kind is approved on screen (item and policy included), except item changes approval would refuse.
+      if (change.kind === 'item' && (p.itemId === null || p.itemId === undefined)) return false
       return managers.includes(Number(p.proposedBy)) && !(('userId' in change) && change.userId === this.actor.userId)
     }).length
     return { manager: true, pending, managers }
@@ -57,13 +59,18 @@ export class SqlVaultAdministration implements AdministrationReads {
     const grants = await this.db.$queryRaw<Array<{ userId: number; action: string; enabled: unknown }>>`SELECT user_id AS userId,action,enabled
       FROM vault_entitlements WHERE tenant_id=${this.actor.tenantId}`
     const proposals = await this.db.$queryRaw<Array<{ reference: string; proposedBy: number; name: string | null; payload: unknown; expiresAt: Date
-      beneficiaryId: number | null; beneficiaryName: string | null; beneficiaryEmail: string | null }>>`SELECT p.proposal_hash AS reference,
-      p.proposed_by AS proposedBy,u.name,p.payload,p.expires_at AS expiresAt,b.id AS beneficiaryId,b.name AS beneficiaryName,b.email AS beneficiaryEmail
+      beneficiaryId: number | null; beneficiaryName: string | null; beneficiaryEmail: string | null; itemId: number | null; itemAlias: string | null }>>`SELECT p.proposal_hash AS reference,
+      p.proposed_by AS proposedBy,u.name,p.payload,p.expires_at AS expiresAt,b.id AS beneficiaryId,b.name AS beneficiaryName,b.email AS beneficiaryEmail,
+      s.id AS itemId,s.alias AS itemAlias
       FROM vault_proposals p LEFT JOIN users u ON u.id=p.proposed_by AND u.tenant_id=p.tenant_id
+      LEFT JOIN secrets s ON s.id=CAST(JSON_UNQUOTE(JSON_EXTRACT(p.payload,'$.secretId')) AS UNSIGNED) AND s.tenant_id=p.tenant_id AND s.revoked_at IS NULL
       LEFT JOIN users b ON b.id=CAST(JSON_UNQUOTE(JSON_EXTRACT(p.payload,'$.userId')) AS UNSIGNED) AND b.tenant_id=p.tenant_id
         AND b.active=TRUE AND b.deleted_at IS NULL
       WHERE p.tenant_id=${this.actor.tenantId} AND p.expires_at > ${new Date(now)} ORDER BY p.expires_at LIMIT 50`
     const managers = await this.managerIds()
+    const items = await this.db.$queryRaw<Array<{ id: number; alias: string }>>`SELECT s.id,s.alias FROM vault_web_items w
+      JOIN secrets s ON s.id=w.secret_id AND s.tenant_id=w.tenant_id WHERE w.tenant_id=${this.actor.tenantId} AND w.enabled=TRUE AND s.revoked_at IS NULL
+      ORDER BY s.alias,s.id LIMIT 1000`
     const byUser = new Map<number, VaultAdministrationUser>(users.map(u => [u.id, { id: u.id, name: u.name, email: u.email, manager: managers.includes(Number(u.id)),
       grants: { reveal: false, copy: false, extension: false } }]))
     for (const g of grants) {
@@ -75,11 +82,14 @@ export class SqlVaultAdministration implements AdministrationReads {
     const live = proposals.filter(p => {
       const change = parse(p.payload)
       return managers.includes(Number(p.proposedBy)) && !('userId' in change && p.beneficiaryId === null && !(change.kind === 'manager' && !change.enabled))
+        // NA-0196: any item change for a Secret revoked or removed would be refused too.
+        && !(change.kind === 'item' && p.itemId === null)
     })
     return { users: [...byUser.values()], serverNow: now, proposals: live.map(p => ({ reference: p.reference, proposedBy: { id: p.proposedBy, name: p.name ?? '' },
       mine: p.proposedBy === this.actor.userId, expiresAt: p.expiresAt.getTime(),
       beneficiary: p.beneficiaryId === null ? null : { id: p.beneficiaryId, name: p.beneficiaryName ?? '', email: p.beneficiaryEmail ?? '' },
-      change: parse(p.payload) })) }
+      item: p.itemId === null ? null : { id: Number(p.itemId), alias: p.itemAlias ?? '' },
+      change: parse(p.payload) })), items: items.map(i => ({ id: Number(i.id), alias: i.alias })) }
   }
   async propose(id: string, change: VaultChange, windowSeconds = PROPOSAL_DEFAULT_SECONDS): Promise<void> {
     await this.manager(this.actor.userId)

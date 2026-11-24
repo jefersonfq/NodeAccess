@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { SecretActionHandle, PemActionHandle } from '@/components/vault/action-handles'
 import { computed, h, onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import { NAlert, NButton, NDataTable, NDropdown, NEmpty, NInput, NSelect, NTag, NText } from 'naive-ui'
+import { NAlert, NButton, NDataTable, NDropdown, NEmpty, NInput, NModal, NSelect, NTag, NText } from 'naive-ui'
 import type { VNodeChild } from 'vue'
 import type { DropdownOption } from 'naive-ui'
 import type { DataTableColumns } from 'naive-ui'
@@ -17,6 +17,10 @@ import ExtensionDevices from '@/components/vault/ExtensionDevices.vue'
 import ExtensionInstall from '@/components/vault/ExtensionInstall.vue'
 import VaultAdministration from '@/components/vault/VaultAdministration.vue'
 import { useRoute, useRouter } from 'vue-router'
+import type { VaultAvailability } from '@nodeaccess/shared'
+import { createVaultTransport } from '@/services/vault-http'
+import { deliveryBlock, deliveryFor, isVaultManager, vaultAvailability, vaultPortalIdentity } from '@/services/vault-manager'
+import { createVaultDelivery } from '@/services/vault-delivery'
 
 const { t } = useI18n()
 const auth = useAuthStore()
@@ -46,8 +50,26 @@ const typeOptions = computed(() => [
   { label: t('vault.secretType'), value: 'secret' },
   { label: t('vault.pemType'), value: 'pem' },
 ])
+// NA-0196: what the user may reveal/copy is known before any password is asked; managers release items from the row.
+const vaultTransport = createVaultTransport()
+const availability = ref<VaultAvailability | null>(null), manager = ref(false)
+const block = computed(() => deliveryBlock(availability.value))
+const itemModal = ref<{ id: number; name: string } | null>(null)
+// One administration session for the managers' section and the item window: confirming identity once serves both.
+const adminDelivery = createVaultDelivery({ identity: () => vaultPortalIdentity(auth) })
+let availabilityRead = 0
+async function refreshAvailability(): Promise<void> {
+  const current = ++availabilityRead
+  const [next, isManager] = await Promise.all([vaultAvailability(vaultTransport, auth), isVaultManager(vaultTransport, auth)])
+  // Only the latest read counts (reload, approvals and the item window can overlap).
+  if (current !== availabilityRead) return
+  availability.value = next; manager.value = isManager
+}
+function openSettings(): void { document.querySelector('[data-testid="vault-administration"]')?.scrollIntoView({ behavior: 'smooth', block: 'start' }) }
+function closeItem(): void { itemModal.value = null; void refreshAvailability() }
 function reload(): Promise<void> {
   deliveryPanel.value?.lock()
+  void refreshAvailability()
   return catalog.load({ includeRevoked: includeRevoked.value, canListPem: canListPem.value })
 }
 watch(() => [auth.user?.id, auth.user?.tenantId, auth.user?.actingTenantId, auth.isAdmin, canListPem.value], () => {
@@ -60,9 +82,10 @@ function onFeaturesUpdated(): void { void reload() }
 onMounted(() => window.addEventListener(FEATURES_UPDATED_EVENT, onFeaturesUpdated))
 onBeforeUnmount(() => {
   window.removeEventListener(FEATURES_UPDATED_EVENT, onFeaturesUpdated)
-  catalog.dispose()
+  catalog.dispose(); adminDelivery.dispose()
 })
 function act(entry: VaultEntry, action: string): void {
+  if (action === 'delivery') { if (manager.value && entry.kind === 'secret') itemModal.value = { id: entry.record.id, name: entry.name }; return }
   if (!canManageVaultEntry(entry, auth.user?.id, auth.isAdmin)) return
   if (entry.kind === 'pem') {
     if (action === 'passphrase') pemActions.value?.openPassphrase(entry.record)
@@ -80,7 +103,11 @@ function actionOptions(entry: VaultEntry): DropdownOption[] {
     { key: 'passphrase', label: t(entry.record.hasPassphrase ? 'pemKeys.changePassphrase' : 'pemKeys.addPassphrase') },
     { key: 'delete', label: t('common.delete') },
   ]
+  const own = canManageVaultEntry(entry, auth.user?.id, auth.isAdmin)
+  const delivery: DropdownOption[] = manager.value && !entry.record.revokedAt ? [{ key: 'delivery', label: t('vault.itemDelivery') }] : []
+  if (!own) return delivery
   return [
+    ...delivery,
     { key: 'consumers', label: `${t('secrets.consumers.action')} (${entry.record.usageCount ?? '—'})` },
     { key: 'edit', label: t('common.edit'), disabled: !!entry.record.revokedAt },
     { key: 'rotate', label: t('secrets.rotate'), disabled: !!entry.record.revokedAt },
@@ -102,15 +129,21 @@ const columns = computed<DataTableColumns<VaultEntry>>(() => [
   { title: t('vault.status'), key: 'status', width: 170, render: (entry): VNodeChild => entry.kind === 'secret'
     ? h(NTag, { size: 'small', type: entry.record.revokedAt ? 'error' : 'success' }, () => t(entry.record.revokedAt ? 'secrets.status.revoked' : 'secrets.status.active'))
     : t(entry.record.hasPassphrase ? 'vault.withPassphrase' : 'vault.withoutPassphrase') },
-  { title: t('vaultDelivery.values'), key: 'delivery', width: 190, render: (entry): VNodeChild => entry.kind === 'secret' && !entry.record.revokedAt
-    ? h('div', { class: 'flex flex-wrap gap-2' }, (['reveal', 'copy'] as const).map(action => h(NButton, {
+  { title: t('vaultDelivery.values'), key: 'delivery', width: 190, render: (entry): VNodeChild => {
+    if (entry.kind !== 'secret' || entry.record.revokedAt) return '—'
+    const { actions, reason } = deliveryFor(availability.value, entry.record.id)
+    // A reason shared by every item is explained once above the list; the row only says it is unavailable.
+    if (reason) return h(NText, { depth: 3, class: 'text-xs', 'data-testid': `vault-delivery-reason-${entry.record.id}` },
+      () => t(block.value ? 'vaultDelivery.reasons.unavailable' : `vaultDelivery.reasons.${reason}`))
+    return h('div', { class: 'flex flex-wrap gap-2' }, actions.map(action => h(NButton, {
       size: 'small', secondary: true, disabled: deliveryPanel.value?.available !== true, 'aria-label': `${t(`vaultDelivery.${action}`)}: ${entry.name}`,
       onClick: (): void => { deliveryPanel.value?.request(action, entry.record.id, entry.name) },
-    }, () => t(`vaultDelivery.${action}`)))) : '—' },
+    }, () => t(`vaultDelivery.${action}`))))
+  } },
   { title: t('common.actions'), key: 'actions', width: 130, render: (entry): VNodeChild => h(NDropdown, {
     trigger: 'click', placement: 'bottom-end', options: actionOptions(entry), onSelect: (action: string) => act(entry, action),
   }, { default: () => h(NButton, {
-    size: 'small', secondary: true, disabled: !canManageVaultEntry(entry, auth.user?.id, auth.isAdmin),
+    size: 'small', secondary: true, disabled: !canManageVaultEntry(entry, auth.user?.id, auth.isAdmin) && !(manager.value && entry.kind === 'secret' && !entry.record.revokedAt),
     'aria-label': `${t('common.actions')}: ${entry.name}`,
   }, () => t('common.actions')) }) },
 ])
@@ -148,6 +181,7 @@ const columns = computed<DataTableColumns<VaultEntry>>(() => [
         >
           {{ t('vault.importPem') }}
         </NButton>
+        <ExtensionDevices />
         <NButton
           :loading="loading"
           @click="reload"
@@ -160,9 +194,46 @@ const columns = computed<DataTableColumns<VaultEntry>>(() => [
       {{ t('vaultDelivery.catalogHint') }}
     </p>
     <VaultDeliveryPanel ref="deliveryPanel" />
+    <NAlert
+      v-if="block && secretState === 'ready'"
+      type="info"
+      class="mb-4"
+      :title="t(`vaultDelivery.block.${block}Title`)"
+      data-testid="vault-delivery-block"
+    >
+      {{ t(`vaultDelivery.block.${block}${manager ? 'Manager' : ''}`) }}
+      <NButton
+        v-if="manager"
+        text
+        type="primary"
+        class="ml-2"
+        data-testid="vault-delivery-open-settings"
+        @click="openSettings"
+      >
+        {{ t('vaultDelivery.block.openSettings') }}
+      </NButton>
+    </NAlert>
     <ExtensionInstall />
-    <ExtensionDevices />
-    <VaultAdministration />
+    <VaultAdministration
+      :delivery="adminDelivery"
+      @changed="refreshAvailability"
+    />
+    <NModal
+      :show="itemModal !== null"
+      preset="card"
+      :title="itemModal ? t('vault.itemDeliveryTitle', { name: itemModal.name }) : ''"
+      style="width: min(720px, 100vw)"
+      data-testid="vault-item-delivery-modal"
+      @update:show="(value: boolean) => { if (!value) closeItem() }"
+    >
+      <VaultAdministration
+        v-if="itemModal"
+        :key="itemModal.id"
+        :item="itemModal"
+        :delivery="adminDelivery"
+        @changed="refreshAvailability"
+      />
+    </NModal>
     <NAlert
       v-if="focus"
       type="info"

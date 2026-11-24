@@ -16,7 +16,7 @@ vi.mock('@/stores/auth', () => ({ useAuthStore: () => auth }))
 vi.mock('vue-router', () => ({ useRoute: () => route }))
 const portalLocale = { value: 'pt-BR' }
 vi.mock('vue-i18n', () => ({ useI18n: () => ({ t: (key: string) => key, d: () => 'date', locale: portalLocale }) }))
-vi.mock('naive-ui', () => ({ ...Object.fromEntries(['NAlert', 'NButton', 'NCard', 'NFormItem', 'NInput', 'NSpace', 'NText'].map(name => [name,
+vi.mock('naive-ui', () => ({ ...Object.fromEntries(['NAlert', 'NButton', 'NCard', 'NFormItem', 'NInput', 'NModal', 'NSpace', 'NText'].map(name => [name,
   defineComponent({ inheritAttrs: false, setup: (_, { attrs, slots }) => () => h(name, attrs, slots.default?.()) })])) }))
 interface HostNode { parent: HostNode | null; children: HostNode[] }
 const node = (): HostNode => ({ parent: null, children: [] })

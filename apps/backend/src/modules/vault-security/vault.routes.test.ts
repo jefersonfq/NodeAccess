@@ -31,6 +31,7 @@ async function harness(patch: Partial<JwtPayload> = {}, withAdministration = fal
   }
   const administration = { propose: vi.fn().mockResolvedValue({ proposalId: opaque() }), approve: vi.fn().mockResolvedValue({ state: 'APPLIED' }),
     approveReference: vi.fn().mockResolvedValue({ state: 'APPLIED' }), status: vi.fn().mockResolvedValue({ manager: true }),
+    availability: vi.fn().mockResolvedValue({ policy: { reveal: true, copy: false }, grants: { reveal: true, copy: true }, items: [4] }),
     overview: vi.fn().mockResolvedValue({ users: [], proposals: [], serverNow: 1 }) }
   configureCurrentSessionReader(() => Promise.resolve({ tenantId: 7, active: true, deletedAt: null, tenantActive: true, targetTenantActive: true,
     sessionVersion: 3, role: patch.role === 'admin' ? 'ADMIN' : 'USER', isPlatformAdmin: patch.isPlatformAdmin ?? false,
@@ -223,6 +224,10 @@ describe('Vault private HTTP adapter', () => {
         expect((await h.post('/administration/approve', body)).statusCode).toBe(400)
       }
       expect((await h.post('/administration/status', { extra: 1 })).statusCode).toBe(400)
+      // NA-0196: guidance for the signed-in user, without a vault session.
+      expect((await h.post('/availability')).json()).toEqual({ policy: { reveal: true, copy: false }, grants: { reveal: true, copy: true }, items: [4] })
+      expect(h.administration.availability).toHaveBeenCalledWith(actor, origin)
+      expect((await h.post('/availability', { sessionId })).statusCode).toBe(400)
       expect((await h.post('/administration/overview', {})).statusCode).toBe(400)
       expect(h.administration.approve).not.toHaveBeenCalled()
     } finally { await h.app.close() }

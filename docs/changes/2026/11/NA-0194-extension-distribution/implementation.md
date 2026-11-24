@@ -37,3 +37,7 @@ Implementação e validação acima.
 ### 2026-11-23T18:20:00-03:00 — Revisão independente e ajustes
 
 Revisão independente (subagente, somente leitura): PASS_WITH_WARNINGS — sem leitura fora da pasta, sem vazamento, sem publicação inconsistente; formatos CRX3/ZIP conferidos contra o do Chromium. Corrigidos o MEDIUM (`.gitignore` sem âncora ignorava `scripts/release/`) e os LOW (tamanho antes da leitura e ETag; metadados só com arquivos íntegros; `update.xml` gerado pelo servidor; limite do `release.json`; URLs exatas no cartão). Ran: vitest `vault-security` 308 PASS; cartão do portal PASS.
+
+### 2026-11-23T23:55:00-03:00 — CI, merge e encerramento
+
+Correções para a CI (`sonar-real`): verificação do pacote no Chromium dentro do teste de fumaça (cobertura), testes de TACACS determinísticos (`tacacs-tls`, `tacacs-health`) e cartão de instalação sem chamada ao cofre fora de HTTPS (inclusive `http://127.0.0.1`, que o navegador trata como contexto seguro). PR #85 mesclada (`07c004f10`) com autorização do responsável; única verificação vermelha: `upgrade-restore`, por CVEs High do OpenSSL 3.5.9 na imagem `nodeaccess-redis:8.2.10-1` publicadas no mesmo dia, sem correção e sem relação com a mudança — tratamento em frente separada. Estado: MERGED, MASTER_SYNCED.

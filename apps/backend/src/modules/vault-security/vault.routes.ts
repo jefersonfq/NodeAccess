@@ -75,6 +75,7 @@ export function vaultRoutes(app: FastifyInstance, service: VaultService, adminis
       (i,c,o,b) => 'reference' in b ? administration.approveReference(i,c,o,b.sessionId,b.reference) : administration.approve(i,c,o,b.sessionId,b.proposalId))
     // NA-0183 portal screen: "is a manager?" needs no vault session; the list needs the same confirmed session as a change.
     post('/administration/status', empty, (i,_c,o) => administration.status(i,o), false)
+    post('/availability', empty, (i,_c,o) => administration.availability(i,o), false)
     post('/administration/overview', session, (i,c,o,b) => administration.overview(i,c,o,b.sessionId))
   }
   return Promise.resolve()

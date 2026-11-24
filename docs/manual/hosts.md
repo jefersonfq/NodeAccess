@@ -104,7 +104,7 @@ Atalhos: **Alt+Shift+V** abre a extensão (troque em `chrome://extensions/shortc
 
 Cada conexão vale por até 30 minutos. Depois da primeira autorização pelo portal, o navegador fica confiável por 7 dias: ao reabrir a extensão (por exemplo, depois de **Atualizar** ou de reiniciar o navegador), ela reconecta sozinha enquanto o seu login no portal estiver ativo; se você saiu do portal, ela pede só o **Código do autenticador** e **Reconectar**. **Autorizar pelo portal** abre a autorização completa a qualquer momento. Cinco códigos errados, **Desconectar** na extensão, revogar o dispositivo, retirar a permissão ou **Desconectar todas** nas sessões de login encerram essa confiança: a próxima conexão volta a ser pelo portal, com senha e código. **Negar** devolve a extensão sem conexão.
 
-Em **VaultNAccess**, a seção **Extensão do navegador: dispositivos conectados** lista os seus dispositivos; use **Revogar** para cortar o acesso de um deles imediatamente. A seção não aparece quando o recurso está desligado na instalação.
+Em **VaultNAccess**, o botão **Dispositivos conectados**, ao lado de **Importar chave PEM**, abre a lista dos seus dispositivos com a identificação de cada um (por exemplo, `uMdX-wfAz-cgAS-KMPk`); use **Revogar** para cortar o acesso de um deles imediatamente. O botão não aparece quando o recurso está desligado na instalação.
 
 **Acesso negado:** peça aos gestores do cofre a permissão **Usar extensão**. **Pedido de conexão inválido:** inicie a conexão de novo pela extensão. **A conexão expirou:** conecte novamente. **Atualize a extensão:** a instalação exige uma versão mais nova.
 
@@ -132,6 +132,15 @@ Na seção **Permissões do cofre (gestores)** do VaultNAccess, **Tempo de confi
 
 O tempo vale só enquanto o cofre estiver aberto: sem atividade por 5 minutos, ou após 30 minutos, o cofre bloqueia de qualquer forma. Administrar permissões e conectar a extensão continuam pedindo confirmação de 1 minuto.
 
+### Entrega de senhas no tenant e itens liberados (gestores)
+Para que alguém revele ou copie uma senha, três coisas precisam estar ligadas, cada uma aprovada por dois gestores: a **Entrega de senhas no tenant** (revelar e copiar), a permissão **Revelar** ou **Copiar** da pessoa e a liberação do item.
+
+1. Em **Permissões do cofre (gestores)**, depois de confirmar a identidade, marque **Permitir revelar** e/ou **Permitir copiar** em **Entrega de senhas no tenant** e selecione **Propor mudança**. **Entregas por minuto no tenant** limita quantas entregas o tenant faz por minuto.
+2. Para liberar um item, na lista do cofre selecione **Ações → Entrega do item…** na linha do Secret e depois **Propor liberação**. A seção dos gestores lista os **Itens liberados para revelar e copiar**, com **Retirar liberação**.
+3. Outro gestor aprova em **Propostas aguardando aprovação**, vendo o conteúdo (valores da política ou nome do item). Enquanto uma proposta igual espera aprovação, a tela mostra **Aguardando aprovação** no lugar do botão.
+
+Quem não pode revelar ou copiar vê o motivo antes de qualquer senha: um aviso no topo do cofre quando a entrega está desligada no tenant ou a pessoa não tem permissão, e **Item não liberado** na coluna **Valores protegidos** do item. Gestores veem **Abrir permissões do cofre** no aviso.
+
 ### Validade das propostas (gestores)
 Em **Validade das propostas**, os gestores definem por quanto tempo uma proposta fica aberta esperando outro gestor aprovar: de 2 minutos (padrão) a 24 horas. Escolha a **Validade** e selecione **Propor nova validade**; outro gestor aprova na lista de propostas. A nova validade vale para as propostas criadas depois da aprovação. Propostas mais longas facilitam a aprovação por gestores em outros horários, mas ficam abertas por mais tempo; a aprovação continua exigindo a confirmação de identidade do segundo gestor.
 
@@ -154,6 +163,8 @@ Desconectar uma única sessão não fecha terminais que ela já tinha aberto; pa
 Você iniciou uma manutenção, voltou a Hosts para consultar outro equipamento e quer continuar o trabalho anterior. Escolha o cartão em Sessões abertas em vez de iniciar uma segunda conexão.
 
 ## Se algo não funcionar
+**Revelar ou copiar não aparece em um Secret:** leia o aviso no topo do cofre ou o motivo na coluna **Valores protegidos** (**Desligado no tenant**, **Sem permissão** ou **Item não liberado**) e peça aos gestores do cofre o que falta.
+
 **A pasta não mostra os hosts:** aguarde o carregamento e use a ação de tentar novamente quando disponível. Confira o filtro e o tenant selecionado.
 
 **Conectar indisponível ou acesso negado:** consulte a dica da ação. Uma rota que exige Agent ou conector depende da disponibilidade desse recurso; confira a conexão do Agent e o conector configurado para o host. O modo automático pode usar o acesso direto quando permitido. Se a causa for permissão, confirme o acesso com o administrador. Alterar filtros ou favoritar o host não concede acesso.

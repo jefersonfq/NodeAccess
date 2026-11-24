@@ -102,3 +102,9 @@ HTTP do cofre usa Bearer capturado e contrato próprio sem interceptors de refre
 Cada operação gera chave RSA2048 privada nãoexportável em memória. Capabilities e valores não vão para Pinia, catálogo ou armazenamentooffline. Reveal aparece por até15s; copy aguarda gesto separado sem exibir plaintext. Falha/expiração descarta o buffer, sem fallback que coloque senha no DOM. O SO pode já ter aceitado uma escrita quando o contexto é cancelado; não há promessa de reversão ou limpeza automática da área de transferência.
 
 Manual do operador: `docs/manual/hosts.md`. Harness HTTPS: `npm run test:vault:frontend` (`tools/vault-security/frontend-harness.mts`), com Fastify/bcrypt/TOTP/JWE reais e autoridade/Redis sintéticos; não substitui ensaio MySQL/Redis da camada backend nem homologação humana. Nenhum dado ou tenant real é utilizado.
+
+## Política de entrega e itens liberados pela tela (NA-0196)
+
+- Gestores ligam revelar/copiar e a cota por minuto do tenant (proposta `policy`) e liberam/retiram itens (proposta `item`) pelo portal, com aprovação de outro gestor; antes só pela API.
+- `POST /api/v1/vault-security/availability` (autenticado, origem exata, 30/min por usuário, sem desbloquear): `{ policy: {reveal, copy}, grants: {reveal, copy}, items: number[] }`, com a mesma regra de permissão das entregas e só os itens liberados que o usuário vê (ADMIN, dono, TENANT ou grupo). Só orienta a tela; cada entrega continua decidida no servidor.
+- Diagnóstico "o usuário tem permissão mas não revela": confira política (revelar/copiar), permissão aprovada por dois gestores distintos (nenhum é o próprio usuário), item liberado e não revogado, escopo.

@@ -18,14 +18,23 @@ export interface VaultTransaction {
   extension?: ExtensionRecords
   /** NA-0183 read side of the two-manager administration (portal screen). */
   administration?: AdministrationReads
+  /** NA-0196: own grants and released items visible to this identity. */
+  availability?(): Promise<Omit<VaultAvailability, 'policy'>>
 }
 export interface VaultAdministrationUser { id: number; name: string; email: string; /** NA-0188 */ manager: boolean; grants: Record<'reveal' | 'copy' | 'extension', boolean> }
 export interface VaultAdministrationProposal { reference: string; change: VaultChange; proposedBy: { id: number; name: string }; mine: boolean; expiresAt: number
   /** Grant beneficiary (same tenant), even when outside the bounded user list. */
-  beneficiary: { id: number; name: string; email: string } | null }
-export interface VaultAdministrationOverview { users: VaultAdministrationUser[]; proposals: VaultAdministrationProposal[]; serverNow: number }
+  beneficiary: { id: number; name: string; email: string } | null
+  /** NA-0196: item of an item proposal (same tenant), so the approver sees what is released. */
+  item: { id: number; alias: string } | null }
+export interface VaultAdministrationOverview { users: VaultAdministrationUser[]; proposals: VaultAdministrationProposal[]; serverNow: number
+  /** NA-0196: Secrets released for delivery (not revoked). */
+  items: Array<{ id: number; alias: string }> }
 /** NA-0186: the overview also shows the tenant's current confirmation time (read from the locked policy). */
-export interface VaultAdministrationView extends VaultAdministrationOverview { policy: { confirmationSeconds: number; /** NA-0188 */ proposalSeconds: number } }
+export interface VaultAdministrationView extends VaultAdministrationOverview { policy: { confirmationSeconds: number; /** NA-0188 */ proposalSeconds: number
+  /** NA-0196 */ reveal: boolean; copy: boolean; tenantQuota: number } }
+/** NA-0196: what the signed-in user may expect before unlocking (guidance only; every delivery is still decided by the server). */
+export interface VaultAvailability { policy: { reveal: boolean; copy: boolean }; grants: { reveal: boolean; copy: boolean }; items: number[] }
 /** NA-0188 status: pending count and manager ids only for managers (zero/empty otherwise). */
 export interface VaultAdministrationSummary { manager: boolean; pending: number; managers: number[] }
 export interface AdministrationReads {
