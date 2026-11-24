@@ -2,7 +2,7 @@
 change_id: NA-0196
 title: Cofre — política de entrega e liberação de itens pela tela, com motivos claros para o usuário
 type: feature
-status: ready-for-review
+status: delivered
 created_at: 2026-11-23T23:00:00-03:00
 base_branch: master
 base_sha: 012ea6b690797425369e9fe4dcbe678aa498ae87

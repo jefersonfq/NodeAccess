@@ -1,13 +1,16 @@
 import {
-  VaultExtensionCapabilitiesSchema, VaultExtensionItemsReplySchema, VaultExtensionTokenReplySchema,
+  VaultExtensionCapabilitiesSchema, VaultExtensionItemsReplySchema, VaultExtensionTokenReplySchema, VaultExtensionUnlockReplySchema,
   type VaultExtensionCapabilities, type VaultExtensionItemsReply, type VaultItemKind,
 } from '@nodeaccess/shared'
 import { createDeviceKey, dpopProof, pkcePair, randomToken } from './crypto'
+import { assertContext, createRecipient, openEnvelope } from './envelope'
 import type { AuthFlow, Authorization, DeviceKey, DeviceKeyStore, ExtensionInfo, SessionStore } from './ports'
 
 /** `offline` (NA-0190): the portal did not answer at all (down, wrong origin, network).
- * `reauthRequired` / `otpInvalid` (NA-0193): the trusted device needs the authenticator code / the code was wrong. */
+ * `reauthRequired` / `otpInvalid` (NA-0193): the trusted device needs the authenticator code / the code was wrong.
+ * `proofRequired` / `itemDenied` / `quota` (NA-0195): reveal/copy needs a fresh code / item or grant refused / limit reached. */
 export type ExtensionFailure = 'denied' | 'cancelled' | 'expired' | 'upgrade' | 'unavailable' | 'invalid' | 'offline' | 'reauthRequired' | 'otpInvalid'
+  | 'proofRequired' | 'itemDenied' | 'quota'
 export class ExtensionError extends Error {
   constructor(public readonly reason: ExtensionFailure) { super(reason) }
 }
@@ -30,6 +33,10 @@ export interface ExtensionClient {
   locale(): Promise<'pt-BR' | 'en' | null>
   /** NA-0193: reconnect this trusted device — automatically, or with the authenticator code. Never creates a device key. */
   renew(otp?: string): Promise<void>
+  /** NA-0195: authenticator-code proof for reveal/copy; resolves with the local deadline of the proof. */
+  unlock(otp: string): Promise<number>
+  /** NA-0195: one reveal/copy release, opened in memory with an ephemeral key; nothing is stored. */
+  deliver(secretId: number, action: 'reveal' | 'copy'): Promise<string>
 }
 /** Connection, DPoP-signed calls and metadata search. Holds the authorization only in the session store. */
 export function createExtensionClient(deps: Deps): ExtensionClient {
@@ -51,6 +58,9 @@ export function createExtensionClient(deps: Deps): ExtensionClient {
   function failure(status: number, code: string | null = null): ExtensionError {
     if (status === 401 && code === 'EXTENSION_REAUTH_REQUIRED') return new ExtensionError('reauthRequired')
     if (status === 403 && code === 'VAULT_REAUTH_FAILED') return new ExtensionError('otpInvalid')
+    if (status === 403 && code === 'EXTENSION_ITEM_DENIED') return new ExtensionError('itemDenied')
+    if (status === 423) return new ExtensionError('proofRequired')
+    if (status === 429) return new ExtensionError('quota')
     if (status === 401) return new ExtensionError('expired')
     if (status === 403) return new ExtensionError('denied')
     if (status === 426) return new ExtensionError('upgrade')
@@ -176,6 +186,27 @@ export function createExtensionClient(deps: Deps): ExtensionClient {
     },
     recents(): Promise<string[]> { return deps.session.recents() },
     /** Portal URL for an item; only server-validated relative paths on the configured origin. */
+    unlock(otp: string): Promise<number> {
+      return guarded(async auth => {
+        if (!/^\d{6}$/.test(otp)) throw new ExtensionError('otpInvalid')
+        const started = now()
+        const reply = VaultExtensionUnlockReplySchema.safeParse(await signed('POST', '/unlock', { accessToken: auth.accessToken, body: { otp } }))
+        if (!reply.success) throw new ExtensionError('unavailable')
+        return started + Math.max(0, reply.data.proofUntil - reply.data.serverNow) - 2_000
+      })
+    },
+    deliver(secretId: number, action: 'reveal' | 'copy'): Promise<string> {
+      return guarded(async auth => {
+        if (!Number.isSafeInteger(secretId) || secretId <= 0) throw new ExtensionError('invalid')
+        const recipient = await createRecipient()
+        const reply = await signed('POST', '/deliver', { accessToken: auth.accessToken, body: { secretId, action, recipient: recipient.publicJwk } }) as { envelope?: unknown; context?: unknown; serverNow?: unknown } | null
+        try {
+          if (typeof reply?.serverNow !== 'number') throw new Error('serverNow')
+          assertContext(reply.context, { itemRef: `secret:${secretId}`, action, thumbprint: recipient.thumbprint, origin: deps.info.portalOrigin, serverNow: reply.serverNow })
+          return await openEnvelope(reply?.envelope, recipient, reply.context)
+        } catch { throw new ExtensionError('invalid') }
+      })
+    },
     async renew(otp?: string): Promise<void> {
       if (otp !== undefined && !/^\d{6}$/.test(otp)) throw new ExtensionError('otpInvalid')
       // A browser without a device key was never trusted: the portal consent is the only way in.

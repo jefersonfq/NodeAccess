@@ -1,6 +1,6 @@
 import type { VaultItemSummary, VaultItemKind } from '@nodeaccess/shared'
-import { denied, unavailable, VaultError, type VaultAuthMethod, type VaultAuthority, type VaultIdentity } from './vault-domain.js'
-import type { Reauthentication } from './vault-ports.js'
+import { denied, operationProofWindowMs, unavailable, VaultError, type VaultAction, type VaultAuthMethod, type VaultAuthority, type VaultEnvelopeContext, type VaultIdentity, type VaultOperation, type VaultSecret } from './vault-domain.js'
+import type { EnvelopeSealer, Reauthentication } from './vault-ports.js'
 import type { OriginVerifier, VaultEntropy, VaultStore, VaultTransaction } from './vault-ports.js'
 import type { VaultService } from './vault.service.js'
 import { extensionRedirectUri, versionAtLeast, type ExtensionAccess, type ExtensionCode, type ExtensionConfig, type ExtensionDeviceRow, type ExtensionLocator, type ExtensionRecords, type ExtensionTrust } from './vault-extension-domain.js'
@@ -14,6 +14,7 @@ const TRUST_TTL_MS = 7 * 24 * 3_600_000
 const TRUST_MAX_FAILURES = 5
 const trustKey = (jkt: string): string => `trust:${jkt}`
 export interface RenewInput { extensionId: string; otp?: string | undefined }
+interface AccessRequest { identity: VaultIdentity; token: string; jkt: string; extensionId: string | null; url: string }
 type Renewal = { ok: true; reply: { accessToken: string; tokenType: 'DPoP'; expiresAt: number; serverNow: number } } | { ok: false; error: VaultError }
 
 /** Item listing reuses the Secrets and PEM ACL services; this port only maps their output. */
@@ -61,7 +62,9 @@ export class VaultExtensionService {
     private readonly origin: OriginVerifier, private readonly dpop: DpopVerifier, readonly nonces: DpopNonces,
     private readonly entropy: VaultEntropy, private readonly catalog: VaultCatalog, private readonly config: ExtensionConfig, private readonly now = Date.now,
     /** NA-0193: NodeAccess TOTP check for renewal with the authenticator code; absent = never accepted (fail closed). */
-    private readonly secondFactor: Pick<Reauthentication, 'verifySecondFactor'> = { verifySecondFactor: () => false }) {}
+    private readonly secondFactor: Pick<Reauthentication, 'verifySecondFactor'> = { verifySecondFactor: () => false },
+    /** NA-0195: JWE sealing for reveal/copy releases; absent = releases unavailable. */
+    private readonly envelope: EnvelopeSealer = { validate: () => unavailable(), seal: () => unavailable() }) {}
 
   private enabled(): void { if (!this.config.enabled) throw new VaultError('EXTENSION_DISABLED', 404) }
   private allowed(extensionId: string, redirectUri: string): void {
@@ -230,32 +233,115 @@ export class VaultExtensionService {
     throw error
   }
 
-  /** DPoP-bound authorization for one API request; returns the authority only to build the response. */
-  private async resource(req: ExtensionRequest, authorization: unknown): Promise<{ identity: VaultIdentity; authority: VaultAuthority; access: ExtensionAccess }> {
-    const extensionId = this.client(req, false)
+  /**
+   * DPoP-bound authorization for one API request, in one transaction with `run` (every check of `admit` under the
+   * same lock). POST requires the extension Origin. Denials of the authorization map to 401; others pass through.
+   */
+  /** DPoP proof (single use) and the owner claimed by the authorization; verified once per request. */
+  private async authenticate(req: ExtensionRequest, authorization: unknown, method: 'GET' | 'POST'): Promise<AccessRequest> {
+    const extensionId = this.client(req, method === 'POST')
     const match = typeof authorization === 'string' ? /^DPoP ([A-Za-z0-9_-]{43})$/.exec(authorization) : null
     if (!match?.[1]) throw new VaultError('EXTENSION_UNAUTHORIZED', 401)
     const token = match[1]
-    const jkt = await this.dpop.verify(req.proof, { method: 'GET', url: req.url, accessToken: token })
+    const jkt = await this.dpop.verify(req.proof, { method, url: req.url, accessToken: token })
     const identity = await this.locator.locate('access', token)
     if (!identity) throw new VaultError('EXTENSION_UNAUTHORIZED', 401)
+    return { identity, token, jkt, extensionId, url: req.url }
+  }
+  /** One transaction under a valid authorization: every check of `admit` under the same lock, then `run`. */
+  private async inAccess<T>(a: AccessRequest, run: (tx: VaultTransaction, ctx: { identity: VaultIdentity; access: ExtensionAccess; jkt: string; token: string }) => Promise<T>): Promise<T> {
     try {
-      return await this.store.transaction(identity, async tx => {
-        const row = await this.records(tx).get<ExtensionAccess>('access', token)
-        if (!row || row.jkt !== jkt || row.value.expiresAt <= tx.now() || (extensionId !== null && row.value.extensionId !== extensionId)) throw new VaultError('EXTENSION_UNAUTHORIZED', 401)
-        await this.admit(tx, identity, row.value, jkt, req.url)
+      return await this.store.transaction(a.identity, async tx => {
+        const row = await this.records(tx).get<ExtensionAccess>('access', a.token)
+        if (!row || row.jkt !== a.jkt || row.value.expiresAt <= tx.now() || (a.extensionId !== null && row.value.extensionId !== a.extensionId)) throw new VaultError('EXTENSION_UNAUTHORIZED', 401)
+        await this.admit(tx, a.identity, row.value, a.jkt, a.url)
         await tx.limit('extension-api', 60_000, 120)
-        const device = await this.records(tx).device(jkt)
-        if (!device?.lastUsedAt || device.lastUsedAt < tx.now() - 60_000) await this.records(tx).touchDevice(jkt)
-        return { identity, authority: tx.authority, access: row.value }
+        const device = await this.records(tx).device(a.jkt)
+        if (!device?.lastUsedAt || device.lastUsedAt < tx.now() - 60_000) await this.records(tx).touchDevice(a.jkt)
+        return run(tx, { identity: a.identity, access: row.value, jkt: a.jkt, token: a.token })
       })
-    } catch (error) { return this.denied(identity, error, jkt) }
+    } catch (error) { return this.denied(a.identity, error, a.jkt) }
+  }
+  private async withAccess<T>(req: ExtensionRequest, authorization: unknown, method: 'GET' | 'POST',
+    run: (tx: VaultTransaction, ctx: { identity: VaultIdentity; access: ExtensionAccess; jkt: string; token: string }) => Promise<T>): Promise<T> {
+    return this.inAccess(await this.authenticate(req, authorization, method), run)
+  }
+  private resource(req: ExtensionRequest, authorization: unknown): Promise<{ identity: VaultIdentity; authority: VaultAuthority; access: ExtensionAccess }> {
+    return this.withAccess(req, authorization, 'GET', (tx, c) => Promise.resolve({ identity: c.identity, authority: tx.authority, access: c.access }))
+  }
+
+  /**
+   * NA-0195 (E2): fresh identity proof in the extension — the NodeAccess authenticator code (the central password never
+   * enters the extension, contract §4). Valid for the tenant's reveal/copy window (NA-0186) and only for this authorization.
+   */
+  async unlock(req: ExtensionRequest, authorization: unknown, input: { otp: string }): Promise<{ proofUntil: number; serverNow: number }> {
+    const outcome = await this.withAccess(req, authorization, 'POST', async (tx, c) => {
+      await tx.limit('extension-unlock', 300_000, 5)
+      const ext = this.records(tx)
+      if (!this.secondFactor.verifySecondFactor(input.otp, tx.authority)) {
+        // Wrong codes share the device-trust counter (NA-0193): the fifth ends the trust and this authorization.
+        const row = await ext.take<ExtensionTrust>('trust', trustKey(c.jkt))
+        const failures = (row?.value.failures ?? 0) + 1
+        const ended = failures >= TRUST_MAX_FAILURES
+        if (row && !ended) await ext.put('trust', trustKey(c.jkt), c.jkt, { ...row.value, failures }, row.value.expiresAt)
+        if (ended) await ext.dropAccess(c.jkt)
+        await tx.audit({ type: 'EXTENSION_UNLOCK_DENIED', device: c.jkt, reasonCode: ended ? 'TRUST_ENDED' : 'OTP_INVALID', policyVersion: tx.authority.policy.version })
+        return { ended }
+      }
+      await ext.take('access', c.token)
+      await ext.put('access', c.token, c.jkt, { ...c.access, proofAt: tx.now() }, c.access.expiresAt)
+      const trust = await ext.take<ExtensionTrust>('trust', trustKey(c.jkt))
+      if (trust) await ext.put('trust', trustKey(c.jkt), c.jkt, { ...trust.value, failures: 0 }, trust.value.expiresAt)
+      await tx.audit({ type: 'EXTENSION_UNLOCKED', device: c.jkt, policyVersion: tx.authority.policy.version })
+      return { proofUntil: Math.min(tx.now() + operationProofWindowMs(tx.authority.policy), c.access.expiresAt), serverNow: tx.now() }
+    })
+    // The attempt (limit, counter, audit) is committed before the refusal.
+    if ('ended' in outcome) throw outcome.ended ? new VaultError('EXTENSION_UNAUTHORIZED', 401) : new VaultError('VAULT_REAUTH_FAILED', 403)
+    return outcome
+  }
+
+  /**
+   * NA-0195 (E2): one reveal/copy release to the popup's ephemeral RSA key, with the same rules as the portal: tenant
+   * policy, per-action grant by two managers, web-eligible item and its scope (`tx.secret`), quotas, a proof younger
+   * than the tenant window, JWE bound to its context, audit. Item refusals are 403 and never end the authorization.
+   */
+  async deliver(req: ExtensionRequest, authorization: unknown, input: { secretId: number; action: VaultAction; recipient: VaultOperation['recipient'] }): Promise<{ envelope: string; context: VaultEnvelopeContext; serverNow: number }> {
+    const request = await this.authenticate(req, authorization, 'POST')
+    // Admission is committed on its own: refused items and keys still consume quota (as in the portal).
+    await this.inAccess(request, async tx => {
+      await tx.limit('operations', 60_000, 30)
+      await tx.limit('tenant:operations', 60_000, tx.authority.policy.tenantQuota)
+    })
+    const recipientThumbprint = await this.envelope.validate(input.recipient)
+    return this.inAccess(request, async (tx, c) => {
+      const proofAt = c.access.proofAt
+      if (proofAt === undefined || tx.now() - proofAt > operationProofWindowMs(tx.authority.policy)) throw new VaultError('VAULT_STEP_UP_REQUIRED', 423)
+      let secret: VaultSecret
+      try { secret = await tx.secret(input.secretId, input.action) } catch (error) {
+        if (error instanceof VaultError && error.code === 'VAULT_FORBIDDEN') throw new VaultError('EXTENSION_ITEM_DENIED', 403)
+        throw error
+      }
+      const operationId = this.entropy.token()
+      const context: VaultEnvelopeContext = { version: 1, operationId, tenantId: c.identity.tenantId, userId: c.identity.userId,
+        clientId: this.entropy.digest(`extension:${c.jkt}`), action: input.action, itemRef: `secret:${input.secretId}`, recipientThumbprint,
+        policyVersion: tx.authority.policy.version, secretVersion: secret.version, origin: tx.authority.policy.origin,
+        expiresAt: Math.min(tx.now() + 30_000, c.access.expiresAt, proofAt + operationProofWindowMs(tx.authority.policy)) }
+      const envelope = await this.envelope.seal(input.recipient, context, secret)
+      await tx.audit({ type: 'DELIVERY_RELEASE_COMMITTED', clientId: context.clientId, operationId, action: input.action, secretId: input.secretId, device: c.jkt, policyVersion: context.policyVersion })
+      return { envelope, context, serverNow: tx.now() }
+    })
   }
 
   async capabilities(req: ExtensionRequest, authorization: unknown): Promise<object> {
-    const { authority, access } = await this.resource(req, authorization)
-    return { apiVersion: 1, minExtensionVersion: this.config.minVersion, kinds: ['secret', 'pem'], features: { reveal: false, copy: false, create: false },
-      portalOrigin: authority.policy.origin, expiresAt: access.expiresAt, serverNow: this.now() }
+    // NA-0195: reveal/copy are offered when the tenant policy and the user's own two-manager grant allow them; the
+    // server still checks each release. `proofUntil` lets the popup skip the code while a proof is fresh.
+    return this.withAccess(req, authorization, 'GET', async (tx, c) => {
+      const ext = this.records(tx), policy = tx.authority.policy
+      const proofUntil = c.access.proofAt === undefined ? null : Math.min(c.access.proofAt + operationProofWindowMs(policy), c.access.expiresAt)
+      return { apiVersion: 1, minExtensionVersion: this.config.minVersion, kinds: ['secret', 'pem'],
+        features: { reveal: policy.reveal && await ext.granted('reveal'), copy: policy.copy && await ext.granted('copy'), create: false },
+        portalOrigin: policy.origin, expiresAt: c.access.expiresAt, serverNow: tx.now(), ...(proofUntil !== null && proofUntil > tx.now() ? { proofUntil } : {}) }
+    })
   }
 
   async items(req: ExtensionRequest, authorization: unknown, query: { q?: string | undefined; kind?: VaultItemKind | undefined; cursor?: string | undefined }): Promise<{ items: VaultItemSummary[]; nextCursor: string | null }> {

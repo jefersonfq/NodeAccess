@@ -37,3 +37,7 @@ Implementação, simulação no navegador (com ajustes de UX vindos das capturas
 ### 2026-11-24T00:40:00-03:00 — Encerramento da NA-0197 e rebase
 
 NA-0197 (triagem do OpenSSL 3.5.9-r1 no Redis) mesclada em `012ea6b69`; NA-0196 atualizada sobre o master.
+
+### 2026-11-24T01:00:00-03:00 — Merge e encerramento
+
+CI da PR #86 verde (csp-browser e sonar-real falharam uma vez e passaram ao rodar de novo sem mudança); mesclada com autorização do responsável (`ff5e518b0`). Estado: MERGED, MASTER_SYNCED. Encerramento registrado na NA-0195.

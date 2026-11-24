@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { createHash, randomBytes } from 'node:crypto'
 import { calculateJwkThumbprint, exportJWK, generateKeyPair, SignJWT, type CryptoKey, type JWK } from 'jose'
 import { DpopNonces, DpopVerifier, pkceMatches, sha256b64 } from './vault-extension-dpop.js'
@@ -125,14 +125,17 @@ describe('NA-0183 DPoP verification', () => {
 })
 
 /** In-memory model of the locked SQL records, scoped by identity like the real adapter. */
+const envelope = { validate: vi.fn(() => Promise.resolve('T'.repeat(43))), seal: vi.fn((_key: unknown, context: object) => Promise.resolve(`sealed:${JSON.stringify(context)}`)) }
 function harness(options: { entitled?: boolean; role?: 'ADMIN' | 'USER'; secondFactor?: boolean } = {}) {
-  const state = { entitled: options.entitled ?? true, policyVersion: 1, originAlive: true, methods: { local: true, ldap: true, oidc: true, google: true } }
+  const state = { entitled: options.entitled ?? true, policyVersion: 1, originAlive: true, methods: { local: true, ldap: true, oidc: true, google: true },
+    grants: { reveal: true, copy: false } as Record<'reveal' | 'copy', boolean>, policy: { reveal: true, copy: true }, eligible: true, confirmationSeconds: 60 }
   const tokens = new Map<string, { kind: ExtensionTokenKind; owner: string; jkt: string; value: ExtensionTokenValue }>()
   const devices = new Map<string, ExtensionDeviceRow>()
   const audits: Array<{ type: string; reasonCode?: string | undefined }> = []
   const owner = (i: VaultIdentity): string => `${i.tenantId}:${i.userId}`
   const records = (i: VaultIdentity): ExtensionRecords => ({
     entitled: () => Promise.resolve(state.entitled),
+    granted: action => Promise.resolve(state.grants[action]),
     device: jkt => Promise.resolve(devices.get(`${owner(i)}:${jkt}`) ?? null),
     activateDevice: (jkt, extensionId) => { devices.set(`${owner(i)}:${jkt}`, { jkt, extensionId, state: 'ACTIVE', createdAt: Date.now(), lastUsedAt: null }); return Promise.resolve() },
     touchDevice: jkt => { const d = devices.get(`${owner(i)}:${jkt}`); if (d) d.lastUsedAt = Date.now(); return Promise.resolve() },
@@ -159,10 +162,12 @@ function harness(options: { entitled?: boolean; role?: 'ADMIN' | 'USER'; secondF
       tokens.delete(t); return Promise.resolve({ jkt: row.jkt, value: row.value as T })
     },
   })
-  const authority = (): VaultAuthority => ({ policy: { version: state.policyVersion, unlock: true, reveal: true, copy: true, localReauth: true, origin: PORTAL, tenantQuota: 300 },
+  const authority = (): VaultAuthority => ({ policy: { version: state.policyVersion, unlock: true, reveal: state.policy.reveal, copy: state.policy.copy, localReauth: true, origin: PORTAL, tenantQuota: 300, confirmationSeconds: state.confirmationSeconds },
     validUntil: Number.MAX_SAFE_INTEGER, role: options.role ?? 'USER', passwordHash: null, mfaSecret: 's', credentialVersion: 'c', email: 'u@example.test', methods: state.methods })
   const store: VaultStore = { transaction: async <T>(i: VaultIdentity, run: (tx: VaultTransaction) => Promise<T>): Promise<T> => {
     const tx = { authority: authority(), now: Date.now, extension: records(i), limit: () => Promise.resolve(), remove: () => Promise.resolve(),
+      secret: (id: number, action: 'reveal' | 'copy') => (id === 1 && state.eligible && state.grants[action] && state.policy[action]
+        ? Promise.resolve({ encrypted: 'e', iv: 'i', version: 'f'.repeat(64) }) : Promise.reject(new VaultError('VAULT_FORBIDDEN', 403))),
       audit: (e: { type: string; reasonCode?: string }) => { audits.push({ type: e.type, reasonCode: e.reasonCode }); return Promise.resolve() } } as unknown as VaultTransaction
     return run(tx)
   } }
@@ -183,7 +188,7 @@ function harness(options: { entitled?: boolean; role?: 'ADMIN' | 'USER'; secondF
   const catalog: VaultCatalog = { list: (_i, admin) => Promise.resolve(catalogSummaries([{ id: 1, alias: admin ? 'admin-item' : 'mine', description: null, scope: 'PERSONAL', ownerUserId: 7 }], [], 7)) }
   const service = new VaultExtensionService(vault, store, locator, originVerifier, new DpopVerifier(nonces, replayGuard()), nonces,
     { token, digest: v => createHash('sha256').update(v).digest('hex') }, catalog, { enabled: true, extensionIds: [EXT], minVersion: '0.1.0' },
-    Date.now, ...(options.secondFactor === false ? [] : [{ verifySecondFactor: (otp: string) => otp === '123456' }]))
+    Date.now, options.secondFactor === false ? undefined : { verifySecondFactor: (otp: string) => otp === '123456' }, envelope)
   return { state, tokens, devices, audits, service, nonces }
 }
 async function connect(h: ReturnType<typeof harness>, key?: Awaited<ReturnType<typeof deviceKey>>) {
@@ -208,7 +213,7 @@ describe('NA-0183 extension service', () => {
     const { accessToken, tokenType } = await c.exchange()
     expect(tokenType).toBe('DPoP')
     await expect(call(h, c.device, accessToken)).resolves.toEqual({ items: [expect.objectContaining({ label: 'mine', scope: 'personal' })], nextCursor: null })
-    await expect(call(h, c.device, accessToken, `${PORTAL}/api/v1/vault-security/extension/capabilities`)).resolves.toMatchObject({ apiVersion: 1, features: { reveal: false, copy: false, create: false } })
+    await expect(call(h, c.device, accessToken, `${PORTAL}/api/v1/vault-security/extension/capabilities`)).resolves.toMatchObject({ apiVersion: 1, features: { reveal: true, copy: false, create: false } })
     expect(h.audits.map(a => a.type)).toEqual(['EXTENSION_AUTHORIZED', 'EXTENSION_CLIENT_REGISTERED'])
   })
   it('denies consent without the extension permission and audits it', async () => {
@@ -414,4 +419,55 @@ describe('NA-0193 trusted device renewal', () => {
     expect(trustOf(h, c.device.jkt)).toBeDefined()
   })
 
+  const recipient = { kty: 'RSA' as const, n: 'n'.repeat(342), e: 'AQAB' as const }
+  async function post(h: ReturnType<typeof harness>, device: Awaited<ReturnType<typeof deviceKey>>, access: string, path: 'unlock' | 'deliver') {
+    const url = `${PORTAL}/api/v1/vault-security/extension/${path}`
+    return { requestOrigin: `chrome-extension://${EXT}`, version: '0.1.0', url, proof: await proof(device, { htm: 'POST', htu: url, nonce: h.nonces.issue(), ath: sha256b64(access) }) }
+  }
+  it('NA-0195: the authenticator code opens a proof for the tenant window; a wrong code is refused and audited', async () => {
+    const h = harness(), c = await connect(h), { accessToken } = await c.exchange()
+    await expect(h.service.unlock(await post(h, c.device, accessToken, 'unlock'), `DPoP ${accessToken}`, { otp: '000000' })).rejects.toMatchObject({ code: 'VAULT_REAUTH_FAILED', status: 403 })
+    expect(h.audits).toContainEqual({ type: 'EXTENSION_UNLOCK_DENIED', reasonCode: 'OTP_INVALID' })
+    expect(trustOf(h, c.device.jkt)?.failures).toBe(1)
+    h.state.confirmationSeconds = 300
+    const { proofUntil, serverNow } = await h.service.unlock(await post(h, c.device, accessToken, 'unlock'), `DPoP ${accessToken}`, { otp: '123456' })
+    expect(proofUntil - serverNow).toBeGreaterThan(299_000); expect(proofUntil - serverNow).toBeLessThanOrEqual(300_000)
+    expect((h.tokens.get(accessToken)?.value as ExtensionAccess).proofAt).toBeTypeOf('number')
+    expect(trustOf(h, c.device.jkt)?.failures).toBe(0)
+    const caps = await call(h, c.device, accessToken, `${PORTAL}/api/v1/vault-security/extension/capabilities`) as { features: object; proofUntil?: number }
+    expect(caps.features).toEqual({ reveal: true, copy: false, create: false }); expect(caps.proofUntil).toBe(proofUntil)
+  })
+  it('NA-0195: releases a sealed value only with a fresh proof, the grant, an eligible item and the policy', async () => {
+    const h = harness(), c = await connect(h), { accessToken } = await c.exchange()
+    const deliver = async (input: Partial<{ secretId: number; action: 'reveal' | 'copy' }> = {}) =>
+      h.service.deliver(await post(h, c.device, accessToken, 'deliver'), `DPoP ${accessToken}`, { secretId: 1, action: 'reveal', recipient, ...input })
+    await expect(deliver()).rejects.toMatchObject({ code: 'VAULT_STEP_UP_REQUIRED', status: 423 })
+    await h.service.unlock(await post(h, c.device, accessToken, 'unlock'), `DPoP ${accessToken}`, { otp: '123456' })
+    const released = await deliver()
+    expect(released.context).toMatchObject({ version: 1, action: 'reveal', itemRef: 'secret:1', tenantId: 3, userId: 7, recipientThumbprint: 'T'.repeat(43), origin: PORTAL, secretVersion: 'f'.repeat(64) })
+    expect(released.context.clientId).toMatch(/^[a-f0-9]{64}$/); expect(released.envelope).toBe(`sealed:${JSON.stringify(released.context)}`)
+    expect(released.context.expiresAt).toBeLessThanOrEqual(released.serverNow + 30_000)
+    expect(h.audits).toContainEqual({ type: 'DELIVERY_RELEASE_COMMITTED', reasonCode: undefined })
+    await expect(deliver({ action: 'copy' })).rejects.toMatchObject({ code: 'EXTENSION_ITEM_DENIED', status: 403 })
+    await expect(deliver({ secretId: 2 })).rejects.toMatchObject({ code: 'EXTENSION_ITEM_DENIED' })
+    h.state.eligible = false
+    await expect(deliver()).rejects.toMatchObject({ code: 'EXTENSION_ITEM_DENIED' })
+    expect(h.tokens.has(accessToken)).toBe(true)
+  })
+  it('NA-0195: the fifth wrong code ends the trust and the authorization (shared counter with renewal)', async () => {
+    const h = harness(), c = await connect(h), { accessToken } = await c.exchange()
+    for (let i = 1; i < 5; i++) await expect(h.service.unlock(await post(h, c.device, accessToken, 'unlock'), `DPoP ${accessToken}`, { otp: '000000' })).rejects.toMatchObject({ code: 'VAULT_REAUTH_FAILED' })
+    await expect(h.service.unlock(await post(h, c.device, accessToken, 'unlock'), `DPoP ${accessToken}`, { otp: '000000' })).rejects.toMatchObject({ code: 'EXTENSION_UNAUTHORIZED', status: 401 })
+    expect(trustOf(h, c.device.jkt)).toBeUndefined(); expect(h.tokens.has(accessToken)).toBe(false)
+    expect(h.audits).toContainEqual({ type: 'EXTENSION_UNLOCK_DENIED', reasonCode: 'TRUST_ENDED' })
+  })
+  it('NA-0195: the proof expires with the tenant window and does not survive a renewed authorization', async () => {
+    const h = harness(), c = await connect(h), { accessToken } = await c.exchange()
+    await h.service.unlock(await post(h, c.device, accessToken, 'unlock'), `DPoP ${accessToken}`, { otp: '123456' })
+    const row = h.tokens.get(accessToken)!.value as ExtensionAccess
+    row.proofAt = Date.now() - 61_000
+    await expect(h.service.deliver(await post(h, c.device, accessToken, 'deliver'), `DPoP ${accessToken}`, { secretId: 1, action: 'reveal', recipient })).rejects.toMatchObject({ code: 'VAULT_STEP_UP_REQUIRED' })
+    const renewed = await renew(h, c.device)
+    expect((h.tokens.get(renewed.accessToken)?.value as ExtensionAccess).proofAt).toBeUndefined()
+  })
 })

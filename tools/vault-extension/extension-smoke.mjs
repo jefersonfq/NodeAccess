@@ -8,12 +8,14 @@ import { createServer } from 'node:https'
 import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { chromium } from 'playwright'
+import { CompactEncrypt, calculateJwkThumbprint, importJWK } from 'jose'
 import { resolveExecutable } from '../shared/trusted-executable.cjs'
 import { checkPackageInBrowser } from './package-smoke.mjs'
 
 const ROOT = resolve(import.meta.dirname, '../..')
 const PORTAL = 'https://vault.example.test'
 const BUILD = 'aaaaaaaaaaaa'
+const SECRET = 'Smoke-only-never-real-7!'
 // Coverage runs (tools/coverage/browser.mjs) supply a private artifacts directory and the pinned Chromium.
 const OUT = process.env.ARTIFACTS_DIR ? resolve(process.env.ARTIFACTS_DIR) : resolve(ROOT, '.tmp/NA-0183/extension-smoke')
 mkdirSync(OUT, { recursive: true })
@@ -67,6 +69,29 @@ try {
         if (body.otp !== undefined && body.otp !== '123456') return send(403, JSON.stringify({ code: 'VAULT_REAUTH_FAILED' }))
         seen.lastRenewal = body.otp === undefined ? 'SESSION' : 'OTP'
         return send(200, JSON.stringify({ accessToken: access, tokenType: 'DPoP', expiresAt: 1_800_000, serverNow: 0 }))
+      }
+      // NA-0195 (E2): capabilities, authenticator-code proof and a real JWE release (same library as the server).
+      if (url.pathname.endsWith('/extension/capabilities')) {
+        return send(200, JSON.stringify({ apiVersion: 1, minExtensionVersion: '0.1.0', kinds: ['secret', 'pem'], features: { reveal: true, copy: true, create: false },
+          portalOrigin: PORTAL, expiresAt: 1_800_000, serverNow: 0 }))
+      }
+      if (url.pathname.endsWith('/extension/unlock')) {
+        if (JSON.parse(raw || '{}').otp !== '123456') return send(403, JSON.stringify({ code: 'VAULT_REAUTH_FAILED' }))
+        seen.proof = true
+        return send(200, JSON.stringify({ proofUntil: 60_000, serverNow: 0 }))
+      }
+      if (url.pathname.endsWith('/extension/deliver')) {
+        if (!seen.proof) return send(423, JSON.stringify({ code: 'VAULT_STEP_UP_REQUIRED' }))
+        const body = JSON.parse(raw || '{}')
+        seen.deliveries = (seen.deliveries ?? 0) + 1
+        void (async () => {
+          const context = { version: 1, operationId: 'o'.repeat(43), tenantId: 7, userId: 41, clientId: 'c'.repeat(64), action: body.action, itemRef: `secret:${body.secretId}`,
+            recipientThumbprint: await calculateJwkThumbprint(body.recipient, 'sha256'), policyVersion: 1, secretVersion: 'f'.repeat(64), expiresAt: 9, origin: PORTAL }
+          const envelope = await new CompactEncrypt(new TextEncoder().encode(SECRET)).setProtectedHeader({ alg: 'RSA-OAEP-256', enc: 'A256GCM', typ: 'vaultnaccess+jwe', vault: context })
+            .encrypt(await importJWK(body.recipient, 'RSA-OAEP-256'))
+          send(200, JSON.stringify({ envelope, context, serverNow: 0 }))
+        })()
+        return undefined
       }
       if (url.pathname.endsWith('/extension/forget')) {
         if (JSON.parse(raw || '{}').extensionId !== seen.id) return send(400, '{}')
@@ -157,6 +182,27 @@ try {
   check('open-in-portal', tab.url() === `${PORTAL}/vault?kind=secret&id=3`, tab.url())
   const recents = await popup.evaluate(async () => (await chrome.storage.session.get('recents')).recents)
   check('recents-are-ids', JSON.stringify(recents) === '["secret:3"]', JSON.stringify(recents))
+  // NA-0195 (E2): reveal asks for the code, shows the value; copy needs a second gesture and reaches the real clipboard.
+  await popup.getByTestId('vaultnaccess-reveal-3').click()
+  await popup.getByTestId('vaultnaccess-proof-otp').fill('123456'); await popup.getByTestId('vaultnaccess-proof-submit').click()
+  await popup.getByTestId('vaultnaccess-revealed').filter({ hasText: SECRET }).waitFor({ timeout: 10_000 })
+  await shots('revealed')
+  check('reveal-with-code', seen.deliveries === 1)
+  await popup.getByTestId('vaultnaccess-copy-3').click()
+  await popup.getByTestId('vaultnaccess-copy-confirm').click()
+  await popup.getByText(/Senha copiada|Password copied/).waitFor({ timeout: 10_000 })
+  // Extension origins cannot be granted clipboard-read: read the browser clipboard from a portal page instead.
+  await context.grantPermissions(['clipboard-read', 'clipboard-write'], { origin: PORTAL })
+  const reader = await context.newPage()
+  await reader.goto(`${PORTAL}/clipboard-check`)
+  const clip = await reader.evaluate(() => navigator.clipboard.readText()).catch(error => `read failed: ${error}`)
+  await reader.close()
+  check('copy-to-clipboard', clip === SECRET && seen.deliveries === 2, clip === SECRET ? '' : 'clipboard differs')
+  const kept = await popup.evaluate(async () => JSON.stringify({ s: await chrome.storage.session.get(null), l: await chrome.storage.local.get(null), ls: { ...localStorage } }))
+  check('value-not-stored', !kept.includes(SECRET))
+  // NA-0195: the footer names the device as the portal's Connected devices does (first 16 chars of the key thumbprint, in groups of 4).
+  const device = (await popup.getByTestId('vaultnaccess-device').textContent())?.trim() ?? ''
+  check('device-identifier-footer', /^(Dispositivo|Device) [A-Za-z0-9_-]{4}(-[A-Za-z0-9_-]{4}){3}$/.test(device), device)
   await shots('connected')
   check('popup-layout-fits', layout.every(Boolean), JSON.stringify(layout))
   // NA-0193: an extension reload drops the session authorization; the trusted device comes back by itself while the portal login lives.

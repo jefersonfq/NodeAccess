@@ -56,6 +56,15 @@ export const VaultExtensionRenewRequestSchema = z.object({
 }).strict()
 export type VaultExtensionRenewRequest = z.infer<typeof VaultExtensionRenewRequestSchema>
 export const VaultExtensionForgetRequestSchema = z.object({ extensionId: VaultExtensionIdSchema }).strict()
+/** NA-0195 (E2): authenticator-code proof and one reveal/copy release to the popup's ephemeral RSA key. */
+export const VaultExtensionUnlockRequestSchema = z.object({ otp: z.string().regex(/^\d{6}$/) }).strict()
+export const VaultExtensionUnlockReplySchema = z.object({ proofUntil: z.number().int(), serverNow: z.number().int() }).strict()
+export const VaultExtensionDeliverRequestSchema = z.object({
+  secretId: z.number().int().positive(),
+  action: z.enum(['reveal', 'copy']),
+  recipient: z.object({ kty: z.literal('RSA'), n: z.string().min(342).max(683), e: z.literal('AQAB') }).strict(),
+}).strict()
+export type VaultExtensionDeliverRequest = z.infer<typeof VaultExtensionDeliverRequestSchema>
 
 export const VaultItemKindSchema = z.enum(['secret', 'pem'])
 export type VaultItemKind = z.infer<typeof VaultItemKindSchema>
@@ -69,6 +78,8 @@ export const VaultExtensionCapabilitiesSchema = z.object({
   portalOrigin: z.string().url(),
   expiresAt: z.number().int(),
   serverNow: z.number().int(),
+  /** NA-0195: the authenticator-code proof in the extension is fresh until then (reveal/copy without asking again). */
+  proofUntil: z.number().int().optional(),
 }).strict()
 export type VaultExtensionCapabilities = z.infer<typeof VaultExtensionCapabilitiesSchema>
 

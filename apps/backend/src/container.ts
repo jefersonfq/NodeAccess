@@ -352,8 +352,9 @@ const vaultDatabase = new VaultDatabase(env.DATABASE_URL)
 const vaultStore = new SqlVaultStore(() => vaultDatabase.client())
 const vaultOrigin = new RedisVaultOrigin(redis, env.JWT_SECRET, Date.now, 500, env.VAULT_STEP_UP_EXTERNAL_ENABLED)
 const vaultReauthentication = new MethodVaultReauthentication(totpService, ldapIdentityProvider)
+const vaultEnvelope = new JweVaultEnvelope()
 const vaultSecurityService = new VaultService(vaultStore, vaultOrigin,
-  vaultReauthentication, new JweVaultEnvelope(),
+  vaultReauthentication, vaultEnvelope,
   vaultEntropy, Date.now, createVaultProviderStepUp({
     oidcFlow: () => oidcFlowService, links: externalIdentityRepository, google: googleService, users: userRepository, redirectUri: oidcCallbackUrl,
   }))
@@ -564,7 +565,7 @@ const vaultExtensionService = new VaultExtensionService(vaultSecurityService, va
       await secretService.list(identity.userId, identity.tenantId, admin ? 'admin' : 'user'),
       await pemKeyService.list(identity.userId, identity.tenantId, admin), identity.userId),
   }, { enabled: env.VAULT_EXTENSION_ENABLED, extensionIds: env.VAULT_EXTENSION_IDS.split(',').filter(Boolean), minVersion: env.VAULT_EXTENSION_MIN_VERSION },
-  Date.now, vaultReauthentication)
+  Date.now, vaultReauthentication, vaultEnvelope)
 // NA-0194: operator release of the extension, published only when it matches this configuration.
 const vaultExtensionPackage = new ExtensionPackage({ enabled: env.VAULT_EXTENSION_ENABLED, directory: env.VAULT_EXTENSION_PACKAGE_DIR,
   extensionIds: env.VAULT_EXTENSION_IDS.split(',').filter(Boolean), minVersion: env.VAULT_EXTENSION_MIN_VERSION })

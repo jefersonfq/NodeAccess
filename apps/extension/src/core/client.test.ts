@@ -162,6 +162,43 @@ describe('NA-0183 extension client', () => {
     await s.session.clear(); await c.disconnect()
     expect(urls(p).filter(u => u.endsWith('/forget'))).toHaveLength(2)
   })
+  it('NA-0195: unlocks with the code and opens a release sealed to an ephemeral key', async () => {
+    const { CompactEncrypt, importJWK } = await import('jose')
+    const p = portal(), base = p.fetcher.getMockImplementation()!
+    let deliverAnswer: (body: { recipient: { kty: string; n: string; e: string }; secretId: number; action: string }) => Promise<Response> = () => Promise.resolve(new Response('{}', { status: 423 }))
+    p.fetcher.mockImplementation(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = input instanceof Request ? input.url : input.toString()
+      if (url === `${API}/unlock`) {
+        const { otp } = JSON.parse(init!.body as string) as { otp: string }
+        return otp === '123456' ? new Response(JSON.stringify({ proofUntil: 300_000, serverNow: 0 }), { status: 200 }) : new Response(JSON.stringify({ code: 'VAULT_REAUTH_FAILED' }), { status: 403 })
+      }
+      if (url === `${API}/deliver`) return deliverAnswer(JSON.parse(init!.body as string) as { recipient: { kty: string; n: string; e: string }; secretId: number; action: string })
+      return base(input, init)
+    })
+    const { c } = client(p)
+    await c.connect()
+    await expect(c.unlock('000000')).rejects.toMatchObject({ reason: 'otpInvalid' })
+    await expect(c.unlock('12')).rejects.toMatchObject({ reason: 'otpInvalid' })
+    expect(await c.unlock('123456')).toBe(T0 + 300_000 - 2_000)
+    await expect(c.deliver(3, 'reveal')).rejects.toMatchObject({ reason: 'proofRequired' })
+    const thumb = async (jwk: { e: string; kty: string; n: string }) => (await import('./envelope')).thumbprintOf(jwk)
+    deliverAnswer = async body => {
+      const context = { version: 1, operationId: 'o'.repeat(43), tenantId: 3, userId: 7, clientId: 'c'.repeat(64), action: body.action, itemRef: `secret:${body.secretId}`,
+        recipientThumbprint: await thumb(body.recipient), policyVersion: 1, secretVersion: 'f'.repeat(64), expiresAt: 9, origin: PORTAL }
+      const envelope = await new CompactEncrypt(new TextEncoder().encode('s3cret')).setProtectedHeader({ alg: 'RSA-OAEP-256', enc: 'A256GCM', typ: 'vaultnaccess+jwe', vault: context })
+        .encrypt(await importJWK(body.recipient as never, 'RSA-OAEP-256'))
+      return new Response(JSON.stringify({ envelope, context, serverNow: 0 }), { status: 200 })
+    }
+    expect(await c.deliver(3, 'reveal')).toBe('s3cret')
+    const good = deliverAnswer
+    deliverAnswer = async body => { const r = await (await good({ ...body, secretId: 9 })).json() as object; return new Response(JSON.stringify(r), { status: 200 }) }
+    await expect(c.deliver(3, 'reveal')).rejects.toMatchObject({ reason: 'invalid' })
+    deliverAnswer = () => Promise.resolve(new Response(JSON.stringify({ code: 'EXTENSION_ITEM_DENIED' }), { status: 403 }))
+    await expect(c.deliver(3, 'copy')).rejects.toMatchObject({ reason: 'itemDenied' })
+    deliverAnswer = () => Promise.resolve(new Response('{}', { status: 429 }))
+    await expect(c.deliver(3, 'copy')).rejects.toMatchObject({ reason: 'quota' })
+    await expect(c.deliver(0, 'copy')).rejects.toMatchObject({ reason: 'invalid' })
+  })
   it('reuses one device key across connections', async () => {
     const s = stores()
     const first = portal(); await client(first, s).c.connect()
