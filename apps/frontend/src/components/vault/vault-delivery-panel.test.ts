@@ -3,8 +3,8 @@ import { createRenderer, createSSRApp, defineComponent, h, nextTick, reactive, s
 import { renderToString } from 'vue/server-renderer'
 import VaultDeliveryPanel from './VaultDeliveryPanel.vue'
 import type { VaultDeliveryDependencies } from '@/services/vault-delivery'
-const mocks = vi.hoisted(()=>({ create: vi.fn(), unlock: vi.fn(), deliver: vi.fn(), tick: vi.fn(), dismiss: vi.fn(), lock: vi.fn(), dispose: vi.fn(), confirmCopy: vi.fn(), prepare: vi.fn(), unlockWithProvider: vi.fn() }))
-const state=reactive({phase:'locked',value:'',error:null as string|null,copied:false,stepUp:null as string|null,providerPending:false})
+const mocks = vi.hoisted(()=>({ create: vi.fn(), unlock: vi.fn(), deliver: vi.fn(), tick: vi.fn(), dismiss: vi.fn(), lock: vi.fn(), dispose: vi.fn(), confirmCopy: vi.fn(), prepare: vi.fn(), unlockWithProvider: vi.fn(), unlockWithWebauthn: vi.fn() }))
+const state=reactive({phase:'locked',value:'',error:null as string|null,copied:false,stepUp:null as string|null,providerPending:false,webauthn:false})
 const auth=reactive({isManagingTenant:false,accessToken:'portal-fixture',refreshToken:'origin-fixture',user:{id:41,tenantId:7,actingTenantId:undefined as number|undefined}})
 vi.mock('@/services/vault-delivery',()=>({createVaultDelivery:mocks.create}))
 const confirmMocks=vi.hoisted(()=>({openWindow:vi.fn(),google:vi.fn()}))
@@ -22,7 +22,7 @@ function node():HostNode {return {parent:null,children:[]}}
 interface Panel {
  available:boolean; dialog:boolean; password:string; token:string; itemName:string; busy:boolean; secure:boolean; title:string
  confirmProvider():Promise<void>;submitTotp():void;totpPending:boolean;googlePending:boolean
- request(action:'reveal'|'copy',id:number,name:string):void;unlock():Promise<void>;close():void;reset():void;visibility():void
+ request(action:'reveal'|'copy',id:number,name:string):void;unlock():Promise<void>;close():void;reset():void;visibility():void;unlockWebauthn():Promise<void>
 }
 function mount() {
  const renderer=createRenderer<HostNode,HostNode>({createElement:node,createText:node,createComment:node,setText:()=>{},setElementText:()=>{},patchProp:()=>{},parentNode:n=>n.parent,nextSibling:()=>null,
@@ -35,14 +35,25 @@ function deferred(){let resolve!:()=>void;const promise=new Promise<void>(r=>{re
 let documentFixture:EventTarget & {visibilityState:string}
 beforeEach(()=>{
  vi.useFakeTimers();for(const mock of Object.values(mocks))mock.mockReset()
- Object.assign(state,{phase:'locked',value:'',error:null,copied:false,stepUp:null,providerPending:false});mocks.prepare.mockResolvedValue(undefined);Object.assign(auth,{isManagingTenant:false,accessToken:'portal-fixture',refreshToken:'origin-fixture'});Object.assign(auth.user,{id:41,tenantId:7,actingTenantId:undefined})
+ Object.assign(state,{phase:'locked',value:'',error:null,copied:false,stepUp:null,providerPending:false,webauthn:false});mocks.prepare.mockResolvedValue(undefined);Object.assign(auth,{isManagingTenant:false,accessToken:'portal-fixture',refreshToken:'origin-fixture'});Object.assign(auth.user,{id:41,tenantId:7,actingTenantId:undefined})
  mocks.lock.mockImplementation(()=>{state.phase='locked';state.value=''});mocks.dismiss.mockImplementation(()=>{state.value='';if(state.phase!=='locked')state.phase='unlocked'})
  mocks.unlock.mockImplementation(()=>{state.phase='unlocked';return Promise.resolve()});mocks.deliver.mockResolvedValue(undefined)
- mocks.create.mockReturnValue({state,unlock:mocks.unlock,deliver:mocks.deliver,tick:mocks.tick,dismiss:mocks.dismiss,lock:mocks.lock,dispose:mocks.dispose,confirmCopy:mocks.confirmCopy,prepare:mocks.prepare,unlockWithProvider:mocks.unlockWithProvider})
+ mocks.unlockWithWebauthn.mockImplementation(()=>{state.phase='unlocked';return Promise.resolve()})
+ mocks.create.mockReturnValue({state,unlockWithWebauthn:mocks.unlockWithWebauthn,unlock:mocks.unlock,deliver:mocks.deliver,tick:mocks.tick,dismiss:mocks.dismiss,lock:mocks.lock,dispose:mocks.dispose,confirmCopy:mocks.confirmCopy,prepare:mocks.prepare,unlockWithProvider:mocks.unlockWithProvider})
  vi.stubGlobal('isSecureContext',true);vi.stubGlobal('window',Object.assign(new EventTarget(),{location:{protocol:'https:',origin:'https://vault.example'}}))
  documentFixture=Object.assign(new EventTarget(),{visibilityState:'visible'});vi.stubGlobal('document',documentFixture)
 })
 afterEach(()=>{vi.useRealTimers();vi.unstubAllGlobals()})
+describe('NA-0198 Windows Hello in the delivery panel',()=>{
+ it('offers Windows Hello when registered and dispatches the pending reveal/copy after it',async()=>{
+  const f=mount();expect((mocks.create.mock.calls[0][0] as VaultDeliveryDependencies).webauthn).toBeDefined()
+  f.panel.request('reveal',4,'db');expect(await f.html()).not.toContain('vault-webauthn-unlock')
+  state.webauthn=true;expect(await f.html()).toContain('vault-webauthn-unlock')
+  f.panel.password='typed';await f.panel.unlockWebauthn()
+  expect(f.panel.password).toBe('');expect(mocks.unlockWithWebauthn).toHaveBeenCalledTimes(1);expect(mocks.deliver).toHaveBeenCalledExactlyOnceWith('reveal',4)
+  f.unmount()
+ })
+})
 describe('Vault delivery panel orchestration',()=>{
  it('captures eligible portal identity without assigning vault material to auth',()=>{
   const f=mount(),deps=mocks.create.mock.calls[0][0] as VaultDeliveryDependencies
