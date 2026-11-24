@@ -23,6 +23,10 @@ issue: null
 
 Reconhecer a nova revisão de pacote no Redis sem ampliar a aceitação de risco: Redis passa a `3.5.9-r1`; as quatro CVEs que o Alpine corrigiu por backport no r1 passam a aceitar r1 (falso positivo comprovado pelo secdb); as outras cinco seguem a aceitação temporária da NA-0185 com o mesmo prazo. Fora: trocar a base do Redis (não há OpenSSL 3.5.10 no Alpine).
 
+## Estratégia técnica
+
+Ajuste mínimo da triagem exata existente (`openssl-image-policy.mjs` inalterado): só a revisão de pacote do Redis e as revisões aceitas das quatro CVEs corrigidas por backport, com evidência do secdb.
+
 ## Critérios de aceitação
 
 - [x] Redis com `3.5.9-r1` reconhecido; `r0` e `r2` continuam bloqueando.
@@ -30,11 +34,11 @@ Reconhecer a nova revisão de pacote no Redis sem ampliar a aceitação de risco
 - [x] Evidência do secdb (v3.22 e v3.24) registrada com hash.
 - [ ] `upgrade-restore` verde na PR.
 
-## Validação
+## Matriz de testes e evidências
 
 `node --test scripts/security/*.test.mjs` (264 PASS, incluindo os casos novos); `upgrade-restore` na CI (Grype fixado por digest).
 
-## Rollback
+## Rollback ou recuperação
 
 Revert da PR (volta a bloquear o Redis).
 

@@ -19,6 +19,10 @@ Na PR #85, `upgrade-restore` reprovou a imagem do Redis por CVEs do OpenSSL sem 
 - Ran: revisão independente (subagente): PASS_WITH_WARNINGS — aceita só os 18 achados reportados; secdb v3.22/v3.24 conferido; ajustes aplicados (teste de CVE revisada só para outra revisão de pacote; texto do motivo).
 - Planned: `upgrade-restore` na CI da PR.
 
+## Recuperação
+
+Revert da PR (o gate volta a bloquear o Redis); sem efeito em dados ou imagens.
+
 ## Diário de interações
 
 ### 2026-11-23T23:59:00-03:00 — Diagnóstico e ajuste
