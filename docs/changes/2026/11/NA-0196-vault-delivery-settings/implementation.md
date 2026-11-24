@@ -19,6 +19,10 @@ Na homologação de 2026-11-23 o responsável tinha a permissão Revelar, mas o 
 - Ran: revisão independente (subagente): PASS_WITH_WARNINGS; achados LOW/MEDIUM corrigidos (ver plano).
 - Skipped: `validate:sonar` local (tokens do responsável); capturas do manual não refeitas (procedimento descrito no texto).
 
+## Recuperação
+
+Revert da PR; sem migração (a API de proposta/aprovação de política e item já existia).
+
 ## Pendências
 
 - Homologação: ligar a política, conceder Revelar/Copiar, liberar `secret-ssh-teste2` e revelar.

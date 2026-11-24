@@ -67,7 +67,11 @@ Fora: tela "por que este usuário não consegue" para gestores; liberação em l
 - Gestor aprovador vê o nome de um item que pode não ver na lista (proposta de item): necessário para aprovar com consciência; gestores já são papel de confiança.
 - Mudanças continuam por proposta de um gestor e aprovação de outro, com incremento da versão da política (bloqueia o cofre de todos, como hoje).
 
-## Matriz de testes
+## Estratégia técnica
+
+Reaproveita o fluxo de proposta/aprovação existente (tipos `policy` e `item` já aceitos pelo backend); a leitura `availability` usa `inspect()` (origem exata e limite) e as mesmas regras de `tx.secret`; o portal só orienta, sem decidir entregas.
+
+## Matriz de testes e evidências
 
 vitest (backend: availability e escopo, overview, summary; frontend: componente e tela); `test:vault:real` (SQL de availability e itens com MySQL real); simulação `test:vault-administration:web` ampliada (fluxo completo + celular + capturas); `test:vault:frontend` (CI); `tsc`, `vue-tsc`, `lint:changed`, `security:scan`, `manual:check-reviewed`; revisão independente.
 
@@ -75,7 +79,7 @@ vitest (backend: availability e escopo, overview, summary; frontend: componente 
 
 2026-11-23 sobre `2cd4932dc`: vitest vault-security + componentes do cofre + views + shared: 538 PASS, 47 skipped.
 
-## Rollback
+## Rollback ou recuperação
 
 Revert da PR; sem migração. A API de proposta/aprovação de política e item já existia.
 
