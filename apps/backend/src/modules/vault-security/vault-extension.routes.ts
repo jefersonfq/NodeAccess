@@ -6,6 +6,7 @@ import { AppError } from '../../shared/errors.js'
 import { VaultError, type VaultIdentity } from './vault-domain.js'
 import type { VaultService } from './vault.service.js'
 import type { ExtensionRequest, VaultExtensionService } from './vault-extension.service.js'
+import { updateManifestFor, type ExtensionPackage } from './vault-extension-package.js'
 
 const opaque = z.string().regex(/^[A-Za-z0-9_-]{43}$/)
 function identity(req: FastifyRequest): VaultIdentity {
@@ -26,7 +27,7 @@ function extensionRequest(req: FastifyRequest): ExtensionRequest {
 }
 
 /** NA-0183: extension endpoints under /vault-security/extension; nothing here ever returns a secret value. */
-export function vaultExtensionRoutes(app: FastifyInstance, vault: VaultService, service: VaultExtensionService): Promise<void> {
+export function vaultExtensionRoutes(app: FastifyInstance, vault: VaultService, service: VaultExtensionService, releases?: ExtensionPackage): Promise<void> {
   function fail(error: unknown, reply: FastifyReply): never {
     if (error instanceof z.ZodError) throw new AppError('Requisição inválida', 400, 'VAULT_INPUT_INVALID')
     if (error instanceof VaultError) {
@@ -54,6 +55,39 @@ export function vaultExtensionRoutes(app: FastifyInstance, vault: VaultService, 
   extension('POST', '/extension/forget', req => service.forget(extensionRequest(req), VaultExtensionForgetRequestSchema.parse(req.body ?? {})))
   extension('GET', '/extension/capabilities', req => service.capabilities(extensionRequest(req), header(req, 'authorization')))
   extension('GET', '/extension/items', req => service.items(extensionRequest(req), header(req, 'authorization'), VaultExtensionItemsQuerySchema.parse(req.query ?? {})))
+
+  // NA-0194: release published by the operator. Files are public (the browser and the install policy fetch them
+  // without a session; they hold no secret) and only exist when the release matches this deployment.
+  const BASE = '/api/v1/vault-security/extension'
+  const https = (req: FastifyRequest, reply: FastifyReply): void => {
+    reply.header('Cache-Control', 'no-cache').header('X-Content-Type-Options', 'nosniff')
+    if (req.protocol !== 'https') throw new AppError('Extensão do cofre indisponível', 403, 'VAULT_HTTPS_REQUIRED')
+  }
+  const unavailable = (): never => { throw new AppError('Pacote da extensão indisponível', 404, 'EXTENSION_PACKAGE_UNAVAILABLE') }
+  for (const [path, kind] of [['/extension/package.zip', 'zip'], ['/extension/package.crx', 'crx']] as const) {
+    app.get(path, async (req, reply) => {
+      https(req, reply)
+      const file = await releases?.file(kind)
+      if (!file) return unavailable()
+      const sha = kind === 'zip' ? file.release.zip.sha256 : file.release.crx.sha256
+      reply.header('ETag', `"${sha}"`).header('Content-Disposition', `attachment; filename="vaultnaccess-${file.release.version}.${kind}"`)
+      if (req.headers['if-none-match'] === `"${sha}"`) return reply.code(304).send()
+      return reply.type(file.contentType).send(file.body)
+    })
+  }
+  app.get('/extension/update.xml', async (req, reply) => {
+    https(req, reply)
+    const release = await releases?.verified()
+    if (!release) return unavailable()
+    return reply.type('application/xml; charset=utf-8').send(updateManifestFor(release, `https://${req.host}${BASE}/package.crx`))
+  })
+  app.get('/extension/package', { preHandler: [requireAuth] }, async (_req, reply) => {
+    reply.header('Cache-Control', 'no-store')
+    const release = await releases?.verified()
+    if (!release) return { available: false }
+    return { available: true, version: release.version, extensionId: release.extensionId, zip: { sha256: release.zip.sha256, size: release.zip.size },
+      zipUrl: `${BASE}/package.zip`, crxUrl: `${BASE}/package.crx`, updateUrl: `${BASE}/update.xml` }
+  })
 
   /** Portal endpoints (central JWT, same-origin). */
   function portal<T extends z.ZodTypeAny>(path: string, schema: T, run: (i: VaultIdentity, client: string, origin: string, body: z.infer<T>) => Promise<unknown>, needsClient: boolean): void {

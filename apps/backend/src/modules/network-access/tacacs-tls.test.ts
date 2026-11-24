@@ -109,7 +109,7 @@ describe('TACACS TLS identity and transport',()=>{
   })
   it('rejects plaintext packets without dispatching backend operations',async()=>{
     const {port,backend}=await setup()
-    await new Promise<void>(resolve=>{const socket=connectTcp(port,'127.0.0.1',()=>socket.write(packet()));socket.on('error',()=>{});socket.resume();socket.on('close',()=>resolve())})
+    await new Promise<void>(resolve=>{const socket=connectTcp(port,'127.0.0.1',()=>socket.end(packet()));socket.on('error',()=>{});socket.resume();socket.on('close',()=>resolve())})
     expect(backend.device).not.toHaveBeenCalled()
   })
 })

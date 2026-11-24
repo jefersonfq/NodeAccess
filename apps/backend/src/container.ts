@@ -7,6 +7,7 @@ import { RedisVaultOrigin, MethodVaultReauthentication } from './modules/vault-s
 import { createVaultProviderStepUp } from './modules/vault-security/vault-provider.js'
 import { JweVaultEnvelope } from './modules/vault-security/vault-envelope.js'
 import { VaultExtensionService, catalogSummaries } from './modules/vault-security/vault-extension.service.js'
+import { ExtensionPackage } from './modules/vault-security/vault-extension-package.js'
 import { SqlExtensionLocator } from './modules/vault-security/vault-extension.repository.js'
 import { DpopNonces, DpopVerifier } from './modules/vault-security/vault-extension-dpop.js'
 import type { VaultIdentity } from './modules/vault-security/vault-domain.js'
@@ -564,6 +565,9 @@ const vaultExtensionService = new VaultExtensionService(vaultSecurityService, va
       await pemKeyService.list(identity.userId, identity.tenantId, admin), identity.userId),
   }, { enabled: env.VAULT_EXTENSION_ENABLED, extensionIds: env.VAULT_EXTENSION_IDS.split(',').filter(Boolean), minVersion: env.VAULT_EXTENSION_MIN_VERSION },
   Date.now, vaultReauthentication)
+// NA-0194: operator release of the extension, published only when it matches this configuration.
+const vaultExtensionPackage = new ExtensionPackage({ enabled: env.VAULT_EXTENSION_ENABLED, directory: env.VAULT_EXTENSION_PACKAGE_DIR,
+  extensionIds: env.VAULT_EXTENSION_IDS.split(',').filter(Boolean), minVersion: env.VAULT_EXTENSION_MIN_VERSION })
 const groupService     = new GroupService(groupRepository, logRepository)
 
 // ---------------------------------------------------------------------------
@@ -708,6 +712,7 @@ export const container = {
   vaultSecurityService,
   vaultAdministrationService,
   vaultExtensionService,
+  vaultExtensionPackage,
   closeVaultDatabase: (): Promise<void> => vaultDatabase.close(),
   secretController,
   // Platform

@@ -14,6 +14,7 @@ import SecretActions from '@/components/vault/SecretActions.vue'
 import PemKeyActions from '@/components/vault/PemKeyActions.vue'
 import VaultDeliveryPanel from '@/components/vault/VaultDeliveryPanel.vue'
 import ExtensionDevices from '@/components/vault/ExtensionDevices.vue'
+import ExtensionInstall from '@/components/vault/ExtensionInstall.vue'
 import VaultAdministration from '@/components/vault/VaultAdministration.vue'
 import { useRoute, useRouter } from 'vue-router'
 
@@ -159,6 +160,7 @@ const columns = computed<DataTableColumns<VaultEntry>>(() => [
       {{ t('vaultDelivery.catalogHint') }}
     </p>
     <VaultDeliveryPanel ref="deliveryPanel" />
+    <ExtensionInstall />
     <ExtensionDevices />
     <VaultAdministration />
     <NAlert

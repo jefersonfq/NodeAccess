@@ -40,3 +40,7 @@ Revisão independente de segurança (subagente, somente leitura): PASS_WITH_WARN
 ### 2026-11-23T16:50:00-03:00 — CI da PR84
 
 `sonar-real` reprovou por dois apontamentos S3403 no smoke da extensão (comparação com o vetor `renewed` de tipo inferido vazio; trocado por um campo de texto) e porque o harness `vault-extension` saiu com código 1 sem diagnóstico (o smoke não imprime pilha). Localmente o smoke passa em todas as execuções (3/3, ~23 s, também com o executável do Chromium indicado como na CI). Cobertura nova 93,3%. Reexecução para confirmar se é intermitente.
+
+### 2026-11-23T17:55:00-03:00 — Merge e encerramento
+
+PR84 mergeada em `master` (`fa757ac82`, 2026-11-23) com todos os checks remotos verdes (smoke da extensão falhou uma vez na CI sem diagnóstico e passou na reexecução). `master` local sincronizado. Status `closed`. Seguem: aplicar a migração no ambiente do responsável (`npm run db:deploy -w apps/backend`), homologação e `validate:sonar` local. Encerramento registrado na branch da NA-0194.

@@ -18,6 +18,8 @@
     "lint": "eslint apps/backend/src apps/frontend/src apps/extension/src --ext .ts,.vue --max-warnings 0",
     "build:extension": "vite build --config apps/extension/vite.config.ts",
     "build:extension:local": "node tools/vault-extension/build-local.mjs",
+    "package:extension": "node tools/vault-extension/package.mjs",
+    "test:extension-package:web": "node tools/vault-extension/package-smoke.mjs",
     "typecheck:extension": "vue-tsc --noEmit -p apps/extension/tsconfig.json",
     "test:extension:web": "node tools/vault-extension/extension-smoke.mjs",
     "lint:changed": "node scripts/lint-changed.mjs",

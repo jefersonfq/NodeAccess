@@ -27,7 +27,7 @@ describe('TACACS+ tenant diagnostics', () => {
     const b=beat(); b.runtime.tenants={1:{requests:2,errors:0,timeouts:0,lastRequestAt:Date.now(),pendingOperations:0,p95Ms:10},2:{requests:999,errors:0,timeouts:0,lastRequestAt:Date.now(),pendingOperations:0,p95Ms:900}}
     const result=tenantHealth([{id:'instance',heartbeat:b}],1)
     expect(result.status).toBe('ready'); expect(result.instances[0]?.activity?.requests).toBe(2)
-    expect(JSON.stringify(result)).not.toContain('999'); expect(result.instances[0]).not.toHaveProperty('runtime')
+    const json=JSON.stringify(result); expect(json).not.toContain('"requests":999'); expect(json).not.toContain('"p95Ms":900'); expect(result.instances[0]).not.toHaveProperty('runtime')
     expect(tenantHealth([{id:'instance',heartbeat:b}],3).instances[0]?.activity).toBeNull()
   })
   it('does not hide a stale replica behind a healthy instance', () => {

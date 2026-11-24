@@ -508,7 +508,7 @@ async function buildApiApp(): Promise<FastifyInstance<RawServerDefault, Incoming
       await api.register(async (r) => sessionAuditPolicyRoutes(r, container.sessionAuditPolicyController), { prefix: '/session-audit-policy' })
       await api.register(async (r) => tenantAuthPolicyRoutes(r, container.tenantAuthPolicyController), { prefix: '/tenant-auth-policy' })
       await api.register(async (r) => vaultRoutes(r, container.vaultSecurityService, container.vaultAdministrationService), { prefix: '/vault-security' })
-      await api.register(async (r) => vaultExtensionRoutes(r, container.vaultSecurityService, container.vaultExtensionService), { prefix: '/vault-security' })
+      await api.register(async (r) => vaultExtensionRoutes(r, container.vaultSecurityService, container.vaultExtensionService, container.vaultExtensionPackage), { prefix: '/vault-security' })
       await api.register(async (r) => secretRoutes(r, container.secretController), { prefix: '/secrets' })
       const trialRuntime = createTrialRuntime()
       api.addHook('onClose', () => { trialRuntime.stop(); return Promise.resolve() })
