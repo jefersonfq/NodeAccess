@@ -16,6 +16,7 @@ vi.mock('vue-router', () => ({ useRoute: () => mocks.route, useRouter: () => ({ 
 vi.mock('vue-i18n', () => ({ useI18n: () => ({ t: (key: string) => key }) }))
 vi.mock('@/components/manual/ManualSettings.vue', () => ({ default: { render: () => null } }))
 vi.mock('@/components/integrations/TenantAuthPolicyCard.vue', () => ({ default: { render: () => null } }))
+vi.mock('@/components/vault/VaultSettings.vue', () => ({ default: { render: () => null } }))
 vi.mock('./EmailConfigView.vue', () => ({ default: { render: () => null } }))
 vi.mock('naive-ui', async () => {
   const { defineComponent, h } = await import('vue')
@@ -58,6 +59,14 @@ beforeEach(() => {
   mocks.limits.mockResolvedValue({ data: structuredClone(fixture) })
 })
 describe('Settings compiled SSR contracts', () => {
+  it('NA-0199: opens the Vault section from the ?section=vault link', async () => {
+    mocks.route.query = { section: 'vault' }
+    try {
+      const html = await render(true)
+      expect(html).toContain('vaultSettings.title')
+      expect((state as unknown as { expandedSettingsSections: Ref<string[]> }).expandedSettingsSections.value).toContain('vault')
+    } finally { mocks.route.query = {} }
+  })
   it('loads tenant settings and tolerates an unavailable optional audit policy', async () => {
     mocks.policy.mockRejectedValueOnce(new Error('unavailable'))
     const html = await render(true)

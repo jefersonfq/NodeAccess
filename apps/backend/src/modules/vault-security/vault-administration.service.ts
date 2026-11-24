@@ -1,6 +1,6 @@
 import type { VaultService } from './vault.service.js'
-import { CONFIRMATION_DEFAULT_SECONDS, PROPOSAL_DEFAULT_SECONDS, unavailable, type VaultChange, type VaultIdentity } from './vault-domain.js'
-import type { VaultAdministrationSummary, VaultAdministrationView, VaultAvailability, VaultEntropy } from './vault-ports.js'
+import { CONFIRMATION_DEFAULT_SECONDS, denied, PROPOSAL_DEFAULT_SECONDS, unavailable, webauthnRpId, type VaultChange, type VaultIdentity } from './vault-domain.js'
+import type { VaultAdministrationSummary, VaultAdministrationView, VaultAvailability, VaultEntropy, VaultSettingsView } from './vault-ports.js'
 export class VaultAdministrationService {
   constructor(private readonly vault: VaultService, private readonly entropy: VaultEntropy) {}
   async propose(i: VaultIdentity, c: string, o: string, s: string, change: VaultChange): Promise<{ proposalId: string }> {
@@ -39,6 +39,17 @@ export class VaultAdministrationService {
       const p = tx.authority.policy
       return { ...overview, policy: { confirmationSeconds: p.confirmationSeconds ?? CONFIRMATION_DEFAULT_SECONDS,
         proposalSeconds: p.proposalSeconds ?? PROPOSAL_DEFAULT_SECONDS, reveal: p.reveal === true, copy: p.copy === true, tenantQuota: p.tenantQuota } }
+    })
+  }
+  /** NA-0199: current tenant settings for tenant administrators and vault managers (no unlock; read only). */
+  async settings(i: VaultIdentity, o: string): Promise<VaultSettingsView> {
+    return this.vault.inspect(i, o, 'settings', async tx => {
+      const manager = (await tx.administration?.isManager()) ?? false
+      if (!manager && tx.authority.role !== 'ADMIN') denied()
+      const p = tx.authority.policy
+      return { manager, reveal: p.reveal === true, copy: p.copy === true, tenantQuota: p.tenantQuota,
+        confirmationSeconds: p.confirmationSeconds ?? CONFIRMATION_DEFAULT_SECONDS, proposalSeconds: p.proposalSeconds ?? PROPOSAL_DEFAULT_SECONDS,
+        origin: p.origin, webauthn: webauthnRpId(p.origin) !== null }
     })
   }
   /** NA-0196: guidance for the signed-in user (no unlock): tenant policy, own grants and released items visible to them. */

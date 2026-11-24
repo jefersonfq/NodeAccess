@@ -35,6 +35,8 @@ export interface VaultAdministrationOverview { users: VaultAdministrationUser[];
 /** NA-0186: the overview also shows the tenant's current confirmation time (read from the locked policy). */
 export interface VaultAdministrationView extends VaultAdministrationOverview { policy: { confirmationSeconds: number; /** NA-0188 */ proposalSeconds: number
   /** NA-0196 */ reveal: boolean; copy: boolean; tenantQuota: number } }
+/** NA-0199: tenant vault settings shown in /admin/settings (values only; changes stay two-manager proposals). */
+export interface VaultSettingsView { manager: boolean; reveal: boolean; copy: boolean; tenantQuota: number; confirmationSeconds: number; proposalSeconds: number; origin: string; webauthn: boolean }
 /** NA-0196: what the signed-in user may expect before unlocking (guidance only; every delivery is still decided by the server). */
 export interface VaultAvailability { policy: { reveal: boolean; copy: boolean }; grants: { reveal: boolean; copy: boolean }; items: number[] }
 /** NA-0188 status: pending count and manager ids only for managers (zero/empty otherwise). */

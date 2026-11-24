@@ -35,6 +35,13 @@ export const VaultAdministrationOverviewSchema = z.object({
   items: z.array(z.object({ id: z.number().int().positive(), alias: z.string().max(120) }).strict()).max(1000),
   serverNow: z.number().int(),
 }).strict()
+/** NA-0199: tenant vault settings for /admin/settings (read only; changes are two-manager proposals). */
+export const VaultSettingsSchema = z.object({
+  manager: z.boolean(), reveal: z.boolean(), copy: z.boolean(), tenantQuota: z.number().int().min(1).max(300),
+  confirmationSeconds: z.number().int().min(60).max(900), proposalSeconds: z.number().int().min(120).max(86400),
+  origin: z.string().url().max(512), webauthn: z.boolean(),
+}).strict()
+export type VaultSettings = z.infer<typeof VaultSettingsSchema>
 /** NA-0196: guidance for the signed-in user before unlocking; the server still decides every delivery. */
 export const VaultAvailabilitySchema = z.object({
   policy: z.object({ reveal: z.boolean(), copy: z.boolean() }).strict(),

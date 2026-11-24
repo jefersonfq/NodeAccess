@@ -65,6 +65,11 @@ async function runVaultAdministrationFlow(browser, base, fixture, output) {
     await page.goto(`${base}/admin/users`, { waitUntil: 'networkidle' })
     await page.locator('tr', { hasText: 'davi@example.test' }).waitFor()
   }
+  /** NA-0199: Settings → Vault (tenant settings for administrators). */
+  async function settings(page) {
+    await page.goto(`${base}/admin/settings?section=vault`, { waitUntil: 'networkidle' })
+    await page.getByTestId('vault-settings-values').waitFor()
+  }
   async function vault(page) {
     await page.goto(`${base}/vault`, { waitUntil: 'networkidle' })
     await page.getByTestId('vault-delivery-panel').waitFor()
@@ -218,9 +223,9 @@ async function runVaultAdministrationFlow(browser, base, fixture, output) {
       check(fixture.state.grants.get('42:reveal')?.enabled === true, 'Reveal grant not applied')
       check(fixture.state.grants.get('42:reveal')?.approvedBy === 43, 'Grant approved by the wrong manager')
     })
-    await scenario('Proposal validity of 24 h: proposed by Ana, approved by Bruno from the vault page notice, new proposals last 24 h', async () => {
+    await scenario('Proposal validity of 24 h: proposed by Ana in Settings → Vault, approved by Bruno from the vault page notice, new proposals last 24 h', async () => {
       const ana = await as(41)
-      await vault(ana.page); await openAdministration(ana.page, 41)
+      await settings(ana.page); await openAdministration(ana.page, 41)
       await ana.page.getByTestId('vault-administration-window').getByText('Uma proposta fica aberta por 2 min').waitFor()
       await ana.page.getByTestId('vault-administration-window-select').click()
       await ana.page.locator('.n-base-select-option', { hasText: /^24 h$/ }).click()
@@ -234,8 +239,9 @@ async function runVaultAdministrationFlow(browser, base, fixture, output) {
       await bruno.close()
       check(fixture.state.policy.proposalSeconds === 86400, 'Proposal validity not applied')
       const ana2 = await as(41)
+      await settings(ana2.page)
+      check((await ana2.page.getByTestId('vault-settings-proposal').textContent()).trim() === '24 h', 'Settings do not show the new validity')
       await vault(ana2.page); await openAdministration(ana2.page, 41)
-      await ana2.page.getByTestId('vault-administration-window').getByText('Uma proposta fica aberta por 24 h').waitFor()
       await ana2.page.getByTestId('vault-administration-propose-44-copy').click(); await proposed(ana2.page)
       check((await ana2.page.getByTestId('vault-administration-notice').textContent()).includes('em até 24 h'), 'Notice ignores the new validity')
       const text = await proposal(ana2.page, 'Copiar para Davi Operador').textContent()
@@ -293,10 +299,19 @@ async function runVaultAdministrationFlow(browser, base, fixture, output) {
       await review(davi.page, davi.errors, '10-user-policy-off')
       await davi.close()
     })
-    await scenario('Ana turns reveal and copy on in Password delivery for the tenant; Bruno approves from the vault page', async () => {
+    await scenario('Ana follows the notice to Settings → Vault, turns reveal and copy on; Bruno approves from the vault page', async () => {
       const ana = await as(41)
       await vault(ana.page)
+      // NA-0199: administrators find the tenant settings in /admin/settings; the vault page only links there.
+      await ana.page.getByTestId('vault-administration-open').click(); await unlock(ana.page, 41)
+      await ana.page.getByTestId('vault-administration-settings-link').waitFor()
+      check(await ana.page.getByTestId('vault-administration-policy').count() === 0, 'Tenant settings still on the vault page for an administrator')
+      await ana.page.getByTestId('vault-administration-lock').click()
       await ana.page.getByTestId('vault-delivery-open-settings').click()
+      await ana.page.waitForURL(/\/admin\/settings\?section=vault/)
+      await ana.page.getByTestId('vault-settings-values').waitFor()
+      check((await ana.page.getByTestId('vault-settings-delivery').textContent()).includes('revelar desligado'), 'Settings do not show the current policy')
+      await review(ana.page, ana.errors, '10b-settings-vault-section')
       await openAdministration(ana.page, 41)
       const policy = ana.page.getByTestId('vault-administration-policy')
       await policy.getByText('Permitir revelar', { exact: true }).click(); await policy.getByText('Permitir copiar', { exact: true }).click()

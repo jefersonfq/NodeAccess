@@ -67,7 +67,11 @@ async function refreshAvailability(): Promise<void> {
   if (current !== availabilityRead) return
   availability.value = next; manager.value = isManager
 }
-function openSettings(): void { document.querySelector('[data-testid="vault-administration"]')?.scrollIntoView({ behavior: 'smooth', block: 'start' }) }
+// NA-0199: the tenant policy lives in /admin/settings for administrators; managers who are not administrators keep it here.
+function openSettings(): void {
+  if (block.value === 'policy' && auth.isAdmin) { void router.push({ name: 'admin-settings', query: { section: 'vault' } }); return }
+  document.querySelector('[data-testid="vault-administration"]')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+}
 function closeItem(): void { itemModal.value = null; void refreshAvailability() }
 function reload(): Promise<void> {
   deliveryPanel.value?.lock()
@@ -204,7 +208,7 @@ const columns = computed<DataTableColumns<VaultEntry>>(() => [
       :title="t(`vaultDelivery.block.${block}Title`)"
       data-testid="vault-delivery-block"
     >
-      {{ t(`vaultDelivery.block.${block}${manager ? 'Manager' : ''}`) }}
+      {{ t(`vaultDelivery.block.${block}${manager ? (block === 'policy' && auth.isAdmin ? 'Admin' : 'Manager') : ''}`) }}
       <NButton
         v-if="manager"
         text
@@ -213,7 +217,7 @@ const columns = computed<DataTableColumns<VaultEntry>>(() => [
         data-testid="vault-delivery-open-settings"
         @click="openSettings"
       >
-        {{ t('vaultDelivery.block.openSettings') }}
+        {{ t(block === 'policy' && auth.isAdmin ? 'vaultDelivery.block.openTenantSettings' : 'vaultDelivery.block.openSettings') }}
       </NButton>
     </NAlert>
     <ExtensionInstall />

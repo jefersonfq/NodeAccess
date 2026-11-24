@@ -2,7 +2,7 @@
  * NA-0186 — shared "is the signed-in user a vault manager?" check, used by the vault section and the Users tab.
  * Same rules as every vault request: HTTPS page, own tenant (no acting/managed tenant) and both portal tokens.
  */
-import { VaultAdministrationStatusSchema, VaultAvailabilitySchema, type VaultAdministrationStatus, type VaultAvailability } from '@nodeaccess/shared'
+import { VaultAdministrationStatusSchema, VaultAvailabilitySchema, VaultSettingsSchema, type VaultAdministrationStatus, type VaultAvailability, type VaultSettings } from '@nodeaccess/shared'
 import type { useAuthStore } from '@/stores/auth'
 import type { VaultPortalIdentity, VaultTransport } from '@/services/vault-http'
 
@@ -62,4 +62,16 @@ export function deliveryFor(a: VaultAvailability | null, secretId: number): { ac
   // The server lists at most 1000 released items: a full list is not proof that an item is missing.
   if (!a.items.includes(secretId) && a.items.length < 1000) return { actions: [], reason: 'item' }
   return { actions: (['reveal', 'copy'] as const).filter(action => a.policy[action] && a.grants[action]), reason: null }
+}
+/** NA-0199: tenant settings for /admin/settings. `null` = unknown (insecure page, no tokens, server error);
+ * 'denied' = refused (403, which also covers a tenant without a configured vault); 'unconfigured' = vault routes disabled (404). */
+export async function vaultSettings(transport: VaultTransport, auth: AuthStore): Promise<VaultSettings | 'denied' | 'unconfigured' | null> {
+  const who = vaultPortalIdentity(auth)
+  if (!who) return null
+  try { return VaultSettingsSchema.parse(await transport.post('administration/settings', {}, who)) } catch (error) {
+    const reason = (error as { reason?: unknown } | null)?.reason
+    if (reason === 'denied') return 'denied'
+    if (reason === 'unsupported') return 'unconfigured'
+    return null
+  }
 }

@@ -97,6 +97,8 @@ export function vaultRoutes(app: FastifyInstance, service: VaultService, adminis
     // NA-0183 portal screen: "is a manager?" needs no vault session; the list needs the same confirmed session as a change.
     post('/administration/status', empty, (i,_c,o) => administration.status(i,o), false)
     post('/availability', empty, (i,_c,o) => administration.availability(i,o), false)
+    // NA-0199: tenant settings for /admin/settings (administrators and managers; read only).
+    post('/administration/settings', empty, (i,_c,o) => administration.settings(i,o), false)
     post('/administration/overview', session, (i,c,o,b) => administration.overview(i,c,o,b.sessionId))
   }
   return Promise.resolve()
