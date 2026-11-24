@@ -3,6 +3,8 @@
  * key whose private half is not extractable, and the compact JWE (RSA-OAEP-256 + A256GCM) whose protected header
  * must carry exactly the context the server returned, bound to the requested item, action and this key.
  */
+import { base64url } from './crypto'
+
 export interface DeliveryContext {
   version: 1; operationId: string; tenantId: number; userId: number; clientId: string; action: 'reveal' | 'copy'
   itemRef: string; recipientThumbprint: string; policyVersion: number; secretVersion: string; expiresAt: number; origin: string
@@ -12,14 +14,9 @@ const KEYS = ['version', 'operationId', 'tenantId', 'userId', 'clientId', 'actio
 
 export class EnvelopeError extends Error { constructor() { super('envelope') } }
 const fail = (): never => { throw new EnvelopeError() }
-function b64url(bytes: Uint8Array): string {
-  let text = ''
-  for (const byte of bytes) text += String.fromCharCode(byte)
-  return btoa(text).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
-}
 function fromB64url(value: string): Uint8Array<ArrayBuffer> {
   if (!/^[A-Za-z0-9_-]*$/.test(value)) fail()
-  const text = atob(value.replace(/-/g, '+').replace(/_/g, '/') + '='.repeat((4 - (value.length % 4)) % 4))
+  const text = atob(value.replaceAll('-', '+').replaceAll('_', '/') + '='.repeat((4 - (value.length % 4)) % 4))
   const out = new Uint8Array(new ArrayBuffer(text.length))
   for (let i = 0; i < text.length; i++) out[i] = text.charCodeAt(i)
   return out
@@ -28,7 +25,7 @@ function fromB64url(value: string): Uint8Array<ArrayBuffer> {
 /** RFC 7638 thumbprint, as the server computes it for the recipient. */
 export async function thumbprintOf(jwk: { e: string; kty: string; n: string }): Promise<string> {
   const canonical = JSON.stringify({ e: jwk.e, kty: jwk.kty, n: jwk.n })
-  return b64url(new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(canonical))))
+  return base64url(new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(canonical))))
 }
 export async function createRecipient(): Promise<Recipient> {
   const pair = await crypto.subtle.generateKey({ name: 'RSA-OAEP', modulusLength: 2048, publicExponent: new Uint8Array([1, 0, 1]), hash: 'SHA-256' }, false, ['decrypt'])
