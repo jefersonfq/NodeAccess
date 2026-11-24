@@ -1,6 +1,6 @@
 import type { VaultAuthMethod, VaultAuthority, VaultEvent, VaultIdentity, VaultOrigin, VaultSecret, VaultAction, VaultChange } from './vault-domain.js'
 import type { ExtensionRecords } from './vault-extension-domain.js'
-export type RecordKind = 'client' | 'challenge' | 'session' | 'operation' | 'provider'
+export type RecordKind = 'client' | 'challenge' | 'session' | 'operation' | 'provider' | 'webauthn'
 export interface VaultTransaction {
   authority: VaultAuthority
   now(): number
@@ -18,6 +18,8 @@ export interface VaultTransaction {
   extension?: ExtensionRecords
   /** NA-0183 read side of the two-manager administration (portal screen). */
   administration?: AdministrationReads
+  /** NA-0198: Windows Hello / passkey credentials of this identity. */
+  webauthn?: WebauthnRecords
   /** NA-0196: own grants and released items visible to this identity. */
   availability?(): Promise<Omit<VaultAvailability, 'policy'>>
 }
@@ -68,3 +70,22 @@ export interface EnvelopeSealer {
   seal(key: { kty: 'RSA'; n: string; e: string }, context: object, secret: VaultSecret): Promise<string>
 }
 export interface VaultEntropy { token(): string; digest(value: string): string }
+/** NA-0198: a WebAuthn credential of the transaction identity (public key only; never a secret). */
+export interface WebauthnCredential { id: string; publicKey: Uint8Array; counter: number; transports: string[]; name: string; createdAt: number; lastUsedAt: number | null }
+/** Scoped to the transaction identity (tenant and user). */
+export interface WebauthnRecords {
+  list(): Promise<WebauthnCredential[]>
+  find(id: string): Promise<WebauthnCredential | null>
+  /** False when the credential id already exists (any user). */
+  add(credential: Omit<WebauthnCredential, 'createdAt' | 'lastUsedAt'>): Promise<boolean>
+  used(id: string, counter: number): Promise<void>
+  remove(id: string): Promise<boolean>
+}
+/** Maintained WebAuthn implementation behind a port (NA-0198: @simplewebauthn/server). Challenges are base64url. */
+export interface WebauthnVerifier {
+  authenticationOptions(input: { rpID: string; challenge: string; allow: Array<{ id: string; transports: string[] }> }): Promise<object>
+  /** Null on any failure (challenge, origin, RP ID, signature, user verification, counter). */
+  verifyAuthentication(input: { response: unknown; challenge: string; origin: string; rpID: string; credential: WebauthnCredential }): Promise<{ counter: number } | null>
+  registrationOptions(input: { rpID: string; rpName: string; userHandle: Uint8Array; userName: string; challenge: string; exclude: Array<{ id: string; transports: string[] }> }): Promise<object>
+  verifyRegistration(input: { response: unknown; challenge: string; origin: string; rpID: string }): Promise<{ id: string; publicKey: Uint8Array; counter: number; transports: string[] } | null>
+}

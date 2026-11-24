@@ -6,6 +6,7 @@ import { useAuthStore } from '@/stores/auth'
 import { createVaultDelivery } from '@/services/vault-delivery'
 import { VaultClientError, type VaultPortalIdentity } from '@/services/vault-http'
 import { openVaultProviderWindow, requestGoogleIdToken } from '@/services/vault-provider-confirm'
+import { browserWebauthn } from '@/services/vault-webauthn'
 
 const { t } = useI18n(), auth = useAuthStore()
 const secure = computed(() => globalThis.isSecureContext === true && typeof window !== 'undefined' && window.location?.protocol === 'https:')
@@ -14,7 +15,7 @@ function identity(): VaultPortalIdentity | null {
   if (!secure.value || !u || u.actingTenantId !== undefined || auth.isManagingTenant || !auth.accessToken || !auth.refreshToken) return null
   return { userId: u.id, tenantId: u.tenantId, accessToken: auth.accessToken, refreshToken: auth.refreshToken, origin: window.location.origin }
 }
-const delivery = createVaultDelivery({ identity }), state = delivery.state
+const delivery = createVaultDelivery({ identity, webauthn: browserWebauthn }), state = delivery.state
 const dialog = ref(false), password = ref(''), token = ref(''), itemName = ref(''), action = ref<'reveal' | 'copy'>('reveal')
 let itemId = 0, intent = 0, ticker: ReturnType<typeof setInterval> | undefined
 const busy = computed(() => ['unlocking', 'delivering', 'copying'].includes(state.phase))
@@ -71,6 +72,13 @@ async function unlock(): Promise<void> {
   await pending
   if (current === intent && dialog.value && state.phase === 'unlocked') await delivery.deliver(nextAction, selected)
 }
+/** NA-0198: Windows Hello / passkey answers the same challenge; the pending reveal/copy follows. */
+async function unlockWebauthn(): Promise<void> {
+  const current = intent, selected = itemId, nextAction = action.value
+  clearForm()
+  await delivery.unlockWithWebauthn()
+  if (current === intent && dialog.value && state.phase === 'unlocked') await delivery.deliver(nextAction, selected)
+}
 // The provider window/Google prompt takes focus; no plaintext exists while waiting, so only that wait is exempt.
 function blurred(): void { if (!state.providerPending) reset() }
 function visibility(): void { if (document.visibilityState !== 'visible') blurred(); else delivery.tick() }
@@ -89,7 +97,7 @@ onBeforeUnmount(() => {
   window.removeEventListener('nodeaccess:tenant-context-changed', reset)
   document.removeEventListener('visibilitychange', visibility)
 })
-defineExpose({ request, lock: reset, available })
+defineExpose({ unlockWebauthn, request, lock: reset, available })
 </script>
 
 <template>
@@ -143,6 +151,24 @@ defineExpose({ request, lock: reset, available })
         >
           {{ t(`vaultDelivery.errors.${state.error}`) }}
         </NAlert>
+        <div
+          v-if="state.webauthn && (state.phase === 'locked' || state.phase === 'unlocking')"
+          class="mb-4"
+          data-testid="vault-webauthn-unlock"
+        >
+          <NButton
+            type="primary"
+            :loading="state.phase === 'unlocking' && state.providerPending"
+            :disabled="state.phase === 'unlocking'"
+            data-testid="vault-webauthn-unlock-button"
+            @click="unlockWebauthn"
+          >
+            {{ t('vaultDelivery.webauthnUnlock') }}
+          </NButton>
+          <p class="mt-3 text-sm text-gray-400">
+            {{ t('vaultDelivery.webauthnOr') }}
+          </p>
+        </div>
         <div
           v-if="provider && (state.phase === 'locked' || state.phase === 'unlocking')"
           data-testid="vault-provider-step-up"

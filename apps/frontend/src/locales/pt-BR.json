@@ -6859,6 +6859,8 @@
     "groupsError": "Não foi possível carregar os grupos. Tente novamente antes de salvar um Secret de grupo."
   },
   "vaultDelivery": {
+    "webauthnUnlock": "Usar Windows Hello / chave de acesso",
+    "webauthnOr": "Ou confirme com a senha e o código do autenticador abaixo.",
     "reasons": {
       "unavailable": "Indisponível",
       "policy": "Desligado no tenant",
@@ -6899,6 +6901,9 @@
     "copied": "Senha copiada. Gerencie a área de transferência do seu dispositivo.",
     "valueCleared": "O valor foi descartado. Feche esta janela e solicite uma nova operação se necessário.",
     "errors": {
+      "webauthn": "Windows Hello ou chave de acesso indisponível aqui. Use a senha e o código do autenticador.",
+      "webauthnCancelled": "A confirmação com Windows Hello foi cancelada ou não reconheceu uma chave cadastrada. Tente de novo ou use a senha e o código.",
+      "webauthnLimit": "Limite de 10 dispositivos cadastrados. Remova um antes de cadastrar outro.",
       "unavailable": "A operação não pôde ser concluída. A entrega pode ter sido consumida; solicite uma nova operação quando estiver pronto.",
       "denied": "Esta conta ou item não está habilitado para esta operação. Consulte os gestores do cofre.",
       "locked": "Desbloqueie o cofre novamente para continuar.",
@@ -6947,6 +6952,25 @@
     "revoke": "Revogar",
     "focused": "Mostrando o item aberto pela extensão.",
     "showAll": "Mostrar todos"
+  },
+  "vaultWebauthn": {
+    "button": "Windows Hello ({count})",
+    "title": "Windows Hello e chaves de acesso",
+    "intro": "Cadastre este dispositivo para destravar o cofre com Windows Hello (rosto, digital ou PIN) ou outra chave de acesso, no lugar da senha e do código. A senha e o código continuam funcionando.",
+    "unsupported": "Indisponível nesta página: o cofre precisa ser acessado por um nome (por exemplo, https://localhost:5173 ou o domínio da empresa), não por endereço IP, e o navegador precisa suportar chaves de acesso.",
+    "registered": "Dispositivo cadastrado. Na próxima confirmação, use Windows Hello / chave de acesso.",
+    "removed": "Dispositivo removido. Ele não destrava mais o cofre.",
+    "confirmHint": "Confirme sua identidade para continuar (vale por um minuto).",
+    "confirm": "Confirmar",
+    "cancel": "Cancelar",
+    "listTitle": "Dispositivos cadastrados",
+    "empty": "Nenhum dispositivo cadastrado.",
+    "lastUsed": "Último uso em {date}",
+    "created": "Cadastrado em {date}",
+    "remove": "Remover",
+    "name": "Nome deste dispositivo",
+    "register": "Cadastrar este dispositivo",
+    "defaultName": "Este dispositivo"
   },
   "vaultAdministration": {
     "itemIntro": "Liberar um item para revelar e copiar precisa de dois gestores: um propõe, outro aprova.",

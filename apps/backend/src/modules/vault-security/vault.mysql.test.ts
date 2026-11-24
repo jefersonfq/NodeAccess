@@ -1,3 +1,4 @@
+import { SqlVaultWebauthn } from './vault-webauthn.repository.js'
 import { execFile } from 'node:child_process'
 import { promisify } from 'node:util'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
@@ -347,6 +348,29 @@ describe.skipIf(!enabled)('Vault SQL/Redis isolated integration', () => {
     expect(view.policy).toMatchObject({ reveal: policy.reveal, copy: policy.copy, tenantQuota: policy.tenantQuota })
     expect((await admin.status(b.identity, origin)).pending).toBe(1)
   }, 10_000)
+  it('NA-0198: WebAuthn credentials are scoped to tenant and user, unique by id, and updated by use', async () => {
+    const f = await fixture()
+    const own = new SqlVaultWebauthn(db, f.identity, () => 5_000, 'a'.repeat(64))
+    const other = new SqlVaultWebauthn(db, { userId: f.manager1.id, tenantId: f.tenant.id, sessionVersion: 1 }, () => 5_000, 'a'.repeat(64))
+    // Same user after a password/MFA reset: a new credential version.
+    const reset = new SqlVaultWebauthn(db, f.identity, () => 5_000, 'b'.repeat(64))
+    const id = `cred-${randomUUID()}`.replaceAll('-', '_')
+    expect(await own.add({ id, publicKey: new Uint8Array([1, 2, 3, 255]), counter: 0, transports: ['internal', 'hybrid'], name: 'Notebook' })).toBe(true)
+    expect(await own.add({ id, publicKey: new Uint8Array([9]), counter: 0, transports: [], name: 'Again' })).toBe(false)
+    expect(await other.add({ id, publicKey: new Uint8Array([9]), counter: 0, transports: [], name: 'Stolen' })).toBe(false)
+    const found = await own.find(id)
+    expect(found).toMatchObject({ id, counter: 0, transports: ['internal', 'hybrid'], name: 'Notebook', lastUsedAt: null })
+    expect([...found!.publicKey]).toEqual([1, 2, 3, 255])
+    expect(await other.find(id)).toBeNull(); expect(await other.list()).toEqual([]); expect(await other.remove(id)).toBe(false)
+    await own.used(id, 7)
+    expect(await own.find(id)).toMatchObject({ counter: 7, lastUsedAt: 5_000 })
+    await own.used(id, 3)
+    expect((await own.find(id))?.counter).toBe(7)
+    expect(await reset.find(id)).toBeNull(); expect(await reset.list()).toEqual([])
+    expect((await own.list()).map(c => c.id)).toEqual([id])
+    expect(await own.find('not/valid')).toBeNull()
+    expect(await own.remove(id)).toBe(true); expect(await own.find(id)).toBeNull()
+  })
   it('NA-0186: applies the confirmation time as a JSON integer the policy loader accepts', async () => {
     const f = await fixture(), a = await managerSession(f, f.manager1.id), b = await managerSession(f, f.manager2.id)
     const admin = new VaultAdministrationService(f.service, entropy)
@@ -434,8 +458,16 @@ describe.skipIf(!enabled)('Vault SQL/Redis isolated integration', () => {
     expect((await db.$queryRaw<Array<{ total: bigint }>>`SELECT COUNT(*) AS total FROM vault_records`)[0]!.total).toBe(recordsBefore - 1000n)
     expect((await db.$queryRaw<Array<{ total: bigint }>>`SELECT COUNT(*) AS total FROM vault_records WHERE tenant_id=${tenant.id} AND expires_at=${future}`)[0]!.total).toBe(1n)
     expect(await db.$queryRaw`SELECT COUNT(*) AS total FROM vault_audit`).toEqual(auditBefore)
+    // NA-0198: the vault origin moves to a host name (WebAuthn refuses IPs); dry-run first, then applied with a version bump.
+    const local = 'https://localhost:5173'
+    expect(JSON.parse((await cli(process.execPath, ['tools/vault-security/manage.mjs', 'origin', String(tenant.id), local], { env: process.env })).stdout)).toEqual({ applied: false, current: origin, next: local })
+    expect(JSON.parse((await cli(process.execPath, ['tools/vault-security/manage.mjs', 'origin', String(tenant.id), local, '--apply'], { env: process.env })).stdout)).toEqual({ applied: true, current: origin, next: local })
+    const moved = await db.$queryRaw<Array<{ origin: string; originType: string; version: number }>>`SELECT version,JSON_UNQUOTE(JSON_EXTRACT(config,'$.origin')) AS origin,
+      JSON_TYPE(JSON_EXTRACT(config,'$.origin')) AS originType FROM vault_policies WHERE tenant_id=${tenant.id}`
+    expect(moved[0]).toMatchObject({ origin: local, originType: 'STRING', version: 2 })
+    await expect(cli(process.execPath, ['tools/vault-security/manage.mjs', 'origin', String(tenant.id), 'http://localhost:5173', '--apply'], { env: process.env })).rejects.toMatchObject({ code: 1 })
     expect(JSON.parse((await cli(process.execPath, ['tools/vault-security/manage.mjs', 'disable', String(tenant.id), '--apply'], { env: process.env })).stdout)).toEqual({ applied: true })
-    expect((await db.$queryRaw<Array<{ unlockType: string; config: { unlock: boolean }; version: number }>>`SELECT version,config,JSON_TYPE(JSON_EXTRACT(config,'$.unlock')) AS unlockType FROM vault_policies WHERE tenant_id=${tenant.id}`)[0]).toMatchObject({ version: 2, unlockType: 'BOOLEAN', config: { unlock: false } })
+    expect((await db.$queryRaw<Array<{ unlockType: string; config: { unlock: boolean }; version: number }>>`SELECT version,config,JSON_TYPE(JSON_EXTRACT(config,'$.unlock')) AS unlockType FROM vault_policies WHERE tenant_id=${tenant.id}`)[0]).toMatchObject({ version: 3, unlockType: 'BOOLEAN', config: { unlock: false } })
   }, 20_000)
   it('locks only the Vault client and preserves unrelated operational secret rows', async () => {
     const f = await fixture(), op = await f.request()

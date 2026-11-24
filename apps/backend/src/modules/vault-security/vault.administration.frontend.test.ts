@@ -20,7 +20,7 @@ describe.skipIf(!enabled)('Vault administration HTTPS browser flow', () => {
     const { executeAdministrationHarness } = await import('../../../../../tools/vault-security/administration-harness.mts')
     const { report, evidence } = await executeAdministrationHarness()
     expect(report, `Private evidence: ${evidence}`).toMatchObject({ status: 'passed', cleanup: true })
-    expect(report.flow).toMatchObject({ status: 'passed', count: 12, audit: { proposals: 8, applied: 8 } })
+    expect(report.flow).toMatchObject({ status: 'passed', count: 14, audit: { proposals: 8, applied: 8 } })
     expect(JSON.parse(readFileSync(evidence, 'utf8'))).toEqual(report)
     expect(keys.every(key => process.env[key] === before[key])).toBe(true)
     expect(process.umask()).toBe(mask)

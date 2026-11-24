@@ -8,6 +8,7 @@ import { vaultRoutes } from './vault.routes.js'
 import { VaultError } from './vault-domain.js'
 import { VaultService } from './vault.service.js'
 import type { VaultAdministrationService } from './vault-administration.service.js'
+import type { VaultWebauthnService } from './vault-webauthn.service.js'
 
 const opaque = () => randomBytes(32).toString('base64url')
 const origin = 'https://vault.example.test'
@@ -28,7 +29,10 @@ async function harness(patch: Partial<JwtPayload> = {}, withAdministration = fal
     providerBegin: vi.fn().mockResolvedValue({ kind: 'redirect', authorizationUrl: 'https://idp.example.test/authorize' }),
     providerComplete: vi.fn().mockResolvedValue({ totpRequired: true }),
     unlockProvider: vi.fn().mockResolvedValue({ sessionId: opaque(), idleUntil: 123, expiresAt: 456 }),
+    unlockWebauthn: vi.fn().mockResolvedValue({ sessionId: opaque(), idleUntil: 123, expiresAt: 456 }),
   }
+  const webauthn = { credentials: vi.fn().mockResolvedValue({ supported: true, credentials: [] }), registrationOptions: vi.fn().mockResolvedValue({ options: {} }),
+    register: vi.fn().mockResolvedValue({ id: 'cred' }), remove: vi.fn().mockResolvedValue(undefined) }
   const administration = { propose: vi.fn().mockResolvedValue({ proposalId: opaque() }), approve: vi.fn().mockResolvedValue({ state: 'APPLIED' }),
     approveReference: vi.fn().mockResolvedValue({ state: 'APPLIED' }), status: vi.fn().mockResolvedValue({ manager: true }),
     availability: vi.fn().mockResolvedValue({ policy: { reveal: true, copy: false }, grants: { reveal: true, copy: true }, items: [4] }),
@@ -38,14 +42,47 @@ async function harness(patch: Partial<JwtPayload> = {}, withAdministration = fal
     canManageHosts: patch.canManageHosts ?? false, canViewLiveSessions: false }))
   const app = Fastify({ trustProxy: true })
   await app.register(fastifyJwt, { secret: randomBytes(32).toString('hex') })
-  await app.register(async instance => vaultRoutes(instance, service as unknown as VaultService, withAdministration ? administration as unknown as VaultAdministrationService : undefined), { prefix: '/api/v1/vault-security' })
+  await app.register(async instance => vaultRoutes(instance, service as unknown as VaultService, withAdministration ? administration as unknown as VaultAdministrationService : undefined,
+    webauthn as unknown as VaultWebauthnService), { prefix: '/api/v1/vault-security' })
   app.get('/central-session', { preHandler: [requireAuth] }, req => ({ userId: req.jwtUser?.sub }))
   const token = app.jwt.sign({ ...user, ...patch })
   const clientId = opaque()
   const headers = { authorization: `Bearer ${token}`, origin, 'x-forwarded-proto': 'https', 'x-vault-client': clientId }
   const post = (path: string, body: object = {}, customHeaders: Record<string,string> = headers) => app.inject({ method: 'POST', url: `/api/v1/vault-security${path}`, headers: customHeaders, payload: body })
-  return { app, service, administration, headers, clientId, post }
+  return { app, service, administration, webauthn, headers, clientId, post }
 }
+
+describe('Vault Windows Hello / passkey routes (NA-0198)', () => {
+  const assertion = { id: 'Y3JlZA', rawId: 'Y3JlZA', type: 'public-key', clientExtensionResults: {}, authenticatorAttachment: 'platform',
+    response: { clientDataJSON: 'eyJ9', authenticatorData: 'AAAA', signature: 'MEUC', userHandle: 'dXNlcg' } }
+  const attestation = { id: 'Y3JlZA', rawId: 'Y3JlZA', type: 'public-key', clientExtensionResults: {},
+    response: { clientDataJSON: 'eyJ9', attestationObject: 'o2Nm', transports: ['internal'] } }
+  it('forwards validated WebAuthn requests and rejects malformed or extra fields', async () => {
+    const h = await harness()
+    try {
+      const identity = { userId: 42, tenantId: 7, sessionVersion: 3 }, challengeId = opaque(), sessionId = opaque()
+      expect((await h.post('/sessions/unlock-webauthn', { challengeId, response: assertion })).statusCode).toBe(200)
+      expect(h.service.unlockWebauthn).toHaveBeenCalledWith(identity, h.clientId, origin, challengeId, assertion)
+      expect((await h.post('/webauthn/credentials')).json()).toEqual({ supported: true, credentials: [] })
+      expect(h.webauthn.credentials).toHaveBeenCalledWith(identity, origin)
+      expect((await h.post('/webauthn/registration/options', { sessionId, name: '  Notebook ' })).statusCode).toBe(200)
+      expect(h.webauthn.registrationOptions).toHaveBeenCalledWith(identity, h.clientId, origin, sessionId, 'Notebook')
+      expect((await h.post('/webauthn/registration', { sessionId, response: attestation })).json()).toEqual({ id: 'cred' })
+      expect((await h.post('/webauthn/credentials/remove', { sessionId, id: 'Y3JlZA' })).json()).toEqual({ state: 'REMOVED' })
+      for (const [path, body] of [
+        ['/sessions/unlock-webauthn', { challengeId, response: { ...assertion, type: 'other' } }],
+        ['/sessions/unlock-webauthn', { challengeId, response: { ...assertion, extra: 1 } }],
+        ['/sessions/unlock-webauthn', { challengeId, response: { ...assertion, response: { ...assertion.response, signature: 'not base64url!' } } }],
+        ['/sessions/unlock-webauthn', { challengeId, response: { ...assertion, clientExtensionResults: { appid: true } } }],
+        ['/webauthn/registration/options', { sessionId, name: '' }],
+        ['/webauthn/registration/options', { sessionId, name: 'x'.repeat(81) }],
+        ['/webauthn/registration', { sessionId, response: { ...attestation, response: { ...attestation.response, transports: ['carrier-pigeon'] } } }],
+        ['/webauthn/credentials/remove', { sessionId, id: 'a/b' }],
+      ] as const) expect((await h.post(path, body)).statusCode, path).toBe(400)
+      expect(h.service.unlockWebauthn).toHaveBeenCalledTimes(1)
+    } finally { await h.app.close() }
+  })
+})
 
 describe('Vault provider step-up routes (NA-0184)', () => {
   it('forwards validated provider requests with the verified identity and client', async () => {

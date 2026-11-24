@@ -6835,6 +6835,8 @@
     "groupsError": "Groups could not be loaded. Try again before saving a group Secret."
   },
   "vaultDelivery": {
+    "webauthnUnlock": "Use Windows Hello / passkey",
+    "webauthnOr": "Or confirm with your password and authenticator code below.",
     "reasons": {
       "unavailable": "Unavailable",
       "policy": "Off for the tenant",
@@ -6875,6 +6877,9 @@
     "copied": "Password copied. Manage your device clipboard.",
     "valueCleared": "The value was discarded. Close this window and request a new operation if needed.",
     "errors": {
+      "webauthn": "Windows Hello or passkey is unavailable here. Use your password and authenticator code.",
+      "webauthnCancelled": "The Windows Hello confirmation was cancelled or did not find a registered key. Try again or use your password and code.",
+      "webauthnLimit": "Limit of 10 registered devices. Remove one before adding another.",
       "unavailable": "The operation could not be completed. Delivery may have been consumed; request a new operation when ready.",
       "denied": "This account or item is not enabled for this operation. Contact your vault managers.",
       "locked": "Unlock the vault again to continue.",
@@ -6923,6 +6928,25 @@
     "revoke": "Revoke",
     "focused": "Showing the item opened from the extension.",
     "showAll": "Show all"
+  },
+  "vaultWebauthn": {
+    "button": "Windows Hello ({count})",
+    "title": "Windows Hello and passkeys",
+    "intro": "Register this device to unlock the vault with Windows Hello (face, fingerprint or PIN) or another passkey instead of your password and code. Your password and code keep working.",
+    "unsupported": "Unavailable on this page: the vault must be reached by a name (for example https://localhost:5173 or your company domain), not an IP address, and the browser must support passkeys.",
+    "registered": "Device registered. Next time, confirm with Windows Hello / passkey.",
+    "removed": "Device removed. It no longer unlocks the vault.",
+    "confirmHint": "Confirm your identity to continue (valid for one minute).",
+    "confirm": "Confirm",
+    "cancel": "Cancel",
+    "listTitle": "Registered devices",
+    "empty": "No device registered.",
+    "lastUsed": "Last used on {date}",
+    "created": "Registered on {date}",
+    "remove": "Remove",
+    "name": "Name of this device",
+    "register": "Register this device",
+    "defaultName": "This device"
   },
   "vaultAdministration": {
     "itemIntro": "Releasing an item for reveal and copy takes two managers: one proposes, another approves.",

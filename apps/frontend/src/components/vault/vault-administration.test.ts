@@ -40,13 +40,14 @@ const overview = {
       beneficiary: { id: 1, name: 'Ana', email: 'ana@example.test' } },
   ],
 }
-const state = reactive({ phase: 'locked', error: null as string | null, stepUp: 'password_totp', value: '', copied: false, providerPending: false })
+const state = reactive({ phase: 'locked', error: null as string | null, stepUp: 'password_totp', value: '', copied: false, providerPending: false, webauthn: false })
 function fakeDelivery() {
   return {
     state,
     prepare: vi.fn(() => Promise.resolve()),
     unlock: vi.fn(() => { state.phase = 'unlocked'; return Promise.resolve() }),
     unlockWithProvider: vi.fn(() => { state.phase = 'unlocked'; return Promise.resolve() }),
+    unlockWithWebauthn: vi.fn(() => { state.phase = 'unlocked'; return Promise.resolve() }),
     administrationOverview: vi.fn(() => Promise.resolve(overview)),
     proposeChange: vi.fn(() => Promise.resolve(true)),
     approveProposal: vi.fn(() => { state.phase = 'locked'; return Promise.resolve(true) }),
@@ -65,7 +66,7 @@ const transport = (manager: boolean | Error) => {
   return Object.assign({ post } as VaultTransport, { calls: post })
 }
 beforeEach(() => {
-  Object.assign(state, { phase: 'locked', error: null, stepUp: 'password_totp' })
+  Object.assign(state, { phase: 'locked', error: null, stepUp: 'password_totp', webauthn: false })
   vi.stubGlobal('isSecureContext', true)
   vi.stubGlobal('window', Object.assign(new EventTarget(), { location: { protocol: 'https:', origin: 'https://vault.example' } }))
 })
@@ -184,6 +185,17 @@ describe('NA-0196 tenant delivery policy and released items', () => {
     const f = mount<Admin>(VaultAdministration, { transport: transport(true), delivery: d, onChanged: changed }); await flush()
     await f.state.open(); f.state.password = 'pw'; f.state.token = '123456'; await f.state.confirm()
     await f.state.approve('c'.repeat(64)); expect(changed).toHaveBeenCalledTimes(1)
+    f.unmount()
+  })
+})
+
+describe('NA-0198 Windows Hello in the managers confirmation', () => {
+  it('offers Windows Hello when registered and loads the overview after it', async () => {
+    const d = fakeDelivery(), f = mount<Admin & { confirmWithWebauthn(): Promise<void> }>(VaultAdministration, { transport: transport(true), delivery: d }); await flush()
+    await f.state.open(); expect(await f.html()).not.toContain('vault-administration-webauthn')
+    state.webauthn = true; expect(await f.html()).toContain('vault-administration-webauthn')
+    await f.state.confirmWithWebauthn()
+    expect(d.unlockWithWebauthn).toHaveBeenCalledTimes(1); expect(d.administrationOverview).toHaveBeenCalled()
     f.unmount()
   })
 })

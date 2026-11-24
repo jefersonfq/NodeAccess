@@ -19,6 +19,7 @@ import { useAuthStore } from '@/stores/auth'
 import { createVaultDelivery, type VaultDelivery } from '@/services/vault-delivery'
 import { createVaultTransport, type VaultPortalIdentity, type VaultTransport } from '@/services/vault-http'
 import { useVaultProviderStepUp } from '@/composables/useVaultProviderStepUp'
+import { browserWebauthn } from '@/services/vault-webauthn'
 import { formatDuration, hasApprover, vaultAdministrationStatus, vaultPortalIdentity } from '@/services/vault-manager'
 
 /** `review`: Users-tab review of pending changes — opens at once and shows only the proposals (no table or tenant settings). */
@@ -28,7 +29,7 @@ const emit = defineEmits<{ changed: [] }>()
 const { t } = useI18n(), auth = useAuthStore()
 const transport = props.transport ?? createVaultTransport()
 const identity = (): VaultPortalIdentity | null => vaultPortalIdentity(auth)
-const delivery = props.delivery ?? createVaultDelivery({ identity }), state = delivery.state
+const delivery = props.delivery ?? createVaultDelivery({ identity, webauthn: browserWebauthn }), state = delivery.state
 const { googleTarget, googlePending, totpPending, token: providerToken, confirm: confirmProvider, submitTotp } = useVaultProviderStepUp(delivery)
 const manager = ref(false), pendingCount = ref(0), managerIds = ref<number[]>([]), detected = ref(false), opened = ref(false), overview = ref<VaultAdministrationOverview | null>(null), notice = ref<'' | 'proposed' | 'applied'>('')
 const password = ref(''), token = ref(''), now = ref(Date.now()), minutes = ref<number | null>(null), windowSeconds = ref<number | null>(null)
@@ -93,6 +94,13 @@ async function confirm(): Promise<void> {
   const p = password.value, otp = token.value
   password.value = ''; token.value = ''; notice.value = ''
   await delivery.unlock(p, otp)
+  if (state.phase === 'unlocked') await load()
+}
+/** NA-0198: Windows Hello / passkey instead of the password form. */
+async function confirmWithWebauthn(): Promise<void> {
+  if (busy.value) return
+  notice.value = ''; password.value = ''; token.value = ''
+  await delivery.unlockWithWebauthn()
   if (state.phase === 'unlocked') await load()
 }
 async function confirmWithProvider(): Promise<void> {
@@ -255,6 +263,23 @@ defineExpose({ detect })
       <p class="mb-3 text-sm">
         {{ t('vaultAdministration.confirmHint') }}
       </p>
+      <div
+        v-if="state.webauthn"
+        class="mb-3"
+        data-testid="vault-administration-webauthn"
+      >
+        <NButton
+          type="primary"
+          :loading="busy && state.providerPending"
+          :disabled="busy"
+          @click="confirmWithWebauthn"
+        >
+          {{ t('vaultDelivery.webauthnUnlock') }}
+        </NButton>
+        <p class="mt-2 text-sm text-gray-400">
+          {{ t('vaultDelivery.webauthnOr') }}
+        </p>
+      </div>
       <div
         v-if="state.stepUp === 'provider'"
         data-testid="vault-administration-provider"

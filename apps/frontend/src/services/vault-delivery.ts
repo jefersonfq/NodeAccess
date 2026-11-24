@@ -24,7 +24,16 @@ interface DeliveryState {
   stepUp: VaultStepUp | null
   /** True only while waiting on the provider window/Google/TOTP; no plaintext exists in this phase. */
   providerPending: boolean
+  /** NA-0198: a registered Windows Hello / passkey can unlock (offered next to the password form). */
+  webauthn: boolean
 }
+/** NA-0198: browser ceremonies, injected so the service stays testable outside a browser. */
+export interface VaultWebauthnCeremony {
+  available(): boolean
+  assertion(options: unknown, signal: AbortSignal): Promise<object>
+  registration(options: unknown, signal: AbortSignal): Promise<object>
+}
+export interface VaultWebauthnCredentialView { id: string; name: string; createdAt: number; lastUsedAt: number | null }
 export interface VaultDeliveryDependencies {
   identity(): VaultPortalIdentity | null
   transport?: VaultTransport
@@ -32,6 +41,7 @@ export interface VaultDeliveryDependencies {
   recipient?: typeof createVaultRecipient
   open?: typeof openVaultEnvelope
   clipboard?: (value: string) => Promise<void>
+  webauthn?: VaultWebauthnCeremony
 }
 const opaque = (v: unknown): v is string => typeof v === 'string' && /^[A-Za-z0-9_-]{43}$/.test(v)
 const fail = (reason: VaultFailure = 'unavailable'): never => { throw new VaultClientError(reason) }
@@ -46,6 +56,11 @@ export interface VaultDelivery {
   unlock(password: string, token: string): Promise<void>
   prepare(): Promise<void>
   unlockWithProvider(confirm: VaultProviderConfirmation): Promise<void>
+  /** NA-0198: Windows Hello / passkey (offered when `state.webauthn`). */
+  unlockWithWebauthn(): Promise<void>
+  listWebauthn(): Promise<{ supported: boolean; credentials: VaultWebauthnCredentialView[] } | null>
+  registerWebauthn(name: string): Promise<boolean>
+  removeWebauthn(id: string): Promise<boolean>
   deliver(action: Action, secretId: number): Promise<void>
   /** NA-0183: consent for the browser extension inside the unlocked session; returns the one-time code. */
   authorizeExtension(request: ExtensionConsent): Promise<string | null>
@@ -63,9 +78,9 @@ export function createVaultDelivery(deps: VaultDeliveryDependencies): VaultDeliv
   const clock = deps.clock ?? { mono: (): number => performance.now(), wall: Date.now }
   const recipient = deps.recipient ?? createVaultRecipient, open = deps.open ?? openVaultEnvelope
   const clipboard = deps.clipboard ?? ((value: string): Promise<void> => navigator.clipboard.writeText(value))
-  const state = shallowReactive<DeliveryState>({ phase: 'locked', value: '', error: null, copied: false, stepUp: null, providerPending: false })
+  const state = shallowReactive<DeliveryState>({ phase: 'locked', value: '', error: null, copied: false, stepUp: null, providerPending: false, webauthn: false })
   let epoch = 0, disposed = false, abort = new AbortController()
-  let owner: VaultPortalIdentity | null = null, clientId = '', sessionId = '', operationId = '', pendingCopy = ''
+  let owner: VaultPortalIdentity | null = null, webauthnOwner: VaultPortalIdentity | null = null, clientId = '', sessionId = '', operationId = '', pendingCopy = ''
   let clientUntil: Deadline | null = null, sessionUntil: Deadline | null = null, proofUntil: Deadline | null = null, valueUntil: Deadline | null = null
   // Administration and extension consent always need a proof younger than 60 s; the absolute session end bounds idle renewals.
   let strictProofUntil: Deadline | null = null, sessionEnd: Deadline | null = null
@@ -127,6 +142,8 @@ export function createVaultDelivery(deps: VaultDeliveryDependencies): VaultDeliv
     if (disposed || state.phase === 'unlocking' || state.phase === 'delivering' || state.phase === 'copying') return null
     const identity = deps.identity()
     if (!identity) { lock(); state.error = 'unsupported'; return null }
+    // NA-0198: what is offered for Windows Hello belongs to the user it was listed for (a manual lock keeps it).
+    if (!sameIdentity(identity, webauthnOwner)) state.webauthn = false
     if (!sameIdentity(identity, owner) || !live(clientUntil)) lock()
     invalidate(); owner = identity
     return { identity, version: epoch, signal: abort.signal }
@@ -135,7 +152,40 @@ export function createVaultDelivery(deps: VaultDeliveryDependencies): VaultDeliv
   async function prepare(): Promise<void> {
     if (state.phase !== 'locked' || (state.stepUp && live(clientUntil))) return
     const ctx = begin(); if (!ctx) return
-    try { await ensureClient(ctx.identity, ctx.version, ctx.signal) } catch (error) { failure(error, ctx.version) }
+    try {
+      await ensureClient(ctx.identity, ctx.version, ctx.signal)
+      // NA-0198: offer Windows Hello only when this browser can run it and the user has a credential for this vault origin.
+      if (deps.webauthn?.available()) {
+        const listed = await webauthnCredentials(ctx.identity, ctx.signal).catch(() => null)
+        if (ctx.version === epoch && !disposed) { state.webauthn = !!listed?.supported && listed.credentials.length > 0; webauthnOwner = ctx.identity }
+      }
+    } catch (error) { failure(error, ctx.version) }
+  }
+  async function webauthnCredentials(identity: VaultPortalIdentity, signal?: AbortSignal): Promise<{ supported: boolean; credentials: VaultWebauthnCredentialView[] } | null> {
+    const reply = await transport.post<{ supported?: unknown; credentials?: unknown }>('webauthn/credentials', {}, identity, undefined, signal)
+    const list = Array.isArray(reply?.credentials) ? reply.credentials.filter((c): c is VaultWebauthnCredentialView => !!c && typeof (c as VaultWebauthnCredentialView).id === 'string'
+      && typeof (c as VaultWebauthnCredentialView).name === 'string' && typeof (c as VaultWebauthnCredentialView).createdAt === 'number') : []
+    return { supported: reply?.supported === true, credentials: list.slice(0, 20) }
+  }
+  /** NA-0198: unlock with Windows Hello / passkey, answering the same server challenge as the password form. */
+  async function unlockWithWebauthn(): Promise<void> {
+    const ctx = begin(); if (!ctx || !deps.webauthn) return
+    const { identity, version, signal } = ctx
+    state.phase = 'unlocking'; state.error = null
+    try {
+      await ensureClient(identity, version, signal)
+      const challenge = await transport.post<{ challengeId: string; webauthn?: unknown }>('sessions/challenges', {}, identity, clientId, signal)
+      guard(version, identity); if (!opaque(challenge.challengeId)) fail()
+      if (!challenge.webauthn) { state.webauthn = false; fail('webauthn') }
+      state.providerPending = true
+      const response = await deps.webauthn.assertion(challenge.webauthn, signal)
+      state.providerPending = false
+      guard(version, identity)
+      const at = start(), reply = await transport.post<SessionReply>('sessions/unlock-webauthn', { challengeId: challenge.challengeId, response }, identity, clientId, signal)
+      guard(version, identity); if (!opaque(reply.sessionId)) fail()
+      opened(at, reply)
+      sessionId = reply.sessionId; state.phase = 'unlocked'
+    } catch (error) { state.providerPending = false; failure(error, version) }
   }
   async function unlockWithProvider(confirm: VaultProviderConfirmation): Promise<void> {
     const ctx = begin(); if (!ctx) return
@@ -308,5 +358,35 @@ export function createVaultDelivery(deps: VaultDeliveryDependencies): VaultDeliv
     if (valueUntil && !live(valueUntil)) dismiss()
   }
   function dispose(): void { lock(); disposed = true }
-  return { state: readonly(state), unlock, prepare, unlockWithProvider, deliver, authorizeExtension, administrationOverview, proposeChange, approveProposal, confirmCopy, dismiss, lock, tick, dispose }
+  /** NA-0198: list for the signed-in user (no vault session needed). */
+  async function listWebauthn(): Promise<{ supported: boolean; credentials: VaultWebauthnCredentialView[] } | null> {
+    const identity = deps.identity()
+    if (!identity) return null
+    try { return await webauthnCredentials(identity) } catch { return null }
+  }
+  /** NA-0198: register this device; needs an unlocked vault confirmed less than a minute ago (fresh authorization). */
+  async function registerWebauthn(name: string): Promise<boolean> {
+    if (!deps.webauthn) return false
+    const options = await administration('webauthn/registration/options', { name }, reply => (reply as { options?: unknown } | null)?.options ?? fail())
+    if (!options) return false
+    const identity = deps.identity(), version = epoch
+    let response: object
+    try {
+      state.providerPending = true
+      response = await deps.webauthn.registration(options, abort.signal)
+    } catch (error) {
+      state.providerPending = false
+      // The vault stays open: a cancelled ceremony is not a broken session.
+      if (version === epoch && !disposed && identity && sameIdentity(identity, owner)) { state.error = error instanceof VaultClientError ? error.reason : 'webauthn'; return false }
+      failure(error, version); return false
+    }
+    state.providerPending = false
+    const done = await administration('webauthn/registration', { response }, reply => typeof (reply as { id?: unknown } | null)?.id === 'string')
+    if (done) { state.webauthn = true; webauthnOwner = deps.identity() }
+    return done === true
+  }
+  async function removeWebauthn(id: string): Promise<boolean> {
+    return (await administration('webauthn/credentials/remove', { id }, reply => (reply as { state?: unknown } | null)?.state === 'REMOVED' || fail())) === true
+  }
+  return { state: readonly(state), unlock, prepare, unlockWithProvider, unlockWithWebauthn, listWebauthn, registerWebauthn, removeWebauthn, deliver, authorizeExtension, administrationOverview, proposeChange, approveProposal, confirmCopy, dismiss, lock, tick, dispose }
 }

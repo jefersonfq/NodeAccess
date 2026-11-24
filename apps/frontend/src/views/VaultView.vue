@@ -14,6 +14,7 @@ import SecretActions from '@/components/vault/SecretActions.vue'
 import PemKeyActions from '@/components/vault/PemKeyActions.vue'
 import VaultDeliveryPanel from '@/components/vault/VaultDeliveryPanel.vue'
 import ExtensionDevices from '@/components/vault/ExtensionDevices.vue'
+import WebauthnCredentials from '@/components/vault/WebauthnCredentials.vue'
 import ExtensionInstall from '@/components/vault/ExtensionInstall.vue'
 import VaultAdministration from '@/components/vault/VaultAdministration.vue'
 import { useRoute, useRouter } from 'vue-router'
@@ -21,6 +22,7 @@ import type { VaultAvailability } from '@nodeaccess/shared'
 import { createVaultTransport } from '@/services/vault-http'
 import { deliveryBlock, deliveryFor, isVaultManager, vaultAvailability, vaultPortalIdentity } from '@/services/vault-manager'
 import { createVaultDelivery } from '@/services/vault-delivery'
+import { browserWebauthn } from '@/services/vault-webauthn'
 
 const { t } = useI18n()
 const auth = useAuthStore()
@@ -56,7 +58,7 @@ const availability = ref<VaultAvailability | null>(null), manager = ref(false)
 const block = computed(() => deliveryBlock(availability.value))
 const itemModal = ref<{ id: number; name: string } | null>(null)
 // One administration session for the managers' section and the item window: confirming identity once serves both.
-const adminDelivery = createVaultDelivery({ identity: () => vaultPortalIdentity(auth) })
+const adminDelivery = createVaultDelivery({ identity: () => vaultPortalIdentity(auth), webauthn: browserWebauthn })
 let availabilityRead = 0
 async function refreshAvailability(): Promise<void> {
   const current = ++availabilityRead
@@ -182,6 +184,7 @@ const columns = computed<DataTableColumns<VaultEntry>>(() => [
           {{ t('vault.importPem') }}
         </NButton>
         <ExtensionDevices />
+        <WebauthnCredentials />
         <NButton
           :loading="loading"
           @click="reload"

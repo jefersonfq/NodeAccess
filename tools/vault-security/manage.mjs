@@ -1,5 +1,5 @@
 import { PrismaClient } from '@prisma/client'
-import { randomUUID } from 'node:crypto'
+import { createHash, randomUUID } from 'node:crypto'
 import { pathToFileURL } from 'node:url'
 
 export function configuration(input) {
@@ -49,15 +49,35 @@ export async function disable(db, tenantId, apply = false) {
   })
   return { applied: true }
 }
+/** NA-0198: exact HTTPS origin of the portal for a configured tenant (e.g. https://localhost:5173: WebAuthn refuses IP
+ * origins). Bumps the policy version, so every vault session and client of the tenant ends; audited. */
+export async function origin(db, tenantId, value, apply = false) {
+  if (!Number.isSafeInteger(tenantId) || tenantId <= 0) throw new Error('Invalid tenant')
+  let next
+  try { next = new URL(value) } catch { throw new Error('Exact HTTPS origin required') }
+  if (next.protocol !== 'https:' || next.origin !== value) throw new Error('Exact HTTPS origin required')
+  const rows = await db.$queryRaw`SELECT JSON_UNQUOTE(JSON_EXTRACT(config,'$.origin')) AS origin FROM vault_policies WHERE tenant_id=${tenantId}`
+  if (!rows.length) throw new Error('Vault not configured for this tenant')
+  const current = rows[0].origin
+  if (!apply || current === value) return { applied: false, current, next: value }
+  await db.$transaction(async tx => {
+    await tx.$executeRaw`UPDATE vault_policies SET version=version+1,config=JSON_SET(config,'$.origin',${value}) WHERE tenant_id=${tenantId}`
+    const digest = text => createHash('sha256').update(String(text)).digest('hex')
+    const metadata = JSON.stringify({ from: digest(current), to: digest(value) })
+    await tx.$executeRaw`INSERT INTO vault_audit(event_id,tenant_id,user_id,event_type,metadata) VALUES(${randomUUID()},${tenantId},0,'DEPLOYMENT_ORIGIN_CHANGED',${metadata})`
+  })
+  return { applied: true, current, next: value }
+}
 async function main() {
   const db = new PrismaClient({ log: [] })
   try {
-    const [mode, input, flag] = process.argv.slice(2)
+    const [mode, input, flag, extra] = process.argv.slice(2)
     let result
     if (mode === 'bootstrap') result = await bootstrap(db, JSON.parse(input ?? '{}'), flag === '--apply')
     else if (mode === 'disable') result = await disable(db, Number(input), flag === '--apply')
     else if (mode === 'maintenance') result = await maintenance(db, input === '--apply')
-    else throw new Error('Use bootstrap <json> [--apply], disable <tenantId> [--apply], maintenance [--apply]')
+    else if (mode === 'origin') result = await origin(db, Number(input), flag ?? '', extra === '--apply')
+    else throw new Error('Use bootstrap <json> [--apply], disable <tenantId> [--apply], origin <tenantId> <https-origin> [--apply], maintenance [--apply]')
     process.stdout.write(JSON.stringify(result) + '\n')
   } catch {
     process.stderr.write('Vault management failed; no sensitive database details printed. Verify configuration and private database diagnostics.\n')

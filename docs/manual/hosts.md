@@ -134,6 +134,9 @@ Na seção **Permissões do cofre (gestores)** do VaultNAccess, **Tempo de confi
 
 O tempo vale só enquanto o cofre estiver aberto: sem atividade por 5 minutos, ou após 30 minutos, o cofre bloqueia de qualquer forma. Administrar permissões e conectar a extensão continuam pedindo confirmação de 1 minuto.
 
+### Windows Hello / chave de acesso no cofre
+Em **VaultNAccess**, o botão **Windows Hello** abre **Windows Hello e chaves de acesso**. Para cadastrar este dispositivo, informe um nome, selecione **Cadastrar este dispositivo**, confirme sua identidade (senha e código do autenticador) e siga o pedido do Windows Hello (rosto, digital ou PIN). Depois disso, as confirmações do cofre (revelar, copiar e permissões dos gestores) mostram **Usar Windows Hello / chave de acesso**; a senha e o código continuam disponíveis logo abaixo. Para tirar um dispositivo, selecione **Remover** e confirme. O botão só aparece quando o portal é acessado por um nome (por exemplo, o domínio da empresa), não por endereço IP, e o navegador suporta chaves de acesso.
+
 ### Entrega de senhas no tenant e itens liberados (gestores)
 Para que alguém revele ou copie uma senha, três coisas precisam estar ligadas, cada uma aprovada por dois gestores: a **Entrega de senhas no tenant** (revelar e copiar), a permissão **Revelar** ou **Copiar** da pessoa e a liberação do item.
 
@@ -165,6 +168,8 @@ Desconectar uma única sessão não fecha terminais que ela já tinha aberto; pa
 Você iniciou uma manutenção, voltou a Hosts para consultar outro equipamento e quer continuar o trabalho anterior. Escolha o cartão em Sessões abertas em vez de iniciar uma segunda conexão.
 
 ## Se algo não funcionar
+**Windows Hello não aparece ou foi recusado:** confira se o dispositivo está cadastrado em **Windows Hello** e se o portal foi aberto pelo nome (não por IP). Se a confirmação foi cancelada ou não reconheceu a chave, tente de novo ou use a senha e o código.
+
 **Revelar ou copiar não aparece em um Secret:** leia o aviso no topo do cofre ou o motivo na coluna **Valores protegidos** (**Desligado no tenant**, **Sem permissão** ou **Item não liberado**) e peça aos gestores do cofre o que falta.
 
 **A pasta não mostra os hosts:** aguarde o carregamento e use a ação de tentar novamente quando disponível. Confira o filtro e o tenant selecionado.

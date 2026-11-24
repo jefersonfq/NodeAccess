@@ -1,6 +1,6 @@
-import { assertPolicy, assertSession, denied, grantDeadline, operationProofWindowMs, reauthFailed, unavailable, vaultEnvelopeContext, VaultError } from './vault-domain.js'
+import { assertPolicy, assertSession, denied, grantDeadline, operationProofWindowMs, reauthFailed, unavailable, vaultEnvelopeContext, VaultError, webauthnRpId } from './vault-domain.js'
 import type { VaultAuthMethod, VaultEnvelopeContext, VaultAction, VaultChallenge, VaultClient, VaultIdentity, VaultOperation, VaultSession } from './vault-domain.js'
-import type { EnvelopeSealer, OriginVerifier, ProviderMethod, ProviderProofInput, ProviderStart, ProviderStepUp, Reauthentication, VaultEntropy, VaultStore, VaultTransaction } from './vault-ports.js'
+import type { EnvelopeSealer, OriginVerifier, ProviderMethod, ProviderProofInput, ProviderStart, ProviderStepUp, Reauthentication, VaultEntropy, VaultStore, VaultTransaction, WebauthnVerifier } from './vault-ports.js'
 
 /** Kind of confirmation the portal must render; derived from the signed origin method. */
 function stepUpOf(method: VaultAuthMethod): 'password_totp' | 'provider' {
@@ -11,7 +11,8 @@ export class VaultService {
   private active = 0
   constructor(private readonly store: VaultStore, private readonly origin: OriginVerifier,
     private readonly reauth: Reauthentication, private readonly envelope: EnvelopeSealer,
-    private readonly entropy: VaultEntropy, private readonly now = Date.now, private readonly provider?: ProviderStepUp) {}
+    private readonly entropy: VaultEntropy, private readonly now = Date.now, private readonly provider?: ProviderStepUp,
+    /** NA-0198: Windows Hello / passkey; absent = not offered. */ private readonly webauthn?: WebauthnVerifier) {}
 
   /** Bounded admission: no unbounded queue in the shared application process. */
   async admitted<T>(run: () => Promise<T>): Promise<T> {
@@ -41,14 +42,44 @@ export class VaultService {
       return { clientId: id, expiresAt, serverNow: tx.now(), stepUp: stepUpOf(origin.authMethod) }
     })
   }
-  async challenge(identity: VaultIdentity, clientId: string, origin: string): Promise<{ challengeId: string; expiresAt: number; serverNow: number; stepUp: 'password_totp' | 'provider' }> {
+  async challenge(identity: VaultIdentity, clientId: string, origin: string): Promise<{ challengeId: string; expiresAt: number; serverNow: number; stepUp: 'password_totp' | 'provider'; webauthn?: object }> {
     return this.store.transaction(identity, async tx => {
       const client = await this.client(tx, clientId, identity, origin)
       await tx.limit('unlock', 300_000, 5)
       const challengeId = this.entropy.token(), expiresAt = Math.min(tx.now() + 120_000, client.expiresAt)
-      await tx.put('challenge', challengeId, { clientId: client.id, credentialVersion: tx.authority.credentialVersion, expiresAt }, expiresAt)
-      return { challengeId, expiresAt, serverNow: tx.now(), stepUp: stepUpOf(client.origin.authMethod) }
+      // NA-0198: the same challenge may also be answered by a registered Windows Hello / passkey of this user.
+      const rpID = webauthnRpId(tx.authority.policy.origin)
+      const credentials = this.webauthn && tx.webauthn && rpID ? await tx.webauthn.list() : []
+      const webauthnChallenge = credentials.length ? this.entropy.token() : undefined
+      const record: VaultChallenge = { clientId: client.id, credentialVersion: tx.authority.credentialVersion, expiresAt, ...(webauthnChallenge ? { webauthn: webauthnChallenge } : {}) }
+      await tx.put('challenge', challengeId, record, expiresAt)
+      const webauthn = webauthnChallenge && rpID && this.webauthn
+        ? await this.webauthn.authenticationOptions({ rpID, challenge: webauthnChallenge, allow: credentials.map(c => ({ id: c.id, transports: c.transports })) })
+        : undefined
+      return { challengeId, expiresAt, serverNow: tx.now(), stepUp: stepUpOf(client.origin.authMethod), ...(webauthn ? { webauthn } : {}) }
     })
+  }
+  /** NA-0198: unlock with a registered Windows Hello / passkey. The challenge is burned before verification; any failure is
+   * audited and refused like a wrong password (same unlock limit, taken when the challenge was issued). */
+  async unlockWebauthn(identity: VaultIdentity, clientId: string, origin: string, challengeId: string, response: { id: string }): Promise<{ sessionId: string; idleUntil: number; expiresAt: number; serverNow: number; proofUntil: number }> {
+    const proof = await this.store.transaction(identity, async tx => {
+      await this.client(tx, clientId, identity, origin)
+      const c = await tx.get<VaultChallenge>('challenge', challengeId)
+      if (!c || c.clientId !== this.entropy.digest(clientId) || c.expiresAt <= tx.now() || c.credentialVersion !== tx.authority.credentialVersion) denied()
+      await tx.remove('challenge', challengeId)
+      const credential = c.webauthn && tx.webauthn ? await tx.webauthn.find(response.id) : null
+      return { authority: tx.authority, expiresAt: c.expiresAt, expected: c.webauthn, credential, origin: tx.authority.policy.origin, rpID: webauthnRpId(tx.authority.policy.origin) }
+    })
+    const verified = proof.expected && proof.credential && proof.rpID && this.webauthn
+      ? await this.webauthn.verifyAuthentication({ response, challenge: proof.expected, origin: proof.origin, rpID: proof.rpID, credential: proof.credential })
+      : null
+    if (!verified || !proof.credential) {
+      await this.store.transaction(identity, tx => tx.audit({ type: 'UNLOCK_DENIED', clientId, policyVersion: tx.authority.policy.version, reasonCode: 'WEBAUTHN_FAILED' }))
+      reauthFailed()
+    }
+    const credentialId = proof.credential.id
+    await this.store.transaction(identity, tx => tx.webauthn?.used(credentialId, verified.counter) ?? Promise.resolve())
+    return this.openSession(identity, clientId, origin, proof)
   }
   async unlock(identity: VaultIdentity, clientId: string, origin: string, challengeId: string, password: string, otp: string): Promise<{ sessionId: string; idleUntil: number; expiresAt: number; serverNow: number; proofUntil: number }> {
     // Burn each challenge before expensive verification; failures cannot replay it.
