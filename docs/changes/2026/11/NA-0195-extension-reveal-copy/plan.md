@@ -5,7 +5,7 @@ type: security
 status: ready-for-review
 created_at: 2026-11-23T18:40:00-03:00
 base_branch: master
-base_sha: fa757ac8200ac7f5058a6da04f9eac6e4186e049
+base_sha: ff5e518b03330e26f76307bb0d48125a9a8fa300
 branch: security/NA-0195-20261123-extension-reveal-copy
 owner: Jeferson Quintana
 planner: Claude Code

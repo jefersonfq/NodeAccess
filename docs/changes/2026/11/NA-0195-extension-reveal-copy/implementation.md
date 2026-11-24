@@ -1,6 +1,6 @@
 # NA-0195 — Registro da implementação
 
-Base: NA-0194 (ver `plan.md`). Branch: security/NA-0195-20261123-extension-reveal-copy.
+Base: `ff5e518b0` (master com NA-0194, NA-0196 e NA-0197). Branch: security/NA-0195-20261123-extension-reveal-copy.
 
 ## Pedido e objetivo
 
@@ -32,3 +32,7 @@ Revert da PR; sem migração. Desligar sem deploy: política do tenant ou retira
 ### 2026-11-23T20:10:00-03:00 — Implementação e revisão
 
 Implementação, revisão independente e ajustes acima.
+
+### 2026-11-24T01:00:00-03:00 — Rebase e encerramento da NA-0196
+
+E2 aplicada sobre o master (conflito só no contrato NA-0177, mantidas as notas da NA-0196 e da E2); NA-0196 mesclada em `ff5e518b0`.
