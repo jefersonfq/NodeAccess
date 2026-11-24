@@ -262,6 +262,16 @@ describe('vault lifecycle and release boundaries', () => {
     await expect(admin.availability(identity,origin)).resolves.toEqual({policy:{reveal:policy.reveal,copy:policy.copy},grants:{reveal:false,copy:false},items:[]})
     await expect(admin.availability(identity,'https://other.test')).rejects.toMatchObject({status:403})
   })
+  it('NA-0199: tenant settings for managers and tenant administrators only, without unlocking',async()=>{
+    const f=fixture(),admin=new VaultAdministrationService(f.service,entropy)
+    const view=await admin.settings(identity,origin)
+    expect(view).toEqual({manager:true,reveal:true,copy:true,tenantQuota:100,confirmationSeconds:60,proposalSeconds:120,origin,webauthn:true})
+    f.administration.isManager.mockResolvedValue(false)
+    await expect(admin.settings(identity,origin)).rejects.toMatchObject({status:403})
+    f.authority.role='ADMIN'
+    await expect(admin.settings(identity,origin)).resolves.toMatchObject({manager:false,reveal:true})
+    await expect(admin.settings(identity,'https://other.test')).rejects.toMatchObject({status:403})
+  })
   it('NA-0183: without the administration reads the overview is unavailable and status is false',async()=>{
     const f=fixture(),{c,s}=await f.setup(),admin=new VaultAdministrationService(f.service,entropy)
     f.withoutAdministration()

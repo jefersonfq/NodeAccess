@@ -19,6 +19,7 @@ import { clearAllRegisteredCaches, clearRegisteredCache, listCacheRegistry, refr
 import { useAuthStore } from '@/stores/auth'
 import EmailConfigView from './EmailConfigView.vue'
 import TenantAuthPolicyCard from '@/components/integrations/TenantAuthPolicyCard.vue'
+import VaultSettings from '@/components/vault/VaultSettings.vue'
 
 const { t } = useI18n()
 const route = useRoute()
@@ -140,10 +141,10 @@ const cacheTtlDraftSeconds = ref<Record<string, number>>({})
 const cacheSearch = ref('')
 const cacheDomainFilter = ref<'all' | 'hosts' | 'settings' | 'features' | 'integrations' | 'folders' | 'groups' | 'bastions' | 'pem-keys' | 'tags' | 'other'>('all')
 const cacheSectionExpanded = ref(false)
-const tenantSettingsSection = computed(() => route.query.section === 'authentication' ? 'authentication' : route.query.section === 'email' ? 'email' : null)
+const tenantSettingsSection = computed(() => route.query.section === 'authentication' ? 'authentication' : route.query.section === 'email' ? 'email' : route.query.section === 'vault' ? 'vault' : null)
 const expandedSettingsSections = ref<Array<string | number>>(tenantSettingsSection.value ? [tenantSettingsSection.value] : [])
 watch(() => route.query.section, (section) => {
-  if ((section === 'email' || section === 'authentication') && !expandedSettingsSections.value.includes(section)) {
+  if ((section === 'email' || section === 'authentication' || section === 'vault') && !expandedSettingsSections.value.includes(section)) {
     expandedSettingsSections.value = [...expandedSettingsSections.value, section]
   }
 })
@@ -961,6 +962,19 @@ function resetCacheTtl(name: string): void {
                 </div>
               </template>
               <TenantAuthPolicyCard v-if="expandedSettingsSections.includes('authentication')" />
+            </NCollapseItem>
+            <NCollapseItem name="vault">
+              <template #header>
+                <div>
+                  <div class="text-sm font-semibold text-white">
+                    {{ $t('vaultSettings.title') }}
+                  </div>
+                  <div class="mt-1 text-sm text-zinc-400">
+                    {{ $t('vaultSettings.description') }}
+                  </div>
+                </div>
+              </template>
+              <VaultSettings v-if="expandedSettingsSections.includes('vault')" />
             </NCollapseItem>
           </NCollapse>
         </NCard>

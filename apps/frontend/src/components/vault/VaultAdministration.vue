@@ -10,10 +10,13 @@
  * disabled with the reason (the server refuses them too); a NodeAccess admin who is not a manager gets an explanation.
  * NA-0196 — tenant delivery policy (reveal, copy, quota) and released items are changed here by the same flow; `item`
  * focuses the section on one Secret (vault list → Actions → Item delivery).
+ * NA-0199 — tenant settings (delivery policy, confirmation time, proposal validity) live in /admin/settings (`settings`
+ * mode); on the vault page they stay only for managers who are not tenant administrators.
  */
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { NAlert, NButton, NCheckbox, NFormItem, NInput, NInputNumber, NSelect, NSpace, NText } from 'naive-ui'
 import { useI18n } from 'vue-i18n'
+import { RouterLink } from 'vue-router'
 import type { VaultAdministrationChange, VaultAdministrationOverview, VaultGrantAction } from '@nodeaccess/shared'
 import { useAuthStore } from '@/stores/auth'
 import { createVaultDelivery, type VaultDelivery } from '@/services/vault-delivery'
@@ -23,7 +26,7 @@ import { browserWebauthn } from '@/services/vault-webauthn'
 import { formatDuration, hasApprover, vaultAdministrationStatus, vaultPortalIdentity } from '@/services/vault-manager'
 
 /** `review`: Users-tab review of pending changes — opens at once and shows only the proposals (no table or tenant settings). */
-const props = defineProps<{ transport?: VaultTransport; delivery?: VaultDelivery; userId?: number; review?: boolean; item?: { id: number; name: string } }>()
+const props = defineProps<{ transport?: VaultTransport; delivery?: VaultDelivery; userId?: number; review?: boolean; item?: { id: number; name: string }; settings?: boolean }>()
 /** `changed`: an approval was applied (the page refreshes what users may reveal/copy). */
 const emit = defineEmits<{ changed: [] }>()
 const { t } = useI18n(), auth = useAuthStore()
@@ -40,10 +43,16 @@ const me = computed(() => auth.user?.id)
 const focused = computed(() => props.userId !== undefined)
 const itemFocus = computed(() => props.item !== undefined)
 const compact = computed(() => focused.value || itemFocus.value || props.review === true)
+const settingsMode = computed(() => props.settings === true)
+/** Tenant settings blocks: the /admin/settings section, or the vault page for managers who are not administrators. */
+const tenantBlocks = computed(() => settingsMode.value || (!compact.value && !auth.isAdmin))
+const settingsLink = computed(() => !compact.value && !settingsMode.value && auth.isAdmin)
+const TENANT_KINDS = new Set(['policy', 'confirmation', 'proposalWindow'])
 /** Element ids per instance: the page section and a window (item, user, review) can be on screen together. */
 const idp = props.item ? `-item-${props.item.id}` : props.userId !== undefined ? `-user-${props.userId}` : props.review ? '-review' : ''
 const users = computed(() => overview.value?.users.filter(u => !focused.value || u.id === props.userId) ?? [])
 const proposals = computed(() => overview.value?.proposals.filter(p => {
+  if (settingsMode.value) return TENANT_KINDS.has(p.change.kind)
   if (itemFocus.value) return p.change.kind === 'item' && p.change.secretId === props.item?.id
   return !focused.value || ((p.change.kind === 'grant' || p.change.kind === 'manager') && p.change.userId === props.userId)
 }) ?? [])
@@ -201,17 +210,17 @@ defineExpose({ detect })
     data-testid="vault-administration"
   >
     <h2
-      v-if="!compact"
+      v-if="!compact && !settingsMode"
       class="mb-1 text-base font-semibold"
     >
       {{ t('vaultAdministration.title') }}
     </h2>
     <p
-      v-if="itemFocus"
+      v-if="itemFocus || settingsMode"
       class="mb-3 text-sm text-gray-400"
       data-testid="vault-administration-how"
     >
-      {{ t('vaultAdministration.itemIntro') }}
+      {{ t(settingsMode ? 'vaultAdministration.settingsIntro' : 'vaultAdministration.itemIntro') }}
     </p>
     <div
       v-else
@@ -257,7 +266,7 @@ defineExpose({ detect })
       data-testid="vault-administration-open"
       @click="open"
     >
-      {{ t('vaultAdministration.open') }}
+      {{ t(settingsMode ? 'vaultAdministration.openSettings' : 'vaultAdministration.open') }}
     </NButton>
     <template v-else-if="!unlocked || !overview">
       <p class="mb-3 text-sm">
@@ -458,7 +467,7 @@ defineExpose({ detect })
         </li>
       </ul>
       <div
-        v-if="!review && !itemFocus"
+        v-if="!review && !itemFocus && !settingsMode"
         class="overflow-x-auto"
       >
         <table class="w-full min-w-[44rem] text-sm">
@@ -539,15 +548,28 @@ defineExpose({ detect })
         </table>
       </div>
       <p
-        v-if="(blocked && !review && !itemFocus) || (itemFocus && !canPropose())"
+        v-if="(blocked && !review && !itemFocus && !settingsMode) || ((itemFocus || settingsMode) && !canPropose())"
         :id="`vault-administration-blocked${idp}`"
         class="mt-2 text-sm text-gray-400"
         data-testid="vault-administration-blocked"
       >
         {{ t('vaultAdministration.blockedHint') }}
       </p>
+      <p
+        v-if="settingsLink"
+        class="mt-4 text-sm"
+        data-testid="vault-administration-settings-link"
+      >
+        <RouterLink
+          :to="{ name: 'admin-settings', query: { section: 'vault' } }"
+          class="text-emerald-400 underline focus-visible:outline"
+        >
+          {{ t('vaultAdministration.settingsLink') }}
+        </RouterLink>
+        <span class="text-gray-400"> — {{ t('vaultAdministration.settingsLinkHint') }}</span>
+      </p>
       <div
-        v-if="!compact && policyNow"
+        v-if="tenantBlocks && policyNow"
         class="mt-4"
         data-testid="vault-administration-policy"
       >
@@ -598,7 +620,7 @@ defineExpose({ detect })
         </form>
       </div>
       <div
-        v-if="!compact"
+        v-if="!compact && !settingsMode"
         class="mt-4"
         data-testid="vault-administration-items"
       >
@@ -638,7 +660,7 @@ defineExpose({ detect })
         </ul>
       </div>
       <div
-        v-if="!compact"
+        v-if="tenantBlocks"
         class="mt-4"
         data-testid="vault-administration-confirmation"
       >
@@ -676,7 +698,7 @@ defineExpose({ detect })
         </form>
       </div>
       <div
-        v-if="!compact"
+        v-if="tenantBlocks"
         class="mt-4"
         data-testid="vault-administration-window"
       >

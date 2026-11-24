@@ -6,6 +6,7 @@ import type { VaultTransport } from '@/services/vault-http'
 
 const auth = reactive({ isAdmin: true, isManagingTenant: false, accessToken: 'portal-fixture', refreshToken: 'origin-fixture', user: { id: 1, tenantId: 7, actingTenantId: undefined as number | undefined } })
 vi.mock('@/stores/auth', () => ({ useAuthStore: () => auth }))
+vi.mock('vue-router', () => ({ RouterLink: defineComponent({ inheritAttrs: false, setup: (_, { slots }) => () => h('a', { 'data-router-link': '' }, slots.default?.()) }) }))
 vi.mock('@/services/vault-provider-confirm', () => ({ openVaultProviderWindow: vi.fn(), requestGoogleIdToken: vi.fn() }))
 vi.mock('vue-i18n', () => ({ useI18n: () => ({ t: (key: string, values?: Record<string, unknown>) => (values ? `${key}:${JSON.stringify(values)}` : key) }) }))
 vi.mock('naive-ui', () => ({ ...Object.fromEntries(['NAlert', 'NButton', 'NCheckbox', 'NFormItem', 'NInput', 'NInputNumber', 'NSelect', 'NSpace', 'NText'].map(name => [name,
@@ -66,6 +67,7 @@ const transport = (manager: boolean | Error) => {
   return Object.assign({ post } as VaultTransport, { calls: post })
 }
 beforeEach(() => {
+  auth.isAdmin = true
   Object.assign(state, { phase: 'locked', error: null, stepUp: 'password_totp', webauthn: false })
   vi.stubGlobal('isSecureContext', true)
   vi.stubGlobal('window', Object.assign(new EventTarget(), { location: { protocol: 'https:', origin: 'https://vault.example' } }))
@@ -101,7 +103,8 @@ describe('NA-0183 vault administration screen', () => {
     expect(html).toContain(`vault-administration-approve-${'c'.repeat(64)}`)
     expect(html).toContain('vaultAdministration.yours'); expect(html).toContain('vaultAdministration.proposalPolicy')
     expect(f.state.describe(overview.proposals[2])).toBe('vaultAdministration.proposalItemRelease:{"item":"web-root"}')
-    expect(html).toContain('vault-administration-policy'); expect(html).toContain('vault-administration-released-7')
+    // NA-0199: an administrator finds the tenant settings in /admin/settings; the vault page links there.
+    expect(html).not.toContain('vault-administration-policy'); expect(html).toContain('vault-administration-settings-link'); expect(html).toContain('vault-administration-released-7')
     // The two-manager rule is spelled out, and a manager who receives the permission is told someone else must approve.
     for (const step of ['intro', 'step1', 'step2', 'step3']) expect(html).toContain(`vaultAdministration.${step}`)
     expect(html).toContain(`vault-administration-beneficiary-${'d'.repeat(64)}`); expect(html).not.toContain(`vault-administration-approve-${'d'.repeat(64)}`)
@@ -200,6 +203,28 @@ describe('NA-0198 Windows Hello in the managers confirmation', () => {
   })
 })
 
+describe('NA-0199 tenant settings mode (/admin/settings)', () => {
+  it('shows only the tenant settings and their proposals, without the users table or items', async () => {
+    const d = fakeDelivery(), f = mount<Admin & { proposals: Array<{ reference: string }> }>(VaultAdministration, { transport: transport(true), delivery: d, settings: true }); await flush()
+    await f.state.open(); f.state.password = 'pw'; f.state.token = '123456'; await f.state.confirm()
+    const html = await f.html()
+    for (const id of ['vault-administration-policy', 'vault-administration-confirmation', 'vault-administration-window']) expect(html).toContain(id)
+    for (const id of ['vault-administration-user-2', 'vault-administration-items', 'vault-administration-settings-link']) expect(html).not.toContain(id)
+    expect(html).toContain('vaultAdministration.settingsIntro')
+    // Only the policy proposal of the fixture is a tenant setting.
+    expect(f.state.proposals.map(p => p.reference)).toEqual([other])
+    f.unmount()
+  })
+  it('keeps the tenant settings on the vault page for a manager who is not an administrator', async () => {
+    auth.isAdmin = false
+    const d = fakeDelivery(), f = mount<Admin>(VaultAdministration, { transport: transport(true), delivery: d }); await flush()
+    await f.state.open(); f.state.password = 'pw'; f.state.token = '123456'; await f.state.confirm()
+    const html = await f.html()
+    expect(html).toContain('vault-administration-policy'); expect(html).not.toContain('vault-administration-settings-link')
+    f.unmount()
+  })
+})
+
 const confirmationProposal = { reference: 'e'.repeat(64), change: { kind: 'confirmation' as const, seconds: 300 }, proposedBy: { id: 3, name: 'Carla' }, mine: false,
   expiresAt: Date.now() + 30_000, beneficiary: null }
 async function unlocked(props: Record<string, unknown>) {
@@ -226,6 +251,7 @@ describe('NA-0186 Users tab and confirmation time', () => {
     f.unmount()
   })
   it('shows the current time and proposes a new one in whole minutes from 1 to 15', async () => {
+    auth.isAdmin = false // a manager who is not an administrator keeps the tenant settings on the vault page (NA-0199)
     const { d, f } = await unlocked({})
     await f.state.open(); f.state.password = 'pw'; f.state.token = '123456'; await f.state.confirm()
     expect(await f.html()).toContain('vault-administration-confirmation-propose')
@@ -289,6 +315,7 @@ describe('NA-0188 vault managers, proposal validity and pending notices', () => 
     expect(await three.f.html()).not.toContain('vault-administration-blocked'); three.f.unmount()
   })
   it('shows the proposal validity and proposes a new one only when it changes', async () => {
+    auth.isAdmin = false
     const { d, f } = await confirmed({})
     const html = await f.html()
     expect(html).toContain('vault-administration-window'); expect(html).toContain(q('vaultAdministration.windowHint:{"time":"2 vaultAdministration.unitMinutes"}'))

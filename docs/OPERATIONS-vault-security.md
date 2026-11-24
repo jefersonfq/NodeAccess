@@ -117,3 +117,8 @@ Manual do operador: `docs/manual/hosts.md`. Harness HTTPS: `npm run test:vault:f
 - **Certificado confiável**: o Chrome/Edge não executam WebAuthn em páginas com erro de certificado. Em desenvolvimento no WSL, gere no Windows um certificado confiável para `localhost` (ex.: `mkcert -install` e `mkcert localhost 127.0.0.1`), copie para o WSL e use em `NODEACCESS_DEV_HTTPS_CERT`/`NODEACCESS_DEV_HTTPS_KEY`, com `NODEACCESS_DEV_HTTPS_HOST=localhost:5173`; abra `https://localhost:5173`.
 - Extensão local: `apps/extension/local.json` com `"portalOrigin": "https://localhost:5173"` e reconectar (o ID da extensão não muda).
 - Rotas: `POST /sessions/unlock-webauthn`, `/webauthn/credentials`, `/webauthn/registration/options`, `/webauthn/registration`, `/webauthn/credentials/remove`. Auditoria: `WEBAUTHN_REGISTERED`, `WEBAUTHN_REGISTRATION_DENIED`, `WEBAUTHN_REMOVED`, `UNLOCK_DENIED` (`WEBAUTHN_FAILED`). Até 10 dispositivos por usuário; tabela `vault_webauthn_credentials` (só chave pública).
+
+## Configurações do cofre em /admin/settings (NA-0199)
+
+- A seção **Configurações → Cofre (VaultNAccess)** mostra a administradores do tenant e a gestores do cofre os valores atuais (revelar/copiar, entregas por minuto, tempo de confirmação, validade das propostas, origem e disponibilidade do Windows Hello) sem desbloquear o cofre: `POST /vault-security/administration/settings` (origem exata, limite de leitura; demais recebem 403).
+- Mudanças continuam por proposta de um gestor e aprovação de outro, feitas na própria seção. Gestores que não são administradores do tenant mantêm esses blocos na página do cofre.

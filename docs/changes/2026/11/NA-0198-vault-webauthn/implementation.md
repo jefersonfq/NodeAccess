@@ -36,3 +36,7 @@ Implementação, testes e simulação acima; a simulação revelou que a oferta 
 ### 2026-11-24T08:30:00-03:00 — Falha da CI investigada
 
 Reprodução exata da CI (vitest com cobertura, coleta e variáveis da CI) mostrou dois problemas: o prazo da prova da extensão (E2) lido duas vezes (1 ms de diferença) e assinaturas ML-DSA escolhidas pelo Chromium 156; ambos corrigidos. Reprodução completa: 4451 PASS, 0 falhas.
+
+### 2026-11-24T11:30:00-03:00 — Merge e encerramento
+
+CI da PR #89 verde (sonar-real com cobertura nova 80,7%); mesclada com autorização do responsável (`ea7b80e3b`). Estado: MERGED, MASTER_SYNCED. Encerramento registrado na NA-0199.

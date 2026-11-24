@@ -24,7 +24,8 @@ vi.mock('@/components/vault/ExtensionDevices.vue', () => ({ default: defineCompo
 vi.mock('@/components/vault/ExtensionInstall.vue', () => ({ default: defineComponent({ render: () => null }) }))
 vi.mock('@/components/vault/VaultAdministration.vue', () => ({ default: defineComponent({ render: () => null }) }))
 const route = reactive({ query: {} })
-vi.mock('vue-router', () => ({ useRoute: () => route, useRouter: () => ({ replace: vi.fn() }) }))
+const routerMocks = vi.hoisted(() => ({ push: vi.fn(() => Promise.resolve()) }))
+vi.mock('vue-router', () => ({ useRoute: () => route, useRouter: () => ({ replace: vi.fn(), push: routerMocks.push }) }))
 vi.mock('naive-ui', () => ({ ...Object.fromEntries(['NAlert','NButton','NDropdown','NEmpty','NInput','NSelect','NTag','NText','NSpace'].map(name => [name, defineComponent({ inheritAttrs: false, setup: (_, { attrs, slots }) => () => h(name, attrs, slots.default?.()) })])),
  NModal: defineComponent({ props: ['show'], setup: (props, { slots }) => () => props.show ? slots.default?.() : null }),
  NDataTable: defineComponent({ props: ['data','columns'], setup: props => () => h('table', (props.data as unknown[]).map(row => h('tr', (props.columns as Column[]).map(col => h('td', col.render?.(row)))))) }) }))
@@ -137,6 +138,19 @@ describe('NA-0196 reveal/copy guidance and item delivery',()=>{
   const revoked=secretEntries([{...secretFixture,revokedAt:secretFixture.createdAt}])[0]
   expect(s.actionOptions(revoked).map(o=>o.key)).not.toContain('delivery')
   f.unmount()
+ })
+ it('NA-0199: an administrator manager follows the policy notice to Settings → Vault; a non-administrator manager stays on the page',async()=>{
+  mocks.manager.mockResolvedValue(true);mocks.availability.mockResolvedValue({...on,policy:{reveal:false,copy:false}})
+  auth.isAdmin=true;routerMocks.push.mockClear()
+  const f=mount<Guided & { openSettings():void }>(VaultView);await flush()
+  const html=await f.html();expect(html).toContain('vaultDelivery.block.policyAdmin');expect(html).toContain('vaultDelivery.block.openTenantSettings')
+  f.state.openSettings();expect(routerMocks.push).toHaveBeenCalledWith({name:'admin-settings',query:{section:'vault'}})
+  f.unmount()
+  auth.isAdmin=false;routerMocks.push.mockClear()
+  vi.stubGlobal('document',{querySelector:vi.fn(()=>({scrollIntoView:vi.fn()}))})
+  const g=mount<Guided & { openSettings():void }>(VaultView);await flush()
+  expect(await g.html()).toContain('vaultDelivery.block.policyManager');g.state.openSettings();expect(routerMocks.push).not.toHaveBeenCalled()
+  g.unmount()
  })
  it('never offers item delivery to someone who is not a manager',async()=>{
   const f=mount<Guided>(VaultView);await flush();const s=f.state

@@ -2,7 +2,7 @@
 change_id: NA-0198
 title: Cofre E5a — Windows Hello / chave de acesso (WebAuthn) para destravar o cofre no portal
 type: security
-status: ready-for-review
+status: delivered
 created_at: 2026-11-24T01:40:00-03:00
 base_branch: master
 base_sha: 8264e7325e3f560f251cbc8bfed2dca79320c3f8
