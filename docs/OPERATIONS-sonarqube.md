@@ -73,6 +73,20 @@ Na instalação inicial não havia enforcement no CI. A rotina adicionada poster
 
 ## Rotina normal após remediação (NA-0085/86/87/88)
 
+### Atalho privado instalado no WSL — 2026-11-25
+
+Nesta máquina, executar como `jeferson`, com acesso ao grupo Docker:
+
+```bash
+/home/jeferson/nodeaccess-workspace/bin/dev env TMPDIR=/home/jeferson/projects/NodeAccess-current/.tmp node /home/jeferson/services/sonarqube/validate-nodeaccess.mjs
+```
+
+Use o TMPDIR curto acima: diretórios temporários muito aninhados podem ultrapassar o limite de sockets Unix do Chromium e dos testes TLS. A validação deve usar a base Git da frente (`SONAR_BASE_SHA`) quando for necessário preservar a comparação após commit.
+
+O atalho local, fora do Git e com modo0600, relê `credentials.json` a cada execução, confere arquivo/dono/permissões e tokens distintos, e chama `npm run validate:sonar` no checkout canônico. Usa somente `analysis_token` e `review_token` pelo ambiente do processo filho; não copia segredos para o repositório ou perfil do shell e não usa a senha administrativa. Fixa PATH na toolchain do workspace e `/usr/local/bin:/usr/bin:/bin`, evitando herdar executáveis privados de root. A validação existente continua removendo tokens do ambiente dos testes. O atalho não inicia serviços nem altera o boot do WSL; consultar a seção de inicialização se a API estiver indisponível.
+
+Na configuração, API UP e ambos tokens válidos foram comprovados. O preflight de cobertura encontrou artefatos antigos de `root` em `coverage` e caches `node_modules/.vite*`; somente os arquivos/diretórios gerados pertencentes a root nesses caminhos tiveram o dono corrigido para `jeferson`, preservando modos e conteúdo. Não executar a validação como root nem relaxar o preflight para contornar recorrência.
+
 A tabela integral está em [findings.html](sonarqube/findings.html), com [CSV](sonarqube/findings.csv) e [JSON](sonarqube/findings.json). Há uma linha por achado original; correções não apagam sua trilha. Achados novos são acrescentados com IDs de consulta novos. `fixed` indica alteração de código; `context_reviewed` indica comportamento avaliado com justificativa; `present/absent` indica a observação da reanálise, separada da decisão.
 
 Para validar uma alteração, depois dos testes de domínio:

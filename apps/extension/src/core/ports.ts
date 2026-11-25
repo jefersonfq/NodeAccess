@@ -16,6 +16,7 @@ export interface DeviceKeyStore {
 }
 /** Authorization kept only in session memory (chrome.storage.session); gone when the browser closes. */
 export interface Authorization { accessToken: string; portalOrigin: string; expiresAt: number }
+export interface PortalIntent { request: string; sourceId: number; action: 'reveal' | 'copy'; expiresAt: number; binding: string; approvedUntil?: number }
 export interface SessionStore {
   get(): Promise<Authorization | null>
   set(value: Authorization): Promise<void>
@@ -28,6 +29,9 @@ export interface SessionStore {
   /** NA-0200: the portal confirmation request awaiting approval (an opaque id; no token or secret). */
   portalProof(): Promise<string | null>
   setPortalProof(request: string | null): Promise<void>
+  portalIntent(): Promise<unknown>
+  setPortalIntent(intent: PortalIntent): Promise<void>
+  portalLock<T>(run: () => Promise<T>): Promise<T>
 }
 /** Interactive consent window; resolves with the final redirect URL. */
 export interface AuthFlow {

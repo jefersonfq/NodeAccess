@@ -16007,6 +16007,279 @@
       "branch": "feature/NA-0175-20261115-vaultnaccess",
       "risk": "baixo; validação integral pendente",
       "url": "http://localhost:9000/project/issues?id=nodeaccess&issues=bc8eaa0e-51ac-4976-8884-e3be4c7116bd"
+    },
+    {
+      "issueId": "f787c4bc-f6b4-4be4-8742-2498244101bd",
+      "id": "SQ-0576",
+      "rule": "typescript:S4822",
+      "type": "BUG",
+      "severity": "MAJOR",
+      "file": "apps/extension/src/adapters/site-assistance.ts",
+      "baselineLine": 87,
+      "domain": "Backend / shared / agent",
+      "signature": "13fb3737d091946a5241f6396ed60a6c9a138b0b745c397653487d7cc3efd75f",
+      "status": "fixed",
+      "observed": "absent",
+      "rationale": "Tratamento assíncrono usa await dentro de try/catch, cobrindo falha síncrona e rejeição da mensagem sem log ou retry. Regressões DOM preservam intenção única e descarte. Correção verificada na análise 3c7f0040-90ca-443c-ac4b-e64cacfaa5eb (2026-11-25): ocorrência ausente do export ativo, zero novos achados e Quality Gate OK. Testes e cobertura integrais passaram nesta rodada; validação formal permanece bloqueada somente por REVIEW_CHECKOUT_CHANGED, sem commit autorizado. Baseline aceita preservada.",
+      "evidence": [
+        "apps/extension/src/adapters/site-assistance.ts",
+        "docs/sonarqube/validation-NA-0203.md"
+      ],
+      "branch": "",
+      "risk": "low",
+      "url": "http://localhost:9000/project/issues?id=nodeaccess&issues=f787c4bc-f6b4-4be4-8742-2498244101bd"
+    },
+    {
+      "issueId": "1ff8a5ca-cae6-4c0f-bde6-8fd6c5aa6895",
+      "id": "SQ-0577",
+      "rule": "javascript:S2871",
+      "type": "BUG",
+      "severity": "CRITICAL",
+      "file": "tools/vault-extension/adoption-smoke.mjs",
+      "baselineLine": 418,
+      "domain": "Ferramentas",
+      "signature": "674bc154b289d341a189d74922114d9340345eb510ada0b8b62da85bc87fc568",
+      "status": "fixed",
+      "observed": "absent",
+      "rationale": "Comparador explícito adequado ao tipo dos elementos; ordenação de caminhos/migrações e conjunto de registros verificados sem alterar o contrato do ensaio. Correção verificada na análise 3c7f0040-90ca-443c-ac4b-e64cacfaa5eb (2026-11-25): ocorrência ausente do export ativo, zero novos achados e Quality Gate OK. Testes e cobertura integrais passaram nesta rodada; validação formal permanece bloqueada somente por REVIEW_CHECKOUT_CHANGED, sem commit autorizado. Baseline aceita preservada.",
+      "evidence": [
+        "tools/vault-extension/adoption-smoke.mjs",
+        "docs/sonarqube/validation-NA-0203.md"
+      ],
+      "branch": "",
+      "risk": "low",
+      "url": "http://localhost:9000/project/issues?id=nodeaccess&issues=1ff8a5ca-cae6-4c0f-bde6-8fd6c5aa6895"
+    },
+    {
+      "issueId": "5eaf960a-6562-4681-90dc-e5c3defd3443",
+      "id": "SQ-0578",
+      "rule": "javascript:S2871",
+      "type": "BUG",
+      "severity": "CRITICAL",
+      "file": "tools/vault-extension/adoption-smoke.mjs",
+      "baselineLine": 418,
+      "domain": "Ferramentas",
+      "signature": "674bc154b289d341a189d74922114d9340345eb510ada0b8b62da85bc87fc568",
+      "status": "fixed",
+      "observed": "absent",
+      "rationale": "Comparador explícito adequado ao tipo dos elementos; ordenação de caminhos/migrações e conjunto de registros verificados sem alterar o contrato do ensaio. Correção verificada na análise 3c7f0040-90ca-443c-ac4b-e64cacfaa5eb (2026-11-25): ocorrência ausente do export ativo, zero novos achados e Quality Gate OK. Testes e cobertura integrais passaram nesta rodada; validação formal permanece bloqueada somente por REVIEW_CHECKOUT_CHANGED, sem commit autorizado. Baseline aceita preservada.",
+      "evidence": [
+        "tools/vault-extension/adoption-smoke.mjs",
+        "docs/sonarqube/validation-NA-0203.md"
+      ],
+      "branch": "",
+      "risk": "low",
+      "url": "http://localhost:9000/project/issues?id=nodeaccess&issues=5eaf960a-6562-4681-90dc-e5c3defd3443"
+    },
+    {
+      "issueId": "d5e97bc1-5662-4fca-b0e0-648f4472920e",
+      "id": "SQ-0579",
+      "rule": "javascript:S4036",
+      "type": "VULNERABILITY",
+      "severity": "MINOR",
+      "file": "tools/vault-extension/site-terminal-real.mjs",
+      "baselineLine": 52,
+      "domain": "Ferramentas",
+      "signature": "5e7631e9fae3ac854291bd9521e11961892f8cee524640e7650cedb5284ac6bf",
+      "status": "fixed",
+      "observed": "absent",
+      "rationale": "Executável selecionado por caminho absoluto de sistema ou pelo resolvedor confiável existente, preservando argv separado e sem shell. Ensaios mantêm os checks de privilégio e destino. Correção verificada na análise 3c7f0040-90ca-443c-ac4b-e64cacfaa5eb (2026-11-25): ocorrência ausente do export ativo, zero novos achados e Quality Gate OK. Testes e cobertura integrais passaram nesta rodada; validação formal permanece bloqueada somente por REVIEW_CHECKOUT_CHANGED, sem commit autorizado. Baseline aceita preservada.",
+      "evidence": [
+        "tools/vault-extension/site-terminal-real.mjs",
+        "docs/sonarqube/validation-NA-0203.md"
+      ],
+      "branch": "",
+      "risk": "low",
+      "url": "http://localhost:9000/project/issues?id=nodeaccess&issues=d5e97bc1-5662-4fca-b0e0-648f4472920e"
+    },
+    {
+      "issueId": "79837a05-ad37-4aa1-b163-2a3d2688c36f",
+      "id": "SQ-0580",
+      "rule": "javascript:S2871",
+      "type": "BUG",
+      "severity": "CRITICAL",
+      "file": "tools/vault-extension/site-terminal-real.mjs",
+      "baselineLine": 67,
+      "domain": "Ferramentas",
+      "signature": "bc48107dd38a15b1e262461c379ef5b09bc94005c54805b295b12d535e84fb75",
+      "status": "fixed",
+      "observed": "absent",
+      "rationale": "Comparador explícito adequado ao tipo dos elementos; ordenação de caminhos/migrações e conjunto de registros verificados sem alterar o contrato do ensaio. Correção verificada na análise 3c7f0040-90ca-443c-ac4b-e64cacfaa5eb (2026-11-25): ocorrência ausente do export ativo, zero novos achados e Quality Gate OK. Testes e cobertura integrais passaram nesta rodada; validação formal permanece bloqueada somente por REVIEW_CHECKOUT_CHANGED, sem commit autorizado. Baseline aceita preservada.",
+      "evidence": [
+        "tools/vault-extension/site-terminal-real.mjs",
+        "docs/sonarqube/validation-NA-0203.md"
+      ],
+      "branch": "",
+      "risk": "low",
+      "url": "http://localhost:9000/project/issues?id=nodeaccess&issues=79837a05-ad37-4aa1-b163-2a3d2688c36f"
+    },
+    {
+      "issueId": "8aa0adae-628c-47b3-8a83-08e59326e18e",
+      "id": "SQ-0581",
+      "rule": "javascript:S2871",
+      "type": "BUG",
+      "severity": "CRITICAL",
+      "file": "tools/vault-extension/site-terminal-real.mjs",
+      "baselineLine": 230,
+      "domain": "Ferramentas",
+      "signature": "c4b43cf64ba640f214ca422fab60202fd601a926903494ae7319047100a3ae24",
+      "status": "fixed",
+      "observed": "absent",
+      "rationale": "Comparador explícito adequado ao tipo dos elementos; ordenação de caminhos/migrações e conjunto de registros verificados sem alterar o contrato do ensaio. Correção verificada na análise 3c7f0040-90ca-443c-ac4b-e64cacfaa5eb (2026-11-25): ocorrência ausente do export ativo, zero novos achados e Quality Gate OK. Testes e cobertura integrais passaram nesta rodada; validação formal permanece bloqueada somente por REVIEW_CHECKOUT_CHANGED, sem commit autorizado. Baseline aceita preservada.",
+      "evidence": [
+        "tools/vault-extension/site-terminal-real.mjs",
+        "docs/sonarqube/validation-NA-0203.md"
+      ],
+      "branch": "",
+      "risk": "low",
+      "url": "http://localhost:9000/project/issues?id=nodeaccess&issues=8aa0adae-628c-47b3-8a83-08e59326e18e"
+    },
+    {
+      "issueId": "e3e901ff-2aa7-4ef2-b524-4d85a553e129",
+      "id": "SQ-0582",
+      "rule": "javascript:S2871",
+      "type": "BUG",
+      "severity": "CRITICAL",
+      "file": "tools/vault-extension/site-terminal-real.mjs",
+      "baselineLine": 231,
+      "domain": "Ferramentas",
+      "signature": "9e13738189c5a1ea4da43da477b74dfc71c0bd0727b53d2a155cdec74f9f7b1f",
+      "status": "fixed",
+      "observed": "absent",
+      "rationale": "Comparador explícito adequado ao tipo dos elementos; ordenação de caminhos/migrações e conjunto de registros verificados sem alterar o contrato do ensaio. Correção verificada na análise 3c7f0040-90ca-443c-ac4b-e64cacfaa5eb (2026-11-25): ocorrência ausente do export ativo, zero novos achados e Quality Gate OK. Testes e cobertura integrais passaram nesta rodada; validação formal permanece bloqueada somente por REVIEW_CHECKOUT_CHANGED, sem commit autorizado. Baseline aceita preservada.",
+      "evidence": [
+        "tools/vault-extension/site-terminal-real.mjs",
+        "docs/sonarqube/validation-NA-0203.md"
+      ],
+      "branch": "",
+      "risk": "low",
+      "url": "http://localhost:9000/project/issues?id=nodeaccess&issues=e3e901ff-2aa7-4ef2-b524-4d85a553e129"
+    },
+    {
+      "issueId": "c3a39135-1f9c-47ea-84e2-1d4f52c2e528",
+      "id": "SQ-0583",
+      "rule": "javascript:S4036",
+      "type": "VULNERABILITY",
+      "severity": "MINOR",
+      "file": "tools/vault-extension/site-terminal-real.mjs",
+      "baselineLine": 245,
+      "domain": "Ferramentas",
+      "signature": "f802df1a063922f6c955cb784400ce40382a83dea6a9be3716c5657444baa0a9",
+      "status": "fixed",
+      "observed": "absent",
+      "rationale": "Executável selecionado por caminho absoluto de sistema ou pelo resolvedor confiável existente, preservando argv separado e sem shell. Ensaios mantêm os checks de privilégio e destino. Correção verificada na análise 3c7f0040-90ca-443c-ac4b-e64cacfaa5eb (2026-11-25): ocorrência ausente do export ativo, zero novos achados e Quality Gate OK. Testes e cobertura integrais passaram nesta rodada; validação formal permanece bloqueada somente por REVIEW_CHECKOUT_CHANGED, sem commit autorizado. Baseline aceita preservada.",
+      "evidence": [
+        "tools/vault-extension/site-terminal-real.mjs",
+        "docs/sonarqube/validation-NA-0203.md"
+      ],
+      "branch": "",
+      "risk": "low",
+      "url": "http://localhost:9000/project/issues?id=nodeaccess&issues=c3a39135-1f9c-47ea-84e2-1d4f52c2e528"
+    },
+    {
+      "issueId": "6daa3c72-7701-4724-87d6-20d22693f563",
+      "id": "SQ-0584",
+      "rule": "javascript:S4036",
+      "type": "VULNERABILITY",
+      "severity": "MINOR",
+      "file": "tools/vault-extension/site-terminal-real.mjs",
+      "baselineLine": 273,
+      "domain": "Ferramentas",
+      "signature": "d3c3fa40097fa0c335f2f232bc011fae7de49131e90e6de4e35952f4e12915c7",
+      "status": "fixed",
+      "observed": "absent",
+      "rationale": "Executável selecionado por caminho absoluto de sistema ou pelo resolvedor confiável existente, preservando argv separado e sem shell. Ensaios mantêm os checks de privilégio e destino. Correção verificada na análise 3c7f0040-90ca-443c-ac4b-e64cacfaa5eb (2026-11-25): ocorrência ausente do export ativo, zero novos achados e Quality Gate OK. Testes e cobertura integrais passaram nesta rodada; validação formal permanece bloqueada somente por REVIEW_CHECKOUT_CHANGED, sem commit autorizado. Baseline aceita preservada.",
+      "evidence": [
+        "tools/vault-extension/site-terminal-real.mjs",
+        "docs/sonarqube/validation-NA-0203.md"
+      ],
+      "branch": "",
+      "risk": "low",
+      "url": "http://localhost:9000/project/issues?id=nodeaccess&issues=6daa3c72-7701-4724-87d6-20d22693f563"
+    },
+    {
+      "issueId": "762b1ce2-294b-4f98-9196-d3b86fc563b7",
+      "id": "SQ-0585",
+      "rule": "javascript:S8786",
+      "type": "CODE_SMELL",
+      "severity": "MAJOR",
+      "file": "tools/vault-extension/site-terminal-real.mjs",
+      "baselineLine": 337,
+      "domain": "Ferramentas",
+      "signature": "f23649e81eef5779428c1a227d7edaec5de08a26e678c7229b80d2a8385b3877",
+      "status": "fixed",
+      "observed": "absent",
+      "rationale": "Remoção de padding no fingerprint usa percurso linear por índices em vez de expressão com backtracking; equivalência verificada inclusive entrada longa e host key SSH real. Correção verificada na análise 3c7f0040-90ca-443c-ac4b-e64cacfaa5eb (2026-11-25): ocorrência ausente do export ativo, zero novos achados e Quality Gate OK. Testes e cobertura integrais passaram nesta rodada; validação formal permanece bloqueada somente por REVIEW_CHECKOUT_CHANGED, sem commit autorizado. Baseline aceita preservada.",
+      "evidence": [
+        "tools/vault-extension/site-terminal-real.mjs",
+        "docs/sonarqube/validation-NA-0203.md"
+      ],
+      "branch": "",
+      "risk": "low",
+      "url": "http://localhost:9000/project/issues?id=nodeaccess&issues=762b1ce2-294b-4f98-9196-d3b86fc563b7"
+    },
+    {
+      "issueId": "faa71f60-f6eb-4522-92b9-8c7c236544be",
+      "id": "SQ-0586",
+      "rule": "javascript:S2871",
+      "type": "BUG",
+      "severity": "CRITICAL",
+      "file": "tools/vault-extension/sites-smoke.mjs",
+      "baselineLine": 32,
+      "domain": "Ferramentas",
+      "signature": "0e93f1c29c84b85cafb53565a890a17f28a3c301aba9415c0e6c16e0a1aa2930",
+      "status": "fixed",
+      "observed": "absent",
+      "rationale": "Comparador explícito adequado ao tipo dos elementos; ordenação de caminhos/migrações e conjunto de registros verificados sem alterar o contrato do ensaio. Correção verificada na análise 3c7f0040-90ca-443c-ac4b-e64cacfaa5eb (2026-11-25): ocorrência ausente do export ativo, zero novos achados e Quality Gate OK. Testes e cobertura integrais passaram nesta rodada; validação formal permanece bloqueada somente por REVIEW_CHECKOUT_CHANGED, sem commit autorizado. Baseline aceita preservada.",
+      "evidence": [
+        "tools/vault-extension/sites-smoke.mjs",
+        "docs/sonarqube/validation-NA-0203.md"
+      ],
+      "branch": "",
+      "risk": "low",
+      "url": "http://localhost:9000/project/issues?id=nodeaccess&issues=faa71f60-f6eb-4522-92b9-8c7c236544be"
+    },
+    {
+      "issueId": "3ecca225-4ec3-4a11-bcd0-dc5c673e96fe",
+      "id": "SQ-0587",
+      "rule": "javascript:S4036",
+      "type": "VULNERABILITY",
+      "severity": "MINOR",
+      "file": "tools/vault-extension/sites-volume-smoke.cjs",
+      "baselineLine": 24,
+      "domain": "Ferramentas",
+      "signature": "bf10170b7a57d9691cc9abbe34cdd690d62b158fced5bb87b0f699358c628285",
+      "status": "fixed",
+      "observed": "absent",
+      "rationale": "Executável selecionado por caminho absoluto de sistema ou pelo resolvedor confiável existente, preservando argv separado e sem shell. Ensaios mantêm os checks de privilégio e destino. Correção verificada na análise 3c7f0040-90ca-443c-ac4b-e64cacfaa5eb (2026-11-25): ocorrência ausente do export ativo, zero novos achados e Quality Gate OK. Testes e cobertura integrais passaram nesta rodada; validação formal permanece bloqueada somente por REVIEW_CHECKOUT_CHANGED, sem commit autorizado. Baseline aceita preservada.",
+      "evidence": [
+        "tools/vault-extension/sites-volume-smoke.cjs",
+        "docs/sonarqube/validation-NA-0203.md"
+      ],
+      "branch": "",
+      "risk": "low",
+      "url": "http://localhost:9000/project/issues?id=nodeaccess&issues=3ecca225-4ec3-4a11-bcd0-dc5c673e96fe"
+    },
+    {
+      "issueId": "1dfcf095-61a8-4f45-9d59-443f13562946",
+      "id": "SQ-0588",
+      "rule": "javascript:S2068",
+      "type": "VULNERABILITY",
+      "severity": "MAJOR",
+      "file": "tools/vault-extension/sites-volume-smoke.cjs",
+      "baselineLine": 56,
+      "domain": "Ferramentas",
+      "signature": "73c6f9bb2ffc21c23ebfa01e0f129250e3e2b52d2836600b0bef4f8ddb781c03",
+      "status": "fixed",
+      "observed": "absent",
+      "rationale": "Senha da fixture sintética passa a ser gerada aleatoriamente por execução; asserções de criação/edição preservadas e nenhuma senha operacional embutida. Correção verificada na análise 3c7f0040-90ca-443c-ac4b-e64cacfaa5eb (2026-11-25): ocorrência ausente do export ativo, zero novos achados e Quality Gate OK. Testes e cobertura integrais passaram nesta rodada; validação formal permanece bloqueada somente por REVIEW_CHECKOUT_CHANGED, sem commit autorizado. Baseline aceita preservada.",
+      "evidence": [
+        "tools/vault-extension/sites-volume-smoke.cjs",
+        "docs/sonarqube/validation-NA-0203.md"
+      ],
+      "branch": "",
+      "risk": "low",
+      "url": "http://localhost:9000/project/issues?id=nodeaccess&issues=1dfcf095-61a8-4f45-9d59-443f13562946"
     }
   ],
   "authorizedReviewAnalysis": {
@@ -16023,5 +16296,16 @@
     },
     "gate": "OK",
     "reviewActorDeactivated": true
+  },
+  "remediationAnalysis": {
+    "revision": "9d2fc71768a0e7aee34a6495e4ec11eceb338076",
+    "analysisId": "3c7f0040-90ca-443c-ac4b-e64cacfaa5eb",
+    "scope": "SQ-0576..SQ-0588",
+    "gate": "OK",
+    "newCoverage": 84.2,
+    "newViolations": 0,
+    "testsAndCoveragePassed": true,
+    "integratedValidationPassed": false,
+    "formalReview": "REVIEW_CHECKOUT_CHANGED"
   }
 }

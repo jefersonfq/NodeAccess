@@ -1,8 +1,11 @@
-import type { VaultItemSummary, VaultItemKind } from '@nodeaccess/shared'
+import type { VaultItemSummary, VaultItemKind, VaultExtensionWrite } from '@nodeaccess/shared'
 import { denied, operationProofWindowMs, unavailable, VaultError, type VaultAction, type VaultAuthMethod, type VaultAuthority, type VaultEnvelopeContext, type VaultIdentity, type VaultOperation, type VaultSecret } from './vault-domain.js'
 import type { EnvelopeSealer, Reauthentication } from './vault-ports.js'
 import type { OriginVerifier, VaultEntropy, VaultStore, VaultTransaction } from './vault-ports.js'
 import type { VaultService } from './vault.service.js'
+import { VaultSiteFill } from './vault-site-fill.js'
+import type { VaultSites } from './vault-sites.repository.js'
+import type { VaultSiteCreate, VaultSiteUpdate, VaultSiteList, VaultSiteVersion, VaultSiteFillAuthorize, VaultSiteFillConsume } from '@nodeaccess/shared'
 import { extensionRedirectUri, versionAtLeast, type ExtensionAccess, type ExtensionCode, type ExtensionConfig, type ExtensionDeviceRow, type ExtensionLocator, type ExtensionRecords, type ExtensionTrust } from './vault-extension-domain.js'
 import { pkceMatches, type DpopNonces, type DpopVerifier } from './vault-extension-dpop.js'
 
@@ -18,7 +21,10 @@ interface AccessRequest { identity: VaultIdentity; token: string; jkt: string; e
 type Renewal = { ok: true; reply: { accessToken: string; tokenType: 'DPoP'; expiresAt: number; serverNow: number } } | { ok: false; error: VaultError }
 
 /** Item listing reuses the Secrets and PEM ACL services; this port only maps their output. */
-export interface VaultCatalog { list(identity: VaultIdentity, admin: boolean): Promise<VaultItemSummary[]> }
+export interface VaultCatalog {
+  list(identity: VaultIdentity, admin: boolean): Promise<VaultItemSummary[]>
+  hosts?(identity: VaultIdentity, admin: boolean, kind: VaultItemKind, sourceId: number): Promise<Array<{ id: number; name: string }>>
+}
 export interface ExtensionRequest {
   /** Value of the `Origin` header; must be chrome-extension://<allowed id>. */
   requestOrigin: unknown
@@ -62,6 +68,42 @@ interface ProofRequest { jkt: string; expiresAt: number; approvedAt?: number }
 const PROOF_REQUEST_MS = 120_000
 
 export class VaultExtensionService {
+  private fillEnabled(): boolean { return this.config.siteFillEnabled === true && this.config.siteFillReady?.() === true }
+  async siteList(req: ExtensionRequest, authorization: unknown, input: VaultSiteList): ReturnType<VaultSites['list']> {
+    return this.withAccess(req, authorization, 'POST', async tx => (await tx.sites?.('extension') ?? unavailable()).list(input))
+  }
+  async siteWrite(req: ExtensionRequest, authorization: unknown, operation: 'create' | 'update' | 'revoke' | 'delete', input: VaultSiteCreate | VaultSiteUpdate | VaultSiteVersion): Promise<VaultSiteVersion> {
+    return this.withAccess(req, authorization, 'POST', async tx => {
+      const sites = await tx.sites?.('extension') ?? unavailable()
+      await tx.limit('sites-write', 60_000, 30)
+      switch (operation) {
+        case 'create': return sites.create(input as VaultSiteCreate)
+        case 'update': return sites.update(input as VaultSiteUpdate)
+        case 'revoke': return sites.revoke(input as VaultSiteVersion)
+        case 'delete': return sites.delete(input as VaultSiteVersion)
+      }
+    })
+  }
+  async siteHosts(req: ExtensionRequest, authorization: unknown, q: string): Promise<{ hosts: Array<{ id: number; name: string }> }> {
+    return this.withAccess(req, authorization, 'POST', async tx => ({ hosts: await tx.siteHosts?.(q) ?? [] }))
+  }
+  async siteCurrentHosts(req: ExtensionRequest, authorization: unknown, origin: string): Promise<{ hosts: Array<{ id: number; name: string }> }> {
+    return this.withAccess(req, authorization, 'POST', async tx => ({ hosts: await tx.siteCurrentHosts?.(origin) ?? [] }))
+  }
+  async siteFillAuthorize(req: ExtensionRequest, authorization: unknown, input: VaultSiteFillAuthorize): ReturnType<VaultSiteFill['authorize']> {
+    return this.withAccess(req, authorization, 'POST', async (tx, ctx) => {
+      const sites = await tx.sites?.('extension') ?? unavailable()
+      return new VaultSiteFill(() => this.fillEnabled(), this.entropy, this.envelope).authorize(tx, ctx, input,
+        () => this.records(tx).granted('fill'), (id, version, origin) => sites.delivery({ id, version, origin }))
+    })
+  }
+  async siteFillConsume(req: ExtensionRequest, authorization: unknown, input: VaultSiteFillConsume): ReturnType<VaultSiteFill['consume']> {
+    return this.withAccess(req, authorization, 'POST', async (tx, ctx) => {
+      const sites = await tx.sites?.('extension') ?? unavailable()
+      return new VaultSiteFill(() => this.fillEnabled(), this.entropy, this.envelope).consume(tx, ctx, input,
+        () => this.records(tx).granted('fill'), (id, version, origin) => sites.delivery({ id, version, origin }))
+    })
+  }
   constructor(private readonly vault: VaultService, private readonly store: VaultStore, private readonly locator: ExtensionLocator,
     private readonly origin: OriginVerifier, private readonly dpop: DpopVerifier, readonly nonces: DpopNonces,
     private readonly entropy: VaultEntropy, private readonly catalog: VaultCatalog, private readonly config: ExtensionConfig, private readonly now = Date.now,
@@ -397,15 +439,39 @@ export class VaultExtensionService {
     return this.withAccess(req, authorization, 'GET', async (tx, c) => {
       const ext = this.records(tx), policy = tx.authority.policy
       const proofUntil = c.access.proofAt === undefined ? null : Math.min(c.access.proofAt + operationProofWindowMs(policy), c.access.expiresAt)
-      return { apiVersion: 1, minExtensionVersion: this.config.minVersion, kinds: ['secret', 'pem'],
-        features: { reveal: policy.reveal && await ext.granted('reveal'), copy: policy.copy && await ext.granted('copy'), create: false },
+      return { preferenceScope: this.entropy.digest(JSON.stringify(['extension-preferences-v1', c.identity.tenantId, c.identity.userId, c.jkt, policy.origin])), ...(tx.writeAccess ? { writeAccess: await tx.writeAccess() } : {}), apiVersion: 1, minExtensionVersion: this.config.minVersion, kinds: ['secret', 'pem'],
+        features: { reveal: policy.reveal && await ext.granted('reveal'), copy: policy.copy && await ext.granted('copy'), create: !!tx.writePersonal,
+          sites: !!tx.sites, fill: this.fillEnabled() && !!tx.sites && await ext.granted('fill') },
         portalOrigin: policy.origin, expiresAt: c.access.expiresAt, serverNow: tx.now(), ...(proofUntil !== null && proofUntil > tx.now() ? { proofUntil } : {}) }
     })
   }
 
-  async items(req: ExtensionRequest, authorization: unknown, query: { q?: string | undefined; kind?: VaultItemKind | undefined; cursor?: string | undefined }): Promise<{ items: VaultItemSummary[]; nextCursor: string | null }> {
+  async items(req: ExtensionRequest, authorization: unknown, query: { sourceId?: number | undefined; q?: string | undefined; kind?: VaultItemKind | undefined; cursor?: string | undefined }): Promise<{ items: VaultItemSummary[]; nextCursor: string | null }> {
     const { identity, authority } = await this.resource(req, authorization)
-    return pageOf(await this.catalog.list(identity, authority.role === 'ADMIN'), query.q, query.kind, query.cursor)
+    const visible = await this.catalog.list(identity, authority.role === 'ADMIN')
+    const page = pageOf(query.sourceId === undefined ? visible : visible.filter(item => item.sourceId === query.sourceId), query.q, query.kind, query.cursor)
+    return this.store.transaction(identity, async tx => ({ ...page, items: tx.itemWriteAccess ? await tx.itemWriteAccess(page.items) : page.items }))
+  }
+
+  /** Intersect the existing item and host ACLs; pagination only counts visible hosts. */
+  async hosts(req: ExtensionRequest, authorization: unknown, query: { kind: VaultItemKind; sourceId: number; cursor?: string | undefined }): Promise<{ hosts: Array<{ id: number; name: string }>; nextCursor: string | null }> {
+    const { identity, authority } = await this.resource(req, authorization)
+    const admin = authority.role === 'ADMIN'
+    const items = await this.catalog.list(identity, admin)
+    if (!items.some(item => item.kind === query.kind && item.sourceId === query.sourceId)) throw new VaultError('EXTENSION_ITEM_DENIED', 403)
+    if (!this.catalog.hosts) throw new VaultError('EXTENSION_DISABLED', 404)
+    const visible = await this.catalog.hosts(identity, admin, query.kind, query.sourceId)
+    const start = query.cursor ? Number(query.cursor) : 0
+    return { hosts: visible.slice(start, start + 50), nextCursor: visible.length > start + 50 ? String(start + 50) : null }
+  }
+
+  /** E3: authorization remains locked while the personal-only service performs the write. */
+  async write(req: ExtensionRequest, authorization: unknown, input: VaultExtensionWrite): Promise<{ id: number }> {
+    return this.withAccess(req, authorization, 'POST', async tx => {
+      if (!tx.writePersonal) throw new VaultError('EXTENSION_DISABLED', 404)
+      await tx.limit('extension-write', 60_000, 20)
+      return tx.writePersonal(input)
+    })
   }
 
   /**

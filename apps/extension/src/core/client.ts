@@ -1,8 +1,14 @@
 import {
+  VaultExtensionHostsReplySchema, type VaultExtensionHostsReply,
+  VaultExtensionWriteSchema, VaultExtensionWriteReplySchema, type VaultExtensionWrite,
   VaultExtensionCapabilitiesSchema, VaultExtensionItemsReplySchema, VaultExtensionTokenReplySchema, VaultExtensionUnlockReplySchema,
   type VaultExtensionCapabilities, type VaultExtensionItemsReply, type VaultItemKind,
 } from '@nodeaccess/shared'
-import { createDeviceKey, dpopProof, pkcePair, randomToken } from './crypto'
+import { createDeviceKey, dpopProof, pkcePair, randomToken, sha256 } from './crypto'
+import { z } from 'zod'
+import { createSitesClient, createSiteFillClient } from './sites-client'
+import type { SitesClient } from './sites-port'
+import type { VaultItemSummary } from '@nodeaccess/shared'
 import { assertContext, createRecipient, openEnvelope } from './envelope'
 import type { AuthFlow, Authorization, DeviceKey, DeviceKeyStore, ExtensionInfo, SessionStore } from './ports'
 
@@ -10,15 +16,23 @@ import type { AuthFlow, Authorization, DeviceKey, DeviceKeyStore, ExtensionInfo,
  * `reauthRequired` / `otpInvalid` (NA-0193): the trusted device needs the authenticator code / the code was wrong.
  * `proofRequired` / `itemDenied` / `quota` (NA-0195): reveal/copy needs a fresh code / item or grant refused / limit reached. */
 export type ExtensionFailure = 'denied' | 'cancelled' | 'expired' | 'upgrade' | 'unavailable' | 'invalid' | 'offline' | 'reauthRequired' | 'otpInvalid'
-  | 'proofRequired' | 'itemDenied' | 'quota' | 'portalProofExpired' | 'portalProofUnavailable'
+  | 'proofRequired' | 'itemDenied' | 'quota' | 'portalProofExpired' | 'portalProofUnavailable' | 'writeInvalid' | 'writeConflict' | 'writeUnavailable'
 export class ExtensionError extends Error {
   constructor(public readonly reason: ExtensionFailure) { super(reason) }
 }
 const API = '/api/v1/vault-security/extension'
 const MAX_BODY = 256 * 1024
+const intentSchema = z.object({ request: z.string(), sourceId: z.number().int().positive().safe(), action: z.enum(['reveal', 'copy']), expiresAt: z.number().finite(), binding: z.string(), approvedUntil: z.number().finite().optional() }).strict()
+export type PortalProofResult = { state: 'none' | 'pending' } | { state: 'approved'; proofUntil: number; resume?: { item: VaultItemSummary; action: 'reveal' | 'copy' } }
 
 interface Deps { info: ExtensionInfo; keys: DeviceKeyStore; session: SessionStore; flow: AuthFlow; fetcher?: typeof fetch; now?: () => number }
 export interface ExtensionClient {
+  sites?: SitesClient
+  siteFill?: ReturnType<typeof createSiteFillClient>
+  siteHosts?(q?: string): Promise<Array<{ id: number; name: string }>>
+  siteCurrentHosts?(origin: string): Promise<Array<{ id: number; name: string }>>
+  hosts(kind: VaultItemKind, sourceId: number, cursor?: string): Promise<VaultExtensionHostsReply>
+  write(input: VaultExtensionWrite): Promise<{ id: number }>
   connect(): Promise<void>
   connected(): Promise<boolean>
   disconnect(): Promise<void>
@@ -36,9 +50,10 @@ export interface ExtensionClient {
   /** NA-0195: authenticator-code proof for reveal/copy; resolves with the local deadline of the proof. */
   unlock(otp: string): Promise<number>
   /** NA-0200: asks for a proof confirmed in the portal (Windows Hello or password + code); returns the page to open. */
-  requestPortalProof(): Promise<string>
+  requestPortalProof(target?: { sourceId: number; action: 'reveal' | 'copy' }): Promise<string>
+  cancelPortalProof(): Promise<void>
   /** NA-0200: redeems the stored request: `approved` (with the local proof deadline), `pending` or `none`. */
-  claimPortalProof(): Promise<{ state: 'none' | 'pending' } | { state: 'approved'; proofUntil: number }>
+  claimPortalProof(): Promise<PortalProofResult>
   /** NA-0195: one reveal/copy release, opened in memory with an ephemeral key; nothing is stored. */
   deliver(secretId: number, action: 'reveal' | 'copy'): Promise<string>
 }
@@ -60,6 +75,9 @@ export function createExtensionClient(deps: Deps): ExtensionClient {
     try { return JSON.parse(text) } catch { throw new ExtensionError('unavailable') }
   }
   function failure(status: number, code: string | null = null): ExtensionError {
+    if (code === 'EXTENSION_WRITE_UNAVAILABLE') return new ExtensionError('writeUnavailable')
+    if (code === 'EXTENSION_WRITE_CONFLICT') return new ExtensionError('writeConflict')
+    if (code === 'EXTENSION_WRITE_INVALID') return new ExtensionError('writeInvalid')
     if (status === 401 && code === 'EXTENSION_REAUTH_REQUIRED') return new ExtensionError('reauthRequired')
     if (status === 403 && code === 'VAULT_REAUTH_FAILED') return new ExtensionError('otpInvalid')
     if (status === 403 && code === 'EXTENSION_ITEM_DENIED') return new ExtensionError('itemDenied')
@@ -127,7 +145,27 @@ export function createExtensionClient(deps: Deps): ExtensionClient {
       await fetcher(new URL('/', deps.info.portalOrigin).toString(), { method: 'GET', credentials: 'omit', cache: 'no-store', redirect: 'manual', referrerPolicy: 'no-referrer', signal: abort.signal })
     } catch { throw new ExtensionError('offline') } finally { clearTimeout(timer) }
   }
+  const siteRequest = (path: string, body: object): Promise<unknown> => guarded(auth => signed('POST', path, { accessToken: auth.accessToken, body }))
   return {
+    sites: createSitesClient(siteRequest),
+    siteFill: createSiteFillClient(siteRequest, now),
+    async siteHosts(q = ''): Promise<Array<{ id: number; name: string }>> {
+      return z.object({ hosts: z.array(z.object({ id: z.number().int().positive(), name: z.string() }).strict()).max(50) }).strict()
+        .parse(await siteRequest('/sites/hosts', { q })).hosts
+    },
+    async siteCurrentHosts(origin): Promise<Array<{ id: number; name: string }>> {
+      return z.object({ hosts: z.array(z.object({ id: z.number().int().positive(), name: z.string() }).strict()).max(50) }).strict()
+        .parse(await siteRequest('/sites/current-hosts', { origin })).hosts
+    },
+    write(input: VaultExtensionWrite): Promise<{ id: number }> {
+      const body = VaultExtensionWriteSchema.safeParse(input)
+      if (!body.success) return Promise.reject(new ExtensionError('writeInvalid'))
+      return guarded(async auth => {
+        const result = VaultExtensionWriteReplySchema.safeParse(await signed('POST', '/write', { accessToken: auth.accessToken, body: body.data }))
+        if (!result.success) throw new ExtensionError('unavailable')
+        return result.data
+      })
+    },
     /** Opens the portal consent page; on success keeps only the 30-minute authorization in session memory. */
     async connect(): Promise<void> {
       const key = await deviceKey()
@@ -158,8 +196,10 @@ export function createExtensionClient(deps: Deps): ExtensionClient {
     /** NA-0193: also ends this device's trust on the server, proven by the device key alone (works with an expired
      * authorization); best effort when the portal is unreachable. The next connection is a full consent. */
     async disconnect(): Promise<void> {
-      if (await deps.keys.load().catch(() => null)) await signed('POST', '/forget', { body: { extensionId: deps.info.id } }).catch(() => undefined)
-      await deps.session.clear()
+      await deps.session.portalLock(async () => {
+        if (await deps.keys.load().catch(() => null)) await signed('POST', '/forget', { body: { extensionId: deps.info.id } }).catch(() => undefined)
+        await deps.session.clear()
+      })
     },
     capabilities(): Promise<VaultExtensionCapabilities> {
       return guarded(async auth => {
@@ -190,9 +230,18 @@ export function createExtensionClient(deps: Deps): ExtensionClient {
       await deps.session.setRecents([key, ...list].slice(0, 8))
     },
     recents(): Promise<string[]> { return deps.session.recents() },
-    /** Portal URL for an item; only server-validated relative paths on the configured origin. */
-    requestPortalProof(): Promise<string> {
+    hosts(kind, sourceId, cursor): Promise<VaultExtensionHostsReply> {
       return guarded(async auth => {
+        const query = new URLSearchParams({ kind, sourceId: String(sourceId), ...(cursor ? { cursor } : {}) })
+        const result = VaultExtensionHostsReplySchema.safeParse(await signed('GET', '/hosts', { accessToken: auth.accessToken, query }))
+        if (!result.success) throw new ExtensionError('unavailable')
+        return result.data
+      })
+    },
+    /** Portal URL for an item; only server-validated relative paths on the configured origin. */
+    cancelPortalProof(): Promise<void> { return deps.session.portalLock(() => deps.session.setPortalProof(null)) },
+    requestPortalProof(target): Promise<string> {
+      return deps.session.portalLock(() => guarded(async auth => {
         const reply = await signed('POST', '/proof-request', { accessToken: auth.accessToken, body: {} }) as { request?: unknown; url?: unknown } | null
         const request = reply?.request
         if (typeof request !== 'string' || !/^[A-Za-z0-9_-]{43}$/.test(request)) throw new ExtensionError('unavailable')
@@ -200,20 +249,41 @@ export function createExtensionClient(deps: Deps): ExtensionClient {
         const url = `${deps.info.portalOrigin}/vault/extension/confirm?request=${request}`
         if (reply?.url !== url) throw new ExtensionError('unavailable')
         await deps.session.setPortalProof(request)
+        if (target && Number.isSafeInteger(target.sourceId) && target.sourceId > 0 && ['reveal', 'copy'].includes(target.action)) {
+          await deps.session.setPortalIntent({ request, sourceId: target.sourceId, action: target.action,
+            expiresAt: Math.min(auth.expiresAt, now() + 120_000), binding: await sha256(JSON.stringify([auth.accessToken, auth.portalOrigin, (await deviceKey()).jkt])) })
+        }
         return url
-      })
+      }))
     },
-    async claimPortalProof(): Promise<{ state: 'none' | 'pending' } | { state: 'approved'; proofUntil: number }> {
+    async claimPortalProof(): Promise<PortalProofResult> {
+      return deps.session.portalLock(async () => {
       const request = await deps.session.portalProof()
       if (!request) return { state: 'none' }
       try {
         return await guarded(async auth => {
           const started = now()
-          const reply = await signed('POST', '/proof-claim', { accessToken: auth.accessToken, body: { request } }) as { state?: unknown; proofUntil?: unknown; serverNow?: unknown } | null
-          if (reply?.state === 'PENDING') return { state: 'pending' as const }
-          if (reply?.state !== 'APPROVED' || typeof reply.proofUntil !== 'number' || typeof reply.serverNow !== 'number') throw new ExtensionError('unavailable')
+          const intent = intentSchema.safeParse(await deps.session.portalIntent())
+          const valid = intent.success && intent.data.request === request && intent.data.expiresAt > now() && intent.data.expiresAt <= now() + 120_000
+            && intent.data.binding === await sha256(JSON.stringify([auth.accessToken, auth.portalOrigin, (await deviceKey()).jkt]))
+          let deadline = valid ? intent.data.approvedUntil : undefined
+          if (deadline === undefined) {
+            const reply = await signed('POST', '/proof-claim', { accessToken: auth.accessToken, body: { request } }) as { state?: unknown; proofUntil?: unknown; serverNow?: unknown } | null
+            if (reply?.state === 'PENDING') return { state: 'pending' as const }
+            if (reply?.state !== 'APPROVED' || typeof reply.proofUntil !== 'number' || typeof reply.serverNow !== 'number') throw new ExtensionError('unavailable')
+            deadline = started + Math.max(0, reply.proofUntil - reply.serverNow) - 2_000
+            if (valid) await deps.session.setPortalIntent({ ...intent.data, approvedUntil: deadline })
+          }
+          const result: PortalProofResult = { state: 'approved', proofUntil: deadline }
+          if (valid) {
+            const query = new URLSearchParams({ sourceId: String(intent.data.sourceId), kind: 'secret' })
+            const catalog = VaultExtensionItemsReplySchema.safeParse(await signed('GET', '/items', { accessToken: auth.accessToken, query }))
+            if (!catalog.success) throw new ExtensionError('unavailable')
+            const item = catalog.data.items.find(i => i.kind === 'secret' && i.sourceId === intent.data.sourceId)
+            if (item) result.resume = { item, action: intent.data.action }
+          }
           await deps.session.setPortalProof(null)
-          return { state: 'approved' as const, proofUntil: started + Math.max(0, reply.proofUntil - reply.serverNow) - 2_000 }
+          return result
         })
       } catch (failure) {
         // Only an expired, redeemed or foreign request (409) is dropped; other failures keep it and explain themselves.
@@ -223,6 +293,7 @@ export function createExtensionClient(deps: Deps): ExtensionClient {
         }
         throw failure
       }
+      })
     },
     unlock(otp: string): Promise<number> {
       return guarded(async auth => {
@@ -258,7 +329,8 @@ export function createExtensionClient(deps: Deps): ExtensionClient {
     },
     portalUrl(path: string): string {
       const url = new URL(path, deps.info.portalOrigin)
-      if (url.origin !== deps.info.portalOrigin || !/^\/vault\?kind=(secret|pem)&id=\d{1,9}$/.test(`${url.pathname}${url.search}`)) throw new ExtensionError('invalid')
+      const allowed = /^\/vault\?kind=(secret|pem)&id=\d{1,9}$/.test(`${url.pathname}${url.search}`) || /^\/hosts\?hostId=[1-9]\d{0,9}(&connect=1)?$/.test(`${url.pathname}${url.search}`)
+      if (url.origin !== deps.info.portalOrigin || url.username || url.password || url.hash || !allowed) throw new ExtensionError('invalid')
       return url.toString()
     },
   }

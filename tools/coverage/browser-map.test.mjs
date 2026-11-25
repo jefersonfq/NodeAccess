@@ -8,15 +8,15 @@ import { transformWithEsbuild } from 'vite'
 import libCoverage from 'istanbul-lib-coverage'
 import { convertBrowserScript, overlayBrowserCoverage, browserCoverageRecords } from './browser-map.mjs'
 
-async function fixture(t) {
+async function fixture(t, extension = false) {
   const root = await mkdtemp(join(tmpdir(), 'browser-map-'))
   t.after(() => rm(root, { recursive: true, force: true }))
-  const file = 'apps/frontend/src/example.ts', source = 'export function choose(value: boolean) { return value ? 1 : 0 }\n'
-  await mkdir(join(root, 'apps/frontend/src'), { recursive: true }); await writeFile(join(root, file), source)
+  const file = extension ? 'apps/extension/src/adapters/site-assistance.ts' : 'apps/frontend/src/example.ts', source = 'export function choose(value: boolean) { return value ? 1 : 0 }\n'
+  await mkdir(join(root, extension ? 'apps/extension/src/adapters' : 'apps/frontend/src'), { recursive: true }); await writeFile(join(root, file), source)
   const generated = await transformWithEsbuild(source, join(root, file), { sourcemap: 'external' })
   const sourceMap = generated.map
   const code = generated.code + '\n//# sourceMappingURL=data:application/json;base64,' + Buffer.from(JSON.stringify(sourceMap)).toString('base64')
-  const script = { url: 'http://127.0.0.1:1234/src/example.ts', source: code, codeSha256: createHash('sha256').update(code).digest('hex'),
+  const script = { url: 'http://127.0.0.1:1234' + (extension ? '/@fs' + join(root, file) : '/src/example.ts'), source: code, codeSha256: createHash('sha256').update(code).digest('hex'),
     functions: [{ functionName: '', ranges: [{ startOffset: 0, endOffset: code.length, count: 1 }], isBlockCoverage: true }] }
   return { root, origin: 'http://127.0.0.1:1234', script, files: [file], file, source, sourceMap, generated }
 }
@@ -26,6 +26,20 @@ function replaceMap(f, edit) {
   f.script.codeSha256 = createHash('sha256').update(f.script.source).digest('hex')
   f.script.functions[0].ranges[0].endOffset = f.script.source.length
 }
+test('maps only the explicit extension helper module with exact original source', async t => {
+  const f = await fixture(t, true)
+  const result = await convertBrowserScript(f)
+  assert.equal(result.coverages[0].path, join(f.root, f.file))
+  assert.equal(result.provenance[0].sha256, createHash('sha256').update(f.source).digest('hex'))
+})
+for (const [name, edit] of [
+  ['adjacent module', f => { f.script.url = f.script.url.replace('site-assistance.ts', 'site-fill.ts') }],
+  ['encoded traversal', f => { f.script.url = f.origin + '/@fs' + f.root + '/apps/extension/src/adapters/%2e%2e%2fsite-assistance.ts' }],
+  ['stale helper source', f => replaceMap(f, map => { map.sourcesContent[0] += ' ' })],
+  ['different mapped helper', f => replaceMap(f, map => { map.sources[0] = '../other.ts' })],
+]) test(`rejects extension coverage with ${name}`, async t => {
+  const f = await fixture(t, true); edit(f); await assert.rejects(convertBrowserScript(f))
+})
 test('maps executed generated JS to the exact local TS content with provenance', async t => {
   const f = await fixture(t), result = await convertBrowserScript(f)
   assert.equal(result.coverages[0].path, join(f.root, f.file)); assert.ok(Object.keys(result.coverages[0].s).length)

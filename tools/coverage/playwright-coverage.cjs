@@ -26,7 +26,8 @@ async function attachBrowserCoverage(page, browser, env = process.env) {
       let url
       try { url = new URL(entry.url) } catch { excluded.external++; return false }
       if (url.origin !== origin.origin) { excluded.external++; return false }
-      if (!url.pathname.startsWith('/src/') || !/\.(?:[cm]?[jt]sx?|vue)$/.test(url.pathname) || url.searchParams.get('type') === 'style') { excluded.dependenciesOrGenerated++; return false }
+      const helperModule = url.pathname === '/@fs' + join(root, 'apps/extension/src/adapters/site-assistance.ts')
+      if ((!url.pathname.startsWith('/src/') && !helperModule) || !/\.(?:[cm]?[jt]sx?|vue)$/.test(url.pathname) || url.searchParams.get('type') === 'style') { excluded.dependenciesOrGenerated++; return false }
       return true
     }).map(entry => ({ ...entry, codeSha256: createHash('sha256').update(entry.source ?? '').digest('hex') }))
     writeFileSync(join(output, `chromium-${randomUUID()}.json`), JSON.stringify({ schemaVersion: 1, origin: origin.origin,

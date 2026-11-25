@@ -1,4 +1,5 @@
 import { Prisma, type PrismaClient } from '@prisma/client'
+import { ForbiddenError } from '../../shared/errors.js'
 
 export type SecretScope  = 'PERSONAL' | 'GROUP' | 'TENANT'
 export type SecretSource = 'MANUAL' | 'HOST_CONNECTION'
@@ -72,7 +73,7 @@ function mapRow(row: {
 }
 
 export class SecretRepository {
-  constructor(private readonly db: PrismaClient) {}
+  constructor(private readonly db: PrismaClient | Prisma.TransactionClient) {}
 
   async findAccessible(params: {
     tenantId: number
@@ -277,8 +278,8 @@ export class SecretRepository {
     return inserted
   }
 
-  async updateMetadata(tenantId: number, id: number, input: UpdateSecretMetadataInput): Promise<SecretRow> {
-    await this.db.$executeRaw(Prisma.sql`
+  async updateMetadata(tenantId: number, id: number, input: UpdateSecretMetadataInput, personalOwner?: number): Promise<SecretRow> {
+    const changed = await this.db.$executeRaw(Prisma.sql`
       UPDATE secrets
       SET
         alias = COALESCE(${input.alias ?? null}, alias),
@@ -288,15 +289,16 @@ export class SecretRepository {
         group_id = ${input.groupId === undefined ? Prisma.sql`group_id` : input.groupId},
         updated_at = NOW(3)
       WHERE tenant_id = ${tenantId} AND id = ${id}
+        ${personalOwner === undefined ? Prisma.empty : Prisma.sql`AND scope = 'PERSONAL' AND owner_user_id = ${personalOwner} AND revoked_at IS NULL`}
     `)
-
+    if (personalOwner !== undefined && changed !== 1) throw new ForbiddenError()
     const updated = await this.findById(tenantId, id)
     if (!updated) throw new Error('Secret update failed')
     return updated
   }
 
-  async rotate(tenantId: number, id: number, encryptedValue: string, iv: string): Promise<SecretRow> {
-    await this.db.$executeRaw(Prisma.sql`
+  async rotate(tenantId: number, id: number, encryptedValue: string, iv: string, personalOwner?: number): Promise<SecretRow> {
+    const changed = await this.db.$executeRaw(Prisma.sql`
       UPDATE secrets
       SET
         encrypted_value = ${encryptedValue},
@@ -304,8 +306,9 @@ export class SecretRepository {
         rotated_at = NOW(3),
         updated_at = NOW(3)
       WHERE tenant_id = ${tenantId} AND id = ${id}
+        ${personalOwner === undefined ? Prisma.empty : Prisma.sql`AND scope = 'PERSONAL' AND owner_user_id = ${personalOwner} AND revoked_at IS NULL`}
     `)
-
+    if (personalOwner !== undefined && changed !== 1) throw new ForbiddenError()
     const updated = await this.findById(tenantId, id)
     if (!updated) throw new Error('Secret rotate failed')
     return updated

@@ -1,5 +1,7 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify'
+import { VaultExtensionWriteSchema, VaultExtensionHostsQuerySchema } from '@nodeaccess/shared'
 import { z } from 'zod'
+import { VaultSiteCreateSchema, VaultSiteUpdateSchema, VaultSiteVersionSchema, VaultSiteListSchema, VaultSiteFillAuthorizeSchema, VaultSiteFillConsumeSchema, VaultSiteOriginSchema } from '@nodeaccess/shared'
 import { VaultExtensionAuthorizeSchema, VaultExtensionItemsQuerySchema, VaultExtensionDeliverRequestSchema, VaultExtensionForgetRequestSchema, VaultExtensionRenewRequestSchema, VaultExtensionUnlockRequestSchema, VaultExtensionThumbprintSchema, VaultExtensionTokenRequestSchema } from '@nodeaccess/shared'
 import { requireAuth } from '../../shared/guards.js'
 import { AppError } from '../../shared/errors.js'
@@ -29,6 +31,8 @@ function extensionRequest(req: FastifyRequest): ExtensionRequest {
 /** NA-0183: extension endpoints under /vault-security/extension; nothing here ever returns a secret value. */
 export function vaultExtensionRoutes(app: FastifyInstance, vault: VaultService, service: VaultExtensionService, releases?: ExtensionPackage): Promise<void> {
   function fail(error: unknown, reply: FastifyReply): never {
+    if (error instanceof AppError && error.code.startsWith('VAULT_SITE_')) throw error
+    if (error instanceof AppError && (error.statusCode === 403 || error.statusCode === 404)) throw new AppError('Item indisponível', 403, 'EXTENSION_ITEM_DENIED')
     if (error instanceof z.ZodError) throw new AppError('Requisição inválida', 400, 'VAULT_INPUT_INVALID')
     if (error instanceof VaultError) {
       if (error.code === 'EXTENSION_DPOP_NONCE') reply.header('WWW-Authenticate', 'DPoP error="use_dpop_nonce"')
@@ -43,8 +47,8 @@ export function vaultExtensionRoutes(app: FastifyInstance, vault: VaultService, 
     if (req.protocol !== 'https') throw new VaultError('VAULT_HTTPS_REQUIRED', 403)
   }
   /** Public extension endpoints: a fresh nonce on every answer, including errors. */
-  function extension(method: 'GET' | 'POST', path: string, run: (req: FastifyRequest) => Promise<unknown>): void {
-    app.route({ method, url: path, bodyLimit: 4096, handler: async (req, reply) => {
+  function extension(method: 'GET' | 'POST', path: string, run: (req: FastifyRequest) => Promise<unknown>, bodyLimit = 4096): void {
+    app.route({ method, url: path, bodyLimit, handler: async (req, reply) => {
       reply.header('DPoP-Nonce', service.nonces.issue())
       try { secure(req, reply); return await vault.admitted(() => run(req)) } catch (error) { return fail(error, reply) }
     } })
@@ -59,8 +63,30 @@ export function vaultExtensionRoutes(app: FastifyInstance, vault: VaultService, 
   extension('POST', '/extension/proof-request', req => service.proofRequest(extensionRequest(req), header(req, 'authorization')))
   extension('POST', '/extension/proof-claim', req => service.proofClaim(extensionRequest(req), header(req, 'authorization'), z.object({ request: opaque }).strict().parse(req.body ?? {})))
   extension('POST', '/extension/deliver', req => service.deliver(extensionRequest(req), header(req, 'authorization'), VaultExtensionDeliverRequestSchema.parse(req.body ?? {})))
+  extension('POST', '/extension/sites/list', req => service.siteList(extensionRequest(req), header(req, 'authorization'), VaultSiteListSchema.parse(req.body ?? {})))
+  extension('POST', '/extension/sites/create', req => service.siteWrite(extensionRequest(req), header(req, 'authorization'), 'create', VaultSiteCreateSchema.parse(req.body ?? {})), 32 * 1024)
+  extension('POST', '/extension/sites/update', req => service.siteWrite(extensionRequest(req), header(req, 'authorization'), 'update', VaultSiteUpdateSchema.parse(req.body ?? {})), 32 * 1024)
+  extension('POST', '/extension/sites/revoke', req => service.siteWrite(extensionRequest(req), header(req, 'authorization'), 'revoke', VaultSiteVersionSchema.parse(req.body ?? {})))
+  extension('POST', '/extension/sites/delete', req => service.siteWrite(extensionRequest(req), header(req, 'authorization'), 'delete', VaultSiteVersionSchema.parse(req.body ?? {})))
+  extension('POST', '/extension/sites/hosts', req => service.siteHosts(extensionRequest(req), header(req, 'authorization'), z.object({ q: z.string().max(200).default('') }).strict().parse(req.body ?? {}).q))
+  extension('POST', '/extension/sites/current-hosts', req => service.siteCurrentHosts(extensionRequest(req), header(req, 'authorization'), z.object({ origin: VaultSiteOriginSchema }).strict().parse(req.body ?? {}).origin))
+  extension('POST', '/extension/sites/fill/authorize', req => service.siteFillAuthorize(extensionRequest(req), header(req, 'authorization'), VaultSiteFillAuthorizeSchema.parse(req.body ?? {})))
+  extension('POST', '/extension/sites/fill/consume', req => service.siteFillConsume(extensionRequest(req), header(req, 'authorization'), VaultSiteFillConsumeSchema.parse(req.body ?? {})))
   extension('GET', '/extension/capabilities', req => service.capabilities(extensionRequest(req), header(req, 'authorization')))
   extension('GET', '/extension/items', req => service.items(extensionRequest(req), header(req, 'authorization'), VaultExtensionItemsQuerySchema.parse(req.query ?? {})))
+  extension('GET', '/extension/hosts', req => service.hosts(extensionRequest(req), header(req, 'authorization'), VaultExtensionHostsQuerySchema.parse(req.query ?? {})))
+  extension('POST', '/extension/write', async req => {
+    try { return await service.write(extensionRequest(req), header(req, 'authorization'), VaultExtensionWriteSchema.parse(req.body ?? {})) }
+    catch (error) {
+      // Do not expose domain error messages, aliases or private key parser diagnostics.
+      if (error instanceof AppError) {
+        const status = error.statusCode
+        if (error.code === 'SECRET_REVOKED' || status === 404) throw new VaultError('EXTENSION_WRITE_UNAVAILABLE', 409)
+        throw new VaultError(status === 409 ? 'EXTENSION_WRITE_CONFLICT' : status === 400 || status === 422 ? 'EXTENSION_WRITE_INVALID' : 'EXTENSION_ITEM_DENIED', status)
+      }
+      throw error
+    }
+  }, 512 * 1024)
 
   // NA-0194: release published by the operator. Files are public (the browser and the install policy fetch them
   // without a session; they hold no secret) and only exist when the release matches this deployment.

@@ -39,9 +39,9 @@ export interface EffectiveHostPermissionsRow {
 type HostAclPermission = 'view' | 'connect' | 'edit' | 'admin'
 
 export class InventoryAclRepository {
-  constructor(private readonly db: PrismaClient) {}
+  constructor(private readonly db: PrismaClient | Prisma.TransactionClient) {}
 
-  async searchUsers(tenantId: number, search: string, page: number) {
+  async searchUsers(tenantId: number, search: string, page: number): Promise<{ data: Array<{ id: number; name: string; email: string }>; total: number; page: number; limit: number }> {
     const where = { tenantId, active: true, deletedAt: null,
       ...(search ? { OR: [{ name: { contains: search } }, { email: { contains: search } }] } : {}) }
     const [data, total] = await Promise.all([
@@ -52,7 +52,7 @@ export class InventoryAclRepository {
     return { data, total, page, limit: 30 }
   }
 
-  async findPrincipalUsers(tenantId: number, type: 'USER' | 'GROUP' | 'ROLE', principalId: number) {
+  async findPrincipalUsers(tenantId: number, type: 'USER' | 'GROUP' | 'ROLE', principalId: number): Promise<Array<{ id: number; name: string; role: 'ADMIN' | 'USER'; groups: Array<{ groupId: number }> }>> {
     return this.db.user.findMany({
       where: { tenantId, active: true, deletedAt: null,
         ...(type === 'USER' ? { id: principalId } : type === 'GROUP'

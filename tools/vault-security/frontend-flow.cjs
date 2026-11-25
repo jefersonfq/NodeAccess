@@ -38,7 +38,7 @@ async function runVaultFrontendFlow(browser, base, fixture, output) {
     const page = await context.newPage(); page.setDefaultTimeout(15000)
     page.on('pageerror', () => errors.push('pageerror'))
     page.on('request', request => { requests.push(new URL(request.url()).pathname) })
-    await page.goto(`${base}/vault`, { waitUntil: 'networkidle' })
+    await page.goto(`${base}/vault`, { waitUntil: 'domcontentloaded' })
     await page.getByTestId('vault-delivery-panel').waitFor()
     await page.getByRole('button', { name: 'Revelar senha: database', exact: true }).waitFor()
     check(await page.evaluate(() => isSecureContext && location.protocol === 'https:'), 'Browser is not in HTTPS secure context')

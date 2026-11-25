@@ -9,8 +9,10 @@ import { normalizeBranchCounts } from './node-map.mjs'
 const hash = text => createHash('sha256').update(text).digest('hex')
 export async function convertBrowserScript({ root, origin, script, files, anomalies = [] }) {
   const url = new URL(script.url)
-  if (url.origin !== origin || !url.pathname.startsWith('/src/') || url.searchParams.get('type') === 'style') throw new Error('Unexpected browser script URL')
-  const file = resolve(root, 'apps/frontend', '.' + decodeURIComponent(url.pathname))
+  const helper = resolve(root, 'apps/extension/src/adapters/site-assistance.ts')
+  const helperModule = url.pathname === '/@fs' + helper
+  if (url.origin !== origin || (!url.pathname.startsWith('/src/') && !helperModule) || url.searchParams.get('type') === 'style') throw new Error('Unexpected browser script URL')
+  const file = helperModule ? helper : resolve(root, 'apps/frontend', '.' + decodeURIComponent(url.pathname))
   const allowed = new Set(files.map(name => resolve(root, name)))
   if (!allowed.has(file) || await realpath(file) !== file) throw new Error('Browser source is outside inventory or symlinked')
   const code = script.source
@@ -37,6 +39,7 @@ export async function convertBrowserScript({ root, origin, script, files, anomal
     const source = sourceMap.sources[index]
     if (typeof source !== 'string' || /^[a-z]+:/i.test(source)) throw new Error('Browser mapped source URL rejected')
     const path = resolve(dirname(file), source)
+    if (helperModule && path !== helper) throw new Error('Extension helper mapped source differs from module')
     if (!allowed.has(path) || await realpath(path) !== path) throw new Error('Browser mapped source outside inventory or symlinked')
     const content = await readFile(path, 'utf8')
     if (sourceMap.sourcesContent[index] !== content) throw new Error('Browser mapped source content differs from current source')

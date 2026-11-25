@@ -24,6 +24,12 @@ async function query(visible: number[] | null, inventory: number[] | null, folde
 }
 
 describe('HostRepository filter intersection', () => {
+  it.each(['secret', 'pem'] as const)('restricts %s associations to active hosts in the authenticated tenant', async kind => {
+    const findMany = vi.fn().mockResolvedValue([])
+    const repository = new HostRepository({ host: { findMany } } as never, {} as never)
+    await repository.findVaultItemHosts(7, kind, 31)
+    expect(findMany).toHaveBeenCalledWith({ where: { tenantId: 7, deletedAt: null, ...(kind === 'secret' ? { passwordSecretId: 31 } : { pemKeyId: 31 }) }, select: { id: true, name: true }, orderBy: { id: 'asc' } })
+  })
   it.each([
     { name: 'no selectors preserves unrestricted admin scope', sets: [null, null, null], expected: null },
     { name: 'one selector preserves order and duplicates', sets: [[3, 1, 3, 2], null, null], expected: [3, 1, 3, 2] },

@@ -76,18 +76,31 @@ function loadSecurityCenter(root = repositoryRoot) {
   return projectCatalog(readCatalog(root), root)
 }
 function securityCenterPlugin(root = repositoryRoot) {
+  let serving = false
   return {
     name: 'nodeaccess-security-center',
+    configResolved(config) { serving = config.command === 'serve' },
     resolveId(id) { if (id === 'virtual:nodeaccess-security-center') return moduleId },
     load(id) {
       if (id !== moduleId) return undefined
-      const catalog = readCatalog(root)
-      const projection = projectCatalog(catalog, root)
       this.addWatchFile(path.join(root, catalogFile))
-      for (const control of catalog.controls.filter(item => item.state === 'verified' || item.state === 'partial')) {
-        for (const file of control.review.sourceFiles) this.addWatchFile(path.resolve(root, file))
+      try {
+        const catalog = readCatalog(root)
+        // Keep watching evidence even while its review is stale, so a corrected catalog can recover through HMR.
+        for (const control of Array.isArray(catalog.controls) ? catalog.controls : []) {
+          if (!control || !['verified', 'partial'].includes(control.state) || !Array.isArray(control.review?.sourceFiles)) continue
+          for (const file of control.review.sourceFiles) {
+            evidencePath(root, file)
+            this.addWatchFile(path.resolve(root, file))
+          }
+        }
+        return `export default ${JSON.stringify(projectCatalog(catalog, root))}`
+      } catch (error) {
+        if (!serving) throw error
+        this.warn('Security Center content unavailable: review the catalog and its source evidence before publication.')
+        // Never publish stale claims, review metadata or the validation error to the browser.
+        return `export default ${JSON.stringify({ revision: '', reviewedAt: '', sections: [], practices: [], unavailable: true })}`
       }
-      return `export default ${JSON.stringify(projection)}`
     },
   }
 }

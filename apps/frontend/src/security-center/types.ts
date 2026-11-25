@@ -7,6 +7,7 @@ export interface PublicSecuritySection {
 }
 
 export interface PublicSecurityCatalog {
+  unavailable?: boolean
   revision: string
   reviewedAt: string
   sections: PublicSecuritySection[]

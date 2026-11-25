@@ -6969,7 +6969,8 @@
     "webauthn": "Windows Hello / passkey",
     "webauthnOn": "available on this origin",
     "webauthnOff": "unavailable (the origin must be a name, not an IP)",
-    "readOnly": "Only vault managers change these values: one proposes and another approves. Ask a vault manager.",
+    "readOnly": "Being an administrator does not grant the vault manager role. To receive this role, ask a manager to propose adding you in the vault Users tab; another manager must approve. Changing reveal or copy then also requires a proposal and approval by two managers.",
+    "bootstrapHelp": "If there are no managers yet, the deployment operator needs to configure the two initial managers. This initial configuration is not done on this screen.",
     "denied": "No access to the vault settings. The vault may not be configured for this tenant, or your account is neither an administrator nor a vault manager, or it has no active authenticator (TOTP).",
     "unconfigured": "The vault is not enabled for this installation or tenant.",
     "unavailable": "The vault settings could not be loaded. Open the portal at the vault HTTPS address and try again."
@@ -7013,6 +7014,8 @@
     "reveal": "Reveal",
     "copy": "Copy",
     "extension": "Use extension",
+    "shared-write": "Write shared Secrets in extension",
+    "fill": "Fill website login in extension",
     "enabled": "Yes",
     "disabled": "No",
     "proposeEnable": "Propose enabling",

@@ -1,4 +1,9 @@
 import { SqlVaultAdministration } from './vault-administration.repository.js'
+import { SqlVaultDiagnostics } from './vault-diagnostics.repository.js'
+import { SqlVaultSites } from './vault-sites.repository.js'
+import { siteHostAccess, siteHostChoices, siteCurrentHosts } from './vault-sites-hosts.js'
+import { writePersonalInTransaction, sharedWriteGranted } from './vault-extension-write.js'
+import type { VaultExtensionWrite, VaultExtensionWriteAccess, VaultItemSummary } from '@nodeaccess/shared'
 import { SqlVaultWebauthn } from './vault-webauthn.repository.js'
 import { SqlVaultExtension } from './vault-extension.repository.js'
 import { Prisma, type PrismaClient } from '@prisma/client'
@@ -16,6 +21,13 @@ interface UserState { active: boolean; deletedAt: Date | null; version: number; 
 /** Locking reads share the same rows mutated by existing writers; no event-cache authorization. */
 export class SqlVaultStore implements VaultStore {
   constructor(private readonly db: PrismaClient | (() => PrismaClient), private readonly now = Date.now) {}
+  async rotateSiteFillGeneration(generation: string): Promise<void> {
+    const database = typeof this.db === 'function' ? this.db() : this.db
+    await database.$transaction(async tx => {
+      await tx.$executeRaw`INSERT INTO vault_fill_generation(id,generation) VALUES(1,${generation})
+        ON DUPLICATE KEY UPDATE generation=${generation}`
+    }, { maxWait: 500, timeout: 2500 })
+  }
   async transaction<T>(identity: VaultIdentity, run: (tx: VaultTransaction) => Promise<T>): Promise<T> {
     const database = typeof this.db === 'function' ? this.db() : this.db
     return database.$transaction(async db => {
@@ -51,12 +63,49 @@ async function readAuthority(db: Tx, identity: VaultIdentity, now: number): Prom
     credentialVersion: hash(JSON.stringify([u.passwordHash, u.mfaSecret, u.version])) }
 }
 class SqlVaultTransaction implements VaultTransaction {
+  async siteFillGeneration(): Promise<string | null> {
+    const rows = await this.db.$queryRaw<Array<{ generation: string }>>`SELECT generation FROM vault_fill_generation WHERE id=1 FOR SHARE`
+    return rows[0]?.generation ?? null
+  }
+  async sites(channel: 'portal' | 'extension'): Promise<SqlVaultSites> {
+    return new SqlVaultSites(this.db, this.identity, this.authority.role === 'ADMIN' ? 'admin' : 'user', {
+      channel, sharedWrite: channel === 'extension' && await sharedWriteGranted(this.db, this.identity), visibleHost: siteHostAccess(this.authority.role),
+    })
+  }
+  siteHosts(q: string): Promise<Array<{ id: number; name: string }>> { return siteHostChoices(this.db, this.identity, this.authority.role, q) }
+  siteCurrentHosts(origin: string): Promise<Array<{ id: number; name: string }>> { return siteCurrentHosts(this.db, this.identity, this.authority.role, origin) }
+  async siteWriteAccess(): Promise<VaultExtensionWriteAccess> {
+    const groups = await this.db.$queryRaw<Array<{ id: number; name: string }>>`SELECT g.id,g.name FROM \`groups\` g WHERE g.tenant_id=${this.identity.tenantId}
+      AND (${this.authority.role === 'ADMIN'} OR EXISTS(SELECT 1 FROM user_groups ug WHERE ug.group_id=g.id AND ug.user_id=${this.identity.userId})) ORDER BY g.name,g.id`
+    return { groups, tenant: this.authority.role === 'ADMIN' }
+  }
+  readonly diagnostics: SqlVaultDiagnostics
+  writePersonal(input: VaultExtensionWrite): Promise<{ id: number }> {
+    return writePersonalInTransaction(this.db, this.identity, input, this.authority.role === 'ADMIN' ? 'admin' : 'user')
+  }
+  async writeAccess(): Promise<VaultExtensionWriteAccess> {
+    if (!await sharedWriteGranted(this.db, this.identity)) return { groups: [], tenant: false }
+    const groups = await this.db.$queryRaw<Array<{ id: number; name: string }>>`SELECT g.id,g.name FROM \`groups\` g WHERE g.tenant_id=${this.identity.tenantId} AND (${this.authority.role === 'ADMIN'} OR EXISTS(SELECT 1 FROM user_groups ug WHERE ug.group_id=g.id AND ug.user_id=${this.identity.userId})) ORDER BY g.name FOR SHARE`
+    return { groups, tenant: this.authority.role === 'ADMIN' }
+  }
+  async itemWriteAccess(items: VaultItemSummary[]): Promise<VaultItemSummary[]> {
+    const shared = await sharedWriteGranted(this.db, this.identity)
+    const ids = items.filter(i => i.kind === 'secret').map(i => i.sourceId)
+    if (!ids.length) return items.map(i => ({ ...i, writable: false }))
+    const rows = await this.db.$queryRaw<Array<{ id: number; scope: 'PERSONAL' | 'GROUP' | 'TENANT'; groupId: number | null; owner: number | null; creator: number | null }>>`SELECT id,scope,group_id AS groupId,owner_user_id AS owner,created_by_user_id AS creator FROM secrets WHERE tenant_id=${this.identity.tenantId} AND revoked_at IS NULL AND id IN (${Prisma.join(ids)}) FOR SHARE`
+    return items.map(item => {
+      const row = item.kind === 'secret' ? rows.find(r => r.id === item.sourceId) : undefined
+      const writable = !!row && (row.scope === 'PERSONAL' ? row.owner === this.identity.userId : shared && (this.authority.role === 'ADMIN' || (row.scope === 'GROUP' && row.creator === this.identity.userId)))
+      return { ...item, writable, ...(row ? { writeScope: row.scope, groupId: row.groupId } : {}) }
+    })
+  }
   readonly extension: SqlVaultExtension
   readonly administration: SqlVaultAdministration
   readonly webauthn: SqlVaultWebauthn
   constructor(private readonly db: Tx, private readonly identity: VaultIdentity, readonly authority: VaultAuthority, readonly now: () => number) {
     this.extension = new SqlVaultExtension(db, identity, now)
     this.administration = new SqlVaultAdministration(db, identity, now)
+    this.diagnostics = new SqlVaultDiagnostics(db, identity, authority, now)
     this.webauthn = new SqlVaultWebauthn(db, identity, now, authority.credentialVersion)
   }
   async get<T>(kind: RecordKind, token: string): Promise<T | null> {

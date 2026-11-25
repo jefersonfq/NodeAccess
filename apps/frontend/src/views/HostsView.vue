@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { validateIPv6Input } from '@/services/host-ipv6-validation.service'
+import { createHostRouteConnector, routeConnectHostId } from '@/services/host-route-connect'
 import { isGuidedTrial } from '@/services/trial-experience'
 
 import TrialResourcesPanel from '@/components/TrialResourcesPanel.vue'
@@ -17,7 +18,7 @@ import { DEVICE_PROFILES, deviceCapabilities } from '@nodeaccess/shared'
 import { BACKEND_RECOVERED_EVENT } from '@/services/backend-recovery.service'
 import { h, ref, onMounted, onBeforeUnmount, computed, nextTick, watch, defineAsyncComponent } from 'vue'
 import { watchDebounced } from '@vueuse/core'
-import { useRouter, useRoute } from 'vue-router'
+import { useRouter, useRoute, onBeforeRouteLeave } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import {
   NSpace, NInput, NInputNumber, NSelect, NButton, NCard, NTag, NSpin, NSwitch,
@@ -4435,7 +4436,42 @@ function handleHostCardAction(key: string | number, host: HostPublic): void {
 
 // ─── Conexão ─────────────────────────────────────────────────────────────────
 
-async function connect(host: HostPublic): Promise<void> {
+// Each explicit navigation owns one action. URL cleanup precedes the host lookup.
+let routeConnectionMounted = false
+let routeConnectionGeneration = 0
+async function connectHostFromRoute(): Promise<void> {
+  const id = routeConnectHostId(route.query)
+  if (!routeConnectionMounted || id === null) return
+  const generation = ++routeConnectionGeneration
+  const user = auth.user
+  const tenantId = auth.user?.tenantId
+  const originalPath = route.fullPath
+  const query = { ...route.query }
+  delete query.connect
+  const expectedPath = router.resolve({ path: route.path, query, hash: route.hash }).fullPath
+  const current = (): boolean => routeConnectionMounted && generation === routeConnectionGeneration && auth.user === user && auth.user?.tenantId === tenantId && route.fullPath === expectedPath
+  const run = createHostRouteConnector<HostPublic>({
+    consume: async () => {
+      if (route.fullPath !== originalPath) return false
+      const failure = await router.replace({ path: route.path, query, hash: route.hash })
+      return !failure
+    },
+    current,
+    load: async (hostId) => (await hostService.get(hostId)).data,
+    prepare: refreshAgentStatus,
+    connect: (host) => connect(host, current),
+    unavailable: () => msg.warning(locale.value.startsWith('pt')
+      ? 'Host indisponível ou sem acesso. Abra Hosts para tentar novamente.'
+      : 'Host unavailable or inaccessible. Open Hosts to try again.'),
+  })
+  await run(id)
+}
+onMounted(() => { routeConnectionMounted = true; void connectHostFromRoute() })
+onBeforeUnmount(() => { routeConnectionMounted = false; routeConnectionGeneration++ })
+onBeforeRouteLeave(() => { routeConnectionGeneration++ })
+watch(() => [route.query.hostId, route.query.connect], () => { void connectHostFromRoute() })
+
+async function connect(host: HostPublic, isCurrent: () => boolean = () => true): Promise<void> {
   if (!canConnectHost(host)) {
     msg.warning(connectBlockedMessage(host))
     return
@@ -4465,6 +4501,7 @@ async function connect(host: HostPublic): Promise<void> {
   } catch {
     multiConnect.value = false
   }
+  if (!isCurrent()) return
   if (!multiConnect.value && termStore.tabs.length > 0) {
     msg.warning(t('terminal.noMultiConnect'))
     void router.push({ name: 'terminal' })

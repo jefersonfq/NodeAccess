@@ -12,18 +12,22 @@ const API = `${PORTAL}/api/v1/vault-security/extension`
 const opaque = (): string => randomBytes(32).toString('base64url')
 
 function stores() {
+  let intent: unknown = null
+  let tail: Promise<unknown> = Promise.resolve()
   let key: DeviceKey | null = null, auth: Authorization | null = null, recents: string[] = [], locale: string | null = null, portalProof: string | null = null
   return {
     keys: { load: () => Promise.resolve(key), save: (k: DeviceKey) => { key = k; return Promise.resolve() } },
-    session: { get: () => Promise.resolve(auth), set: (a: Authorization) => { auth = a; return Promise.resolve() }, clear: () => { auth = null; recents = []; return Promise.resolve() },
+    session: { get: () => Promise.resolve(auth), set: (a: Authorization) => { auth = a; return Promise.resolve() }, clear: () => { auth = null; recents = []; portalProof = null; intent = null; return Promise.resolve() },
       recents: () => Promise.resolve(recents), setRecents: (r: string[]) => { recents = r; return Promise.resolve() },
       locale: () => Promise.resolve(locale), setLocale: (l: string) => { locale = l; return Promise.resolve() },
-      portalProof: () => Promise.resolve(portalProof), setPortalProof: (r: string | null) => { portalProof = r; return Promise.resolve() } },
+      portalIntent: () => Promise.resolve(intent), setPortalIntent: (value: unknown) => { intent = value; return Promise.resolve() },
+      portalLock: <T>(run: () => Promise<T>): Promise<T> => { const result = tail.then(run); tail = result.catch(() => {}); return result },
+      portalProof: () => Promise.resolve(portalProof), setPortalProof: (r: string | null) => { portalProof = r; intent = null; return Promise.resolve() } },
     peek: () => ({ key, auth, recents, locale, portalProof }),
   }
 }
 /** Fake portal backed by the real backend DPoP verifier and PKCE check. */
-function portal(options: { consent?: (url: URL) => string; nonceFirst?: boolean; itemsStatus?: number } = {}) {
+function portal(options: { consent?: (url: URL) => string; nonceFirst?: boolean; itemsStatus?: number; writeError?: { status: number; code: string } } = {}) {
   const nonces = new DpopNonces('interop'), seen = new Set<string>()
   const verifier = new DpopVerifier(nonces, { claim: k => Promise.resolve(!seen.has(k) && !!seen.add(k)) })
   let consent: URL | null = null
@@ -42,8 +46,10 @@ function portal(options: { consent?: (url: URL) => string; nonceFirst?: boolean;
         return reply(200, { accessToken: access, tokenType: 'DPoP', expiresAt: 1_800_000, serverNow: 0 })
       }
       const token = /^DPoP (.+)$/.exec(headers.Authorization ?? '')?.[1]
-      await verifier.verify(headers.DPoP, { method: 'GET', url: path, ...(token ? { accessToken: token } : {}) })
+      await verifier.verify(headers.DPoP, { method: init.method === 'POST' ? 'POST' : 'GET', url: path, ...(token ? { accessToken: token } : {}) })
       if (token !== access) return reply(401, {}, { 'WWW-Authenticate': 'DPoP error="invalid_token"' })
+      if (path === `${API}/write`) return options.writeError ? reply(options.writeError.status, { code: options.writeError.code }) : reply(200, { id: 8 })
+      if (path === `${API}/hosts`) return reply(200, { hosts: [{ id: 10, name: 'Visible host' }], nextCursor: null })
       if (path === `${API}/items`) return options.itemsStatus ? reply(options.itemsStatus, {}) : reply(200, { items: [{ kind: 'secret', sourceId: 3, label: 'db', description: null, scope: 'shared', portalPath: '/vault?kind=secret&id=3' }], nextCursor: null })
       if (path === `${API}/capabilities`) return reply(200, { apiVersion: 1, minExtensionVersion: '0.1.0', kinds: ['secret', 'pem'], features: { reveal: false, copy: false, create: false }, portalOrigin: PORTAL, expiresAt: 1, serverNow: 0 })
       return reply(404, {})
@@ -83,6 +89,23 @@ describe('NA-0183 extension crypto', () => {
 })
 
 describe('NA-0183 extension client', () => {
+  it('E3 sends writes with valid POST DPoP, validates locally and never persists submitted values', async () => {
+    const p = portal(), { c, s } = client(p)
+    await c.connect()
+    await expect(c.write({ operation: 'create-secret', alias: 'mine', value: 'write-marker' })).resolves.toEqual({ id: 8 })
+    const request = p.calls.find(call => call.url.endsWith('/write'))!
+    expect(request.init).toMatchObject({ method: 'POST', credentials: 'omit', cache: 'no-store' })
+    expect(JSON.stringify(s.peek())).not.toContain('write-marker')
+    const count = p.calls.length
+    await expect(c.write({ operation: 'create-secret', alias: 'x', value: '' })).rejects.toMatchObject({ reason: 'writeInvalid' })
+    expect(p.calls).toHaveLength(count)
+  })
+  it.each([[409, 'EXTENSION_WRITE_CONFLICT', 'writeConflict'], [400, 'EXTENSION_WRITE_INVALID', 'writeInvalid'], [409, 'EXTENSION_WRITE_UNAVAILABLE', 'writeUnavailable']] as const)('E3 maps write error %s without expiring authorization', async (status, code, reason) => {
+    const p = portal({ writeError: { status, code } }), { c, s } = client(p)
+    await c.connect()
+    await expect(c.write({ operation: 'rotate-secret', id: 8, value: 'new' })).rejects.toMatchObject({ reason })
+    expect(s.peek().auth).not.toBeNull()
+  })
   it('connects through the consent page, retries for the nonce and searches with DPoP', async () => {
     const p = portal(), { c, s } = client(p)
     await c.connect()
@@ -96,6 +119,8 @@ describe('NA-0183 extension client', () => {
     expect(nonceRetries).toBe(2)
     await expect(c.search('db')).resolves.toMatchObject({ items: [{ label: 'db' }] })
     expect(p.calls.at(-1)!.url).toBe(`${API}/items?q=db`)
+    await expect(c.hosts('secret', 3)).resolves.toEqual({ hosts: [{ id: 10, name: 'Visible host' }], nextCursor: null })
+    expect(p.calls.at(-1)!.url).toBe(`${API}/hosts?kind=secret&sourceId=3`)
     expect(p.calls.at(-1)!.init).toMatchObject({ credentials: 'omit', cache: 'no-store', redirect: 'error' })
     await expect(c.capabilities()).resolves.toMatchObject({ features: { reveal: false } })
     expect(await c.fingerprint()).toBe((s.peek().key!.jkt.slice(0, 16).match(/.{4}/g) ?? []).join('-'))
@@ -166,11 +191,15 @@ describe('NA-0183 extension client', () => {
   it('NA-0200: asks for a portal confirmation, keeps only its id, and redeems it once approved', async () => {
     const p = portal(), base = p.fetcher.getMockImplementation()!, request = 'q'.repeat(43)
     let claim: () => Response = () => new Response(JSON.stringify({ state: 'PENDING' }), { status: 200 })
+    let failMetadata = false, claims = 0
+    let metadataGate: Promise<void> | null = null, metadataStarted: (() => void) | null = null
     let url = `${PORTAL}/vault/extension/confirm?request=${request}`
     p.fetcher.mockImplementation(async (input: RequestInfo | URL, init?: RequestInit) => {
       const target = input instanceof Request ? input.url : input.toString()
       if (target === `${API}/proof-request`) return new Response(JSON.stringify({ request, url, expiresAt: 120_000, serverNow: 0 }), { status: 200 })
-      if (target === `${API}/proof-claim`) { expect(JSON.parse(init!.body as string)).toEqual({ request }); return claim() }
+      if (target === `${API}/proof-claim`) { claims++; expect(JSON.parse(init!.body as string)).toEqual({ request }); return claim() }
+      if (target.startsWith(`${API}/items?`) && metadataGate) { metadataStarted?.(); await metadataGate }
+      if (target.startsWith(`${API}/items?`) && failMetadata) return new Response('{}', { status: 503 })
       return base(input, init)
     })
     const { c, s } = client(p)
@@ -180,6 +209,37 @@ describe('NA-0183 extension client', () => {
     expect(await c.claimPortalProof()).toEqual({ state: 'pending' })
     claim = () => new Response(JSON.stringify({ state: 'APPROVED', proofUntil: 300_000, serverNow: 0 }), { status: 200 })
     expect(await c.claimPortalProof()).toEqual({ state: 'approved', proofUntil: T0 + 300_000 - 2_000 }); expect(s.peek().portalProof).toBeNull()
+    await c.requestPortalProof({ sourceId: 3, action: 'copy' })
+    expect(JSON.stringify(await s.session.portalIntent())).not.toContain(p.access)
+    expect(await c.claimPortalProof()).toMatchObject({ resume: { item: { sourceId: 3, label: 'db' }, action: 'copy' } })
+    expect(await s.session.portalIntent()).toBeNull()
+    await c.requestPortalProof({ sourceId: 3, action: 'copy' })
+    failMetadata = true
+    await expect(c.claimPortalProof()).rejects.toMatchObject({ reason: 'unavailable' })
+    expect(await s.session.portalIntent()).toHaveProperty('approvedUntil')
+    const claimed = claims; failMetadata = false
+    expect(await c.claimPortalProof()).toMatchObject({ resume: { item: { sourceId: 3 } } })
+    expect(claims).toBe(claimed)
+    await c.requestPortalProof({ sourceId: 3, action: 'reveal' })
+    let finishMetadata!: () => void
+    const started = new Promise<void>(resolve => { metadataStarted = resolve })
+    metadataGate = new Promise<void>(resolve => { finishMetadata = resolve })
+    const oldClaim = c.claimPortalProof(); await started
+    const cancelled = c.cancelPortalProof(), newer = c.requestPortalProof({ sourceId: 3, action: 'copy' })
+    finishMetadata(); await Promise.all([oldClaim, cancelled, newer]); metadataGate = null
+    expect(await s.session.portalIntent()).toMatchObject({ action: 'copy' })
+    expect(s.peek().portalProof).toBe(request)
+    await c.requestPortalProof({ sourceId: 3, action: 'reveal' })
+    const intent = await s.session.portalIntent() as Record<string, unknown>
+    await s.session.setPortalIntent({ ...intent, binding: 'foreign-session' })
+    expect(await c.claimPortalProof()).not.toHaveProperty('resume')
+    await c.requestPortalProof({ sourceId: 3, action: 'reveal' })
+    await s.session.setPortalIntent({ ...await s.session.portalIntent() as object, expiresAt: T0 - 1 })
+    expect(await c.claimPortalProof()).not.toHaveProperty('resume')
+    await c.requestPortalProof({ sourceId: 999, action: 'reveal' })
+    expect(await c.claimPortalProof()).not.toHaveProperty('resume')
+    await c.requestPortalProof({ sourceId: 3, action: 'copy' }); await c.cancelPortalProof()
+    expect(await c.claimPortalProof()).toEqual({ state: 'none' }); expect(await s.session.portalIntent()).toBeNull()
     // An expired or foreign request is dropped.
     await c.requestPortalProof()
     claim = () => new Response(JSON.stringify({ code: 'EXTENSION_PROOF_UNAVAILABLE' }), { status: 409 })
@@ -191,6 +251,15 @@ describe('NA-0183 extension client', () => {
     // Only the confirmation page of the configured portal is opened.
     url = 'https://evil.example/vault/extension/confirm?request=' + request
     await expect(c.requestPortalProof()).rejects.toMatchObject({ reason: 'unavailable' })
+    url = `${PORTAL}/vault/extension/confirm?request=${request}`
+    claim = () => new Response(JSON.stringify({ state: 'APPROVED', proofUntil: 300_000, serverNow: 0 }))
+    await c.requestPortalProof({ sourceId: 3, action: 'copy' })
+    const lookupStarted = new Promise<void>(resolve => { metadataStarted = resolve })
+    metadataGate = new Promise<void>(resolve => { finishMetadata = resolve })
+    const interrupted = c.claimPortalProof(); const rejected = expect(interrupted).rejects.toMatchObject({ reason: 'unavailable' })
+    await lookupStarted; const logout = c.disconnect(); failMetadata = true; finishMetadata()
+    await rejected; await logout
+    expect(await s.session.get()).toBeNull(); expect(await s.session.portalIntent()).toBeNull()
   })
   it('NA-0195: unlocks with the code and opens a release sealed to an ephemeral key', async () => {
     const { CompactEncrypt, importJWK } = await import('jose')
@@ -278,6 +347,10 @@ describe('NA-0183 extension client', () => {
   it('opens only validated vault paths on the configured origin and keeps recents as IDs', async () => {
     const { c, s } = client(portal())
     expect(c.portalUrl('/vault?kind=pem&id=9')).toBe(`${PORTAL}/vault?kind=pem&id=9`)
+    expect(c.portalUrl('/hosts?hostId=10')).toBe(`${PORTAL}/hosts?hostId=10`)
+    expect(c.portalUrl('/hosts?hostId=10&connect=1')).toBe(`${PORTAL}/hosts?hostId=10&connect=1`)
+    for (const bad of ['/hosts?hostId=10&connect=2', '/hosts?hostId=10&connect=1&tenantId=9']) expect(() => c.portalUrl(bad)).toThrow(ExtensionError)
+    for (const bad of ['/hosts?hostId=0', '/hosts?hostId=10&tenantId=9', '/hosts?hostId=10#other', 'https://evil.example/hosts?hostId=10', 'https://user@vault.example.test/hosts?hostId=10']) expect(() => c.portalUrl(bad)).toThrow(ExtensionError)
     for (const bad of ['https://evil.example/vault?kind=pem&id=9', '//evil.example/x', '/admin', '/vault?kind=pem&id=9&x=1']) expect(() => c.portalUrl(bad)).toThrow(ExtensionError)
     for (let i = 0; i < 10; i++) await c.remember(`secret:${i}`)
     await c.remember('secret:3'); await c.remember('javascript:alert(1)')
@@ -287,9 +360,9 @@ describe('NA-0183 extension client', () => {
 })
 
 describe('NA-0183 extension manifest', () => {
-  it('requests only identity, storage and the configured origin', () => {
+  it('requests gesture-scoped activeTab scripting and only the configured permanent origin', () => {
     const m = manifest(PORTAL, '0.1.0')
-    expect(m.permissions).toEqual(['identity', 'storage'])
+    expect(m.permissions).toEqual(['identity', 'storage', 'activeTab', 'scripting'])
     expect(m.host_permissions).toEqual([`${PORTAL}/*`])
     for (const forbidden of ['content_scripts', 'externally_connectable', 'web_accessible_resources', 'optional_permissions']) expect(m).not.toHaveProperty(forbidden)
     expect(JSON.stringify(m)).not.toMatch(/unsafe-eval|<all_urls>|\*:\/\//)

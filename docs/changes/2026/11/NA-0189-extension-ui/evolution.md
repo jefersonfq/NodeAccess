@@ -45,14 +45,16 @@ Garantias que valem para todas as fatias: nenhum valor secreto persistido na ext
 - Gate: PoC do contrato §11 e SEC-16.
 
 ### 5. E3 — Cadastrar e editar itens pessoais pela extensão
+- NA-0201: aprovada e implementada localmente; testes e revisão independente registrados em `../NA-0201-extension-personal-items/test-results.md`. Sonar local bloqueado por tokens e homologação humana pendente; sem publicação.
 - Secret pessoal, importar chave PEM (sem exportar), gerador de senha; mesma validação, ACL e auditoria do portal.
-- Para "login de site" (URL + usuário), depende do domínio de itens web no backend (frente própria).
+- Login de site e link sem segredo agora têm domínio próprio implementado localmente na NA-0203, com portal e extensão; não convertem Secret SSH automaticamente. Evidências em `../NA-0203-extension-sequence/test-results.md`.
 
 ### 6. E4 — Cadastrar e editar itens compartilhados
-- Depende da regra de escrita compartilhada (ADR-02) e de testes de ACL cruzada e de tenant.
+- NA-0203 LOCAL_WIP: ADR-02 aprovada, grant `shared-write` por dois gestores e ACL existente, concedido uma vez em vez de aprovação por edição. Migração aditiva da CHECK e testes de tenant/ACL/escrita/auditoria na mesma transação. Portal preserva suas permissões de escrita.
 
 ### 7. E7 — Preencher ao clicar e "salvar este login" (piloto)
-- Exige `content_scripts`/`activeTab` (mudança de permissões), correspondência rígida de domínio, interface fora da página (sem injetar o valor antes do clique), interruptor geral pelo servidor.
+- NA-0203 LOCAL_WIP: `activeTab` + `scripting` sob gesto, sem content script permanente; origem HTTPS exata, autorização de uso único vinculada a documento/aba/item/versão, grant `fill` independente e interruptor desligado por padrão. Cadastro manual do login, sem captura automática. Chromium real com dados sintéticos validado; não equivale a liberação de senhas reais.
+- Integração terminal: vínculo explícito do site ou link já cadastrado no host oferece conexão pelo portal, sem cadastro duplicado nem ACL paralela; somente hosts visíveis, sem abrir SSH ao visitar a página.
 - Gate: SEC-11/17, EXT-13..14, pentest externo antes de uso com senhas reais.
 
 ### Depois

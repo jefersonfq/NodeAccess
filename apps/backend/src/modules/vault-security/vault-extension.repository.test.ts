@@ -41,6 +41,13 @@ describe('SqlVaultExtension', () => {
     const { db, calls } = database([[{ enabled: 1, grantedBy: 2, approvedBy: 3 }]])
     expect(await repo(db).granted('copy')).toBe(true); expect(calls[0]?.values).toEqual([7, 11, 'copy'])
   })
+  it.each(['shared-write', 'fill'] as const)('checks %s separately with no delivery grant inheritance', async action => {
+    const { db, calls } = database([[{ enabled: 1, grantedBy: 2, approvedBy: 3 }]])
+    expect(await repo(db).granted(action)).toBe(true)
+    expect(calls[0]?.values).toEqual([7, 11, action])
+    expect(await repo(database([[]]).db).granted(action)).toBe(false)
+    expect(await repo(database([[{ enabled: 1, grantedBy: 11, approvedBy: 3 }]]).db).granted(action)).toBe(false)
+  })
   it('maps device rows and scopes every device statement to the identity', async () => {
     const created = new Date(5), used = new Date(9)
     const { db, calls } = database([

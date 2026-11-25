@@ -98,3 +98,34 @@ test('provenance must identify a reviewed revision, existing tests and unchanged
     assert.throws(() => evidenceHash(root, ['symlink.js']), /inside repository/)
   } finally { fs.rmSync(outside, { recursive: true, force: true }) }
 }))
+
+
+test('dev serves no stale claims or internal errors; production build/export still reject them', () => fixture(({ root, catalog, save }) => {
+  save()
+  fs.writeFileSync(path.join(root, 'control.js'), 'changed implementation')
+  const plugin = securityCenterPlugin(root), watched = [], warnings = []
+  const context = { addWatchFile: file => watched.push(file), warn: message => warnings.push(message) }
+  plugin.configResolved({ command: 'serve' })
+  const code = plugin.load.call(context, '\0nodeaccess-security-center')
+  assert.deepEqual(JSON.parse(code.slice('export default '.length)), { revision: '', reviewedAt: '', sections: [], practices: [], unavailable: true })
+  for (const privateValue of ['PRIVATE_', 'control.js', 'Review is stale', catalog.controls[0].review.sourceHash, catalog.controls[0].public.summary]) assert.equal(code.includes(privateValue), false)
+  assert.equal(warnings.length, 1)
+  assert.deepEqual(watched, [path.join(root, 'docs/security/controls-catalog.json'), path.join(root, 'control.js')])
+  assert.throws(() => loadSecurityCenter(root), /Review is stale/)
+  plugin.configResolved({ command: 'build' })
+  assert.throws(() => plugin.load.call(context, '\0nodeaccess-security-center'), /Review is stale/)
+  plugin.configResolved({ command: 'serve' })
+  // Simulate a subsequent editorial review; this is disposable test data only.
+  catalog.controls[0].review.sourceHash = evidenceHash(root, ['control.js']); save()
+  assert.deepEqual(JSON.parse(plugin.load.call(context, '\0nodeaccess-security-center').slice('export default '.length)), projectCatalog(catalog, root))
+}))
+test('dev invalid or missing catalog yields only unavailable metadata, while build remains strict', () => fixture(({ root, save }) => {
+  const plugin = securityCenterPlugin(root), context = { addWatchFile() {}, warn() {} }
+  for (const prepare of [() => {}, () => fs.writeFileSync(path.join(root, 'docs/security/controls-catalog.json'), 'not json'), () => { save(); fs.unlinkSync(path.join(root, 'control.js')) }]) {
+    prepare()
+    plugin.configResolved({ command: 'serve' })
+    assert.equal(JSON.parse(plugin.load.call(context, '\0nodeaccess-security-center').slice('export default '.length)).unavailable, true)
+    plugin.configResolved({ command: 'build' })
+    assert.throws(() => plugin.load.call(context, '\0nodeaccess-security-center'))
+  }
+}))

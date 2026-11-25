@@ -51,6 +51,11 @@ function sameIdentity(a: VaultPortalIdentity | null, b: VaultPortalIdentity | nu
 /** Public parameters the extension sent to the consent page; the code is bound to them server side. */
 export interface ExtensionConsent { extensionId: string; redirectUri: string; state: string; codeChallenge: string; deviceJkt: string }
 /** Page-local capabilities and plaintext; never Pinia, browser storage, catalog, or error payloads. */
+export interface VaultDiagnosticsContext {
+  identity: VaultPortalIdentity
+  clientId: string
+  sessionId: string
+}
 export interface VaultDelivery {
   state: DeepReadonly<DeliveryState>
   unlock(password: string, token: string): Promise<void>
@@ -68,6 +73,8 @@ export interface VaultDelivery {
   approveExtensionProof(request: string): Promise<boolean>
   /** NA-0183 manager screen: users, grants and pending proposals (needs the confirmed session). */
   administrationOverview(): Promise<VaultAdministrationOverview | null>
+  /** Page-local context only while administrative confirmation is fresh. Never persist. */
+  diagnosticsContext(): VaultDiagnosticsContext | null
   /** Proposes a change; another manager approves it. The session stays unlocked within the proof window. */
   proposeChange(change: VaultAdministrationChange): Promise<boolean>
   /** Approves a listed proposal; every approval bumps the policy version, so the session is locked afterwards. */
@@ -321,6 +328,19 @@ export function createVaultDelivery(deps: VaultDeliveryDependencies): VaultDeliv
       failure(error, version); return null
     }
   }
+  function diagnosticsContext(): VaultDiagnosticsContext | null {
+    tick()
+    if (disposed || state.phase !== 'unlocked') return null
+    const identity = deps.identity()
+    if (!identity || !sameIdentity(identity, owner)) { lock(); return null }
+    try {
+      requireProof(true)
+      return { identity: { ...identity }, clientId, sessionId }
+    } catch {
+      lock()
+      return null
+    }
+  }
   function administrationOverview(): Promise<VaultAdministrationOverview | null> {
     return administration('administration/overview', {}, reply => {
       const parsed = VaultAdministrationOverviewSchema.safeParse(reply)
@@ -395,5 +415,5 @@ export function createVaultDelivery(deps: VaultDeliveryDependencies): VaultDeliv
   async function removeWebauthn(id: string): Promise<boolean> {
     return (await administration('webauthn/credentials/remove', { id }, reply => (reply as { state?: unknown } | null)?.state === 'REMOVED' || fail())) === true
   }
-  return { state: readonly(state), unlock, prepare, unlockWithProvider, unlockWithWebauthn, listWebauthn, registerWebauthn, removeWebauthn, approveExtensionProof, deliver, authorizeExtension, administrationOverview, proposeChange, approveProposal, confirmCopy, dismiss, lock, tick, dispose }
+  return { state: readonly(state), unlock, prepare, unlockWithProvider, unlockWithWebauthn, listWebauthn, registerWebauthn, removeWebauthn, approveExtensionProof, deliver, authorizeExtension, administrationOverview, diagnosticsContext, proposeChange, approveProposal, confirmCopy, dismiss, lock, tick, dispose }
 }

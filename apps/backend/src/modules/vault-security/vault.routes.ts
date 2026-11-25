@@ -1,4 +1,6 @@
 import type { VaultAdministrationService } from './vault-administration.service.js'
+import { VaultSiteCreateSchema, VaultSiteUpdateSchema, VaultSiteVersionSchema, VaultSiteListSchema } from '@nodeaccess/shared'
+import { unavailable } from './vault-domain.js'
 import { z } from 'zod'
 import type { FastifyInstance, FastifyRequest } from 'fastify'
 import { requireAuth } from '../../shared/guards.js'
@@ -82,15 +84,24 @@ export function vaultRoutes(app: FastifyInstance, service: VaultService, adminis
   post('/operations/consume', session.extend({ operationId: opaque }).strict(), (i,c,o,b) => service.consume(i,c,o,b.sessionId,b.operationId))
   post('/operations/status', z.object({ operationId: opaque }).strict(), (i,c,o,b) => service.operation(i,c,o,b.operationId))
   post('/operations/cancel', z.object({ operationId: opaque }).strict(), (i,c,o,b) => service.operation(i,c,o,b.operationId,true))
+  post('/sites/list', VaultSiteListSchema, (i,_c,o,b) => service.inspect(i,o,'sites-list', async tx => (await tx.sites?.('portal') ?? unavailable()).list(b)), false)
+  post('/sites/write-access', empty, (i,_c,o) => service.inspect(i,o,'sites-access', async tx => await tx.siteWriteAccess?.() ?? { groups: [], tenant: false }), false)
+  post('/sites/create', VaultSiteCreateSchema, (i,_c,o,b) => service.inspect(i,o,'sites-write', async tx => (await tx.sites?.('portal') ?? unavailable()).create(b)), false)
+  post('/sites/update', VaultSiteUpdateSchema, (i,_c,o,b) => service.inspect(i,o,'sites-write', async tx => (await tx.sites?.('portal') ?? unavailable()).update(b)), false)
+  post('/sites/revoke', VaultSiteVersionSchema, (i,_c,o,b) => service.inspect(i,o,'sites-write', async tx => (await tx.sites?.('portal') ?? unavailable()).revoke(b)), false)
+  post('/sites/delete', VaultSiteVersionSchema, (i,_c,o,b) => service.inspect(i,o,'sites-write', async tx => (await tx.sites?.('portal') ?? unavailable()).delete(b)), false)
+  post('/sites/hosts', z.object({ q: z.string().max(200).default('') }).strict(), (i,_c,o,b) => service.inspect(i,o,'sites-hosts', async tx => ({ hosts: await tx.siteHosts?.(b.q) ?? [] })), false)
   if (administration) {
     const change = z.discriminatedUnion('kind', [
-      z.object({ kind: z.literal('grant'), userId: z.number().int().positive(), action: z.enum(['reveal','copy','extension']), enabled: z.boolean() }).strict(),
+      z.object({ kind: z.literal('grant'), userId: z.number().int().positive(), action: z.enum(['reveal','copy','extension','shared-write', 'fill']), enabled: z.boolean() }).strict(),
       z.object({ kind: z.literal('item'), secretId: z.number().int().positive(), enabled: z.boolean() }).strict(),
       z.object({ kind: z.literal('policy'), reveal: z.boolean(), copy: z.boolean(), tenantQuota: z.number().int().min(1).max(300) }).strict(),
       z.object({ kind: z.literal('confirmation'), seconds: z.number().int().min(CONFIRMATION_DEFAULT_SECONDS).max(CONFIRMATION_MAX_SECONDS).multipleOf(60) }).strict(),
       z.object({ kind: z.literal('manager'), userId: z.number().int().positive(), enabled: z.boolean() }).strict(),
       z.object({ kind: z.literal('proposalWindow'), seconds: z.number().int().min(PROPOSAL_DEFAULT_SECONDS).max(PROPOSAL_MAX_SECONDS).multipleOf(60) }).strict(),
     ])
+    post('/administration/diagnostics', session.extend({ userId: z.number().int().positive().safe(), secretId: z.number().int().positive().safe() }).strict(),
+      (i,c,o,b) => administration.diagnostics(i,c,o,b.sessionId,b.userId,b.secretId))
     post('/administration/proposals', session.extend({ change }).strict(), (i,c,o,b) => administration.propose(i,c,o,b.sessionId,b.change))
     post('/administration/approve', z.union([session.extend({ proposalId: opaque }).strict(), session.extend({ reference: z.string().regex(/^[a-f0-9]{64}$/) }).strict()]),
       (i,c,o,b) => 'reference' in b ? administration.approveReference(i,c,o,b.sessionId,b.reference) : administration.approve(i,c,o,b.sessionId,b.proposalId))

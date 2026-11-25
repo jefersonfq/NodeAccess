@@ -114,3 +114,6 @@ export * from './protocols/device-profile.js'
 export * from './agent-diagnostics.js'
 
 export * from './schemas/snippet-macro.schema.js'
+export * from './schemas/vault-site-fill.schema.js'
+export * from './schemas/vault-sites.schema.js'
+export * from './schemas/vault-diagnostics.schema.js'

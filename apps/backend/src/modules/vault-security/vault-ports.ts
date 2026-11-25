@@ -1,7 +1,19 @@
 import type { VaultAuthMethod, VaultAuthority, VaultEvent, VaultIdentity, VaultOrigin, VaultSecret, VaultAction, VaultChange } from './vault-domain.js'
 import type { ExtensionRecords } from './vault-extension-domain.js'
+import type { VaultExtensionWrite, VaultExtensionWriteAccess, VaultItemSummary } from '@nodeaccess/shared'
 export type RecordKind = 'client' | 'challenge' | 'session' | 'operation' | 'provider' | 'webauthn' | 'extproof'
 export interface VaultTransaction {
+  /** Locked persistent generation shared by all API replicas; absent means unavailable. */
+  siteFillGeneration?(): Promise<string | null>
+  sites?(channel: 'portal' | 'extension'): Promise<import('./vault-sites.repository.js').VaultSites>
+  siteHosts?(q: string): Promise<Array<{ id: number; name: string }>>
+  siteCurrentHosts?(origin: string): Promise<Array<{ id: number; name: string }>>
+  siteWriteAccess?(): Promise<VaultExtensionWriteAccess>
+  diagnostics?: { diagnose(userId: number, secretId: number): Promise<import('./vault-diagnostics.repository.js').VaultDiagnosticsResult> }
+  /** E3: mutation and audit use this transaction's connection and locked identity. */
+  writeAccess?(): Promise<VaultExtensionWriteAccess>
+  itemWriteAccess?(items: VaultItemSummary[]): Promise<VaultItemSummary[]>
+  writePersonal?(input: VaultExtensionWrite): Promise<{ id: number }>
   authority: VaultAuthority
   now(): number
   get<T>(kind: RecordKind, token: string): Promise<T | null>
@@ -23,7 +35,7 @@ export interface VaultTransaction {
   /** NA-0196: own grants and released items visible to this identity. */
   availability?(): Promise<Omit<VaultAvailability, 'policy'>>
 }
-export interface VaultAdministrationUser { id: number; name: string; email: string; /** NA-0188 */ manager: boolean; grants: Record<'reveal' | 'copy' | 'extension', boolean> }
+export interface VaultAdministrationUser { id: number; name: string; email: string; /** NA-0188 */ manager: boolean; grants: Record<'reveal' | 'copy' | 'extension' | 'shared-write' | 'fill', boolean> }
 export interface VaultAdministrationProposal { reference: string; change: VaultChange; proposedBy: { id: number; name: string }; mine: boolean; expiresAt: number
   /** Grant beneficiary (same tenant), even when outside the bounded user list. */
   beneficiary: { id: number; name: string; email: string } | null

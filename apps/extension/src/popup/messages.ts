@@ -9,7 +9,7 @@ interface Messages {
   errors: Record<ExtensionFailure | 'trustEnded', string>
 }
 const pt: Messages = {
-  intro: 'Conecte ao NodeAccess para buscar seus itens do cofre. Nenhum valor secreto é trazido para a extensão.',
+  intro: 'Conecte ao NodeAccess para acessar seus itens do cofre com as permissões da sua conta.',
   connect: 'Conectar ao NodeAccess', connecting: 'Aguardando confirmação no portal…', disconnect: 'Desconectar',
   compare: 'Confira se o portal mostra este mesmo código de dispositivo:',
   search: 'Buscar itens', kind: 'Tipo', all: 'Todos', secret: 'Secret', pem: 'Chave PEM', personal: 'Pessoal', shared: 'Compartilhado',
@@ -17,6 +17,8 @@ const pt: Messages = {
   subtitle: 'Cofre NodeAccess', connected: 'Conectado', items: 'Itens', footer: 'Valores protegidos pelo cofre do NodeAccess.', device: 'Dispositivo', deviceTitle: 'Identificação deste navegador. A mesma aparece em Dispositivos conectados, no VaultNAccess do portal.', updateAvailable: 'Nova versão da extensão disponível.', update: 'Atualizar', searchHint: 'Buscar itens (/)', codeIntro: 'Este navegador já foi autorizado. Para reconectar, digite o código do seu autenticador.', codeLabel: 'Código do autenticador (6 dígitos)', codeSubmit: 'Reconectar', usePortal: 'Autorizar pelo portal', reveal: 'Revelar senha', copy: 'Copiar senha', hide: 'Ocultar', proofReveal: 'Código do autenticador para revelar', proofCopy: 'Código do autenticador para copiar', proofSubmit: 'Confirmar', cancel: 'Cancelar', copyConfirm: 'Confirmar cópia', copied: 'Senha copiada. Gerencie a área de transferência do seu dispositivo.',
   portalProof: 'Confirmar no portal (Windows Hello)', portalWaiting: 'Aguardando a confirmação no portal…', portalReady: 'Identidade confirmada no portal. Selecione Revelar ou Copiar.', portalCheck: 'Verificar', proofOr: 'ou use o código do autenticador',
   errors: {
+    writeInvalid: 'Confira os campos, a chave privada e sua senha. O item não foi salvo.', writeConflict: 'Já existe um item com esse nome. Escolha outro.',
+    writeUnavailable: 'Este item foi revogado ou removido. Volte à lista e atualize a busca.',
     portalProofExpired: 'A confirmação no portal venceu ou não foi concluída. Peça de novo.', portalProofUnavailable: 'A confirmação no portal venceu ou não foi concluída. Peça de novo.',
     denied: 'Sem permissão para usar a extensão. Fale com os gestores do cofre.', cancelled: 'Conexão cancelada.',
     expired: 'A conexão expirou. Conecte novamente.', upgrade: 'Atualize a extensão para continuar.',
@@ -24,7 +26,7 @@ const pt: Messages = {
   },
 }
 const en: Messages = {
-  intro: 'Connect to NodeAccess to search your vault items. No secret value is ever brought into the extension.',
+  intro: 'Connect to NodeAccess to access vault items with your account permissions.',
   connect: 'Connect to NodeAccess', connecting: 'Waiting for confirmation in the portal…', disconnect: 'Disconnect',
   compare: 'Check that the portal shows this same device code:',
   search: 'Search items', kind: 'Type', all: 'All', secret: 'Secret', pem: 'PEM key', personal: 'Personal', shared: 'Shared',
@@ -32,6 +34,8 @@ const en: Messages = {
   subtitle: 'NodeAccess vault', connected: 'Connected', items: 'Items', footer: 'Values protected by the NodeAccess vault.', device: 'Device', deviceTitle: 'Identifier of this browser. The same one is shown in Connected devices, in the portal VaultNAccess.', updateAvailable: 'A new extension version is available.', update: 'Update', searchHint: 'Search items (/)', codeIntro: 'This browser was already authorized. To reconnect, enter your authenticator code.', codeLabel: 'Authenticator code (6 digits)', codeSubmit: 'Reconnect', usePortal: 'Authorize in the portal', reveal: 'Reveal password', copy: 'Copy password', hide: 'Hide', proofReveal: 'Authenticator code to reveal', proofCopy: 'Authenticator code to copy', proofSubmit: 'Confirm', cancel: 'Cancel', copyConfirm: 'Confirm copy', copied: 'Password copied. Manage your device clipboard.',
   portalProof: 'Confirm in the portal (Windows Hello)', portalWaiting: 'Waiting for the confirmation in the portal…', portalReady: 'Identity confirmed in the portal. Select Reveal or Copy.', portalCheck: 'Check', proofOr: 'or use the authenticator code',
   errors: {
+    writeInvalid: 'Check the fields, private key and passphrase. The item was not saved.', writeConflict: 'An item with this name already exists. Choose another name.',
+    writeUnavailable: 'This item was revoked or removed. Return to the list and refresh the search.',
     portalProofExpired: 'The confirmation in the portal expired or was not completed. Ask again.', portalProofUnavailable: 'The confirmation in the portal expired or was not completed. Ask again.',
     denied: 'You are not allowed to use the extension. Ask the vault managers.', cancelled: 'Connection cancelled.',
     expired: 'The connection expired. Connect again.', upgrade: 'Update the extension to continue.',

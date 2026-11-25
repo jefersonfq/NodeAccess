@@ -9,8 +9,8 @@ import { secretFixture, pemFixture } from '@/services/vault-catalog.fixtures'
 import VaultView from './VaultView.vue'
 import SecretsView from './SecretsView.vue'
 import PemKeysView from './PemKeysView.vue'
-const mocks = vi.hoisted(() => ({ features: vi.fn(), secrets: vi.fn(), pem: vi.fn(), groups: vi.fn(), availability: vi.fn(), manager: vi.fn() }))
-const auth = reactive({ isAdmin: false, user: { id: 41, tenantId: 7, actingTenantId: undefined as number | undefined, canManageHosts: true } })
+const mocks = vi.hoisted(() => ({ features: vi.fn(), secrets: vi.fn(), pem: vi.fn(), groups: vi.fn(), availability: vi.fn(), manager: vi.fn(), sitesRendered: vi.fn() }))
+const auth = reactive({ accessToken: '', refreshToken: '', isManagingTenant: false, isAdmin: false, user: { id: 41, tenantId: 7, actingTenantId: undefined as number | undefined, canManageHosts: true } })
 vi.mock('@/stores/auth', () => ({ useAuthStore: () => auth }))
 vi.mock('vue-i18n', () => ({ useI18n: () => ({ t: (key: string, values?: { name?: string; id?: number }) => key === 'vault.pemOwnerNamed' ? `${key}:${values?.name} (#${values?.id})` : key }) }))
 vi.mock('@/services/features.service', () => ({ FEATURES_UPDATED_EVENT: 'features-updated', featuresService: { get: mocks.features } }))
@@ -23,10 +23,12 @@ vi.mock('@/components/vault/PemKeyActions.vue', () => ({ default: defineComponen
 vi.mock('@/components/vault/ExtensionDevices.vue', () => ({ default: defineComponent({ render: () => null }) }))
 vi.mock('@/components/vault/ExtensionInstall.vue', () => ({ default: defineComponent({ render: () => null }) }))
 vi.mock('@/components/vault/VaultAdministration.vue', () => ({ default: defineComponent({ render: () => null }) }))
+vi.mock('@/components/vault/VaultSites.vue', () => ({ __esModule: true, default: defineComponent({ setup: () => { mocks.sitesRendered(); return () => h('div', { 'data-testid': 'lazy-sites-boundary' }, 'Sites loaded') } }) }))
 const route = reactive({ query: {} })
 const routerMocks = vi.hoisted(() => ({ push: vi.fn(() => Promise.resolve()) }))
 vi.mock('vue-router', () => ({ useRoute: () => route, useRouter: () => ({ replace: vi.fn(), push: routerMocks.push }) }))
-vi.mock('naive-ui', () => ({ ...Object.fromEntries(['NAlert','NButton','NDropdown','NEmpty','NInput','NSelect','NTag','NText','NSpace'].map(name => [name, defineComponent({ inheritAttrs: false, setup: (_, { attrs, slots }) => () => h(name, attrs, slots.default?.()) })])),
+const renderedButtons = new Map<string, Record<string, unknown>>()
+vi.mock('naive-ui', () => ({ ...Object.fromEntries(['NAlert','NButton','NDropdown','NEmpty','NInput','NSelect','NTag','NText','NSpace'].map(name => [name, defineComponent({ inheritAttrs: false, setup: (_, { attrs, slots }) => () => { if (name === 'NButton' && typeof attrs['data-testid'] === 'string') renderedButtons.set(attrs['data-testid'], { ...attrs }); return h(name, attrs, slots.default?.()) } })])),
  NModal: defineComponent({ props: ['show'], setup: (props, { slots }) => () => props.show ? slots.default?.() : null }),
  NDataTable: defineComponent({ props: ['data','columns'], setup: props => () => h('table', (props.data as unknown[]).map(row => h('tr', (props.columns as Column[]).map(col => h('td', col.render?.(row)))))) }) }))
 interface Column { key: string; render?: (row: unknown) => VNodeChild }
@@ -56,8 +58,9 @@ interface SecretState { secrets:SecretPublic[]; groups:Array<{id:number;name:str
  load:()=>Promise<void>; openCreate:()=>void; openEdit:(s:SecretPublic)=>void; openRotate:(s:SecretPublic)=>void; openConsumers:(s:SecretPublic)=>void; revoke:(s:SecretPublic)=>void; remove:(s:SecretPublic)=>void; canManageSecret:(s:SecretPublic)=>boolean }
 interface PemState { keys:PemKeyPublic[]; loading:boolean; error:string|null; columns:Column[]; actions:PemActionHandle|null;load:()=>Promise<void>;openCreate:()=>void;openPassphrase:(k:PemKeyPublic)=>void;remove:(k:PemKeyPublic)=>void }
 beforeEach(()=>{
+ renderedButtons.clear()
  for(const mock of Object.values(mocks))mock.mockReset()
- auth.isAdmin=false;Object.assign(auth.user,{id:41,tenantId:7,actingTenantId:undefined,canManageHosts:true})
+ auth.accessToken='';auth.refreshToken='';auth.isManagingTenant=false;auth.isAdmin=false;Object.assign(auth.user,{id:41,tenantId:7,actingTenantId:undefined,canManageHosts:true})
  mocks.availability.mockResolvedValue(null);mocks.manager.mockResolvedValue(false)
  mocks.features.mockResolvedValue({secretsLicensed:true});mocks.secrets.mockResolvedValue({data:secrets()});mocks.pem.mockResolvedValue({data:keys()});mocks.groups.mockResolvedValue({data:[{id:8,name:'Ops'}]})
  vi.stubGlobal('window',new EventTarget())
@@ -118,13 +121,16 @@ describe('NA-0196 reveal/copy guidance and item delivery',()=>{
   const id=secretFixture.id
   let html=await f.html()
   expect(f.state.block).toBe('policy');expect(html).toContain('vault-delivery-block');expect(html).toContain('vaultDelivery.block.policyTitle')
+  expect(html).toContain(`vault-mobile-reason-${id}`);expect(html).toContain('vaultDelivery.reasons.policy')
   expect(html).toContain('vaultDelivery.reasons.unavailable');expect(html).not.toContain('vaultDelivery.reveal')
   // Only managers get the shortcut to the settings.
   expect(html).not.toContain('vault-delivery-open-settings')
   mocks.availability.mockResolvedValue(on);await f.state.refreshAvailability()
   html=await f.html();expect(f.state.block).toBeNull();expect(html).toContain(`vault-delivery-reason-${id}`);expect(html).toContain('vaultDelivery.reasons.item')
+  expect(html).toContain(`vault-mobile-reason-${id}`)
   mocks.availability.mockResolvedValue({...on,policy:{reveal:true,copy:false},items:[id]});await f.state.refreshAvailability()
   html=await f.html();expect(html).toContain('vaultDelivery.reveal');expect(html).not.toContain('vaultDelivery.copy');expect(html).not.toContain('vault-delivery-reason-')
+  expect(html).not.toContain('vault-mobile-reason-')
   f.unmount()
  })
  it('gives managers Actions → Item delivery, also on items they do not own, and opens it focused on the item',async()=>{
@@ -192,5 +198,62 @@ describe('Legacy vault routes',()=>{
   mocks.pem.mockRejectedValueOnce(new Error('offline'));await s.load();expect(s.error).toBe('pemKeys.messages.saveError')
   const late=deferred<unknown>();mocks.pem.mockReturnValueOnce(late.promise);const last=s.load();f.unmount();late.reject(new Error('late'));await last
   expect(s.keys).toEqual([])
+ })
+})
+
+
+describe('Sites entrypoint lazy loading and identity boundaries', () => {
+ interface SitesState extends VaultState { showSites: boolean; canUseSites: boolean; sitesRevision: number }
+ function securePortal(): void {
+  vi.stubGlobal('isSecureContext', true)
+  vi.stubGlobal('window', Object.assign(new EventTarget(), { location: { protocol: 'https:', origin: 'https://portal.test' } }))
+  auth.accessToken = 'access-fixture'; auth.refreshToken = 'refresh-fixture'
+ }
+ it('renders Sites only after selection and returns to the catalog after identity changes', async () => {
+  securePortal()
+  const f = mount<SitesState>(VaultView); await flush()
+  expect(f.state.canUseSites).toBe(true)
+  expect(await f.html()).toContain('vault-sites-toggle')
+  expect(mocks.sitesRendered).not.toHaveBeenCalled()
+  const selectSites = renderedButtons.get('vault-sites-toggle')?.onClick as () => void
+  expect(selectSites).toBeTypeOf('function'); selectSites()
+  expect(await f.html()).toContain('lazy-sites-boundary')
+  expect(mocks.sitesRendered).toHaveBeenCalledOnce()
+  const revision = f.state.sitesRevision
+  auth.accessToken = 'renewed-fixture'; await flush()
+  expect(f.state.showSites).toBe(false)
+  expect(f.state.sitesRevision).toBeGreaterThan(revision)
+  expect(await f.html()).not.toContain('lazy-sites-boundary')
+  expect(mocks.sitesRendered).toHaveBeenCalledOnce()
+  selectSites()
+  expect(await f.html()).toContain('lazy-sites-boundary')
+  auth.user.actingTenantId = 12; await flush()
+  expect(f.state.canUseSites).toBe(false)
+  expect(await f.html()).not.toContain('vault-sites-toggle')
+  expect(await f.html()).not.toContain('lazy-sites-boundary'); f.unmount()
+ })
+ it('keeps Sites unavailable during catalog failure and exposes it after a successful retry', async () => {
+  securePortal(); mocks.secrets.mockRejectedValueOnce(new Error('private catalog detail'))
+  const f = mount<SitesState>(VaultView); await flush()
+  expect(f.state.canUseSites).toBe(false)
+  let html = await f.html()
+  expect(html).toContain('vault.secretError'); expect(html).toContain('vault.retry')
+  expect(html).not.toContain('private catalog detail')
+  expect(html).not.toContain('vault-sites-toggle'); expect(mocks.sitesRendered).not.toHaveBeenCalled()
+  await f.state.reload(); await flush()
+  html = await f.html()
+  expect(f.state.canUseSites).toBe(true); expect(html).toContain('vault-sites-toggle')
+  expect(mocks.sitesRendered).not.toHaveBeenCalled(); f.unmount()
+ })
+ it.each(['insecure', 'license', 'missing-token'] as const)('does not render the Sites boundary with %s', async reason => {
+  securePortal()
+  if (reason === 'insecure') vi.stubGlobal('isSecureContext', false)
+  if (reason === 'license') mocks.features.mockResolvedValue({ secretsLicensed: false })
+  if (reason === 'missing-token') auth.refreshToken = ''
+  const f = mount<SitesState>(VaultView); await flush(); f.state.showSites = true
+  expect(f.state.canUseSites).toBe(false)
+  const html = await f.html()
+  expect(html).not.toContain('vault-sites-toggle'); expect(html).not.toContain('lazy-sites-boundary')
+  expect(mocks.sitesRendered).not.toHaveBeenCalled(); f.unmount()
  })
 })

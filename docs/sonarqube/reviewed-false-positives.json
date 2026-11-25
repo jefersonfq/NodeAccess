@@ -2139,12 +2139,12 @@
       "file": "apps/frontend/src/views/HostsView.vue",
       "hash": "cdc25cdd05ee25c9ea83a53a4aa750dd",
       "range": {
-        "startLine": 7465,
-        "endLine": 7471,
+        "startLine": 7502,
+        "endLine": 7508,
         "startOffset": 18,
         "endOffset": 19
       },
-      "sourceSha256": "b8da8f1802d925b61a258e4854d9bef12662d0cf4582af093748a28c65c091b3",
+      "sourceSha256": "5ed0c2975896aa77976bb8df944fa7f82b13a4a43bb1b78b9b895d141e97f512",
       "ruleSha256": "364063b4ce150ed114c1a468ac33e4685efcba303096bd136991b75e4031bd4a",
       "rationale": "O input hostPemKeyFileInput de seleção da chave no formulário de host usa class hidden (display:none) e não é o controle apresentado ao usuário. A seleção é aberta por acionador visível nomeado; adicionar label ao elemento oculto não corrige uma falta de nome na interface. A regra exige nome/associação para controles apresentados ao usuário; este controle com display:none não participa da árvore de acessibilidade. Não se usa tabindex=-1 isoladamente como justificativa.",
       "evidence": [
@@ -3406,12 +3406,12 @@
       "file": "tools/manual/build.cjs",
       "hash": "57e6e72f93939a99933807d8b51a7ad3",
       "range": {
-        "startLine": 48,
-        "endLine": 48,
+        "startLine": 55,
+        "endLine": 55,
         "startOffset": 17,
         "endOffset": 20
       },
-      "sourceSha256": "134fb900f2495364402c348558de84a5e20fc78906ffb9d76f1e2c22cacb12e4",
+      "sourceSha256": "98746365f5528e52de38f5af299bf519dbc71c5d64e42ce0709c390fc7edbec0",
       "ruleSha256": "8e46a993de70ce5e51327d7c2b54667ebbbf48fedd05759b756c8975ddd24622",
       "rationale": "CommonJS module e require.main têm mesmo tipo e podem ser idênticos emCLI; testes/imports carregam build.cjs sem rodar CLI. Guarda necessária, igualdade não impossível.",
       "evidence": [

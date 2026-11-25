@@ -14,7 +14,7 @@ const toDevice = (d: DeviceSql): ExtensionDeviceRow => ({ jkt: d.jkt, extensionI
 export class SqlVaultExtension implements ExtensionRecords {
   constructor(private readonly db: Prisma.TransactionClient, private readonly identity: VaultIdentity, private readonly now: () => number) {}
   entitled(): Promise<boolean> { return this.granted('extension') }
-  async granted(action: 'extension' | 'reveal' | 'copy'): Promise<boolean> {
+  async granted(action: 'extension' | 'reveal' | 'copy' | 'shared-write' | 'fill'): Promise<boolean> {
     const rows = await this.db.$queryRaw<Array<{ enabled: boolean; grantedBy: number; approvedBy: number }>>`SELECT enabled,granted_by AS grantedBy,approved_by AS approvedBy
       FROM vault_entitlements WHERE tenant_id=${this.identity.tenantId} AND user_id=${this.identity.userId} AND action=${action} FOR SHARE`
     const g = rows[0]

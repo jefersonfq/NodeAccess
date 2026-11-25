@@ -10,6 +10,7 @@ import { VaultError } from './vault-domain.js'
 import { DpopNonces } from './vault-extension-dpop.js'
 import type { VaultService } from './vault.service.js'
 import type { VaultExtensionService } from './vault-extension.service.js'
+import { AppError } from '../../shared/errors.js'
 
 const opaque = (): string => randomBytes(32).toString('base64url')
 const EXT = 'abcdefghijklmnopabcdefghijklmnop'
@@ -19,6 +20,13 @@ afterEach(() => configureCurrentSessionReader(undefined))
 
 async function harness() {
   const service = {
+    siteList: vi.fn().mockResolvedValue({ items: [], next: null }),
+    siteWrite: vi.fn().mockResolvedValue({ id: 9, version: 2 }),
+    siteCurrentHosts: vi.fn().mockResolvedValue({hosts:[{id:4,name:'Allowed host'}]}),
+    siteHosts: vi.fn().mockResolvedValue({ hosts: [{ id: 4, name: 'Allowed host' }] }),
+    siteFillAuthorize: vi.fn().mockResolvedValue({ operation: 'O'.repeat(43), expiresAt: 1000, serverNow: 0 }),
+    siteFillConsume: vi.fn().mockResolvedValue({ envelope: 'sealed', context: { action: 'fill', itemRef: 'site:9' }, username: 'fixture-user', serverNow: 0 }),
+    write: vi.fn().mockResolvedValue({ id: 8 }),
     nonces: new DpopNonces('routes'),
     authorize: vi.fn().mockResolvedValue({ code: opaque(), expiresAt: 1, serverNow: 0 }),
     token: vi.fn().mockResolvedValue({ accessToken: opaque(), tokenType: 'DPoP', expiresAt: 1, serverNow: 0 }),
@@ -26,6 +34,7 @@ async function harness() {
     forget: vi.fn().mockResolvedValue({ state: 'FORGOTTEN' }),
     capabilities: vi.fn().mockResolvedValue({ apiVersion: 1 }),
     items: vi.fn().mockResolvedValue({ items: [], nextCursor: null }),
+    hosts: vi.fn().mockResolvedValue({ hosts: [], nextCursor: null }),
     devices: vi.fn().mockResolvedValue({ devices: [] }),
     revokeDevice: vi.fn().mockResolvedValue({ state: 'REVOKED' }),
     proofRequest: vi.fn().mockResolvedValue({ request: opaque(), url: 'https://portal/x', expiresAt: 1, serverNow: 0 }),
@@ -62,6 +71,51 @@ describe('NA-0200 portal confirmation routes', () => {
 })
 
 describe('NA-0183 extension routes', () => {
+  it('validates host association queries without accepting a tenant override', async () => {
+    const h = await harness()
+    const headers = { origin: `chrome-extension://${EXT}`, 'x-forwarded-proto': 'https', authorization: 'DPoP token' }
+    const url = '/api/v1/vault-security/extension/hosts'
+    try {
+      const result = await h.app.inject({ method: 'GET', url: `${url}?kind=secret&sourceId=3`, headers })
+      expect(result.statusCode).toBe(200); expect(result.headers['cache-control']).toBe('no-store')
+      expect(h.service.hosts).toHaveBeenCalledWith(expect.anything(), 'DPoP token', { kind: 'secret', sourceId: 3 })
+      for (const query of ['kind=secret&sourceId=-1', 'kind=secret&sourceId=3&tenantId=8', 'kind=unknown&sourceId=3', 'kind=pem']) {
+        expect((await h.app.inject({ method: 'GET', url: `${url}?${query}`, headers })).statusCode).toBe(400)
+      }
+    } finally { await h.app.close() }
+  })
+  it('E3 validates strict bodies, permits large PEM payloads and never echoes domain errors', async () => {
+    const h = await harness()
+    const headers = { origin: `chrome-extension://${EXT}`, 'x-forwarded-proto': 'https', authorization: 'DPoP token' }
+    const url = '/api/v1/vault-security/extension/write'
+    try {
+      const body = { operation: 'import-pem', name: 'key', key: 'x'.repeat(8192) }
+      const result = await h.app.inject({ method: 'POST', url, headers, payload: body })
+      expect(result.statusCode).toBe(200); expect(result.json()).toEqual({ id: 8 }); expect(result.headers['cache-control']).toBe('no-store')
+      expect(h.service.write).toHaveBeenCalledWith(expect.anything(), 'DPoP token', body)
+      for (const payload of [
+        { operation: 'create-secret', scope: 'GROUP', groupId: 12, alias: 'group', value: 'new' },
+        { operation: 'update-secret', scope: 'GROUP', groupId: 12, id: 4, description: 'metadata' },
+        { operation: 'rotate-secret', scope: 'TENANT', id: 4, value: 'replacement' },
+      ]) {
+        expect((await h.app.inject({ method: 'POST', url, headers, payload })).statusCode).toBe(200)
+        expect(h.service.write).toHaveBeenLastCalledWith(expect.anything(), 'DPoP token', payload)
+      }
+      for (const payload of [{ ...body, scope: 'GROUP' }, { ...body, tenantId: 9 }, { ...body, key: 'x'.repeat(65536) }, { operation: 'update-secret', id: -1 }]) {
+        expect((await h.app.inject({ method: 'POST', url, headers, payload })).statusCode).toBe(400)
+      }
+      expect((await h.app.inject({ method: 'POST', url, headers, payload: { ...body, key: 'x'.repeat(530000) } })).statusCode).toBe(413)
+      for (const [status, code] of [[409, 'EXTENSION_WRITE_CONFLICT'], [400, 'EXTENSION_WRITE_INVALID'], [422, 'EXTENSION_WRITE_INVALID'], [404, 'EXTENSION_WRITE_UNAVAILABLE']] as const) {
+        h.service.write.mockRejectedValueOnce(new AppError('sensitive-parser-marker', status))
+        const denied = await h.app.inject({ method: 'POST', url, headers, payload: body })
+        expect(denied.json()).toMatchObject({ code }); expect(denied.body).not.toContain('sensitive-parser-marker')
+      }
+      h.service.write.mockRejectedValueOnce(new AppError('revoked-marker', 409, 'SECRET_REVOKED'))
+      const revoked = await h.app.inject({ method: 'POST', url, headers, payload: { operation: 'rotate-secret', id: 8, value: 'replacement' } })
+      expect(revoked.statusCode).toBe(409); expect(revoked.json()).toMatchObject({ code: 'EXTENSION_WRITE_UNAVAILABLE' })
+      expect(revoked.body).not.toContain('revoked-marker')
+    } finally { await h.app.close() }
+  })
   it('passes the proxy-visible URL, origin, version and proof to the token exchange and always sends a nonce', async () => {
     const h = await harness()
     try {
@@ -167,5 +221,115 @@ describe('NA-0183 extension routes', () => {
       expect((await h.app.inject({ method: 'GET', url: '/api/v1/vault-security/extension/package', headers: auth })).json()).toEqual({ available: true, version: '0.2.0', extensionId: EXT,
         zip: { sha256: 'a'.repeat(64), size: 3 }, zipUrl: '/api/v1/vault-security/extension/package.zip', crxUrl: '/api/v1/vault-security/extension/package.crx', updateUrl: '/api/v1/vault-security/extension/update.xml' })
     } finally { await h.app.close() }
+  })
+})
+
+
+describe('NA-0203 integrated sites HTTP contracts', () => {
+  const base = '/api/v1/vault-security/extension/sites'
+  const headers = { origin: `chrome-extension://${EXT}`, 'x-forwarded-proto': 'https', host: 'vault.example.test', authorization: 'DPoP token', dpop: 'signed-proof', 'x-extension-version': '0.1.0' }
+  const binding = { mode: 'both', origin: 'https://login.example.test', tabId: 12, frameId: 0, documentId: 'document-1' }
+  const authorize = { siteId: 9, siteVersion: 2, binding, recipient: { kty: 'RSA', n: 'N'.repeat(342), e: 'AQAB' } }
+  const consume = { operation: 'O'.repeat(43), binding }
+  it('delegates metadata, guarded writes, host selection and fill with the proxy URL, DPoP and no-store headers', async () => {
+    const h = await harness()
+    try {
+      const cases = [
+        ['list', {}, 'siteList', [{ after: 0, limit: 50 }]],
+        ['create', { kind: 'url', label: 'Portal', url: 'https://login.example.test' }, 'siteWrite', ['create', { kind: 'url', scope: 'PERSONAL', label: 'Portal', url: 'https://login.example.test/' }]],
+        ['create', { kind: 'login', label: 'Login', username: 'fixture-user', password: 'request-only', origins: [binding.origin] }, 'siteWrite', ['create', { kind: 'login', scope: 'PERSONAL', label: 'Login', username: 'fixture-user', password: 'request-only', origins: [binding.origin], allowFill: false }]],
+        ['update', { id: 9, version: 2, label: 'Renamed' }, 'siteWrite', ['update', { id: 9, version: 2, label: 'Renamed' }]],
+        ['revoke', { id: 9, version: 2 }, 'siteWrite', ['revoke', { id: 9, version: 2 }]],
+        ['delete', { id: 9, version: 2 }, 'siteWrite', ['delete', { id: 9, version: 2 }]],
+        ['hosts', { q: 'Allowed' }, 'siteHosts', ['Allowed']],
+        ['fill/authorize', authorize, 'siteFillAuthorize', [authorize]],
+        ['fill/consume', consume, 'siteFillConsume', [consume]],
+      ] as const
+      for (const [path, payload, method, args] of cases) {
+        const response = await h.app.inject({ method: 'POST', url: `${base}/${path}`, headers, payload })
+        expect(response.statusCode).toBe(200)
+        expect(response.headers['cache-control']).toBe('no-store')
+        expect(response.headers['dpop-nonce']).toBeTypeOf('string')
+        expect(response.body).not.toContain('request-only')
+        expect(h.service[method]).toHaveBeenLastCalledWith({ requestOrigin: headers.origin, version: '0.1.0', proof: 'signed-proof', url: `${origin}${base}/${path}` }, 'DPoP token', ...args)
+      }
+    } finally { await h.app.close() }
+  })
+  it.each([
+    ['list', { tenantId: 99 }], ['list', { limit: 51 }], ['list', { origin: 'https://login.example.test/path' }],
+    ['create', { kind: 'url', label: 'URL', url: 'http://login.example.test' }],
+    ['create', { kind: 'url', label: 'URL', url: 'https://login.example.test', ownerUserId: 1 }],
+    ['create', { kind: 'url', label: 'URL', url: 'https://login.example.test', scope: 'GROUP' }],
+    ['create', { kind: 'login', label: 'Login', username: 'fixture-user', password: 'value', origins: ['https://login.example.test'], tenantId: 99 }],
+    ['update', { id: 9, version: 2 }], ['update', { id: 9, version: 2, scope: 'TENANT' }],
+    ['revoke', { id: 9, version: 0 }], ['delete', { id: 9, version: 2, tenantId: 99 }],
+    ['hosts', { q: 'x'.repeat(201) }], ['hosts', { userId: 7 }],
+    ['fill/authorize', { ...authorize, binding: { ...binding, frameId: 1 } }],
+    ['fill/authorize', { ...authorize, binding: { ...binding, origin: 'http://login.example.test' } }],
+    ['fill/authorize', { ...authorize, recipient: { ...authorize.recipient, d: 'private' } }],
+    ['fill/authorize', { ...authorize, secretId: 9 }],
+    ['fill/consume', { ...consume, operation: 'short' }], ['fill/consume', { ...consume, binding: { ...binding, documentId: '' } }],
+    ['fill/consume', { ...consume, tenantId: 99 }],
+  ])('rejects invalid %s input before any sites service call', async (path, payload) => {
+    const h = await harness()
+    try {
+      const response = await h.app.inject({ method: 'POST', url: `${base}/${path}`, headers, payload })
+      expect(response.statusCode).toBe(400)
+      for (const method of [h.service.siteList, h.service.siteWrite, h.service.siteHosts, h.service.siteFillAuthorize, h.service.siteFillConsume]) expect(method).not.toHaveBeenCalled()
+    } finally { await h.app.close() }
+  })
+  it('preserves guarded service denials, nonce challenge and retry semantics without exposing credential errors', async () => {
+    const h = await harness()
+    try {
+      for (const [code, status] of [['EXTENSION_UNAUTHORIZED', 401], ['EXTENSION_DPOP_NONCE', 401], ['SITE_FILL_UNAVAILABLE', 403], ['VAULT_STEP_UP_REQUIRED', 423], ['VAULT_RATE_LIMIT', 429]] as const) {
+        h.service.siteFillConsume.mockRejectedValueOnce(new VaultError(code, status))
+        const result = await h.app.inject({ method: 'POST', url: `${base}/fill/consume`, headers, payload: consume })
+        expect(result.statusCode).toBe(status); expect(result.json()).toMatchObject({ code })
+        expect(result.headers['cache-control']).toBe('no-store')
+        if (code === 'EXTENSION_DPOP_NONCE') expect(result.headers['www-authenticate']).toBe('DPoP error="use_dpop_nonce"')
+        if (status === 429) expect(result.headers['retry-after']).toBe('60')
+      }
+      h.service.siteWrite.mockRejectedValueOnce(new Error('private-password-error'))
+      const failed = await h.app.inject({ method: 'POST', url: `${base}/update`, headers, payload: { id: 9, version: 2, label: 'Changed' } })
+      expect(failed.statusCode).toBe(503); expect(failed.body).not.toContain('private-password-error')
+    } finally { await h.app.close() }
+  })
+})
+
+
+describe('NA0203 exact-origin host lookup and safe domain errors', () => {
+  const base='/api/v1/vault-security/extension/sites'
+  const headers={host:'vault.example.test','x-forwarded-proto':'https',origin:`chrome-extension://${EXT}`,'x-extension-version':'0.1.0',dpop:'signed-proof',authorization:'DPoP token'}
+  it('passes exact origin through authenticated current-hosts and rejects path/tenant injection before lookup', async () => {
+    const h=await harness()
+    try {
+      const response=await h.app.inject({method:'POST',url:`${base}/current-hosts`,headers,payload:{origin:'https://login.test'}})
+      expect(response.statusCode).toBe(200);expect(response.json()).toEqual({hosts:[{id:4,name:'Allowed host'}]})
+      expect(h.service.siteCurrentHosts).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({proof:'signed-proof',requestOrigin:headers.origin,url:`${origin}${base}/current-hosts`}),headers.authorization,'https://login.test')
+      expect(response.headers['cache-control']).toBe('no-store');expect(response.headers['dpop-nonce']).toBeTypeOf('string')
+      h.service.siteCurrentHosts.mockClear()
+      for(const payload of [{origin:'https://login.test/path'},{origin:'https://u:p@login.test'},{origin:'http://login.test'},{origin:'https://login.test',tenantId:99}]){
+        expect((await h.app.inject({method:'POST',url:`${base}/current-hosts`,headers,payload})).statusCode).toBe(400)
+      }
+      expect(h.service.siteCurrentHosts).not.toHaveBeenCalled()
+    } finally {await h.app.close()}
+  })
+  it.each([403,404])('normalizes domain %s into indistinguishable item denial without details', async status => {
+    const h=await harness()
+    try {
+      h.service.siteList.mockRejectedValueOnce(new AppError('private tenant item',status,'NOT_FOUND'))
+      const response=await h.app.inject({method:'POST',url:`${base}/list`,headers,payload:{}})
+      expect(response.statusCode).toBe(403);expect(response.json()).toMatchObject({code:'EXTENSION_ITEM_DENIED',message:'Item indisponível'})
+      expect(response.body).not.toContain('private tenant item');expect(response.headers['cache-control']).toBe('no-store');expect(response.headers['dpop-nonce']).toBeTypeOf('string')
+    } finally {await h.app.close()}
+  })
+  it('preserves optimistic site conflicts so a stale edit can refresh instead of becoming authorization denial', async () => {
+    const h=await harness()
+    try {
+      h.service.siteWrite.mockRejectedValueOnce(new AppError('Item alterado ou indisponível; atualize a lista',409,'VAULT_SITE_CONFLICT'))
+      const response=await h.app.inject({method:'POST',url:`${base}/update`,headers,payload:{id:9,version:1,label:'New'}})
+      expect(response.statusCode).toBe(409);expect(response.json()).toMatchObject({code:'VAULT_SITE_CONFLICT'})
+      expect(response.headers['cache-control']).toBe('no-store')
+    } finally {await h.app.close()}
   })
 })

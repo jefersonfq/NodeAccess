@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "revision": "2026-11-23-na0187",
-  "reviewedAt": "2026-11-23",
+  "revision": "2026-11-24-na0203",
+  "reviewedAt": "2026-11-24",
   "internalClassification": "Repositório interno: evidência de implementação, não atestado operacional.",
   "controls": [
     {
@@ -96,19 +96,19 @@
       ],
       "review": {
         "method": "source-review",
-        "reviewedAt": "2026-11-06",
-        "sourceRevision": "745253d1edb522db79aaa44fd96608ce434a2774",
+        "reviewedAt": "2026-11-24",
+        "sourceRevision": "9d2fc71768a0e7aee34a6495e4ec11eceb338076",
         "sourceFiles": [
           "apps/backend/src/modules/secrets/secret.service.ts",
           "apps/backend/src/shared/crypto.ts"
         ],
-        "sourceHash": "3867a719e4e4c778ee53945c8f39ddca112a7bf00ff6ed82160d4518c4fcdf9f",
+        "sourceHash": "b2e83b3ede0be034e9551ce3d17442626ad574db8bdffe66a2414ab9fd4cf1dc",
         "testFiles": [
           "apps/backend/src/modules/secrets/secret.service.test.ts",
           "apps/backend/src/shared/crypto.test.ts"
         ],
         "testsExecuted": false,
-        "scope": "Leitura de toPublic, encrypt/decrypt e findAccessibleActiveById. Não promete ausência absoluta de segredos no navegador: entrada e uso autorizado precisam ser distinguidos."
+        "scope": "Revisão incremental independente NA-0203 de toPublic, encrypt/decrypt e findAccessibleActiveById, incluindo mudanças locais na escrita transacional. Não promete ausência absoluta de segredos no navegador: entrada e uso autorizado precisam ser distinguidos. sourceRevision identifica a base; sourceHash identifica os arquivos locais revisados, sem commit final. Testes executados são evidências separadas no registro NA-0203."
       },
       "public": {
         "title": "Cofre e credenciais",
@@ -133,8 +133,8 @@
       ],
       "review": {
         "method": "source-review",
-        "reviewedAt": "2026-11-15",
-        "sourceRevision": "28685c5b2c3fbf9739a05629260c95e42e0d62d0",
+        "reviewedAt": "2026-11-24",
+        "sourceRevision": "9d2fc71768a0e7aee34a6495e4ec11eceb338076",
         "sourceFiles": [
           "apps/backend/src/modules/ssh/ssh.session.ts",
           "apps/backend/src/modules/hosts/host.service.ts",
@@ -142,13 +142,13 @@
           "apps/backend/src/modules/sftp/sftp.service.ts",
           "apps/backend/src/modules/tunnels/tunnel-ssh-connection.ts"
         ],
-        "sourceHash": "17c3da0d6175f2a16f9a10fd10e5ad0103af7c6218fa69f31cfbf8b2fd73ca5a",
+        "sourceHash": "cf188b0be8eb25312f0b91040f19339193410960e5619ef58a293a4444970c87",
         "testFiles": [
           "apps/backend/src/modules/hosts/host.service.test.ts",
           "apps/backend/src/modules/ssh/managed-ssh-session.service.test.ts"
         ],
         "testsExecuted": false,
-        "scope": "Releitura NA-0174: verificação obrigatória da chave confiada no alvo e no bastion em SSH/SFTP/túneis examinados; bastion sem Host de origem confiável é bloqueado. Não generaliza para todos os protocolos, agentes ou versões futuras. Base integrada informada em sourceRevision; hashes identificam o candidato NA-0174. Execuções e SHA final constam no registro da frente, separados desta revisão editorial."
+        "scope": "Revisão incremental independente NA-0203: mudanças locais em HostService preservam a verificação obrigatória da chave confiada no alvo e bastion dos fluxos SSH/SFTP/túneis examinados na NA-0174. Não generaliza para todos os protocolos, agentes ou versões futuras. sourceRevision identifica a base; sourceHash identifica os arquivos locais revisados, sem commit final. Execuções constam no registro da frente, separadas desta revisão editorial."
       },
       "public": {
         "title": "Conexões e identidade dos hosts",

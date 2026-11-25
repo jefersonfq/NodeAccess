@@ -70,7 +70,10 @@ const reviewedDate = computed(() => new Intl.DateTimeFormat(locale.value, {
       </nav>
 
       <div class="security-content">
-        <p v-if="!catalog.sections.length">
+        <p
+          v-if="!catalog.sections.length"
+          role="status"
+        >
           {{ t('securityCenter.empty') }}
         </p>
         <section
@@ -137,6 +140,7 @@ const reviewedDate = computed(() => new Intl.DateTimeFormat(locale.value, {
         </section>
 
         <footer
+          v-if="!catalog.unavailable"
           class="security-review"
           data-security-review
         >

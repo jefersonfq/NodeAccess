@@ -1,4 +1,5 @@
 // Browser review extension. Uses only the parent harness's simulated SSH/SFTP.
+const { artifactPath } = require('../shared/private-artifacts.cjs')
 module.exports = async function reviewAutocomplete(page, input, popup) {
   const sent = () => page.evaluate(() => window.__terminalExperience.sent.join(''))
   const reset = async () => {
@@ -86,6 +87,6 @@ module.exports = async function reviewAutocomplete(page, input, popup) {
     remoteEmptyAndErrorBothInvisible: invisibleRemoteStates.every(state => !state.popupVisible),
     invisibleRemoteStates,
   }
-  require('node:fs').writeFileSync(`/tmp/nodeaccess-autocomplete-observations-${process.env.UI_THEME || 'dark'}.json`, JSON.stringify(result, null, 2))
+  require('node:fs').writeFileSync(artifactPath(`nodeaccess-autocomplete-observations-${process.env.UI_THEME || 'dark'}.json`), JSON.stringify(result, null, 2))
   return result
 }

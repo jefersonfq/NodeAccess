@@ -3,12 +3,13 @@ import { createRenderer, createSSRApp, defineComponent, h, nextTick, reactive, s
 import { renderToString } from 'vue/server-renderer'
 import VaultAdministration from './VaultAdministration.vue'
 import type { VaultTransport } from '@/services/vault-http'
+import type { VaultAdministrationOverview } from '@nodeaccess/shared'
 
 const auth = reactive({ isAdmin: true, isManagingTenant: false, accessToken: 'portal-fixture', refreshToken: 'origin-fixture', user: { id: 1, tenantId: 7, actingTenantId: undefined as number | undefined } })
 vi.mock('@/stores/auth', () => ({ useAuthStore: () => auth }))
 vi.mock('vue-router', () => ({ RouterLink: defineComponent({ inheritAttrs: false, setup: (_, { slots }) => () => h('a', { 'data-router-link': '' }, slots.default?.()) }) }))
 vi.mock('@/services/vault-provider-confirm', () => ({ openVaultProviderWindow: vi.fn(), requestGoogleIdToken: vi.fn() }))
-vi.mock('vue-i18n', () => ({ useI18n: () => ({ t: (key: string, values?: Record<string, unknown>) => (values ? `${key}:${JSON.stringify(values)}` : key) }) }))
+vi.mock('vue-i18n', () => ({ useI18n: () => ({ locale: 'pt', t: (key: string, values?: Record<string, unknown>) => (values ? `${key}:${JSON.stringify(values)}` : key) }) }))
 vi.mock('naive-ui', () => ({ ...Object.fromEntries(['NAlert', 'NButton', 'NCheckbox', 'NFormItem', 'NInput', 'NInputNumber', 'NSelect', 'NSpace', 'NText'].map(name => [name,
   defineComponent({ inheritAttrs: false, setup: (_, { attrs, slots }) => () => h(name, attrs, slots.default?.()) })])) }))
 interface HostNode { parent: HostNode | null; children: HostNode[] }
@@ -22,23 +23,23 @@ function mount<S>(component: Component, props: Record<string, unknown>) {
 }
 const flush = async (): Promise<void> => { for (let i = 0; i < 6; i++) { await Promise.resolve(); await nextTick() } }
 const reference = 'a'.repeat(64), other = 'b'.repeat(64)
-const overview = {
+const overview: VaultAdministrationOverview = {
   serverNow: Date.now(),
   policy: { confirmationSeconds: 60, proposalSeconds: 120, reveal: false, copy: false, tenantQuota: 30 },
   items: [{ id: 7, alias: 'db-prod' }],
   users: [
-    { id: 1, name: 'Ana', email: 'ana@example.test', manager: true, grants: { reveal: true, copy: false, extension: false } },
-    { id: 2, name: 'Bruno', email: 'bruno@example.test', manager: false, grants: { reveal: false, copy: false, extension: true } },
-    { id: 3, name: 'Carla', email: 'carla@example.test', manager: true, grants: { reveal: false, copy: false, extension: false } },
+    { id: 1, name: 'Ana', email: 'ana@example.test', manager: true, grants: { reveal: true, copy: false, extension: false, 'shared-write': false, fill: false } },
+    { id: 2, name: 'Bruno', email: 'bruno@example.test', manager: false, grants: { reveal: false, copy: false, extension: true, 'shared-write': false, fill: false } },
+    { id: 3, name: 'Carla', email: 'carla@example.test', manager: true, grants: { reveal: false, copy: false, extension: false, 'shared-write': false, fill: false } },
   ],
   proposals: [
     { reference, change: { kind: 'grant' as const, userId: 2, action: 'extension' as const, enabled: false }, proposedBy: { id: 3, name: 'Carla' }, mine: false, expiresAt: Date.now() + 90_000,
-      beneficiary: { id: 2, name: 'Bruno', email: 'bruno@example.test' } },
-    { reference: other, change: { kind: 'policy' as const, reveal: true, copy: true, tenantQuota: 10 }, proposedBy: { id: 1, name: 'Ana' }, mine: true, expiresAt: Date.now() + 30_000, beneficiary: null },
+      beneficiary: { id: 2, name: 'Bruno', email: 'bruno@example.test' }, item: null },
+    { reference: other, change: { kind: 'policy' as const, reveal: true, copy: true, tenantQuota: 10 }, proposedBy: { id: 1, name: 'Ana' }, mine: true, expiresAt: Date.now() + 30_000, beneficiary: null, item: null },
     { reference: 'c'.repeat(64), change: { kind: 'item' as const, secretId: 4, enabled: true }, proposedBy: { id: 3, name: 'Carla' }, mine: false, expiresAt: Date.now() + 30_000, beneficiary: null,
       item: { id: 4, alias: 'web-root' } },
     { reference: 'd'.repeat(64), change: { kind: 'grant' as const, userId: 1, action: 'copy' as const, enabled: true }, proposedBy: { id: 3, name: 'Carla' }, mine: false, expiresAt: Date.now() + 30_000,
-      beneficiary: { id: 1, name: 'Ana', email: 'ana@example.test' } },
+      beneficiary: { id: 1, name: 'Ana', email: 'ana@example.test' }, item: null },
   ],
 }
 const state = reactive({ phase: 'locked', error: null as string | null, stepUp: 'password_totp', value: '', copied: false, providerPending: false, webauthn: false })
@@ -50,12 +51,15 @@ function fakeDelivery() {
     unlockWithProvider: vi.fn(() => { state.phase = 'unlocked'; return Promise.resolve() }),
     unlockWithWebauthn: vi.fn(() => { state.phase = 'unlocked'; return Promise.resolve() }),
     administrationOverview: vi.fn(() => Promise.resolve(overview)),
+    diagnosticsContext: vi.fn(() => state.phase === 'unlocked' ? { clientId: 'c'.repeat(43), sessionId: 's'.repeat(43),
+      identity: { userId: auth.user.id, tenantId: auth.user.tenantId, accessToken: auth.accessToken,
+        refreshToken: auth.refreshToken, origin: 'https://vault.example' } } : null),
     proposeChange: vi.fn(() => Promise.resolve(true)),
     approveProposal: vi.fn(() => { state.phase = 'locked'; return Promise.resolve(true) }),
     lock: vi.fn(() => { state.phase = 'locked' }), tick: vi.fn(), dispose: vi.fn(),
   }
 }
-interface Admin { manager: boolean; opened: boolean; open(): Promise<void>; password: string; token: string; notice: string; overview: unknown
+interface Admin { diagnosticContext: { identity: { tenantId: number }; clientId: string; sessionId: string } | null; refreshDiagnosticContext(): void; manager: boolean; opened: boolean; open(): Promise<void>; password: string; token: string; notice: string; overview: unknown
   confirm(): Promise<void>; confirmWithProvider(): Promise<void>; propose(userId: number, action: string, enabled: boolean): Promise<void>
   approve(reference: string): Promise<void>; lock(): void; load(): Promise<void>; remaining(at: number): string; detect(): Promise<void>
   describe(change: unknown): string; minutes: number | null; proposeConfirmation(): Promise<void>
@@ -68,6 +72,7 @@ const transport = (manager: boolean | Error) => {
 }
 beforeEach(() => {
   auth.isAdmin = true
+  auth.user.tenantId = 7
   Object.assign(state, { phase: 'locked', error: null, stepUp: 'password_totp', webauthn: false })
   vi.stubGlobal('isSecureContext', true)
   vi.stubGlobal('window', Object.assign(new EventTarget(), { location: { protocol: 'https:', origin: 'https://vault.example' } }))
@@ -128,15 +133,24 @@ describe('NA-0183 vault administration screen', () => {
     f.unmount()
   })
   it('uses the provider confirmation for OIDC/Google managers, locks on request and counts down with server time', async () => {
+    vi.useFakeTimers()
+    // Expiry belongs to the server clock; deliberately keep the client one minute ahead.
+    vi.setSystemTime(overview.serverNow + 60_000)
+    const expiresAt = overview.serverNow + 30_500
     state.stepUp = 'provider'
-    const d = fakeDelivery(), f = mount<Admin>(VaultAdministration, { transport: transport(true), delivery: d }); await flush(); await f.state.open()
-    expect(await f.html()).toContain('vault-administration-provider')
-    await f.state.confirmWithProvider()
-    expect(d.unlockWithProvider).toHaveBeenCalled(); expect(f.state.overview).toEqual(overview)
-    expect(f.state.remaining(Date.now() + 30_500)).toMatch(/^3[01] vaultAdministration\.unitSeconds$/)
-    expect(f.state.remaining(0)).toBe('0 vaultAdministration.unitSeconds')
-    f.state.lock(); expect(d.lock).toHaveBeenCalled(); expect(f.state.overview).toBeNull()
-    f.unmount(); expect(d.dispose).not.toHaveBeenCalled()
+    const d = fakeDelivery(), f = mount<Admin>(VaultAdministration, { transport: transport(true), delivery: d })
+    try {
+      await flush(); await f.state.open()
+      expect(await f.html()).toContain('vault-administration-provider')
+      await f.state.confirmWithProvider()
+      expect(d.unlockWithProvider).toHaveBeenCalled(); expect(f.state.overview).toEqual(overview)
+      expect(f.state.remaining(expiresAt)).toBe('31 vaultAdministration.unitSeconds')
+      vi.advanceTimersByTime(1000)
+      expect(f.state.remaining(expiresAt)).toBe('30 vaultAdministration.unitSeconds')
+      expect(f.state.remaining(0)).toBe('0 vaultAdministration.unitSeconds')
+      f.state.lock(); expect(d.lock).toHaveBeenCalled(); expect(f.state.overview).toBeNull()
+    } finally { f.unmount(); vi.useRealTimers() }
+    expect(d.dispose).not.toHaveBeenCalled()
   })
   it('keeps the list closed when the confirmation fails and drops it when the session locks', async () => {
     vi.useFakeTimers()
@@ -226,7 +240,7 @@ describe('NA-0199 tenant settings mode (/admin/settings)', () => {
 })
 
 const confirmationProposal = { reference: 'e'.repeat(64), change: { kind: 'confirmation' as const, seconds: 300 }, proposedBy: { id: 3, name: 'Carla' }, mine: false,
-  expiresAt: Date.now() + 30_000, beneficiary: null }
+  expiresAt: Date.now() + 30_000, beneficiary: null, item: null }
 async function unlocked(props: Record<string, unknown>) {
   const d = fakeDelivery(), f = mount<Admin>(VaultAdministration, { transport: transport(true), delivery: d, ...props }); await flush()
   return { d, f }
@@ -368,6 +382,7 @@ describe('NA-0188 vault managers, proposal validity and pending notices', () => 
     const user = mount<Admin>(VaultAdministration, { transport: transport(false), delivery: fakeDelivery() }); await flush()
     expect(await user.html()).not.toContain('vault-administration-not-manager'); user.unmount()
     auth.isAdmin = true
+  auth.user.tenantId = 7
   })
   it('an unknown status shows nothing at first and later keeps what was last known', async () => {
     const post = vi.fn().mockRejectedValueOnce(new Error('429')).mockResolvedValueOnce({ manager: true, pending: 1, managers: [1, 3] }).mockRejectedValueOnce(new Error('down'))
@@ -385,5 +400,51 @@ describe('NA-0188 vault managers, proposal validity and pending notices', () => 
     for (const hidden of ['vault-administration-user-', 'vault-administration-confirmation', 'vault-administration-window', 'vault-administration-blocked', 'vaultAdministration.title'])
       expect(html).not.toContain(hidden)
     f.unmount()
+  })
+})
+
+
+describe('integrated diagnostics in the administration parent', () => {
+  it('shows configuration only after overview and reuses the current unlock', async () => {
+    const d = fakeDelivery(), f = mount<Admin>(VaultAdministration, { transport: transport(true), delivery: d, item: { id: 7, name: 'db' } })
+    await flush()
+    expect(f.state.diagnosticContext).toBeNull()
+    expect(await f.html()).not.toContain('Configuração de acesso')
+    f.state.password = 'pw'; f.state.token = '123456'; await f.state.confirm()
+    expect(d.unlock).toHaveBeenCalledTimes(1)
+    expect(f.state.diagnosticContext).toMatchObject({ clientId: 'c'.repeat(43), sessionId: 's'.repeat(43) })
+    expect(await f.html()).toContain('Configuração de acesso')
+    const before = f.state.diagnosticContext
+    f.state.refreshDiagnosticContext()
+    expect(f.state.diagnosticContext).toBe(before)
+    f.state.lock()
+    expect(f.state.diagnosticContext).toBeNull()
+    expect(await f.html()).not.toContain('Configuração de acesso')
+    f.unmount()
+  })
+  it('drops retained context synchronously on tenant switch', async () => {
+    const d = fakeDelivery(), f = mount<Admin>(VaultAdministration, { transport: transport(true), delivery: d })
+    await flush(); state.phase = 'unlocked'; await f.state.load()
+    expect(f.state.diagnosticContext?.identity.tenantId).toBe(7)
+    auth.user.tenantId = 9
+    expect(f.state.diagnosticContext).toBeNull()
+    expect(await f.html()).not.toContain('Configuração de acesso')
+    f.unmount()
+  })
+  it('removes expired context on the parent tick without another unlock', async () => {
+    vi.useFakeTimers()
+    const d = fakeDelivery(), f = mount<Admin>(VaultAdministration, { transport: transport(true), delivery: d })
+    await flush(); state.phase = 'unlocked'; await f.state.load()
+    d.diagnosticsContext.mockImplementation(() => { state.phase = 'locked'; return null })
+    await vi.advanceTimersByTimeAsync(1000)
+    expect(f.state.diagnosticContext).toBeNull()
+    expect(await f.html()).not.toContain('Configuração de acesso')
+    expect(d.unlock).not.toHaveBeenCalled(); f.unmount()
+  })
+  it.each(['review', 'settings'])('does not expose diagnostics in %s-only mode', async mode => {
+    const d = fakeDelivery(), f = mount<Admin>(VaultAdministration, { transport: transport(true), delivery: d, [mode]: true })
+    await flush(); state.phase = 'unlocked'; await f.state.load()
+    expect(d.diagnosticsContext).not.toHaveBeenCalled()
+    expect(await f.html()).not.toContain('Configuração de acesso'); f.unmount()
   })
 })

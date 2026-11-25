@@ -6,6 +6,7 @@ import { catalogSummaries, pageOf, VaultExtensionService, type VaultCatalog } fr
 import { extensionRedirectUri, versionAtLeast, type ExtensionAccess, type ExtensionDeviceRow, type ExtensionRecords, type ExtensionTokenKind, type ExtensionTokenValue, type ExtensionTrust } from './vault-extension-domain.js'
 import { VaultError, type VaultAuthority, type VaultIdentity, type VaultOrigin } from './vault-domain.js'
 import type { OriginVerifier, VaultStore, VaultTransaction } from './vault-ports.js'
+import type { VaultSites } from './vault-sites.repository.js'
 import type { VaultService } from './vault.service.js'
 
 const EXT = 'abcdefghijklmnopabcdefghijklmnop'
@@ -126,9 +127,9 @@ describe('NA-0183 DPoP verification', () => {
 
 /** In-memory model of the locked SQL records, scoped by identity like the real adapter. */
 const envelope = { validate: vi.fn(() => Promise.resolve('T'.repeat(43))), seal: vi.fn((_key: unknown, context: object) => Promise.resolve(`sealed:${JSON.stringify(context)}`)) }
-function harness(options: { entitled?: boolean; role?: 'ADMIN' | 'USER'; secondFactor?: boolean } = {}) {
+function harness(options: { entitled?: boolean; role?: 'ADMIN' | 'USER'; secondFactor?: boolean; write?: VaultTransaction['writePersonal']; sites?: VaultSites; fill?: boolean } = {}) {
   const state = { entitled: options.entitled ?? true, policyVersion: 1, originAlive: true, methods: { local: true, ldap: true, oidc: true, google: true },
-    grants: { reveal: true, copy: false } as Record<'reveal' | 'copy', boolean>, policy: { reveal: true, copy: true }, eligible: true, confirmationSeconds: 60 }
+    grants: { reveal: true, copy: false, 'shared-write': false, fill: false } as Record<'reveal' | 'copy' | 'shared-write' | 'fill', boolean>, policy: { reveal: true, copy: true }, eligible: true, confirmationSeconds: 60 }
   const tokens = new Map<string, { kind: ExtensionTokenKind; owner: string; jkt: string; value: ExtensionTokenValue }>()
   const devices = new Map<string, ExtensionDeviceRow>()
   const audits: Array<{ type: string; reasonCode?: string | undefined }> = []
@@ -165,15 +166,19 @@ function harness(options: { entitled?: boolean; role?: 'ADMIN' | 'USER'; secondF
   const authority = (): VaultAuthority => ({ policy: { version: state.policyVersion, unlock: true, reveal: state.policy.reveal, copy: state.policy.copy, localReauth: true, origin: PORTAL, tenantQuota: 300, confirmationSeconds: state.confirmationSeconds },
     validUntil: Number.MAX_SAFE_INTEGER, role: options.role ?? 'USER', passwordHash: null, mfaSecret: 's', credentialVersion: 'c', email: 'u@example.test', methods: state.methods })
   const vaultRecords = new Map<string, object>()
+  const siteAccess = vi.fn((_identity: VaultIdentity, _channel: 'portal' | 'extension') => Promise.resolve(options.sites!))
+  const limits = vi.fn(() => Promise.resolve())
   const store: VaultStore = { transaction: async <T>(i: VaultIdentity, run: (tx: VaultTransaction) => Promise<T>): Promise<T> => {
     const key = (kind: string, t: string): string => `${i.tenantId}:${i.userId}:${kind}:${t}`
-    const tx = { authority: authority(), now: Date.now, extension: records(i), limit: () => Promise.resolve(),
+    const tx = { authority: authority(), now: Date.now, extension: records(i), limit: limits, siteFillGeneration: () => Promise.resolve('synthetic-boot'),
       get: (kind: string, t: string) => Promise.resolve(structuredClone(vaultRecords.get(key(kind, t)) ?? null)),
       put: (kind: string, t: string, value: object) => { vaultRecords.set(key(kind, t), structuredClone(value)); return Promise.resolve() },
       remove: (kind: string, t: string) => { vaultRecords.delete(key(kind, t)); return Promise.resolve() },
       secret: (id: number, action: 'reveal' | 'copy') => (id === 1 && state.eligible && state.grants[action] && state.policy[action]
         ? Promise.resolve({ encrypted: 'e', iv: 'i', version: 'f'.repeat(64) }) : Promise.reject(new VaultError('VAULT_FORBIDDEN', 403))),
       audit: (e: { type: string; reasonCode?: string }) => { audits.push({ type: e.type, reasonCode: e.reasonCode }); return Promise.resolve() } } as unknown as VaultTransaction
+    if (options.sites) tx.sites = channel => siteAccess(i, channel)
+    if (options.write) tx.writePersonal = options.write
     return run(tx)
   } }
   const vault = {
@@ -192,17 +197,19 @@ function harness(options: { entitled?: boolean; role?: 'ADMIN' | 'USER'; secondF
     return Promise.resolve({ tenantId, userId, sessionVersion: row.value.sessionVersion })
   } }
   const nonces = new DpopNonces('svc')
-  const catalog: VaultCatalog = { list: (_i, admin) => Promise.resolve(catalogSummaries([{ id: 1, alias: admin ? 'admin-item' : 'mine', description: null, scope: 'PERSONAL', ownerUserId: 7 }], [], 7)) }
+  const hostLookup = vi.fn().mockResolvedValue(Array.from({ length: 51 }, (_, index) => ({ id: index + 1, name: `visible-${index + 1}` })))
+  const catalog: VaultCatalog = { hosts: hostLookup, list: (_i, admin) => Promise.resolve(catalogSummaries([{ id: 1, alias: admin ? 'admin-item' : 'mine', description: null, scope: 'PERSONAL', ownerUserId: 7 }], [], 7)) }
+  const config = { enabled: true, extensionIds: [EXT], minVersion: '0.1.0', siteFillEnabled: options.fill ?? false, siteFillReady: () => true }
   const service = new VaultExtensionService(vault, store, locator, originVerifier, new DpopVerifier(nonces, replayGuard()), nonces,
-    { token, digest: v => createHash('sha256').update(v).digest('hex') }, catalog, { enabled: true, extensionIds: [EXT], minVersion: '0.1.0' },
+    { token, digest: v => createHash('sha256').update(v).digest('hex') }, catalog, config,
     Date.now, options.secondFactor === false ? undefined : { verifySecondFactor: (otp: string) => otp === '123456' }, envelope)
-  return { state, tokens, devices, audits, service, nonces, vaultRecords }
+  return { state, tokens, devices, audits, service, nonces, vaultRecords, hostLookup, siteAccess, limits, config }
 }
-async function connect(h: ReturnType<typeof harness>, key?: Awaited<ReturnType<typeof deviceKey>>) {
+async function connect(h: ReturnType<typeof harness>, key?: Awaited<ReturnType<typeof deviceKey>>, who = identity) {
   const device = key ?? await deviceKey()
   const verifier = randomBytes(48).toString('base64url')
   const challenge = createHash('sha256').update(verifier).digest('base64url')
-  const { code } = await h.service.authorize(identity, 'client', PORTAL, { extensionId: EXT, redirectUri: extensionRedirectUri(EXT), state: token(), codeChallenge: challenge, deviceJkt: device.jkt, sessionId: token() })
+  const { code } = await h.service.authorize(who, 'client', PORTAL, { extensionId: EXT, redirectUri: extensionRedirectUri(EXT), state: token(), codeChallenge: challenge, deviceJkt: device.jkt, sessionId: token() })
   const exchange = async (override: Partial<{ code: string; codeVerifier: string; key: typeof device; origin: string; version: string }> = {}) => h.service.token({
     requestOrigin: override.origin ?? `chrome-extension://${EXT}`, version: override.version ?? '0.1.0', url: TOKEN_URL,
     proof: await proof(override.key ?? device, { htm: 'POST', htu: TOKEN_URL, nonce: h.nonces.issue() }),
@@ -215,6 +222,34 @@ async function call(h: ReturnType<typeof harness>, device: Awaited<ReturnType<ty
 }
 
 describe('NA-0183 extension service', () => {
+  it('E3 writes only after valid POST DPoP and live authorization; rejects replay, origin, revoked device and expired token', async () => {
+    const write = vi.fn().mockResolvedValue({ id: 8 }), h = harness({ write }), c = await connect(h)
+    const { accessToken } = await c.exchange(), url = `${PORTAL}/api/v1/vault-security/extension/write`
+    const input = { operation: 'create-secret' as const, alias: 'mine', value: 'write-marker' }
+    const request = async () => ({ requestOrigin: `chrome-extension://${EXT}`, version: '0.1.0', url,
+      proof: await proof(c.device, { htm: 'POST', htu: url, nonce: h.nonces.issue(), ath: sha256b64(accessToken) }) })
+    const req = await request()
+    await expect(h.service.write(req, `DPoP ${accessToken}`, input)).resolves.toEqual({ id: 8 })
+    expect(write).toHaveBeenCalledWith(input)
+    await expect(h.service.write(req, `DPoP ${accessToken}`, input)).rejects.toBeInstanceOf(VaultError)
+    await expect(h.service.write({ ...await request(), requestOrigin: undefined }, `DPoP ${accessToken}`, input)).rejects.toBeInstanceOf(VaultError)
+    await expect(h.service.write(await request(), 'Bearer bad', input)).rejects.toBeInstanceOf(VaultError)
+    h.tokens.get(accessToken)!.value.expiresAt = 0
+    await expect(h.service.write(await request(), `DPoP ${accessToken}`, input)).rejects.toBeInstanceOf(VaultError)
+    h.tokens.get(accessToken)!.value.expiresAt = Date.now() + 60_000
+    await h.service.revokeDevice(identity, PORTAL, c.device.jkt)
+    await expect(h.service.write(await request(), `DPoP ${accessToken}`, input)).rejects.toBeInstanceOf(VaultError)
+    expect(write).toHaveBeenCalledTimes(1)
+  })
+  it('E3 fails closed without the writer and advertises availability only with it', async () => {
+    const h = harness(), c = await connect(h), { accessToken } = await c.exchange()
+    const url = `${PORTAL}/api/v1/vault-security/extension/write`
+    await expect(h.service.write({ requestOrigin: `chrome-extension://${EXT}`, version: '0.1.0', url,
+      proof: await proof(c.device, { htm: 'POST', htu: url, nonce: h.nonces.issue(), ath: sha256b64(accessToken) }) },
+    `DPoP ${accessToken}`, { operation: 'create-secret', alias: 'mine', value: 'new' })).rejects.toMatchObject({ code: 'EXTENSION_DISABLED' })
+    const enabled = harness({ write: vi.fn() }), d = await connect(enabled), access = await d.exchange()
+    await expect(call(enabled, d.device, access.accessToken, `${PORTAL}/api/v1/vault-security/extension/capabilities`)).resolves.toMatchObject({ features: { create: true } })
+  })
   it('connects, lists metadata and records the audit trail', async () => {
     const h = harness(), c = await connect(h)
     const { accessToken, tokenType } = await c.exchange()
@@ -286,14 +321,29 @@ describe('NA-0183 extension service', () => {
   it('accepts resource GETs without Origin (Chromium omits it) but never a foreign one', async () => {
     const h = harness(), c = await connect(h)
     const { accessToken } = await c.exchange()
-    const request = async (requestOrigin: unknown) => h.service.items({ requestOrigin, version: '0.1.0', url: ITEMS_URL,
-      proof: await proof(c.device, { htm: 'GET', htu: ITEMS_URL, nonce: h.nonces.issue(), ath: sha256b64(accessToken) }) }, `DPoP ${accessToken}`, {})
+    const request = async (requestOrigin: unknown, sourceId?: number) => h.service.items({ requestOrigin, version: '0.1.0', url: ITEMS_URL,
+      proof: await proof(c.device, { htm: 'GET', htu: ITEMS_URL, nonce: h.nonces.issue(), ath: sha256b64(accessToken) }) }, `DPoP ${accessToken}`, { sourceId })
     await expect(request(undefined)).resolves.toMatchObject({ items: [expect.anything()] })
+    await expect(request(undefined, 1)).resolves.toMatchObject({ items: [{ sourceId: 1 }] })
+    await expect(request(undefined, 999)).resolves.toEqual({ items: [], nextCursor: null })
     await expect(request('https://evil.example')).rejects.toMatchObject({ code: 'EXTENSION_CLIENT_INVALID' })
     await expect(request(`chrome-extension://${'p'.repeat(32)}`)).rejects.toMatchObject({ code: 'EXTENSION_CLIENT_INVALID' })
     const fresh = await connect(h)
     await expect(h.service.token({ requestOrigin: undefined, version: '0.1.0', url: TOKEN_URL, proof: await proof(fresh.device, { htm: 'POST', htu: TOKEN_URL, nonce: h.nonces.issue() }) },
       { code: fresh.code, codeVerifier: fresh.verifier, redirectUri: extensionRedirectUri(EXT), extensionId: EXT })).rejects.toMatchObject({ code: 'EXTENSION_CLIENT_INVALID' })
+  })
+  it('authorizes the item before querying associated hosts and paginates visible results only', async () => {
+    const h = harness(), c = await connect(h), { accessToken } = await c.exchange()
+    const url = `${PORTAL}/api/v1/vault-security/extension/hosts`
+    const request = async (sourceId: number, cursor?: string) => h.service.hosts({ requestOrigin: undefined, version: '0.1.0', url,
+      proof: await proof(c.device, { htm: 'GET', htu: url, nonce: h.nonces.issue(), ath: sha256b64(accessToken) }) }, `DPoP ${accessToken}`, { kind: 'secret', sourceId, cursor })
+    await expect(request(999)).rejects.toMatchObject({ code: 'EXTENSION_ITEM_DENIED' })
+    expect(h.hostLookup).not.toHaveBeenCalled()
+    const first = await request(1); expect(first.hosts).toHaveLength(50); expect(first.nextCursor).toBe('50')
+    expect(h.hostLookup).toHaveBeenCalledWith(identity, false, 'secret', 1)
+    expect(await request(1, '50')).toEqual({ hosts: [{ id: 51, name: 'visible-51' }], nextCursor: null })
+    h.hostLookup.mockResolvedValue([])
+    expect(await request(1)).toEqual({ hosts: [], nextCursor: null })
   })
   it('refuses a request addressed to another portal origin', async () => {
     const h = harness(), c = await connect(h)
@@ -487,7 +537,7 @@ describe('NA-0193 trusted device renewal', () => {
     expect((h.tokens.get(accessToken)?.value as ExtensionAccess).proofAt).toBeTypeOf('number')
     expect(trustOf(h, c.device.jkt)?.failures).toBe(0)
     const caps = await call(h, c.device, accessToken, `${PORTAL}/api/v1/vault-security/extension/capabilities`) as { features: object; proofUntil?: number }
-    expect(caps.features).toEqual({ reveal: true, copy: false, create: false }); expect(caps.proofUntil).toBe(proofUntil)
+    expect(caps.features).toEqual({ reveal: true, copy: false, create: false, sites: false, fill: false }); expect(caps.proofUntil).toBe(proofUntil)
   })
   it('NA-0195: releases a sealed value only with a fresh proof, the grant, an eligible item and the policy', async () => {
     const h = harness(), c = await connect(h), { accessToken } = await c.exchange()
@@ -521,5 +571,159 @@ describe('NA-0193 trusted device renewal', () => {
     await expect(h.service.deliver(await post(h, c.device, accessToken, 'deliver'), `DPoP ${accessToken}`, { secretId: 1, action: 'reveal', recipient })).rejects.toMatchObject({ code: 'VAULT_STEP_UP_REQUIRED' })
     const renewed = await renew(h, c.device)
     expect((h.tokens.get(renewed.accessToken)?.value as ExtensionAccess).proofAt).toBeUndefined()
+  })
+})
+
+
+describe('NA-0203 sites and E7 through real extension admission', () => {
+  const siteOrigin = 'https://login.example.test'
+  const binding = { mode: 'both' as const, origin: siteOrigin, tabId: 12, frameId: 0 as const, documentId: 'document-1' }
+  const input = { siteId: 9, siteVersion: 2, binding, recipient: { kty: 'RSA' as const, n: 'N'.repeat(342), e: 'AQAB' as const } }
+  function sitePort() {
+    return {
+      list: vi.fn<VaultSites['list']>().mockResolvedValue({ items: [{ id: 9, version: 2, kind: 'login', label: 'Login', scope: 'PERSONAL', groupId: null,
+        username: 'fixture-user', origins: [siteOrigin], url: null, host: null, canManage: true, allowFill: true }], next: null }),
+      create: vi.fn<VaultSites['create']>().mockResolvedValue({ id: 9, version: 1 }),
+      update: vi.fn<VaultSites['update']>().mockResolvedValue({ id: 9, version: 3 }),
+      revoke: vi.fn<VaultSites['revoke']>().mockResolvedValue({ id: 9, version: 3 }),
+      delete: vi.fn<VaultSites['delete']>().mockResolvedValue({ id: 9, version: 3 }),
+      delivery: vi.fn<VaultSites['delivery']>().mockResolvedValue({ secret: { encrypted: 'cipher-only', iv: 'iv-only', version: 's'.repeat(64) },
+        username: 'fixture-user', origins: [siteOrigin], version: 2 }),
+    }
+  }
+  async function setup(fill = true) {
+    const sites = sitePort(), h = harness({ sites, fill }), c = await connect(h), { accessToken } = await c.exchange()
+    const request = async (path: string, key = c.device, access = accessToken) => {
+      const url = `${PORTAL}/api/v1/vault-security/extension/${path}`
+      return { requestOrigin: `chrome-extension://${EXT}`, version: '0.1.0', url,
+        proof: await proof(key, { htm: 'POST', htu: url, nonce: h.nonces.issue(), ath: sha256b64(access) }) }
+    }
+    const authorization = `DPoP ${accessToken}`
+    const unlock = async () => { await h.service.unlock(await request('unlock'), authorization, { otp: '123456' }) }
+    const authorize = async () => h.service.siteFillAuthorize(await request('sites/fill/authorize'), authorization, input)
+    const consume = async (operation: string) => h.service.siteFillConsume(await request('sites/fill/consume'), authorization, { operation, binding })
+    return { sites, h, c, accessToken, authorization, request, unlock, authorize, consume }
+  }
+  it('routes metadata and all mutations through the identity-scoped extension port, with quotas and single-use DPoP', async () => {
+    const f = await setup(), query = { after: 0, limit: 50, origin: siteOrigin }
+    const request = await f.request('sites/list')
+    const list = await f.h.service.siteList(request, f.authorization, query)
+    expect(list.items[0]).toMatchObject({ id: 9, username: 'fixture-user' })
+    expect(JSON.stringify(list)).not.toMatch(/cipher-only|iv-only|password|encrypted/)
+    expect(f.sites.delivery).not.toHaveBeenCalled()
+    expect(f.h.siteAccess).toHaveBeenCalledWith(identity, 'extension')
+    await expect(f.h.service.siteList(request, f.authorization, query)).rejects.toMatchObject({ code: 'EXTENSION_DPOP_INVALID' })
+    expect(f.sites.list).toHaveBeenCalledTimes(1)
+    const create = { kind: 'url' as const, label: 'Login', scope: 'PERSONAL' as const, url: siteOrigin }
+    const update = { id: 9, version: 2, label: 'Changed' }, version = { id: 9, version: 2 }
+    for (const [operation, payload] of [['create', create], ['update', update], ['revoke', version], ['delete', version]] as const) {
+      await f.h.service.siteWrite(await f.request(`sites/${operation}`), f.authorization, operation, payload)
+      expect(f.sites[operation]).toHaveBeenCalledWith(payload)
+    }
+    expect(f.h.limits).toHaveBeenCalledWith('sites-write', 60_000, 30)
+    f.sites.update.mockRejectedValueOnce(new VaultError('VAULT_FORBIDDEN', 403))
+    await expect(f.h.service.siteWrite(await f.request('sites/update'), f.authorization, 'update', update)).rejects.toThrow()
+    expect(f.sites.delivery).not.toHaveBeenCalled()
+  })
+  it.each(['entitlement', 'central-session', 'device', 'expired-token', 'tenant', 'wrong-key', 'origin'] as const)('denies sites reads, writes and fill before the port for %s', async reason => {
+    const f = await setup(); f.h.state.grants.fill = true; await f.unlock()
+    if (reason === 'entitlement') f.h.state.entitled = false
+    if (reason === 'central-session') f.h.state.originAlive = false
+    if (reason === 'device') for (const d of f.h.devices.values()) d.state = 'REVOKED'
+    if (reason === 'expired-token') f.h.tokens.get(f.accessToken)!.value.expiresAt = 0
+    if (reason === 'tenant') f.h.tokens.get(f.accessToken)!.owner = '99:7'
+    const key = reason === 'wrong-key' ? await deviceKey() : f.c.device
+    const request = async (path: string) => ({ ...await f.request(path, key), ...(reason === 'origin' ? { requestOrigin: 'https://attacker.test' } : {}) })
+    await expect(f.h.service.siteList(await request('sites/list'), f.authorization, { after: 0, limit: 50 })).rejects.toThrow()
+    await expect(f.h.service.siteWrite(await request('sites/create'), f.authorization, 'create', { kind: 'url', scope: 'PERSONAL', label: 'Denied', url: siteOrigin })).rejects.toThrow()
+    await expect(f.h.service.siteFillAuthorize(await request('sites/fill/authorize'), f.authorization, input)).rejects.toThrow()
+    await expect(f.h.service.siteFillConsume(await request('sites/fill/consume'), f.authorization, { operation: token(), binding })).rejects.toThrow()
+    expect(f.h.siteAccess).not.toHaveBeenCalled()
+    for (const method of Object.values(f.sites)) expect(method).not.toHaveBeenCalled()
+  })
+  it('requires its own fill grant and fresh proof, independently of reveal/copy/shared-write', async () => {
+    const f = await setup(); await f.unlock()
+    f.h.state.grants.copy = true; f.h.state.grants['shared-write'] = true
+    await expect(f.authorize()).rejects.toMatchObject({ code: 'SITE_FILL_UNAVAILABLE' })
+    expect(f.sites.delivery).not.toHaveBeenCalled()
+    f.h.state.grants.fill = true; f.h.state.grants.reveal = false; f.h.state.grants.copy = false; f.h.state.grants['shared-write'] = false
+    const access = f.h.tokens.get(f.accessToken)!.value as ExtensionAccess
+    access.proofAt = Date.now() - 61_000
+    await expect(f.authorize()).rejects.toMatchObject({ code: 'VAULT_STEP_UP_REQUIRED' })
+    delete access.proofAt
+    await expect(f.authorize()).rejects.toMatchObject({ code: 'VAULT_STEP_UP_REQUIRED' })
+    await f.unlock()
+    const approved = await f.authorize()
+    expect(approved.operation).toHaveLength(43)
+    expect(f.sites.delivery).toHaveBeenCalledWith({ id: 9, version: 2, origin: siteOrigin })
+    const result = await f.consume(approved.operation)
+    if (result.mode === 'username') throw new Error('wrong mode')
+    expect(result.context).toMatchObject({ tenantId: identity.tenantId, userId: identity.userId, action: 'fill', itemRef: 'site:9:both', origin: siteOrigin })
+    expect(JSON.stringify(result)).not.toMatch(/cipher-only|iv-only/)
+    expect(f.sites.delivery).toHaveBeenCalledTimes(2)
+    await expect(f.consume(approved.operation)).rejects.toMatchObject({ code: 'SITE_FILL_UNAVAILABLE' })
+    expect(f.sites.delivery).toHaveBeenCalledTimes(2)
+    expect(f.h.audits.map(a => a.type)).toEqual(expect.arrayContaining(['SITE_FILL_AUTHORIZED', 'SITE_FILL_RELEASE_COMMITTED']))
+  })
+  it.each(['grant', 'kill-switch', 'startup-unavailable', 'proof', 'item-acl', 'version', 'document', 'device', 'tenant'] as const)('rechecks %s between authorize and consume', async reason => {
+    const f = await setup(); f.h.state.grants.fill = true; await f.unlock()
+    const approved = await f.authorize()
+    if (reason === 'grant') f.h.state.grants.fill = false
+    if (reason === 'kill-switch') f.h.config.siteFillEnabled = false
+    if (reason === 'startup-unavailable') f.h.config.siteFillReady = () => false
+    if (reason === 'proof') (f.h.tokens.get(f.accessToken)!.value as ExtensionAccess).proofAt = Date.now() - 61_000
+    if (reason === 'item-acl') f.sites.delivery.mockRejectedValueOnce(new VaultError('VAULT_FORBIDDEN', 403))
+    if (reason === 'version') f.sites.delivery.mockResolvedValueOnce({ secret: { encrypted: 'changed', iv: 'iv', version: 'new-version' }, username: 'fixture-user', origins: [siteOrigin], version: 3 })
+    if (reason === 'device') {
+      const other = await connect(f.h), access = await other.exchange()
+      await f.h.service.unlock(await f.request('unlock', other.device, access.accessToken), `DPoP ${access.accessToken}`, { otp: '123456' })
+      await expect(f.h.service.siteFillConsume(await f.request('sites/fill/consume', other.device, access.accessToken), `DPoP ${access.accessToken}`, { operation: approved.operation, binding })).rejects.toMatchObject({ code: 'SITE_FILL_UNAVAILABLE' })
+    } else if (reason === 'tenant') {
+      f.h.tokens.get(f.accessToken)!.owner = '99:7'
+      f.h.devices.set(`99:7:${f.c.device.jkt}`, { ...f.h.devices.get(`3:7:${f.c.device.jkt}`)! })
+      await expect(f.consume(approved.operation)).rejects.toMatchObject({ code: 'SITE_FILL_UNAVAILABLE' })
+    } else {
+      const req = await f.request('sites/fill/consume')
+      await expect(f.h.service.siteFillConsume(req, f.authorization, { operation: approved.operation, binding: reason === 'document' ? { ...binding, documentId: 'new-document' } : binding })).rejects.toThrow()
+    }
+    expect(f.h.audits.map(a => a.type)).not.toContain('SITE_FILL_RELEASE_COMMITTED')
+    expect(f.sites.delivery).toHaveBeenCalledTimes(reason === 'item-acl' || reason === 'version' ? 2 : 1)
+  })
+  it('fails closed for unavailable sites and disabled fill without advertising delivery', async () => {
+    const f = await setup(false); f.h.state.grants.fill = true; await f.unlock()
+    await expect(f.authorize()).rejects.toMatchObject({ code: 'SITE_FILL_UNAVAILABLE' })
+    expect(f.sites.delivery).not.toHaveBeenCalled()
+    expect(await call(f.h, f.c.device, f.accessToken, `${PORTAL}/api/v1/vault-security/extension/capabilities`)).toMatchObject({ features: { sites: true, fill: false } })
+    const h = harness(), c = await connect(h), access = await c.exchange(), url = `${PORTAL}/api/v1/vault-security/extension/sites/list`
+    await expect(h.service.siteList({ requestOrigin: `chrome-extension://${EXT}`, version: '0.1.0', url,
+      proof: await proof(c.device, { htm: 'POST', htu: url, nonce: h.nonces.issue(), ath: sha256b64(access.accessToken) }) }, `DPoP ${access.accessToken}`, { after: 0, limit: 50 })).rejects.toThrow()
+  })
+})
+
+
+describe('authorized preference namespace', () => {
+  it('stays stable across token rotation and separates tenant, user and device', async () => {
+    const key = await deviceKey(), h = harness(), url = `${PORTAL}/api/v1/vault-security/extension/capabilities`
+    const scope = async (who = identity, device = key) => {
+      const c = await connect(h, device, who), access = await c.exchange()
+      const caps = await call(h, device, access.accessToken, url) as { preferenceScope: string }
+      expect(caps.preferenceScope).toMatch(/^[a-f0-9]{64}$/)
+      expect(caps.preferenceScope).toBe(createHash('sha256').update(JSON.stringify(['extension-preferences-v1', who.tenantId, who.userId, device.jkt, PORTAL])).digest('hex'))
+      return { scope: caps.preferenceScope, token: access.accessToken }
+    }
+    const first = await scope(), rotated = await scope()
+    expect(rotated.token).not.toBe(first.token); expect(rotated.scope).toBe(first.scope)
+    expect((await scope({ ...identity, tenantId: 8 })).scope).not.toBe(first.scope)
+    expect((await scope({ ...identity, userId: 8 })).scope).not.toBe(first.scope)
+    expect((await scope(identity, await deviceKey())).scope).not.toBe(first.scope)
+  })
+  it('returns no namespace when authorization is expired or device revoked', async () => {
+    const h = harness(), c = await connect(h), { accessToken } = await c.exchange()
+    const url = `${PORTAL}/api/v1/vault-security/extension/capabilities`
+    h.tokens.get(accessToken)!.value.expiresAt = 0
+    await expect(call(h, c.device, accessToken, url)).rejects.toThrow()
+    const next = await connect(h, c.device), renewed = await next.exchange()
+    for (const device of h.devices.values()) device.state = 'REVOKED'
+    await expect(call(h, c.device, renewed.accessToken, url)).rejects.toThrow()
   })
 })

@@ -11,12 +11,20 @@ function fixture() {
     auth:[] as {local:boolean;sso:boolean}[],trials:[] as object[],features:{secrets:true},licenseActive:true,licenseExpires:null as Date|null,policy,policyVersion:1,
     grant:{enabled:true,grantedBy:2,approvedBy:3} as {enabled:boolean;grantedBy:number;approvedBy:number}|null,
     secret:{encrypted:'ciphertext',iv:'iv',scope:'PERSONAL',owner:1,groupId:null as number|null,revokedAt:null as Date|null} as {encrypted:string;iv:string;scope:string;owner:number|null;groupId:number|null;revokedAt:Date|null}|null,
+    writeRows: [] as Array<{ id: number; scope: string; owner: number | null; creator: number | null; groupId: number | null }>,
+    generation: null as string | null, siteRows: [] as Record<string, unknown>[],
+    hostPermissions: [{ hostId: 10, canView: 1 }, { hostId: 11, canView: 0 }],
     eligible:true,membership:true,released:[] as number[],
     grantRows:[] as {action:string;enabled:unknown;grantedBy:number;approvedBy:number}[],record:null as unknown,count:1,pending:0,manager:true,target:true,managers:[1,2,3],
     proposal:{proposedBy:2,payload:{kind:'item',secretId:9,enabled:true},expiresAt:new Date(10000)} as {proposedBy:number;payload:VaultChange;expiresAt:Date}|null}
-  const queries:string[]=[],writes:{sql:string;values:unknown[]}[]=[]
-  const query=vi.fn((strings:TemplateStringsArray,...values:unknown[])=>Promise.resolve().then(()=>{
-    const sql=strings.join('?');queries.push(sql)
+  const queries:string[]=[],writes:{sql:string;values:unknown[]}[]=[],reads:{sql:string;values:unknown[]}[]=[]
+  const query=vi.fn((strings:TemplateStringsArray | Prisma.Sql,...parameters:unknown[])=>Promise.resolve().then(()=>{
+    const sql=Array.isArray(strings)?strings.join('?'):(strings as Prisma.Sql).sql
+    const values=Array.isArray(strings)?parameters:(strings as Prisma.Sql).values
+    queries.push(sql);reads.push({sql,values})
+    if(sql.includes('WITH RECURSIVE ancestors'))return state.hostPermissions
+    if(sql.includes('FROM vault_fill_generation'))return state.generation===null?[]:[{generation:state.generation}]
+    if(sql.includes('FROM vault_site_items'))return state.siteRows
     if(sql.includes('FROM vault_managers'))return sql.includes('m.user_id=')?(state.manager?[{id:1}]:[]):state.managers.map(id=>({id}))
     if(sql.includes('FROM tenants'))return [{active:state.tenant}]
     if(sql.includes('FROM users'))return sql.includes('password_hash')?[state.user]:state.target?[{id:9}]:[]
@@ -28,6 +36,8 @@ function fixture() {
     if(sql.includes('FROM vault_entitlements'))return state.grant?[state.grant]:[]
     if(sql.includes('FROM vault_web_items w'))return state.released.map(id=>({id}))
     if(sql.includes('FROM vault_web_items'))return [{enabled:state.eligible}]
+    if(sql.includes('created_by_user_id AS creator'))return state.writeRows
+    if(sql.includes('FROM `groups`'))return state.membership?[{id:8,name:'Ops'}]:[]
     if(sql.includes('FROM secrets'))return state.secret?[state.secret]:[]
     if(sql.includes('FROM user_groups'))return state.membership?[{userId:1}]:[]
     if(sql.includes('FROM vault_records'))return sql.includes('COUNT')?[{count:BigInt(state.pending)}]:state.record?[{payload:JSON.stringify(state.record)}]:[]
@@ -35,13 +45,35 @@ function fixture() {
     if(sql.includes('FROM vault_proposals'))return state.proposal?[state.proposal]:[]
     throw new Error('Uncovered query '+sql+' values-count '+values.length)
   }))
-  const execute=vi.fn((strings:TemplateStringsArray,...values:unknown[])=>{writes.push({sql:strings.join('?'),values});return Promise.resolve(1)})
-  const db={$queryRaw:query,$executeRaw:execute,$transaction:vi.fn(async(run:(tx:Prisma.TransactionClient)=>Promise<unknown>)=>run(db as unknown as Prisma.TransactionClient))}
+  const execute=vi.fn((strings:TemplateStringsArray,...values:unknown[])=>{const sql=strings.join('?');writes.push({sql,values});if(sql.includes('INSERT INTO vault_fill_generation'))state.generation=String(values[0]);return Promise.resolve(1)})
+  const hosts=[{id:10,name:'Visible'},{id:11,name:'Hidden'}]
+  const db={host:{findMany:vi.fn((_args:unknown)=>Promise.resolve(hosts))},
+    hostAssociatedLink:{findMany:vi.fn((_args:unknown)=>Promise.resolve(hosts.map(host=>({urlTemplate:'https://login.test/signin',host:{...host,ip:'private-address',port:22,sshUser:'private-account'}}))))},$queryRaw:query,$executeRaw:execute,$transaction:vi.fn(async(run:(tx:Prisma.TransactionClient)=>Promise<unknown>)=>run(db as unknown as Prisma.TransactionClient))}
   const store=new SqlVaultStore(db as unknown as PrismaClient,()=>1000)
-  return {state,queries,writes,store,db,admin:new SqlVaultAdministration(db as unknown as Prisma.TransactionClient,actor,()=>1000)}
+  return {state,queries,writes,reads,store,db,admin:new SqlVaultAdministration(db as unknown as Prisma.TransactionClient,actor,()=>1000)}
 }
 
 describe('SQL vault adapter authorization and locking contract',()=>{
+  it('E4 capabilities distinguish owner, creator, reader, tenant admin and revoked grant', async () => {
+    const f=fixture()
+    f.state.writeRows=[
+      {id:1,scope:'PERSONAL',owner:1,creator:1,groupId:null},
+      {id:2,scope:'GROUP',owner:null,creator:1,groupId:8},
+      {id:3,scope:'GROUP',owner:null,creator:7,groupId:8},
+      {id:4,scope:'TENANT',owner:null,creator:7,groupId:null},
+      {id:5,scope:'PERSONAL',owner:7,creator:7,groupId:null},
+    ]
+    const items=f.state.writeRows.map(r=>({kind:'secret' as const,sourceId:r.id,label:'item',description:null,scope:'shared' as const,portalPath:'/vault'}))
+    const capabilities=()=>f.store.transaction(actor,tx=>tx.itemWriteAccess!(items))
+    expect((await capabilities()).map(i=>i.writable)).toEqual([true,true,false,false,false])
+    expect(await f.store.transaction(actor,tx=>tx.writeAccess!())).toEqual({groups:[{id:8,name:'Ops'}],tenant:false})
+    f.state.user.role='ADMIN'
+    expect((await capabilities()).map(i=>i.writable)).toEqual([true,true,true,true,false])
+    expect((await f.store.transaction(actor,tx=>tx.writeAccess!())).tenant).toBe(true)
+    f.state.grant!.enabled=false
+    expect((await capabilities()).map(i=>i.writable)).toEqual([true,false,false,false,false])
+    expect(await f.store.transaction(actor,tx=>tx.writeAccess!())).toEqual({groups:[],tenant:false})
+  })
   it('NA-0196: availability applies the delivery grant rule and limits released items to the visible scope',async()=>{
     const f=fixture()
     f.state.grantRows=[{action:'reveal',enabled:1,grantedBy:2,approvedBy:3},{action:'copy',enabled:1,grantedBy:1,approvedBy:3}]
@@ -149,5 +181,61 @@ describe('administrative approval',()=>{
     if(mode==='target-missing'){f.state.proposal!.payload={kind:'grant',userId:4,action:'copy',enabled:true};f.state.target=false}
     if(mode==='item-missing')f.state.secret=null
     await expect(f.admin.approve('id')).rejects.toBeDefined();expect(f.writes).toHaveLength(0)
+  })
+})
+
+
+describe('NA0203 transaction-bound sites integration', () => {
+  it('reads the current persistent generation in each admitted transaction, including missing state and rotation through a lazy store', async () => {
+    const f=fixture(), lazy=new SqlVaultStore(()=>f.db as unknown as PrismaClient,()=>1000)
+    expect(await f.store.transaction(actor,tx=>tx.siteFillGeneration!())).toBeNull()
+    await lazy.rotateSiteFillGeneration('boot-one')
+    expect(await f.store.transaction(actor,tx=>tx.siteFillGeneration!())).toBe('boot-one')
+    await lazy.rotateSiteFillGeneration('boot-two')
+    expect(await f.store.transaction(actor,tx=>tx.siteFillGeneration!())).toBe('boot-two')
+    expect(f.reads.filter(read=>read.sql.includes('vault_fill_generation')).every(read=>read.sql.includes('FOR SHARE'))).toBe(true)
+    f.db.$executeRaw.mockRejectedValueOnce(new Error('database unavailable'))
+    await expect(lazy.rotateSiteFillGeneration('boot-three')).rejects.toThrow('database unavailable')
+  })
+  it('propagates tenant, role and live shared-write grant into site metadata without granting extension writes from portal access', async () => {
+    const f=fixture()
+    f.state.siteRows=[{id:20,tenantId:actor.tenantId,kind:'login',label:'Team',scope:'GROUP',ownerUserId:null,groupId:8,
+      createdByUserId:actor.userId,username:'account',origins:['https://login.test'],url:null,hostId:null,allowFill:false,version:1,revokedAt:null,deletedAt:null}]
+    const list=(channel:'portal'|'extension')=>f.store.transaction(actor,async tx=>(await tx.sites!(channel)).list())
+    f.state.grant!.enabled=false
+    expect((await list('portal')).items[0]?.canManage).toBe(true)
+    expect((await list('extension')).items[0]?.canManage).toBe(false)
+    f.state.grant!.enabled=true
+    expect((await list('extension')).items[0]?.canManage).toBe(true)
+    f.state.user.role='ADMIN';f.state.grant!.enabled=false
+    expect((await list('extension')).items[0]?.canManage).toBe(false)
+    expect((await list('portal')).items[0]?.canManage).toBe(true)
+    for(const query of f.reads.filter(read=>read.sql.includes('FROM vault_site_items'))){
+      expect(query.sql).toContain('s.tenant_id=?');expect(query.values).toContain(actor.tenantId)
+      expect(query.values).toContain(actor.userId);expect(query.sql).not.toMatch(/encrypted_value|\biv\b/)
+    }
+  })
+  it('projects only tenant-scoped visible hosts and strips SSH fields from current-origin suggestions', async () => {
+    const f=fixture()
+    await f.store.transaction(actor,async tx=>{
+      expect(await tx.siteHosts!('Vis')).toEqual([{id:10,name:'Visible'}])
+      expect(await tx.siteCurrentHosts!('https://login.test')).toEqual([{id:10,name:'Visible'}])
+      expect(await tx.siteCurrentHosts!('https://other.test')).toEqual([])
+    })
+    expect(f.db.host.findMany).toHaveBeenCalledWith(expect.objectContaining({where:{tenantId:actor.tenantId,deletedAt:null,name:{contains:'Vis'}}}))
+    expect(f.db.hostAssociatedLink.findMany).toHaveBeenCalledWith(expect.objectContaining({where:expect.objectContaining({tenantId:actor.tenantId,host:{tenantId:actor.tenantId,deletedAt:null}})}))
+    for(const query of f.reads.filter(read=>read.sql.includes('WITH RECURSIVE ancestors'))){expect(query.values).toContain(actor.tenantId);expect(query.values).toContain(actor.userId)}
+    f.state.hostPermissions=[]
+    expect(await f.store.transaction(actor,tx=>tx.siteHosts!(''))).toEqual([])
+  })
+  it('returns group choices and tenant-write capability from the current admitted role', async () => {
+    const f=fixture()
+    expect(await f.store.transaction(actor,tx=>tx.siteWriteAccess!())).toEqual({groups:[{id:8,name:'Ops'}],tenant:false})
+    f.state.membership=false
+    expect(await f.store.transaction(actor,tx=>tx.siteWriteAccess!())).toEqual({groups:[],tenant:false})
+    f.state.user.role='ADMIN';f.state.membership=true
+    expect(await f.store.transaction(actor,tx=>tx.siteWriteAccess!())).toEqual({groups:[{id:8,name:'Ops'}],tenant:true})
+    f.state.tenant=false
+    await expect(f.store.transaction(actor,tx=>tx.siteWriteAccess!())).rejects.toThrow()
   })
 })

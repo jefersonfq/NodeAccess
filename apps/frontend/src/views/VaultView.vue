@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { SecretActionHandle, PemActionHandle } from '@/components/vault/action-handles'
-import { computed, h, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, defineAsyncComponent, h, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { NAlert, NButton, NDataTable, NDropdown, NEmpty, NInput, NModal, NSelect, NTag, NText } from 'naive-ui'
 import type { VNodeChild } from 'vue'
 import type { DropdownOption } from 'naive-ui'
@@ -24,10 +24,15 @@ import { deliveryBlock, deliveryFor, isVaultManager, vaultAvailability, vaultPor
 import { createVaultDelivery } from '@/services/vault-delivery'
 import { browserWebauthn } from '@/services/vault-webauthn'
 
-const { t } = useI18n()
+const VaultSites = defineAsyncComponent(() => import('@/components/vault/VaultSites.vue'))
+const { t, locale } = useI18n()
 const auth = useAuthStore()
 const catalog = useVaultCatalog()
 const { secretState, pemState, loading, generation } = catalog
+const showSites = ref(false), sitesRevision = ref(0)
+const sitesIdentity = computed(() => vaultPortalIdentity(auth))
+const canUseSites = computed(() => secretState.value === 'ready' && sitesIdentity.value !== null)
+watch([sitesIdentity, canUseSites], () => { showSites.value = false; sitesRevision.value++ }, { flush: 'sync' })
 const secretActions = ref<SecretActionHandle | null>(null)
 const pemActions = ref<PemActionHandle | null>(null)
 const deliveryPanel = ref<InstanceType<typeof VaultDeliveryPanel> | null>(null)
@@ -125,6 +130,9 @@ const columns = computed<DataTableColumns<VaultEntry>>(() => [
   { title: t('vault.name'), key: 'name', minWidth: 220, render: (entry): VNodeChild => h('div', { class: 'break-words' }, [
     h('div', { class: entry.kind === 'secret' ? 'font-mono' : 'font-medium' }, entry.name),
     entry.kind === 'secret' && entry.record.description ? h('div', { class: 'mt-1 text-xs text-gray-400' }, entry.record.description) : null,
+    entry.kind === 'secret' && !entry.record.revokedAt && deliveryFor(availability.value, entry.record.id).reason
+      ? h('div', { class: 'mt-1 max-w-56 whitespace-normal text-xs sm:hidden', 'data-testid': `vault-mobile-reason-${entry.record.id}` },
+        t(`vaultDelivery.reasons.${deliveryFor(availability.value, entry.record.id).reason}`)) : null,
   ]) },
   { title: t('vault.type'), key: 'kind', width: 120, render: (entry): VNodeChild => t(entry.kind === 'secret' ? 'vault.secretType' : 'vault.pemType') },
   { title: t('vault.access'), key: 'access', width: 190, render: (entry): VNodeChild => entry.kind === 'secret'
@@ -174,14 +182,14 @@ const columns = computed<DataTableColumns<VaultEntry>>(() => [
       </div>
       <div class="flex flex-wrap gap-2">
         <NButton
-          v-if="secretState === 'ready'"
+          v-if="!showSites && secretState === 'ready'"
           type="primary"
           @click="secretActions?.openCreate()"
         >
           {{ t('secrets.new') }}
         </NButton>
         <NButton
-          v-if="pemState === 'ready'"
+          v-if="!showSites && pemState === 'ready'"
           secondary
           @click="pemActions?.openCreate()"
         >
@@ -197,145 +205,169 @@ const columns = computed<DataTableColumns<VaultEntry>>(() => [
         </NButton>
       </div>
     </header>
-    <p class="mb-4 text-sm text-gray-400">
-      {{ t('vaultDelivery.catalogHint') }}
-    </p>
-    <VaultDeliveryPanel ref="deliveryPanel" />
-    <NAlert
-      v-if="block && secretState === 'ready'"
-      type="info"
-      class="mb-4"
-      :title="t(`vaultDelivery.block.${block}Title`)"
-      data-testid="vault-delivery-block"
+    <div
+      v-if="canUseSites"
+      class="mb-4 flex gap-2"
     >
-      {{ t(`vaultDelivery.block.${block}${manager ? (block === 'policy' && auth.isAdmin ? 'Admin' : 'Manager') : ''}`) }}
       <NButton
-        v-if="manager"
-        text
-        type="primary"
-        class="ml-2"
-        data-testid="vault-delivery-open-settings"
-        @click="openSettings"
+        :aria-pressed="!showSites"
+        @click="showSites = false"
       >
-        {{ t(block === 'policy' && auth.isAdmin ? 'vaultDelivery.block.openTenantSettings' : 'vaultDelivery.block.openSettings') }}
+        {{ locale?.toLowerCase().startsWith('pt') ? 'Secrets e chaves' : 'Secrets and keys' }}
       </NButton>
-    </NAlert>
-    <ExtensionInstall />
-    <VaultAdministration
-      :delivery="adminDelivery"
-      @changed="refreshAvailability"
+      <NButton
+        :aria-pressed="showSites"
+        data-testid="vault-sites-toggle"
+        @click="showSites = true"
+      >
+        Sites
+      </NButton>
+    </div>
+    <VaultSites
+      v-if="showSites && canUseSites"
+      :key="sitesRevision"
     />
-    <NModal
-      :show="itemModal !== null"
-      preset="card"
-      :title="itemModal ? t('vault.itemDeliveryTitle', { name: itemModal.name }) : ''"
-      style="width: min(720px, 100vw)"
-      data-testid="vault-item-delivery-modal"
-      @update:show="(value: boolean) => { if (!value) closeItem() }"
-    >
+    <div v-show="!showSites">
+      <p class="mb-4 text-sm text-gray-400">
+        {{ t('vaultDelivery.catalogHint') }}
+      </p>
+      <VaultDeliveryPanel ref="deliveryPanel" />
+      <NAlert
+        v-if="block && secretState === 'ready'"
+        type="info"
+        class="mb-4"
+        :title="t(`vaultDelivery.block.${block}Title`)"
+        data-testid="vault-delivery-block"
+      >
+        {{ t(`vaultDelivery.block.${block}${manager ? (block === 'policy' && auth.isAdmin ? 'Admin' : 'Manager') : ''}`) }}
+        <NButton
+          v-if="manager"
+          text
+          type="primary"
+          class="ml-2"
+          data-testid="vault-delivery-open-settings"
+          @click="openSettings"
+        >
+          {{ t(block === 'policy' && auth.isAdmin ? 'vaultDelivery.block.openTenantSettings' : 'vaultDelivery.block.openSettings') }}
+        </NButton>
+      </NAlert>
+      <ExtensionInstall />
       <VaultAdministration
-        v-if="itemModal"
-        :key="itemModal.id"
-        :item="itemModal"
         :delivery="adminDelivery"
         @changed="refreshAvailability"
       />
-    </NModal>
-    <NAlert
-      v-if="focus"
-      type="info"
-      class="mb-4"
-      data-testid="vault-focus"
-    >
-      {{ t('vaultExtension.focused') }}
-      <NButton
-        text
-        type="primary"
-        class="ml-2"
-        @click="clearFocus"
+      <NModal
+        :show="itemModal !== null"
+        preset="card"
+        :title="itemModal ? t('vault.itemDeliveryTitle', { name: itemModal.name }) : ''"
+        style="width: min(720px, 100vw)"
+        data-testid="vault-item-delivery-modal"
+        @update:show="(value: boolean) => { if (!value) closeItem() }"
       >
-        {{ t('vaultExtension.showAll') }}
-      </NButton>
-    </NAlert>
-    <NAlert
-      v-if="secretState === 'unlicensed'"
-      type="info"
-      class="mb-4"
-    >
-      {{ t('secrets.license.description') }}
-    </NAlert>
-    <NAlert
-      v-if="partialError"
-      type="error"
-      class="mb-4"
-      :title="t('vault.partialError')"
-      role="alert"
-    >
-      <p v-if="secretState === 'error'">
-        {{ t('vault.secretError') }}
-      </p>
-      <p v-if="pemState === 'error'">
-        {{ t('vault.pemError') }}
-      </p>
-      <NButton
-        class="mt-2"
-        size="small"
-        :loading="loading"
-        @click="reload"
+        <VaultAdministration
+          v-if="itemModal"
+          :key="itemModal.id"
+          :item="itemModal"
+          :delivery="adminDelivery"
+          @changed="refreshAvailability"
+        />
+      </NModal>
+      <NAlert
+        v-if="focus"
+        type="info"
+        class="mb-4"
+        data-testid="vault-focus"
       >
-        {{ t('vault.retry') }}
-      </NButton>
-    </NAlert>
-    <div class="mb-4 flex flex-col gap-3 sm:flex-row">
-      <NInput
-        v-model:value="search"
-        clearable
-        :placeholder="t('vault.search')"
-        :input-props="{ 'aria-label': t('vault.search') }"
-      />
-      <NSelect
-        v-model:value="kind"
-        :options="typeOptions"
-        :aria-label="t('vault.type')"
-        class="sm:max-w-48"
-      />
-      <NButton
+        {{ t('vaultExtension.focused') }}
+        <NButton
+          text
+          type="primary"
+          class="ml-2"
+          @click="clearFocus"
+        >
+          {{ t('vaultExtension.showAll') }}
+        </NButton>
+      </NAlert>
+      <NAlert
+        v-if="secretState === 'unlicensed'"
+        type="info"
+        class="mb-4"
+      >
+        {{ t('secrets.license.description') }}
+      </NAlert>
+      <NAlert
+        v-if="partialError"
+        type="error"
+        class="mb-4"
+        :title="t('vault.partialError')"
+        role="alert"
+      >
+        <p v-if="secretState === 'error'">
+          {{ t('vault.secretError') }}
+        </p>
+        <p v-if="pemState === 'error'">
+          {{ t('vault.pemError') }}
+        </p>
+        <NButton
+          class="mt-2"
+          size="small"
+          :loading="loading"
+          @click="reload"
+        >
+          {{ t('vault.retry') }}
+        </NButton>
+      </NAlert>
+      <div class="mb-4 flex flex-col gap-3 sm:flex-row">
+        <NInput
+          v-model:value="search"
+          clearable
+          :placeholder="t('vault.search')"
+          :input-props="{ 'aria-label': t('vault.search') }"
+        />
+        <NSelect
+          v-model:value="kind"
+          :options="typeOptions"
+          :aria-label="t('vault.type')"
+          class="sm:max-w-48"
+        />
+        <NButton
+          v-if="secretState === 'ready'"
+          :aria-pressed="includeRevoked"
+          @click="includeRevoked = !includeRevoked; reload()"
+        >
+          {{ t(includeRevoked ? 'secrets.hideRevoked' : 'secrets.showRevoked') }}
+        </NButton>
+      </div>
+      <div
+        class="min-w-0"
+        :aria-busy="loading"
+      >
+        <NDataTable
+          :columns="columns"
+          :data="filtered"
+          :loading="loading"
+          :row-key="(entry: VaultEntry) => entry.key"
+          :row-props="(entry: VaultEntry) => ({ class: 'vault-row', 'data-vault-id': entry.key })"
+          :scroll-x="1020"
+        >
+          <template #empty>
+            <NEmpty :description="t(partialError ? 'vault.partialEmpty' : search || kind !== 'all' ? 'vault.noResults' : 'vault.empty')" />
+          </template>
+        </NDataTable>
+      </div>
+      <SecretActions
         v-if="secretState === 'ready'"
-        :aria-pressed="includeRevoked"
-        @click="includeRevoked = !includeRevoked; reload()"
-      >
-        {{ t(includeRevoked ? 'secrets.hideRevoked' : 'secrets.showRevoked') }}
-      </NButton>
+        :key="`secret:${generation}`"
+        ref="secretActions"
+        :licensed="true"
+        @changed="reload"
+      />
+      <PemKeyActions
+        v-if="pemState === 'ready'"
+        :key="`pem:${generation}`"
+        ref="pemActions"
+        @changed="reload"
+      />
     </div>
-    <div
-      class="min-w-0"
-      :aria-busy="loading"
-    >
-      <NDataTable
-        :columns="columns"
-        :data="filtered"
-        :loading="loading"
-        :row-key="(entry: VaultEntry) => entry.key"
-        :row-props="(entry: VaultEntry) => ({ class: 'vault-row', 'data-vault-id': entry.key })"
-        :scroll-x="1020"
-      >
-        <template #empty>
-          <NEmpty :description="t(partialError ? 'vault.partialEmpty' : search || kind !== 'all' ? 'vault.noResults' : 'vault.empty')" />
-        </template>
-      </NDataTable>
-    </div>
-    <SecretActions
-      v-if="secretState === 'ready'"
-      :key="`secret:${generation}`"
-      ref="secretActions"
-      :licensed="true"
-      @changed="reload"
-    />
-    <PemKeyActions
-      v-if="pemState === 'ready'"
-      :key="`pem:${generation}`"
-      ref="pemActions"
-      @changed="reload"
-    />
   </section>
 </template>

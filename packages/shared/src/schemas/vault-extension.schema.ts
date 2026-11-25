@@ -1,8 +1,10 @@
 import { z } from 'zod'
+import { CreateSecretSchema, UpdateSecretSchema, RotateSecretSchema } from './secret.schema.js'
+import { CreatePemKeySchema } from './pem-key.schema.js'
 
 /**
  * NA-0183 — VaultNAccess browser extension contracts (slice E1).
- * Metadata only: no schema here may carry a secret value, key material or a portal credential.
+ * Replies contain metadata only. E3 write requests carry new material over HTTPS, never portal credentials.
  */
 
 /** Chromium extension IDs are 32 characters in the a–p alphabet. */
@@ -69,12 +71,20 @@ export type VaultExtensionDeliverRequest = z.infer<typeof VaultExtensionDeliverR
 export const VaultItemKindSchema = z.enum(['secret', 'pem'])
 export type VaultItemKind = z.infer<typeof VaultItemKindSchema>
 
+export const VaultExtensionWriteAccessSchema = z.object({
+  groups: z.array(z.object({ id: z.number().int().positive(), name: z.string() }).strict()),
+  tenant: z.boolean(),
+}).strict()
+export type VaultExtensionWriteAccess = z.infer<typeof VaultExtensionWriteAccessSchema>
+
 export const VaultExtensionCapabilitiesSchema = z.object({
+  preferenceScope: z.string().regex(/^[a-f0-9]{64}$/).optional(),
+  writeAccess: VaultExtensionWriteAccessSchema.optional(),
   apiVersion: z.literal(1),
   minExtensionVersion: VaultExtensionVersionSchema,
   kinds: z.array(VaultItemKindSchema),
   /** Later slices (E2+) flip these on; E1 is search and open only. */
-  features: z.object({ reveal: z.boolean(), copy: z.boolean(), create: z.boolean() }).strict(),
+  features: z.object({ reveal: z.boolean(), copy: z.boolean(), create: z.boolean(), sites: z.boolean().optional(), fill: z.boolean().optional() }).strict(),
   portalOrigin: z.string().url(),
   expiresAt: z.number().int(),
   serverNow: z.number().int(),
@@ -85,6 +95,9 @@ export type VaultExtensionCapabilities = z.infer<typeof VaultExtensionCapabiliti
 
 /** Projection shared by every client; never a value, passphrase or key body. */
 export const VaultItemSummarySchema = z.object({
+  writable: z.boolean().optional(),
+  writeScope: z.enum(['PERSONAL', 'GROUP', 'TENANT']).optional(),
+  groupId: z.number().int().positive().nullable().optional(),
   kind: VaultItemKindSchema,
   sourceId: z.number().int().positive(),
   label: z.string().min(1).max(200),
@@ -95,16 +108,32 @@ export const VaultItemSummarySchema = z.object({
 export type VaultItemSummary = z.infer<typeof VaultItemSummarySchema>
 
 export const VaultExtensionItemsQuerySchema = z.object({
+  sourceId: z.coerce.number().int().positive().safe().optional(),
   q: z.string().max(100).optional(),
   kind: VaultItemKindSchema.optional(),
   cursor: z.string().regex(/^\d{1,6}$/).optional(),
 }).strict()
 export type VaultExtensionItemsQuery = z.infer<typeof VaultExtensionItemsQuerySchema>
+export const VaultExtensionHostsQuerySchema = z.object({ kind: VaultItemKindSchema, sourceId: z.coerce.number().int().positive().safe(), cursor: z.string().regex(/^\d{1,6}$/).optional() }).strict()
+export const VaultExtensionHostsReplySchema = z.object({ hosts: z.array(z.object({ id: z.number().int().positive(), name: z.string().min(1).max(200) }).strict()).max(50), nextCursor: z.string().regex(/^\d{1,6}$/).nullable() }).strict()
+export type VaultExtensionHostsReply = z.infer<typeof VaultExtensionHostsReplySchema>
 export const VaultExtensionItemsReplySchema = z.object({
   items: z.array(VaultItemSummarySchema).max(50),
   nextCursor: z.string().regex(/^\d{1,6}$/).nullable(),
 }).strict()
 export type VaultExtensionItemsReply = z.infer<typeof VaultExtensionItemsReplySchema>
+
+/** E4: personal by default; shared scope is explicit and authorized in the write transaction. */
+const writeScope = { scope: z.enum(['PERSONAL', 'GROUP', 'TENANT']).optional(), groupId: z.number().int().positive().optional() }
+
+export const VaultExtensionWriteSchema = z.discriminatedUnion('operation', [
+  CreateSecretSchema.pick({ alias: true, value: true, description: true }).extend({ ...writeScope, operation: z.literal('create-secret') }).strict(),
+  UpdateSecretSchema.pick({ alias: true, description: true }).extend({ ...writeScope, operation: z.literal('update-secret'), id: z.number().int().positive() }).strict(),
+  RotateSecretSchema.extend({ ...writeScope, operation: z.literal('rotate-secret'), id: z.number().int().positive() }).strict(),
+  CreatePemKeySchema.extend({ operation: z.literal('import-pem'), key: z.string().min(1).max(65535) }).strict(),
+])
+export type VaultExtensionWrite = z.infer<typeof VaultExtensionWriteSchema>
+export const VaultExtensionWriteReplySchema = z.object({ id: z.number().int().positive() }).strict()
 
 export const VaultExtensionDeviceSchema = z.object({
   jkt: VaultExtensionThumbprintSchema,

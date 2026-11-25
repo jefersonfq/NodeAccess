@@ -12,7 +12,7 @@ function check(condition, message) { if (!condition) throw new Error(message) }
 const now = '2026-11-23T12:00:00Z'
 
 async function runVaultAdministrationFlow(browser, base, fixture, output) {
-  const scenarios = [], contexts = new Set(), screenshots = [], requestFailures = [], timings = []
+  const scenarios = [], contexts = new Set(), screenshots = [], requestFailures = [], timings = [], browserErrors = []
   const people = [...fixture.users.values()].map(u => ({ id: u.id, tenantId: 7, name: u.name, email: u.email, role: u.role, isPlatformAdmin: false,
     canManageHosts: true, canViewLiveSessions: false, avatarUrl: null, avatarVersion: null, mfaEnabled: true, active: true, groupIds: [], deletedAt: null,
     createdAt: now, updatedAt: now }))
@@ -37,9 +37,9 @@ async function runVaultAdministrationFlow(browser, base, fixture, output) {
     })
     const page = await context.newPage(), errors = []
     page.setDefaultTimeout(15000)
-    page.on('pageerror', error => errors.push(error.message))
+    page.on('pageerror', error => { errors.push(error.message); browserErrors.push(error.message) })
     // Diagnostics only (route and browser reason, no bodies): included in the failure message of a scenario.
-    page.on('requestfailed', request => { const path = new URL(request.url()).pathname; if (path.startsWith('/api/')) requestFailures.push(`${path} ${request.failure()?.errorText ?? ''}`.slice(0, 160)) })
+    page.on('requestfailed', request => { const path = new URL(request.url()).pathname; requestFailures.push(`${path} ${request.failure()?.errorText ?? ''}`.slice(0, 160)) })
     page.on('response', response => { const path = new URL(response.url()).pathname
       if (!path.startsWith('/api/v1/vault-security/') || path.startsWith('/api/v1/vault-security/extension/')) return
       const line = `${path} ${response.status()}`
@@ -135,7 +135,7 @@ async function runVaultAdministrationFlow(browser, base, fixture, output) {
       // Private evidence of the failing screen(s), for diagnosis.
       let index = 0
       for (const context of contexts) for (const page of context.pages()) await page.screenshot({ path: join(output, `failure-${++index}.png`), fullPage: true }).catch(() => {})
-      throw new Error(`${name}: ${error.message} | failed requests: ${requestFailures.slice(-6).join('; ')} | last vault responses: ${timings.slice(-6).join('; ')}`.slice(0, 3000))
+      throw new Error(`${name}: ${error.message} | browser errors: ${browserErrors.slice(-3).join('; ')} | failed requests: ${requestFailures.slice(-6).join('; ')} | last vault responses: ${timings.slice(-6).join('; ')}`.slice(0, 3000))
     }
   }
   try {
@@ -152,6 +152,15 @@ async function runVaultAdministrationFlow(browser, base, fixture, output) {
       await carla.page.getByTestId('vault-administration-not-manager').waitFor()
       check(await carla.page.getByTestId('vault-administration').count() === 0, 'Administration shown to a non-manager')
       await review(carla.page, carla.errors, '02-vault-admin-not-manager')
+      await settings(carla.page)
+      await carla.page.getByTestId('vault-settings-bootstrap-help').waitFor()
+      check(await carla.page.getByTestId('vault-administration-open').count() === 0, 'Settings mutation shown to a non-manager')
+      const guidance = await carla.page.getByTestId('vault-settings').innerText()
+      check(guidance.includes('Ser administrador não concede') && guidance.includes('outro gestor precisa aprovar'), 'Manager nomination path missing')
+      check(guidance.includes('responsável pela instalação') && guidance.includes('dois gestores iniciais'), 'Initial manager bootstrap path missing')
+      await review(carla.page, carla.errors, '02-settings-admin-not-manager')
+      await carla.page.setViewportSize({ width: 390, height: 844 })
+      await review(carla.page, carla.errors, '02-settings-admin-not-manager-mobile')
       await carla.close()
       const davi = await as(44)
       await vault(davi.page)
@@ -350,7 +359,7 @@ async function runVaultAdministrationFlow(browser, base, fixture, output) {
       await bruno.close()
       const davi = await as(44)
       await vault(davi.page)
-      await secretRow(davi.page, 'secret-ssh-teste2').getByText('Item não liberado', { exact: true }).waitFor()
+      await secretRow(davi.page, 'secret-ssh-teste2').getByText('Item não liberado', { exact: true }).filter({ visible: true }).waitFor()
       check(await davi.page.getByTestId('vault-delivery-block').count() === 0, 'General notice kept after the permissions were granted')
       await review(davi.page, davi.errors, '13-user-item-not-released')
       await davi.close()
@@ -380,7 +389,7 @@ async function runVaultAdministrationFlow(browser, base, fixture, output) {
       const reveal = davi.page.getByRole('button', { name: 'Revelar senha: secret-ssh-teste2', exact: true })
       await reveal.waitFor()
       check(await davi.page.getByRole('button', { name: 'Copiar senha: secret-ssh-teste2', exact: true }).count() === 1, 'Copy not offered')
-      check(await secretRow(davi.page, 'db-backup').getByText('Item não liberado', { exact: true }).count() === 1, 'Unreleased item lost its reason')
+      check(await secretRow(davi.page, 'db-backup').getByText('Item não liberado', { exact: true }).filter({ visible: true }).count() === 1, 'Unreleased item lost its reason')
       await review(davi.page, davi.errors, '16-user-can-reveal')
       await reveal.click()
       await davi.page.locator('input[type="password"]').first().waitFor()

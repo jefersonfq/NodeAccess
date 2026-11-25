@@ -21,7 +21,7 @@ function toPublic(key: PemKey & { createdBy?: { name: string } }): PemKeyPublic 
 export class PemKeyService {
   constructor(
     private readonly pemKeyRepo: PemKeyRepository,
-    private readonly logRepo:    LogRepository,
+    private readonly logRepo:    Pick<LogRepository, 'logAdminEvent'>,
   ) {}
 
   async list(userId: number, tenantId: number, isAdmin: boolean): Promise<PemKeyPublic[]> {

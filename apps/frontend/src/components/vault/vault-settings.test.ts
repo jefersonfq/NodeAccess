@@ -40,13 +40,13 @@ describe('NA-0199 vault settings section', () => {
     expect(html).toContain('vault-settings-values'); expect(html).toContain('https://localhost:5173')
     expect(html).toContain('"reveal":"vaultAdministration.on"'); expect(html).toContain('"copy":"vaultAdministration.off"')
     expect(html).toContain('5 vaultAdministration.unitMinutes'); expect(html).toContain('24 vaultAdministration.unitHours')
-    expect(html).toContain('vaultSettings.webauthnOn'); expect(html).toContain('data-admin-settings')
+    expect(html).not.toContain('vault-settings-bootstrap-help'); expect(html).toContain('vaultSettings.webauthnOn'); expect(html).toContain('data-admin-settings')
     f.unmount()
   })
   it('is read only for an administrator who is not a manager', async () => {
     const f = mount({ transport: transport({ ...values, manager: false, webauthn: false }) }); await flush()
     const html = await f.html()
-    expect(html).toContain('vault-settings-read-only'); expect(html).not.toContain('data-admin-settings'); expect(html).toContain('vaultSettings.webauthnOff')
+    expect(html).toContain('vault-settings-bootstrap-help'); expect(html).toContain('vaultSettings.bootstrapHelp'); expect(html).toContain('vault-settings-read-only'); expect(html).not.toContain('data-admin-settings'); expect(html).toContain('vaultSettings.webauthnOff')
     f.unmount()
   })
   it('explains a refusal, a vault that is not enabled and an unknown failure', async () => {

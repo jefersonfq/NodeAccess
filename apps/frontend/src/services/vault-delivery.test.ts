@@ -204,7 +204,7 @@ describe('Vault provider step-up in the portal (NA-0184)', () => {
 })
 
 describe('Vault administration from the portal (NA-0183)', () => {
-  const reference = 'a'.repeat(64), overview = { policy: { confirmationSeconds: 60, proposalSeconds: 120, reveal: true, copy: false, tenantQuota: 30 }, items: [], users: [{ id: 2, name: 'Bruno', email: 'b@example.test', manager: false, grants: { reveal: false, copy: false, extension: true } }],
+  const reference = 'a'.repeat(64), overview = { policy: { confirmationSeconds: 60, proposalSeconds: 120, reveal: true, copy: false, tenantQuota: 30 }, items: [], users: [{ id: 2, name: 'Bruno', email: 'b@example.test', manager: false, grants: { reveal: false, copy: false, extension: true, 'shared-write': false, fill: false } }],
     proposals: [{ reference, change: { kind: 'grant', userId: 2, action: 'extension', enabled: false }, proposedBy: { id: 3, name: 'Carla' }, mine: false, expiresAt: 2_100_000, beneficiary: { id: 2, name: 'Bruno', email: 'b@example.test' }, item: null }], serverNow: 2_000_000 }
   function admin(replies: Record<string, unknown>) {
     const f = fixture(), base = f.post.getMockImplementation()!
@@ -291,5 +291,56 @@ describe('Tenant confirmation time (NA-0186)', () => {
   })
   it('an older server without proofUntil keeps the 60 s default', async () => {
     const f = fixture(); await unlock(f); f.advance(60000); f.delivery.tick(); expect(f.delivery.state.phase).toBe('locked')
+  })
+})
+
+
+describe('diagnostics context uses existing administrative confirmation', () => {
+  it('returns context only after unlock, without an extra request or mutable identity alias', async () => {
+    const f = fixture()
+    expect(f.delivery.diagnosticsContext()).toBeNull()
+    await unlock(f)
+    const count = f.post.mock.calls.length, context = f.delivery.diagnosticsContext()
+    expect(context).toEqual({ clientId, sessionId, identity: { userId: 41, tenantId: 7,
+      accessToken: 'bearer-fixture', refreshToken: 'origin-fixture', origin: 'https://vault.example' } })
+    expect(f.post.mock.calls).toHaveLength(count)
+    context!.identity.tenantId = 999
+    expect(f.delivery.diagnosticsContext()?.identity.tenantId).toBe(7)
+  })
+  it.each(['tenant', 'user', 'origin', 'login', 'logout', 'lock', 'dispose'] as const)('does not expose context after %s changes', async cause => {
+    const f = fixture(); await unlock(f)
+    expect(f.delivery.diagnosticsContext()).not.toBeNull()
+    if (cause === 'tenant') f.identity({ tenantId: 9 })
+    if (cause === 'user') f.identity({ userId: 99 })
+    if (cause === 'origin') f.identity({ origin: 'https://different.example' })
+    if (cause === 'login') f.identity({ refreshToken: 'different-login' })
+    if (cause === 'logout') f.identity(null)
+    if (cause === 'lock') f.delivery.lock()
+    if (cause === 'dispose') f.delivery.dispose()
+    expect(f.delivery.diagnosticsContext()).toBeNull()
+    expect(f.delivery.state.phase).toBe('locked')
+  })
+  it.each(['elapsed', 'wall'] as const)('does not expose context after proof expiry via %s clock', async clock => {
+    const f = fixture(); await unlock(f)
+    if (clock === 'elapsed') f.advance(60000)
+    else f.wallAdvance(60000)
+    expect(f.delivery.diagnosticsContext()).toBeNull()
+  })
+  it('enforces the strict administrative window even with a longer delivery window', async () => {
+    const f = fixture(), original = f.post.getMockImplementation()!
+    f.post.mockImplementation(async (path, body) => {
+      const result = await original(path, body)
+      return path === 'sessions/unlock' ? { ...result, proofUntil: f.serverNow + 900000 } : result
+    })
+    await unlock(f); f.advance(59000)
+    f.delivery.tick(); expect(f.delivery.state.phase).toBe('unlocked')
+    expect(f.delivery.diagnosticsContext()).toBeNull()
+    expect(f.delivery.state.phase).toBe('locked')
+  })
+  it('returns current bearer after refresh without accepting another origin session', async () => {
+    const f = fixture(); await unlock(f); f.identity({ accessToken: 'refreshed-bearer' })
+    expect(f.delivery.diagnosticsContext()?.identity.accessToken).toBe('refreshed-bearer')
+    f.identity({ refreshToken: 'other-session' })
+    expect(f.delivery.diagnosticsContext()).toBeNull()
   })
 })

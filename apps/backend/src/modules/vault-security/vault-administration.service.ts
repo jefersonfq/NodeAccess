@@ -1,7 +1,11 @@
 import type { VaultService } from './vault.service.js'
+import { diag } from './vault-diagnostics.service.js'
 import { CONFIRMATION_DEFAULT_SECONDS, denied, PROPOSAL_DEFAULT_SECONDS, unavailable, webauthnRpId, type VaultChange, type VaultIdentity } from './vault-domain.js'
 import type { VaultAdministrationSummary, VaultAdministrationView, VaultAvailability, VaultEntropy, VaultSettingsView } from './vault-ports.js'
 export class VaultAdministrationService {
+  async diagnostics(i: VaultIdentity, c: string, o: string, s: string, userId: number, secretId: number): ReturnType<typeof diag> {
+    return this.vault.confirmed(i, c, o, s, 'administration-diagnostics', tx => diag(tx, userId, secretId))
+  }
   constructor(private readonly vault: VaultService, private readonly entropy: VaultEntropy) {}
   async propose(i: VaultIdentity, c: string, o: string, s: string, change: VaultChange): Promise<{ proposalId: string }> {
     return this.vault.administer(i,c,o,s, async tx => {

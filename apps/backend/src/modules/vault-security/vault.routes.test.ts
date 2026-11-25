@@ -6,6 +6,7 @@ import { configureCurrentSessionReader } from '../auth/current-session.js'
 import { requireAuth, type JwtPayload } from '../../shared/guards.js'
 import { vaultRoutes } from './vault.routes.js'
 import { VaultError } from './vault-domain.js'
+import type { VaultTransaction } from './vault-ports.js'
 import { VaultService } from './vault.service.js'
 import type { VaultAdministrationService } from './vault-administration.service.js'
 import type { VaultWebauthnService } from './vault-webauthn.service.js'
@@ -15,7 +16,12 @@ const origin = 'https://vault.example.test'
 const user: JwtPayload = { sub: '42', tenantId: 7, sessionVersion: 3, stage: 'authenticated', email: 'fixture@example.test', role: 'user', isPlatformAdmin: false, canManageHosts: false, canViewLiveSessions: false, forcePasswordChange: false }
 afterEach(() => configureCurrentSessionReader(undefined))
 async function harness(patch: Partial<JwtPayload> = {}, withAdministration = false) {
+  const sites = { list: vi.fn().mockResolvedValue({ items: [], next: null }), create: vi.fn().mockResolvedValue({ id: 9, version: 1 }),
+    update: vi.fn().mockResolvedValue({ id: 9, version: 2 }), revoke: vi.fn().mockResolvedValue({ id: 9, version: 2 }), delete: vi.fn().mockResolvedValue({ id: 9, version: 2 }) }
+  const transaction: Partial<VaultTransaction> = { sites: vi.fn().mockResolvedValue(sites),
+    siteHosts: vi.fn().mockResolvedValue([{ id: 5, name: 'Visible' }]), siteWriteAccess: vi.fn().mockResolvedValue({ groups: [{ id: 8, name: 'Team' }], tenant: false }) }
   const service = {
+    inspect: vi.fn((_identity: unknown, _origin: string, _operation: string, run: (tx: VaultTransaction) => Promise<unknown>) => run(transaction as VaultTransaction)),
     admitted: vi.fn((run: () => Promise<unknown>) => run()),
     recordDenial: vi.fn().mockResolvedValue(undefined),
     register: vi.fn().mockResolvedValue({ clientId: opaque(), expiresAt: 123 }),
@@ -33,7 +39,7 @@ async function harness(patch: Partial<JwtPayload> = {}, withAdministration = fal
   }
   const webauthn = { credentials: vi.fn().mockResolvedValue({ supported: true, credentials: [] }), registrationOptions: vi.fn().mockResolvedValue({ options: {} }),
     register: vi.fn().mockResolvedValue({ id: 'cred' }), remove: vi.fn().mockResolvedValue(undefined) }
-  const administration = { propose: vi.fn().mockResolvedValue({ proposalId: opaque() }), approve: vi.fn().mockResolvedValue({ state: 'APPLIED' }),
+  const administration = { diagnostics: vi.fn().mockResolvedValue({ configurationOnly: true }), propose: vi.fn().mockResolvedValue({ proposalId: opaque() }), approve: vi.fn().mockResolvedValue({ state: 'APPLIED' }),
     approveReference: vi.fn().mockResolvedValue({ state: 'APPLIED' }), status: vi.fn().mockResolvedValue({ manager: true }),
     availability: vi.fn().mockResolvedValue({ policy: { reveal: true, copy: false }, grants: { reveal: true, copy: true }, items: [4] }),
     settings: vi.fn().mockResolvedValue({ manager: false, reveal: true }),
@@ -50,7 +56,7 @@ async function harness(patch: Partial<JwtPayload> = {}, withAdministration = fal
   const clientId = opaque()
   const headers = { authorization: `Bearer ${token}`, origin, 'x-forwarded-proto': 'https', 'x-vault-client': clientId }
   const post = (path: string, body: object = {}, customHeaders: Record<string,string> = headers) => app.inject({ method: 'POST', url: `/api/v1/vault-security${path}`, headers: customHeaders, payload: body })
-  return { app, service, administration, webauthn, headers, clientId, post }
+  return { app, service, administration, webauthn, headers, clientId, post, sites, transaction }
 }
 
 describe('Vault Windows Hello / passkey routes (NA-0198)', () => {
@@ -232,6 +238,7 @@ describe('Vault private HTTP adapter', () => {
         { kind: 'proposalWindow', seconds: 120 },
         { kind: 'proposalWindow', seconds: 86400 },
       ]
+      changes.push({ kind: 'grant', userId: 99, action: 'fill', enabled: true }, { kind: 'grant', userId: 99, action: 'shared-write', enabled: true })
       for (const change of changes) {
         expect((await h.post('/administration/proposals', { sessionId, change })).statusCode).toBe(200)
         expect(h.administration.propose).toHaveBeenLastCalledWith({ userId: 42, tenantId: 7, sessionVersion: 3 }, h.clientId, origin, sessionId, change)
@@ -239,7 +246,7 @@ describe('Vault private HTTP adapter', () => {
       expect((await h.post('/administration/approve', { sessionId, proposalId })).json()).toEqual({ state: 'APPLIED' })
       expect(h.administration.approve).toHaveBeenCalledWith({ userId: 42, tenantId: 7, sessionVersion: 3 }, h.clientId, origin, sessionId, proposalId)
       h.administration.propose.mockClear()
-      for (const change of [{ kind: 'grant', userId: 99, action: 'fill', enabled: true }, { kind: 'policy', reveal: true, copy: true, tenantQuota: 301 }, { kind: 'item', secretId: 19, enabled: 'true' }, { ...changes[0], approvedBy: 42 },
+      for (const change of [{ kind: 'grant', userId: 99, action: 'unknown', enabled: true }, { kind: 'policy', reveal: true, copy: true, tenantQuota: 301 }, { kind: 'item', secretId: 19, enabled: 'true' }, { ...changes[0], approvedBy: 42 },
         { kind: 'confirmation', seconds: 59 }, { kind: 'confirmation', seconds: 901 }, { kind: 'confirmation', seconds: 90.5 }, { kind: 'confirmation', seconds: 90 }, { kind: 'confirmation', seconds: 120, extra: 1 },
         { kind: 'manager', userId: 0, enabled: true }, { kind: 'manager', userId: 98 }, { kind: 'manager', userId: 98, enabled: true, action: 'copy' },
         { kind: 'proposalWindow', seconds: 60 }, { kind: 'proposalWindow', seconds: 86460 }, { kind: 'proposalWindow', seconds: 150 }, { kind: 'proposalWindow', seconds: '600' }]) {
@@ -293,5 +300,66 @@ describe('Vault private HTTP adapter', () => {
       expect(response.statusCode).toBe(413)
       expect(h.service.admitted).not.toHaveBeenCalled()
     } finally { await h.app.close() }
+  })
+})
+
+
+describe('NA0203 portal sites admission and diagnostics contracts', () => {
+  it('runs each sites operation on the admitted tenant transaction with portal channel and strict input', async () => {
+    const h=await harness()
+    try {
+      const cases=[['list',{},'list',{after:0,limit:50}],['create',{kind:'url',label:'Portal',url:'https://login.test'},'create',{kind:'url',scope:'PERSONAL',label:'Portal',url:'https://login.test/'}],
+        ['update',{id:9,version:1,label:'Changed'},'update',{id:9,version:1,label:'Changed'}],['revoke',{id:9,version:1},'revoke',{id:9,version:1}],['delete',{id:9,version:1},'delete',{id:9,version:1}]] as const
+      for(const [path,body,method,expected] of cases){
+        const response=await h.post(`/sites/${path}`,body)
+        expect(response.statusCode).toBe(200);expect(response.headers['cache-control']).toBe('no-store')
+        expect(h.sites[method]).toHaveBeenLastCalledWith(expected)
+        expect(h.service.inspect).toHaveBeenLastCalledWith({userId:42,tenantId:7,sessionVersion:3},origin,path==='list'?'sites-list':'sites-write',expect.any(Function))
+      }
+      expect(h.transaction.sites).toHaveBeenCalledWith('portal')
+      expect((await h.post('/sites/write-access')).json()).toEqual({groups:[{id:8,name:'Team'}],tenant:false})
+      expect((await h.post('/sites/hosts',{q:'Vis'})).json()).toEqual({hosts:[{id:5,name:'Visible'}]})
+      expect(h.transaction.siteHosts).toHaveBeenCalledWith('Vis')
+      h.service.inspect.mockClear()
+      expect((await h.post('/sites/list',{tenantId:99})).statusCode).toBe(400)
+      expect((await h.post('/sites/create',{kind:'url',label:'x',url:'https://login.test',ownerUserId:99})).statusCode).toBe(400)
+      expect(h.service.inspect).not.toHaveBeenCalled()
+    } finally {await h.app.close()}
+  })
+  it('fails closed when site ports are absent while empty optional suggestions grant no access', async () => {
+    const h=await harness()
+    try {
+      delete h.transaction.sites;delete h.transaction.siteHosts;delete h.transaction.siteWriteAccess
+      for(const [path,body] of [['list',{}],['create',{kind:'url',label:'x',url:'https://login.test'}],['update',{id:9,version:1,label:'x'}],['revoke',{id:9,version:1}],['delete',{id:9,version:1}]] as const){
+        expect((await h.post(`/sites/${path}`,body)).statusCode).toBe(409)
+      }
+      expect((await h.post('/sites/hosts')).json()).toEqual({hosts:[]})
+      expect((await h.post('/sites/write-access')).json()).toEqual({groups:[],tenant:false})
+      for(const method of Object.values(h.sites))expect(method).not.toHaveBeenCalled()
+    } finally {await h.app.close()}
+  })
+  it('does not run site writes when admission rejects and never exposes dependency details', async () => {
+    const h=await harness()
+    try {
+      h.service.inspect.mockRejectedValueOnce(new VaultError('VAULT_FORBIDDEN',403))
+      expect((await h.post('/sites/create',{kind:'url',label:'x',url:'https://login.test'})).statusCode).toBe(403)
+      expect(h.sites.create).not.toHaveBeenCalled()
+      h.sites.list.mockRejectedValueOnce(new Error('private database details'))
+      const response=await h.post('/sites/list')
+      expect(response.statusCode).toBe(503);expect(response.body).not.toContain('private database details')
+    } finally {await h.app.close()}
+  })
+  it('binds diagnostics to authenticated actor/client/session and rejects tenant injection before administration', async () => {
+    const h=await harness({},true), sessionId=opaque()
+    try {
+      expect((await h.post('/administration/diagnostics',{sessionId,userId:8,secretId:9})).statusCode).toBe(200)
+      expect(h.administration.diagnostics).toHaveBeenCalledExactlyOnceWith({userId:42,tenantId:7,sessionVersion:3},h.clientId,origin,sessionId,8,9)
+      h.administration.diagnostics.mockClear()
+      for(const body of [{sessionId,userId:8,secretId:9,tenantId:99},{userId:8,secretId:9},{sessionId,userId:0,secretId:9}])expect((await h.post('/administration/diagnostics',body)).statusCode).toBe(400)
+      expect(h.administration.diagnostics).not.toHaveBeenCalled()
+      h.administration.diagnostics.mockRejectedValueOnce(new VaultError('VAULT_FORBIDDEN',403))
+      const response=await h.post('/administration/diagnostics',{sessionId,userId:8,secretId:9})
+      expect(response.statusCode).toBe(403);expect(response.headers['cache-control']).toBe('no-store')
+    } finally {await h.app.close()}
   })
 })

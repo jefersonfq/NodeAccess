@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { mkdtemp, readdir, readFile, stat, rm } from 'node:fs/promises'
-import { join } from 'node:path'
+import { join, resolve } from 'node:path'
 import { tmpdir } from 'node:os'
 import { attachBrowserCoverage } from './playwright-coverage.cjs'
 
@@ -23,6 +23,20 @@ async function fixture(t, fail = false) {
   return { output, calls, browser, context, page, env: { BROWSER_COVERAGE_DIR: output, BROWSER_COVERAGE_RUN_ID: '00000000-0000-4000-8000-000000000001', FRONTEND_BASE: 'http://127.0.0.1:1234' } }
 }
 test('disabled capture has no browser effects', async () => { assert.equal(await attachBrowserCoverage({}, {}, {}), undefined) })
+test('captures only the explicit helper module from the additional filesystem URL', async t => {
+  const f = await fixture(t)
+  const helper = '/@fs' + resolve(import.meta.dirname, '../../apps/extension/src/adapters/site-assistance.ts')
+  f.page.coverage.stopJSCoverage = async () => [
+    { url: f.env.FRONTEND_BASE + helper, source: 'helper', functions: [] },
+    { url: f.env.FRONTEND_BASE + helper.replace('site-assistance.ts', 'site-fill.ts'), source: 'adjacent', functions: [] },
+    { url: 'http://foreign.test' + helper, source: 'foreign', functions: [] },
+  ]
+  await attachBrowserCoverage(f.page, f.browser, f.env); await f.page.close()
+  const [name] = await readdir(f.output)
+  const report = JSON.parse(await readFile(join(f.output, name), 'utf8'))
+  assert.equal(report.scripts.length, 1); assert.equal(report.scripts[0].source, 'helper')
+  assert.deepEqual(report.excluded, { external: 1, dependenciesOrGenerated: 1 })
+})
 for (const closing of ['page', 'context', 'browser']) test(`captures privately before early ${closing} closure and does not recapture`, async t => {
   const f = await fixture(t); await attachBrowserCoverage(f.page, f.browser, f.env)
   await f[closing].close(); await f.browser.close()

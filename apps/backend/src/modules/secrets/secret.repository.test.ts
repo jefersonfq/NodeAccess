@@ -1,7 +1,24 @@
 import { describe, expect, it, vi } from 'vitest'
+import type { Prisma } from '@prisma/client'
 import { SecretRepository } from './secret.repository.js'
 
 describe('secret consumer aggregation', () => {
+  it('E3 guards both SQL mutations against concurrent scope, owner or revocation changes', async () => {
+    const db = { $executeRaw: vi.fn().mockResolvedValue(1), $queryRaw: vi.fn().mockResolvedValue([{ id: 9 }]) }
+    const repo = new SecretRepository(db as never)
+    await repo.updateMetadata(7, 9, { description: null }, 11)
+    await repo.rotate(7, 9, 'encrypted', 'iv', 11)
+    for (const call of db.$executeRaw.mock.calls) {
+      const sql = call[0] as Prisma.Sql
+      expect(sql.sql).toContain("scope = 'PERSONAL'")
+      expect(sql.sql).toContain('owner_user_id = ? AND revoked_at IS NULL')
+      expect(sql.values).toEqual(expect.arrayContaining([7, 9, 11]))
+    }
+    db.$executeRaw.mockResolvedValue(0); db.$queryRaw.mockClear()
+    await expect(repo.updateMetadata(7, 9, { alias: 'renamed' }, 11)).rejects.toMatchObject({ statusCode: 403 })
+    await expect(repo.rotate(7, 9, 'encrypted', 'iv', 11)).rejects.toMatchObject({ statusCode: 403 })
+    expect(db.$queryRaw).not.toHaveBeenCalled()
+  })
   it('counts a snippet once, supports spaces and matches aliases literally', async () => {
     const db = { $queryRaw: vi.fn().mockResolvedValueOnce([{ id: 9, count: 2n }]).mockResolvedValueOnce([
       { command: '{{secret:a_b}} {{secret:a_b}}' }, { command: '{{ secret:a_b }}' },

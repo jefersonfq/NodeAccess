@@ -378,6 +378,123 @@
       "hash": "dc0cddd8274f28e486e00630b048e3da",
       "severity": "MAJOR",
       "type": "BUG"
+    },
+    {
+      "issueId": "f787c4bc-f6b4-4be4-8742-2498244101bd",
+      "rule": "typescript:S4822",
+      "component": "nodeaccess:apps/extension/src/adapters/site-assistance.ts",
+      "line": 87,
+      "hash": "88c7ae04f1a1174fc26f8df337dd3d8b",
+      "severity": "MAJOR",
+      "type": "BUG"
+    },
+    {
+      "issueId": "1ff8a5ca-cae6-4c0f-bde6-8fd6c5aa6895",
+      "rule": "javascript:S2871",
+      "component": "nodeaccess:tools/vault-extension/adoption-smoke.mjs",
+      "line": 418,
+      "hash": "19e52c741063aa49ba56e51e98a97713",
+      "severity": "CRITICAL",
+      "type": "BUG"
+    },
+    {
+      "issueId": "5eaf960a-6562-4681-90dc-e5c3defd3443",
+      "rule": "javascript:S2871",
+      "component": "nodeaccess:tools/vault-extension/adoption-smoke.mjs",
+      "line": 418,
+      "hash": "19e52c741063aa49ba56e51e98a97713",
+      "severity": "CRITICAL",
+      "type": "BUG"
+    },
+    {
+      "issueId": "d5e97bc1-5662-4fca-b0e0-648f4472920e",
+      "rule": "javascript:S4036",
+      "component": "nodeaccess:tools/vault-extension/site-terminal-real.mjs",
+      "line": 52,
+      "hash": "d081b8f8770cb4bd55e7a63936c6bc23",
+      "severity": "MINOR",
+      "type": "VULNERABILITY"
+    },
+    {
+      "issueId": "79837a05-ad37-4aa1-b163-2a3d2688c36f",
+      "rule": "javascript:S2871",
+      "component": "nodeaccess:tools/vault-extension/site-terminal-real.mjs",
+      "line": 67,
+      "hash": "354fcf556e2edd1872a0dbac3ecef653",
+      "severity": "CRITICAL",
+      "type": "BUG"
+    },
+    {
+      "issueId": "8aa0adae-628c-47b3-8a83-08e59326e18e",
+      "rule": "javascript:S2871",
+      "component": "nodeaccess:tools/vault-extension/site-terminal-real.mjs",
+      "line": 230,
+      "hash": "57488e2685484de47da572745f6223e9",
+      "severity": "CRITICAL",
+      "type": "BUG"
+    },
+    {
+      "issueId": "e3e901ff-2aa7-4ef2-b524-4d85a553e129",
+      "rule": "javascript:S2871",
+      "component": "nodeaccess:tools/vault-extension/site-terminal-real.mjs",
+      "line": 231,
+      "hash": "dada7cba4fb5ac46f2d47934f8a0d095",
+      "severity": "CRITICAL",
+      "type": "BUG"
+    },
+    {
+      "issueId": "c3a39135-1f9c-47ea-84e2-1d4f52c2e528",
+      "rule": "javascript:S4036",
+      "component": "nodeaccess:tools/vault-extension/site-terminal-real.mjs",
+      "line": 245,
+      "hash": "99576fb8fa3757c2398c4abd30753458",
+      "severity": "MINOR",
+      "type": "VULNERABILITY"
+    },
+    {
+      "issueId": "6daa3c72-7701-4724-87d6-20d22693f563",
+      "rule": "javascript:S4036",
+      "component": "nodeaccess:tools/vault-extension/site-terminal-real.mjs",
+      "line": 273,
+      "hash": "f55635afa9f4974781dca187911c3d09",
+      "severity": "MINOR",
+      "type": "VULNERABILITY"
+    },
+    {
+      "issueId": "762b1ce2-294b-4f98-9196-d3b86fc563b7",
+      "rule": "javascript:S8786",
+      "component": "nodeaccess:tools/vault-extension/site-terminal-real.mjs",
+      "line": 337,
+      "hash": "a2e5538513473d5f3389fe2f7a8d0bce",
+      "severity": "MAJOR",
+      "type": "CODE_SMELL"
+    },
+    {
+      "issueId": "faa71f60-f6eb-4522-92b9-8c7c236544be",
+      "rule": "javascript:S2871",
+      "component": "nodeaccess:tools/vault-extension/sites-smoke.mjs",
+      "line": 32,
+      "hash": "f41e634cca9c9099dbe5f25b1d86f20c",
+      "severity": "CRITICAL",
+      "type": "BUG"
+    },
+    {
+      "issueId": "3ecca225-4ec3-4a11-bcd0-dc5c673e96fe",
+      "rule": "javascript:S4036",
+      "component": "nodeaccess:tools/vault-extension/sites-volume-smoke.cjs",
+      "line": 24,
+      "hash": "65a68dd2a9f49b456e67b3d475da2e0b",
+      "severity": "MINOR",
+      "type": "VULNERABILITY"
+    },
+    {
+      "issueId": "1dfcf095-61a8-4f45-9d59-443f13562946",
+      "rule": "javascript:S2068",
+      "component": "nodeaccess:tools/vault-extension/sites-volume-smoke.cjs",
+      "line": 56,
+      "hash": "9d994985cbecafbe527f5ec1b7bbbddc",
+      "severity": "MAJOR",
+      "type": "VULNERABILITY"
     }
   ]
 }

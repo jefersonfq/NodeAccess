@@ -22,6 +22,12 @@ export const requiredBrowserHarnesses = [
   ['security-center', 'tools/frontend/security-center-playwright.cjs'],
   ['highlight-budget', 'tools/frontend/terminal-highlight-budget.mjs'],
   ['vault-extension', 'tools/vault-extension/extension-smoke.mjs'],
+  ['vault-sites', 'tools/vault-extension/sites-smoke.mjs'],
+  ['vault-adoption', 'tools/vault-extension/adoption-smoke.mjs'],
+  ['vault-site-assistance', 'tools/vault-extension/site-assistance-browser.mjs'],
+  ['vault-site-terminal', 'tools/vault-extension/site-terminal-real.mjs'],
+  ['vault-sites-volume', 'tools/vault-extension/sites-volume-smoke.cjs'],
+  ['vault-site-assistance-dom', 'tools/vault-extension/site-assistance-dom-coverage.mjs'],
 ]
 
 const projectRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../..')
@@ -95,7 +101,7 @@ export async function collectBrowserCoverage({ root = projectRoot, env = process
       } }, manualPlugin(), securityCenterPlugin(root)],
       resolve: { alias: { '@': join(root, 'apps/frontend/src') } },
       optimizeDeps: { include: ['vue', 'naive-ui'], entries: ['index.html'] },
-      server: { host: '127.0.0.1', port: 0, strictPort: false, proxy: {}, fs: { allow: [root] } },
+      server: { host: '127.0.0.1', port: 0, strictPort: false, proxy: {}, fs: { allow: [root] }, cors: { origin: 'https://login.example.test' } },
     })
     result.phase = 'listen'
     await server.listen()
@@ -119,6 +125,8 @@ export async function collectBrowserCoverage({ root = projectRoot, env = process
       childEnv.AUDIT_INPUT_OUTPUT = directory
       childEnv.HIGHLIGHT_BUDGET_OUTPUT = directory
       delete childEnv.RUN_TACACS_TLS_UX; delete childEnv.TACACS_TLS_UX_OUTPUT
+      delete childEnv.RUN_SITE_TERMINAL_REAL
+      if (name === 'vault-site-terminal') childEnv.RUN_SITE_TERMINAL_REAL = 'true'
       if (name === 'tacacs-tls') {
         childEnv.RUN_TACACS_TLS_UX = 'true'
         childEnv.TACACS_TLS_UX_OUTPUT = directory
@@ -127,7 +135,8 @@ export async function collectBrowserCoverage({ root = projectRoot, env = process
       // DOM-only frontend/table fixtures have no source capture hook; budget owns
       // a separate Vite origin and the extension smoke loads its own unpacked build.
       // Their real browser assertions still run with Node V8.
-      const coverageMode = ['frontend', 'table', 'highlight-budget', 'vault-extension'].includes(name) ? 'node-only' : 'node-and-browser'
+      const nodeOnly = ['frontend', 'table', 'highlight-budget'].includes(name) || (script.startsWith('tools/vault-extension/') && name !== 'vault-site-assistance-dom')
+      const coverageMode = nodeOnly ? 'node-only' : 'node-and-browser'
       if (coverageMode === 'node-only') {
         delete childEnv.BROWSER_COVERAGE_DIR
         delete childEnv.BROWSER_COVERAGE_RUN_ID
@@ -135,7 +144,10 @@ export async function collectBrowserCoverage({ root = projectRoot, env = process
       childEnv.PLAYWRIGHT_EXECUTABLE_PATH = executablePath
       childEnv.CHROMIUM_PATH = executablePath
       if (name === 'flows' || name === 'terminal') rmSync(join(directory, 'report.json'), { force: true })
-      const run = await execute(root, script, childEnv, join(output, `${name}.log`))
+      // This additional lab builds an isolated backend and provisions disposable
+      // database/SSH containers. Existing browser deadlines remain unchanged.
+      const timeoutMs = name === 'vault-site-terminal' ? 600_000 : 120_000
+      const run = await execute(root, script, childEnv, join(output, `${name}.log`), timeoutMs)
       const failure = name === 'flows' && (run.exitCode !== 0 || run.timedOut) ? readFlowFailure(directory) : undefined
       const diagnostic = run.exitCode !== 0 || run.timedOut ? readHarnessDiagnostic(join(output, `${name}.log`), script) : undefined
       result.harnesses.push({ name, coverageMode, ...run, ...(failure ? { failure } : {}), ...(diagnostic ? { diagnostic } : {}) })

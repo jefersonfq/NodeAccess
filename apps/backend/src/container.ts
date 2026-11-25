@@ -1,4 +1,5 @@
 import { VaultDatabase } from './modules/vault-security/vault.database.js'
+import { VaultFillRuntime } from './modules/vault-security/vault-fill-runtime.js'
 import { VaultAdministrationService } from './modules/vault-security/vault-administration.service.js'
 import { VaultWebauthnService } from './modules/vault-security/vault-webauthn.service.js'
 import { SimpleWebauthnVerifier } from './modules/vault-security/vault-webauthn.js'
@@ -563,13 +564,15 @@ const bastionService   = new BastionService(bastionRepository, logRepository)
 const pemKeyService          = new PemKeyService(pemKeyRepository, logRepository)
 // NA-0183: browser extension (E1). Listing reuses the Secrets/PEM ACL services; nothing returns a value.
 const vaultExtensionNonces = new DpopNonces(createHash('sha256').update(`nodeaccess-vault-extension:${env.JWT_SECRET}`).digest('hex'))
+const vaultFillRuntime = new VaultFillRuntime(() => vaultStore.rotateSiteFillGeneration(vaultEntropy.token()))
 const vaultExtensionService = new VaultExtensionService(vaultSecurityService, vaultStore, new SqlExtensionLocator(() => vaultDatabase.client()), vaultOrigin,
   new DpopVerifier(vaultExtensionNonces, { claim: async (key: string, ttlMs: number): Promise<boolean> => (await redis.set(`vault-ext-dpop:${createHash('sha256').update(key).digest('hex')}`, '1', 'PX', ttlMs, 'NX')) === 'OK' }),
   vaultExtensionNonces, vaultEntropy, {
     list: async (identity: VaultIdentity, admin: boolean): Promise<VaultItemSummary[]> => catalogSummaries(
       await secretService.list(identity.userId, identity.tenantId, admin ? 'admin' : 'user'),
       await pemKeyService.list(identity.userId, identity.tenantId, admin), identity.userId),
-  }, { enabled: env.VAULT_EXTENSION_ENABLED, extensionIds: env.VAULT_EXTENSION_IDS.split(',').filter(Boolean), minVersion: env.VAULT_EXTENSION_MIN_VERSION },
+    hosts: (identity, admin, kind, sourceId): Promise<Array<{ id: number; name: string }>> => hostService.vaultItemHosts(identity.tenantId, identity.userId, admin ? 'ADMIN' : 'USER', kind, sourceId),
+  }, { enabled: env.VAULT_EXTENSION_ENABLED, siteFillEnabled: env.VAULT_SITE_FILL_ENABLED, siteFillReady: (): boolean => vaultFillRuntime.ready(), extensionIds: env.VAULT_EXTENSION_IDS.split(',').filter(Boolean), minVersion: env.VAULT_EXTENSION_MIN_VERSION },
   Date.now, vaultReauthentication, vaultEnvelope)
 // NA-0194: operator release of the extension, published only when it matches this configuration.
 const vaultExtensionPackage = new ExtensionPackage({ enabled: env.VAULT_EXTENSION_ENABLED, directory: env.VAULT_EXTENSION_PACKAGE_DIR,
@@ -720,6 +723,7 @@ export const container = {
   vaultWebauthnService,
   vaultExtensionService,
   vaultExtensionPackage,
+  initializeVaultSiteFill: (): Promise<boolean> => vaultFillRuntime.initialize(),
   closeVaultDatabase: (): Promise<void> => vaultDatabase.close(),
   secretController,
   // Platform
