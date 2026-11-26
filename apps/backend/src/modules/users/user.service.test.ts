@@ -20,7 +20,7 @@ function fixture() {
   const repo = {
     findByIdInTenant: vi.fn((id: number, tenant: number) => Promise.resolve(id === user.id && tenant === user.tenantId ? user : null)),
     findByIdInTenantIncludingDeleted: vi.fn((id: number, tenant: number) => Promise.resolve(id === user.id && tenant === user.tenantId ? user : null)),
-    findAll: vi.fn().mockResolvedValue({ users: [user], total: 1 }),
+    findAll: vi.fn().mockResolvedValue({ users: [user], total: 1, vaultManagerIds: [] }),
     findGroupIdsByUsers: vi.fn().mockResolvedValue(new Map()),
     findLiveSessionsPermissionsByUsers: vi.fn().mockResolvedValue(new Map()),
     findAvatarMetadataByUsers: vi.fn().mockResolvedValue(new Map()),
@@ -62,6 +62,17 @@ describe('UserService tenant and credential behavior', () => {
     expect(repo.findAll).toHaveBeenCalledWith(2, {})
     expect(await service.list(2, { page: 3, limit: 5 })).toMatchObject({ page: 3, limit: 5 })
     expect(await service.getById(7, 2)).toMatchObject({ groupIds: [10, 20], canViewLiveSessions: true })
+  })
+  it('maps explicit manager IDs only in list items without inferring ADMIN authority', async () => {
+    const { service, repo, user } = fixture()
+    repo.findAll.mockResolvedValue({ users: [user, { ...user, id: 8, role: 'ADMIN' }], total: 2, vaultManagerIds: [7] })
+    const result = await service.list(2, { vaultManager: true })
+    expect(result.data.map(({ id, isVaultManager }) => ({ id, isVaultManager }))).toEqual([
+      { id: 7, isVaultManager: true }, { id: 8, isVaultManager: false },
+    ])
+    expect(result).not.toHaveProperty('vaultManagerIds')
+    expect(repo.findAll).toHaveBeenCalledWith(2, { vaultManager: true })
+    expect(await service.getById(7, 2)).not.toHaveProperty('isVaultManager')
   })
   it.each(['getById', 'softDelete', 'restore', 'resetPassword', 'resetMfa', 'getPreferences', 'listInventoryAccess'] as const)('%s refuses a user from another tenant', async method => {
     const { service, repo } = fixture()

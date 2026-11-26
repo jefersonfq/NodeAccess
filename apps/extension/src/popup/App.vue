@@ -18,6 +18,7 @@ const props = defineProps<{ client: ExtensionClient; requestConnection: () => Pr
   lastFailure?: () => Promise<ExtensionFailure | null>
   /** NA-0192: browser language, used until a connection tells the portal's (default pt-BR). */
   browserLanguage?: string
+  close?: () => void
   currentSite?: () => Promise<string>
   pendingFill?: PendingFillPort
   capturedDraftPort?: CapturedDraftPort
@@ -218,13 +219,16 @@ async function openHost(id: number): Promise<void> {
 }
 onBeforeUnmount(closeHosts)
 const editLabels = computed(() => language.value.toLowerCase().startsWith('pt')
-  ? { create: 'Novo Secret', pem: 'Importar PEM', edit: 'Editar dados', rotate: 'Trocar senha', saved: 'Item salvo.' }
-  : { create: 'New Secret', pem: 'Import PEM', edit: 'Edit details', rotate: 'Replace password', saved: 'Item saved.' })
+  ? { create: 'Novo secret', pem: 'Importar PEM', edit: 'Editar dados', rotate: 'Trocar senha', saved: 'Item salvo.' }
+  : { create: 'New secret', pem: 'Import PEM', edit: 'Edit details', rotate: 'Replace password', saved: 'Item saved.' })
 function edit(mode: 'create-secret' | 'update-secret' | 'rotate-secret' | 'import-pem', item?: VaultItemSummary): void {
   if (!features.value.create || (item && (item.kind !== 'secret' || !(item.writable ?? item.scope === 'personal')))) return
   closeHosts(); forget(); cancelProof(); saved.value = false
   editor.value = { mode, ...(item ? { item } : {}) }
 }
+// Closing the surface is not signing out; pending portal confirmations keep their existing lifetime.
+function closePopup(): void { forget(); props.close?.() }
+const closeLabel = computed(() => language.value.startsWith('pt') ? 'Fechar extensão' : 'Close extension')
 function closeEditor(): void { editor.value = null; void nextTick(() => searchInput.value?.focus()) }
 async function itemSaved(): Promise<void> { closeEditor(); saved.value = true; await search() }
 const t = computed(() => message(language.value))
@@ -517,7 +521,7 @@ onMounted(async () => {
   await loadFeatures()
   if (!await restoreSiteContinuity()) void checkPortal()
 })
-defineExpose({ checkEditorProof, restoreSiteContinuity, checkSiteFill, confirmSiteFill, cancelSiteFill, stageEditorProof, enableSiteAssist, consumedDraft, favoriteHost, search, connect, disconnect, openItem, setKind, applyUpdate, onKey, focusItem, renew, submitCode, act, confirmProof, cancelProof, confirmCopy, loadFeatures, confirmInPortal, checkPortal, stopPortal, edit, closeEditor, itemSaved, loadHosts, closeHosts, toggleHosts, openHost })
+defineExpose({ closePopup, checkEditorProof, restoreSiteContinuity, checkSiteFill, confirmSiteFill, cancelSiteFill, stageEditorProof, enableSiteAssist, consumedDraft, favoriteHost, search, connect, disconnect, openItem, setKind, applyUpdate, onKey, focusItem, renew, submitCode, act, confirmProof, cancelProof, confirmCopy, loadFeatures, confirmInPortal, checkPortal, stopPortal, edit, closeEditor, itemSaved, loadHosts, closeHosts, toggleHosts, openHost })
 </script>
 
 <template>
@@ -537,15 +541,27 @@ defineExpose({ checkEditorProof, restoreSiteContinuity, checkSiteFill, confirmSi
           <small>{{ t.subtitle }}</small>
         </span>
       </span>
-      <span
-        v-if="phase === 'connected'"
-        class="status"
-      >
+      <div class="bar-tools">
         <span
-          class="dot"
-          aria-hidden="true"
-        />{{ t.connected }}
-      </span>
+          v-if="phase === 'connected'"
+          class="status"
+        >
+          <span
+            class="dot"
+            aria-hidden="true"
+          />{{ t.connected }}
+        </span>
+        <button
+          type="button"
+          class="icon-button close-button"
+          :aria-label="closeLabel"
+          :title="closeLabel"
+          data-testid="vaultnaccess-close"
+          @click="closePopup"
+        >
+          <PopupIcon name="close" />
+        </button>
+      </div>
     </header>
 
     <div
@@ -901,22 +917,24 @@ defineExpose({ checkEditorProof, restoreSiteContinuity, checkSiteFill, confirmSi
       <template v-else>
         <div
           v-if="features.create"
-          class="actions"
+          class="creation-actions"
         >
           <button
             type="button"
-            class="link"
+            class="action-button action-create"
             data-testid="vaultnaccess-create"
             @click="edit('create-secret')"
           >
+            <PopupIcon name="plus" />
             {{ editLabels.create }}
           </button>
           <button
             type="button"
-            class="link"
+            class="action-button"
             data-testid="vaultnaccess-import"
             @click="edit('import-pem')"
           >
+            <PopupIcon name="upload" />
             {{ editLabels.pem }}
           </button>
         </div>
@@ -1286,13 +1304,16 @@ defineExpose({ checkEditorProof, restoreSiteContinuity, checkSiteFill, confirmSi
 * { box-sizing: border-box; }
 body { margin: 0; background: var(--bg); color: var(--text); font: 13px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
 button, input { font: inherit; color: inherit; }
-button { cursor: pointer; }
+button { cursor: pointer; transition: background-color .14s ease, border-color .14s ease, color .14s ease, box-shadow .14s ease, transform .1s ease; }
+button:active:not(:disabled) { transform: translateY(1px); }
 button:disabled { cursor: default; opacity: .6; }
 :focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 .icon { width: 16px; height: 16px; flex: none; }
 
-.popup { width: 360px; min-height: 220px; display: flex; flex-direction: column; }
-.bar { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 12px 14px; border-bottom: 1px solid var(--border); }
+.popup { width: 400px; max-width: 100%; min-height: 220px; max-height: 600px; overflow-y: auto; overscroll-behavior: contain; scroll-padding-top: 64px; display: flex; flex-direction: column; }
+.bar { position: sticky; top: 0; z-index: 2; flex: none; background: var(--bg); display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 12px 14px; border-bottom: 1px solid var(--border); }
+.bar-tools { display: flex; align-items: center; gap: 8px; }
+.bar .close-button { width: 32px; height: 32px; border: 1px solid var(--border); background: var(--surface); }
 .brand { display: flex; align-items: center; gap: 10px; min-width: 0; }
 .mark { display: grid; place-items: center; width: 32px; height: 32px; border-radius: 8px; background: var(--primary-soft); color: var(--primary); }
 .mark .icon { width: 18px; height: 18px; }
@@ -1346,6 +1367,18 @@ ul { list-style: none; margin: 0; padding: 0; }
 .row { display: flex; flex-wrap: wrap; align-items: center; }
 .row > .item { flex: 1; min-width: 0; width: auto; }
 .actions { display: flex; gap: 2px; }
+.creation-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.action-button { display: inline-flex; justify-content: center; align-items: center; gap: 8px; min-height: 38px; padding: 8px 12px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); font-weight: 600; }
+.action-button:hover:not(:disabled) { background: var(--surface-2); border-color: var(--muted); }
+.action-create { background: var(--primary-soft); border-color: var(--primary); }
+.action-create:hover:not(:disabled) { background: var(--primary-soft); border-color: var(--primary); box-shadow: inset 0 0 0 1px var(--primary); }
+@media (max-width: 340px) { .creation-actions { grid-template-columns: 1fr; } .bar { gap: 4px; padding-inline: 10px; } .bar-tools { gap: 4px; } .status { padding-inline: 5px; } }
+@keyframes popup-enter { from { opacity: .5; transform: translateY(3px); } to { opacity: 1; transform: none; } }
+.popup .welcome, .popup .editor { animation: popup-enter .14s ease-out; }
+@media (prefers-reduced-motion: reduce) {
+  .popup *, .popup *::before, .popup *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
+  .popup button:active:not(:disabled) { transform: none; }
+}
 [data-site-sections] { display: flex; gap: 8px; padding-bottom: 6px; border-bottom: 1px solid var(--border); }
 [data-site-sections] .link { padding: 6px 10px; border-radius: 6px; }
 [data-site-sections] [aria-pressed="true"] { background: var(--primary-soft); }

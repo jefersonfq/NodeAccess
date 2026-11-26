@@ -17,19 +17,37 @@ async function runVaultAdministrationFlow(browser, base, fixture, output) {
     canManageHosts: true, canViewLiveSessions: false, avatarUrl: null, avatarVersion: null, mfaEnabled: true, active: true, groupIds: [], deletedAt: null,
     createdAt: now, updatedAt: now }))
   /** One person in their own browser context, with the portal API mocked except the real vault routes. */
-  async function as(id, { mobile = false } = {}) {
-    const context = await browser.newContext({ ignoreHTTPSErrors: true, serviceWorkers: 'block', locale: 'pt-BR', viewport: mobile ? { width: 390, height: 844 } : { width: 1360, height: 900 } })
+  async function as(id, { mobile = false, locale = 'pt-BR', largeDirectory = false } = {}) {
+    const context = await browser.newContext({ ignoreHTTPSErrors: true, serviceWorkers: 'block', locale, viewport: mobile ? { width: 390, height: 844 } : { width: 1360, height: 900 } })
     contexts.add(context)
     const { access, refresh } = fixture.tokens(id)
-    await context.addInitScript(({ access, refresh }) => {
+    const userQueries = [], administrationWrites = []
+    await context.addInitScript(({ access, refresh, locale }) => {
+      localStorage.setItem('nodeaccess_locale', locale)
       localStorage.setItem('na_access_token', access); localStorage.setItem('na_refresh_token', refresh)
-    }, { access, refresh })
+    }, { access, refresh, locale })
     await context.route('**/api/v1/**', async route => {
       const path = new URL(route.request().url()).pathname
+      // Status is a read-only POST in the vault transport; all other non-GET vault calls remain forbidden here.
+      if (route.request().method() !== 'GET' && path !== '/api/v1/vault-security/administration/status'
+        && (path === '/api/v1/users' || path.startsWith('/api/v1/vault-security/'))) administrationWrites.push(path)
       if (path.startsWith('/api/v1/vault-security/')) return route.continue()
       let body = {}
       if (path.endsWith('/features')) body = { secretsLicensed: true, secrets: true }
-      else if (path === '/api/v1/users') body = { data: people, total: people.length }
+      else if (path === '/api/v1/users') {
+        const query = new URL(route.request().url()).searchParams
+        userQueries.push(Object.fromEntries(query))
+        // NA-0204: mirror the administrative list contract; real ACL/filter SQL is tested in the backend suite.
+        const directory = largeDirectory ? [...people.slice(0, 3), ...Array.from({ length: 30 }, (_, index) => ({
+          ...people[3], id: 500 + index, name: `Directory user ${index}`, email: `directory-${index}@example.test`,
+        })), people[3]] : people
+        const matching = directory.map(user => ({ ...user, isVaultManager: user.active && fixture.state.managers.has(user.id) }))
+          .filter(user => query.get('vaultManager') !== 'true' || user.isVaultManager)
+          .filter(user => !query.get('search') || `${user.name} ${user.email}`.toLowerCase().includes(query.get('search').toLowerCase()))
+        const limit = largeDirectory ? Number(query.get('limit') || 20) : matching.length
+        const offset = Number(query.get('offset') || 0)
+        body = { data: matching.slice(offset, offset + limit), total: matching.length }
+      }
       else if (path === '/api/v1/users/online') body = { data: [] }
       else if (path === '/api/v1/secrets') body = fixture.secrets()
       else if (path === '/api/v1/pem-keys' || path.endsWith('/groups')) body = []
@@ -58,7 +76,7 @@ async function runVaultAdministrationFlow(browser, base, fixture, output) {
       const path = new URL(response.url()).pathname
       if (path.startsWith('/api/v1/vault-security/') && !path.startsWith('/api/v1/vault-security/extension/') && response.status() >= 400) errors.push(`vault ${response.status()} ${path}`)
     })
-    return { page, errors, close: async () => { await context.close(); contexts.delete(context) } }
+    return { page, errors, userQueries, administrationWrites, close: async () => { await context.close(); contexts.delete(context) } }
   }
   const person = id => fixture.users.get(id)
   async function users(page) {
@@ -139,14 +157,55 @@ async function runVaultAdministrationFlow(browser, base, fixture, output) {
     }
   }
   try {
-    await scenario('Admin who is not a manager: explained, action disabled with the reason, no counts or manager tags', async () => {
+    for (const locale of ['pt-BR', 'en']) await scenario(`NA-0204 ${locale}: non-manager finds a USER manager beyond page one; keyboard filter and read-only help`, async () => {
+      const english = locale === 'en'
+      fixture.state.managers.add(44)
+      const carla = await as(43, { locale, largeDirectory: true, mobile: english })
+      try {
+        await carla.page.goto(`${base}/admin/users`, { waitUntil: 'networkidle' })
+        await carla.page.getByTestId('user-vault-manager-41').waitFor()
+        check(await row(carla.page, 'davi@example.test').count() === 0, 'Manager fixture must start beyond the first server page')
+        check(await carla.page.getByTestId('user-vault-manager-43').count() === 0, 'ADMIN must not imply manager')
+        const help = carla.page.getByTestId('users-vault-help')
+        const summary = help.locator('summary')
+        check(await summary.innerText() === (english ? 'About vault managers' : 'Sobre os gestores do cofre'), 'Help title is not localized')
+        await summary.focus(); await carla.page.keyboard.press('Enter')
+        check(await help.evaluate(element => element.open), 'Help cannot be expanded with the keyboard')
+        const guidance = await help.innerText()
+        check(guidance.includes(english ? 'first two managers' : 'dois primeiros gestores'), 'Initial appointment guidance missing')
+        check(guidance.includes(english ? 'another to approve' : 'aprovação de outro'), 'Dual approval guidance missing')
+        check(guidance.includes(english ? 'does not automatically grant access to secrets' : 'não concede automaticamente acesso aos segredos'), 'Read-only manager role distinction missing')
+        check(await help.locator('button,input,select').count() === 0, 'Help must not offer a grant control')
+        const filter = carla.page.getByTestId('users-vault-managers-filter')
+        check(await carla.page.getByRole('checkbox', { name: english ? 'Vault managers only' : 'Somente gestores do cofre', exact: true }).count() === 1, 'Filter lacks its localized accessible name')
+        await filter.focus(); await carla.page.keyboard.press('Space')
+        await carla.page.getByTestId('user-vault-manager-44').waitFor()
+        check(carla.userQueries.at(-1).vaultManager === 'true', 'Manager filter was not sent to server')
+        check(await row(carla.page, 'carla@example.test').count() === 0, 'Non-manager remains in filtered results')
+        check(person(44).role === 'user', 'Fixture must prove USER and manager are independent')
+        const search = carla.page.getByPlaceholder(english ? 'Search...' : 'Buscar...')
+        await search.fill('Davi'); await search.press('Enter')
+        await carla.page.getByTestId('user-vault-manager-41').waitFor({ state: 'hidden' })
+        check(carla.userQueries.at(-1).vaultManager === 'true' && carla.userQueries.at(-1).search === 'Davi', 'Search lost the server-side manager filter')
+        check(await carla.page.getByTestId('user-vault-manager-44').isVisible(), 'Matching USER manager missing')
+        check(await carla.page.getByTestId('users-vault-pending').count() === 0, 'Non-manager sees pending proposals')
+        check(carla.administrationWrites.length === 0, 'Read-only filter/help made an administrative write')
+        await carla.page.locator('.n-spin-body:visible').waitFor({ state: 'hidden' })
+        await review(carla.page, carla.errors, `na0204-users-managers-${locale}`)
+      } catch (error) {
+        await carla.page.screenshot({ path: join(output, `na0204-failure-${locale}.png`), fullPage: true }).catch(() => {})
+        throw error
+      } finally { await carla.close(); fixture.state.managers.delete(44) }
+    })
+    await scenario('Admin who is not a manager: manager indicators visible, action disabled with the reason, no pending counts', async () => {
       const carla = await as(43)
       await users(carla.page)
       const option = await rowAction(carla.page, 'davi@example.test', 'Permissões do cofre (só gestores do cofre)')
       check(await disabled(option), 'Vault action is not disabled for a non-manager')
       await carla.page.keyboard.press('Escape')
       check(await carla.page.getByTestId('users-vault-pending').count() === 0, 'Non-manager sees a pending count')
-      check(await carla.page.locator('[data-testid^="user-vault-manager-"]').count() === 0, 'Non-manager sees the manager list')
+      for (const id of [41, 42]) await carla.page.getByTestId(`user-vault-manager-${id}`).waitFor()
+      check(await carla.page.getByTestId('user-vault-manager-43').count() === 0, 'ADMIN role incorrectly confers the manager indicator')
       await review(carla.page, carla.errors, '01-users-admin-not-manager')
       await vault(carla.page)
       await carla.page.getByTestId('vault-administration-not-manager').waitFor()

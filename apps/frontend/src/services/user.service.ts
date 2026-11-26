@@ -1,10 +1,10 @@
 import api from './api'
-import type { UserPublic, CreateUserDto, UpdateUserDto, UserPreferences, PatchUserPreferencesDto } from '@nodeaccess/shared'
+import type { UserPublic, UserListItem, CreateUserDto, UpdateUserDto, UserPreferences, PatchUserPreferencesDto } from '@nodeaccess/shared'
 import type { Paginated } from '@nodeaccess/shared'
 import { cacheTtls } from './cache-ttl.service'
 import { createTimedPromiseCache } from './service-cache'
 
-interface UserQuery { page?: number; limit?: number; search?: string; role?: string; active?: boolean; includeDeleted?: boolean }
+interface UserQuery { page?: number; limit?: number; search?: string; role?: string; active?: boolean; includeDeleted?: boolean; vaultManager?: boolean }
 
 export interface UserInventoryAccessEntry {
   aclEntryId: number
@@ -28,7 +28,7 @@ export interface UserInventoryAccessEntry {
 const userPreferencesCache = createTimedPromiseCache<{ data: UserPreferences | null }>(cacheTtls.userPreferences, { name: 'users:me:preferences' })
 
 export const userService = {
-  list:           (params?: UserQuery) => api.get<Paginated<UserPublic>>('/users', { params }),
+  list:           (params?: UserQuery) => api.get<Paginated<UserListItem>>('/users', { params }),
   get:            (id: number)         => api.get<UserPublic>(`/users/${id}`),
   listInventoryAccess: (id: number)    => api.get<UserInventoryAccessEntry[]>(`/users/${id}/inventory-access`),
   create:         (dto: CreateUserDto) => api.post<UserPublic & { temporaryPassword?: string }>('/users', dto),

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, onBeforeUnmount, h, computed, type VNode } from 'vue'
+import { ref, onMounted, onBeforeUnmount, h, computed, watch, type VNode } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import {
@@ -8,7 +8,7 @@ import {
   NDrawer, NDrawerContent, NEmpty, NTooltip, NDropdown, useMessage, useDialog,
 } from 'naive-ui'
 import type { DataTableColumns, DropdownDividerOption, DropdownOption } from 'naive-ui'
-import type { UserPublic, CreateUserDto, UpdateUserDto } from '@nodeaccess/shared'
+import type { UserPublic, UserListItem, CreateUserDto, UpdateUserDto } from '@nodeaccess/shared'
 import { userService, type UserInventoryAccessEntry } from '@/services/user.service'
 import { groupService } from '@/services/group.service'
 import { platformAdminService } from '@/services/platform-admin.service'
@@ -29,45 +29,56 @@ const auth = useAuthStore()
 const msg    = useMessage()
 const dialog = useDialog()
 
-const users          = ref<UserPublic[]>([])
+const users          = ref<UserListItem[]>([])
 const total          = ref(0)
 const loading        = ref(false)
 const error          = ref<string | null>(null)
 const search         = ref('')
 const includeDeleted = ref(false)
+const vaultManagersOnly = ref(false)
+let listRequest = 0
+let contextGeneration = 0
+let disposed = false
+const listIdentity = (): string => JSON.stringify([auth.user?.id, auth.user?.tenantId, auth.user?.actingTenantId])
+const captureIdentity = (): { key: string; generation: number } => ({ key: listIdentity(), generation: contextGeneration })
+const sameIdentity = (identity: ReturnType<typeof captureIdentity>): boolean =>
+  !disposed && identity.generation === contextGeneration && identity.key === listIdentity()
 const promotingUserId = ref<number | null>(null)
 const accessDrawerUser = ref<UserPublic | null>(null)
 const accessLoading = ref(false)
 const accessError = ref('')
 const accessEntries = ref<UserInventoryAccessEntry[]>([])
 // NA-0186: vault permissions per user, only for vault managers (NodeAccess admin alone is not enough).
-// NA-0188: managers also see who the managers are and how many vault changes await their approval (refreshed every minute).
+// Manager-only approval controls remain separate from the read-only list indicator.
 const vaultManager = ref(false)
 /** False until a status read succeeded: unknown (no vault, HTTP, another tenant, error) shows no vault action at all. */
 const vaultKnown = ref(false)
 const vaultUser = ref<UserPublic | null>(null)
 const vaultReview = ref(false)
 const vaultPending = ref(0)
-const vaultManagers = ref<number[]>([])
 const vaultTransport = createVaultTransport()
 let vaultTimer: ReturnType<typeof setInterval> | undefined
 async function loadVaultStatus(): Promise<void> {
+  const identity = captureIdentity()
   const status = await vaultAdministrationStatus(vaultTransport, auth)
-  if (!status) return // a failed poll keeps the last known state
+  if (!sameIdentity(identity) || !status) return // a failed poll keeps the last known state
   vaultKnown.value = true
-  vaultManager.value = status.manager; vaultPending.value = status.pending; vaultManagers.value = status.managers
+  vaultManager.value = status.manager; vaultPending.value = status.pending
 }
 function closeVault(): void {
   vaultUser.value = null; vaultReview.value = false
   void loadVaultStatus()
+  void load()
 }
 // NA-0187: who is online (session used in the last 15 min) and one user's login sessions.
 const onlineUsers = ref(new Map<number, number>())
 const sessionsUser = ref<UserPublic | null>(null)
 async function loadOnline(): Promise<void> {
+  const identity = captureIdentity()
   try {
-    onlineUsers.value = new Map((await loginSessionsService.online()).map(u => [u.userId, u.sessions]))
-  } catch { onlineUsers.value = new Map() }
+    const online = await loginSessionsService.online()
+    if (sameIdentity(identity)) onlineUsers.value = new Map(online.map(u => [u.userId, u.sessions]))
+  } catch { if (sameIdentity(identity)) onlineUsers.value = new Map() }
 }
 
 const groupOptions = ref<{ label: string; value: number }[]>([])
@@ -76,8 +87,10 @@ const userOptions = computed(() =>
 )
 
 async function loadGroups(): Promise<void> {
+  const identity = captureIdentity()
   try {
     const { data } = await groupService.list()
+    if (!sameIdentity(identity)) return
     groupOptions.value = data.map((g) => ({ label: g.name, value: g.id }))
   } catch {
     // grupos opcionais — falha silenciosa
@@ -343,9 +356,9 @@ function handleUserAction(action: UserActionKey, user: UserPublic): void | Promi
 
 // ─── Tabela ──────────────────────────────────────────────────────────────────
 
-// Read the online/manager state here so the table re-renders its cells when either arrives after the user list.
-const columns = computed<DataTableColumns<UserPublic>>(() => {
-  const online = onlineUsers.value, managers = vaultManagers.value
+// The list indicator is informational; only the separate vault status enables approval controls.
+const columns = computed<DataTableColumns<UserListItem>>(() => {
+  const online = onlineUsers.value
   return [
   {
     title: t('admin.users.columns.name'),
@@ -360,8 +373,8 @@ const columns = computed<DataTableColumns<UserPublic>>(() => {
             ? h(NTag, { size: 'tiny', type: 'success', round: true, class: 'ml-2', 'data-testid': `user-online-${row.id}` },
               () => t('admin.users.online', { count: online.get(row.id) ?? 0 }))
             : null,
-          managers.includes(row.id)
-            ? h(NTag, { size: 'tiny', type: 'info', round: true, class: 'ml-2', 'data-testid': `user-vault-manager-${row.id}` },
+          row.isVaultManager === true && row.active && !row.deletedAt
+            ? h(NTag, { size: 'tiny', type: 'info', round: true, class: 'ml-2', 'data-testid': `user-vault-manager-${row.id}`, title: t('admin.users.vaultManagerHelp') },
               () => t('admin.users.vaultManager'))
             : null,
         ]),
@@ -424,21 +437,38 @@ const columns = computed<DataTableColumns<UserPublic>>(() => {
 // ─── Ações ───────────────────────────────────────────────────────────────────
 
 async function load(): Promise<void> {
+  const request = ++listRequest
+  const identity = captureIdentity()
+  const current = (): boolean => request === listRequest && sameIdentity(identity)
   loading.value = true
-  error.value   = null
+  error.value = null
   try {
     const { data } = await userService.list({
       search: search.value || undefined,
       includeDeleted: includeDeleted.value || undefined,
+      vaultManager: vaultManagersOnly.value || undefined,
     })
+    if (!current()) return
     users.value = data.data
     total.value = data.total
   } catch {
+    if (!current()) return
+    users.value = []
+    total.value = 0
     error.value = t('admin.users.messages.loadError')
   } finally {
-    loading.value = false
+    if (current()) loading.value = false
   }
 }
+
+watch(listIdentity, () => {
+  contextGeneration++
+  users.value = []; total.value = 0; error.value = null
+  vaultManager.value = false; vaultKnown.value = false; vaultPending.value = 0
+  vaultUser.value = null; vaultReview.value = false; sessionsUser.value = null
+  onlineUsers.value = new Map(); groupOptions.value = []
+  void load(); void loadGroups(); void loadVaultStatus(); void loadOnline()
+}, { flush: 'sync' })
 
 onMounted(() => {
   void load()
@@ -447,7 +477,7 @@ onMounted(() => {
   vaultTimer = setInterval(() => { if (!vaultUser.value && !vaultReview.value) void loadVaultStatus() }, 60_000)
   void loadOnline()
 })
-onBeforeUnmount(() => { if (vaultTimer) clearInterval(vaultTimer) })
+onBeforeUnmount(() => { disposed = true; listRequest++; if (vaultTimer) clearInterval(vaultTimer) })
 
 async function toggleActive(user: UserPublic, active: boolean): Promise<void> {
   try {
@@ -592,7 +622,23 @@ function confirmPromotePlatformAdmin(user: UserPublic): void {
       >
         {{ $t('admin.users.showDeleted') }}
       </NCheckbox>
+      <NCheckbox
+        v-model:checked="vaultManagersOnly"
+        data-testid="users-vault-managers-filter"
+        @update:checked="load"
+      >
+        {{ $t('admin.users.vaultManagersOnly') }}
+      </NCheckbox>
     </NSpace>
+
+    <details
+      class="users-vault-help mb-4"
+      data-testid="users-vault-help"
+    >
+      <summary>{{ $t('admin.users.vaultManagersHelpTitle') }}</summary>
+      <p>{{ $t('admin.users.vaultManagerHelp') }}</p>
+      <p>{{ $t('admin.users.vaultManagersSetupHelp') }}</p>
+    </details>
 
     <NAlert
       v-if="error"
@@ -636,7 +682,7 @@ function confirmPromotePlatformAdmin(user: UserPublic): void {
         :bordered="false"
       >
         <template
-          v-if="!loading && users.length === 0"
+          v-if="!error && !loading && users.length === 0"
           #empty
         >
           <div class="py-16 flex flex-col items-center gap-3">
@@ -658,9 +704,10 @@ function confirmPromotePlatformAdmin(user: UserPublic): void {
               <path d="M22 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" />
             </svg>
             <p class="text-sm text-gray-500">
-              {{ $t('admin.users.emptyDesc') }}
+              {{ $t(vaultManagersOnly ? 'admin.users.vaultManagersEmpty' : 'admin.users.emptyDesc') }}
             </p>
             <NButton
+              v-if="!vaultManagersOnly"
               type="primary"
               size="small"
               @click="openCreate"
@@ -1026,6 +1073,8 @@ function confirmPromotePlatformAdmin(user: UserPublic): void {
 }
 
 :deep(.users-name-cell__name) {
+  white-space: normal;
+  overflow-wrap: anywhere;
   color: #f9fafb;
   font-weight: 600;
 }
@@ -1034,4 +1083,12 @@ function confirmPromotePlatformAdmin(user: UserPublic): void {
   color: #9ca3af;
   font-size: 12px;
 }
+.users-vault-help {
+  color: var(--na-text-muted, #9ca3af);
+  font-size: 13px;
+  line-height: 1.5;
+}
+.users-vault-help summary { cursor: pointer; width: fit-content; }
+.users-vault-help summary:focus-visible { outline: 2px solid currentColor; outline-offset: 3px; }
+.users-vault-help p { margin-top: 8px; max-width: 72ch; }
 </style>

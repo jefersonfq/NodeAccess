@@ -423,3 +423,35 @@ Revalidado o capítulo Hosts após a correção Sonar de `site-assistance.ts`: e
 Evidências conferidas: 31 testes DOM PASS em `.tmp/NA-0203/sonar-assistance-final.log`; adoção 39 checks PASS em `.tmp/NA-0203/adoption-browser/run-ZnIiXO/result.json`, fontes estáveis e cleanup confirmado, com o mesmo hash do helper no snapshot. `test:manual` repetido: 3 Node + 18 Vitest PASS (`sonar-helper-manual-tests.log`); só então atualizados data/hash de Hosts para `57fed45766a9746f20d1f4bf6def354b5a077687cd9bba2a8bb33b79389cd8ae`. `manual:check-reviewed`: cinco capítulos atuais (`sonar-helper-manual-reviewed.log`); registro do hash em `.tmp/NA-0203/sonar-helper-manual-hashes.json`.
 
 Por autorização específica de revalidação sem impacto no procedimento, as cinco capturas do portal foram preservadas: antecedem este ajuste e não representam captura nova sobre a fonte atual. Layout inalterado; nenhum `manual:capture` ou build foi executado nesta rodada. Resultados de captura/build anteriores continuam históricos. Sem mudanças de produção, roadmap ou alegação de aprovação Sonar nesta revalidação.
+
+### NA-0204 — Identificar gestores do cofre em Usuários — 2026-11-25T20:01:35-03:00
+
+Atualizado somente o procedimento em Hosts: administradores, mesmo sem gestão do cofre, identificam gestores ativos pela etiqueta somente leitura; **Somente gestores do cofre** combina-se com a busca e filtra antes da paginação. **Sobre os gestores do cofre** explica o papel independente de Administrador, a nomeação inicial de dois gestores pelo responsável pela instalação e a dupla aprovação posterior. Uma busca vazia não prova ausência de gestores. Avisos de propostas e ações de permissão continuam restritos aos gestores. Nenhuma autorização foi alterada pelo manual.
+
+Evidência independente conferida: `.tmp/NA-0188/administration-nlH3Xl/execution.json`, 16 cenários, 27 capturas e oito propostas/aprovações PASS, cleanup confirmado. As imagens PT desktop e EN mobile do selo, filtro e ajuda foram revistas. UsersView final SHA-256 `c66a109dfc47ed4817f8b587331d8d6f5628216a2ef3f406a3d4753b51827164` permaneceu igual antes/depois da captura.
+
+`manual:capture` PASS com frontend/cache privados, versão `NA0204-users`: cinco capítulos, 60 estados de geometria em ambos os temas e dois ciclos de tenant sem reconexão. As cinco imagens foram recapturadas e revistas, com dados sintéticos e ações legíveis. O menu Destaques aberto no terminal e os marcadores demonstrativos de compartilhamento pertencem ao roteiro; não foram mascarados. A tentativa inicial não abriu Chromium por caminho de executável ausente; a execução completa usou o Chromium instalado, sem alterar asserções.
+
+`test:manual`: 3 testes Node + 18 Vitest PASS. Só depois da evidência e revisão, Hosts recebeu hash `067105bebe8b0310bdcd53d2f4210b8496284c4d4a20dc390809e551de1c872b`; datas/hashes dos demais capítulos foram preservados. `manual:check-reviewed`: cinco capítulos atuais. Logs e hashes em `.tmp/NA-0204/manual/{capture,tests,reviewed}.log` e `hashes.json`. Validação local sintética; sem alegação de homologação ou aprovação Sonar nesta operação.
+
+### NA-0204 + NA-0205 — Integração canônica do manual — 2026-11-26T14:22:33.414Z
+
+Integrados somente o procedimento **Fechar a extensão** (X separado de Desconectar, descarte de campos não enviados, conferir a lista antes de repetir uma gravação enviada, rolagem e movimento reduzido) e o rótulo **Novo secret**. Preservados integralmente a seção de identificação de gestores da NA-0204 e os avisos de propostas restritos a gestores. O manifesto de Hosts passou a mapear PopupIcon.vue e popup/main.ts, mantendo UsersView e os demais arquivos existentes. Não foram copiados o manifesto ou as imagens do worktree.
+
+Evidência da extensão integrada: .tmp/NA-0205/integration/browser/result.json, 61 verificações PASS; captura de ações em tema claro revista, com X, Novo secret e Importar PEM visíveis. O main informou 111 testes focais, tipos e lint aprovados. Esses resultados não substituem o validate:sonar combinado.
+
+manual:capture PASS no checkout canônico, frontend e cache privados, versão NA0204-NA0205-integrated: cinco capturas novas, 60 estados de geometria nos dois temas e ciclos de tenant sem reconexão. As cinco imagens foram revistas; menu Destaques e marcadores sintéticos de compartilhamento pertencem ao roteiro. A primeira tentativa falhou por nome incorreto da variável de versão esperada na chamada; corrigido para MANUAL_EXPECTED_VERSION, sem modificar asserções.
+
+test:manual PASS (3 testes Node e 18 Vitest). Após evidência e revisão, somente Hosts recebeu novo reviewedAt/source hash: 38acb6fdc7bde546b266bbb8f044359a7fd1b261bb1b78472d3c998045eeb404. Logs em .tmp/NA-0205/integration/manual/{capture-final,tests,reviewed}.log e hashes.json. Capturas do portal usam dados sintéticos; não são homologação real da extensão nem aprovação Sonar. Nenhum build frontend adicional foi executado nesta operação.
+
+manual:check-reviewed PASS: cinco capítulos atuais após a revisão combinada.
+
+### NA-0206 — Guia de instalação e atualização da extensão — 2026-11-26T16:59:28.953Z
+
+Hosts descreve o cartão Extensão VaultNAccess, Versão disponível e download visíveis, os guias recolhíveis de primeira instalação e atualização e os detalhes técnicos de ID/SHA. Atualização manual: conferir ID, baixar/descompactar ZIP na mesma pasta, não desinstalar, recarregar e conferir versão/ID. Recarregar não baixa arquivos; o portal não detecta a versão instalada. Política corporativa segue restrita a administradores. Preservados os procedimentos NA-0204/0205.
+
+UI: baseline 7 → 9 testes focais PASS, tipos frontend e lint PASS. Browser independente: .tmp/NA-0206/install-guide/run-X8YjYx/result.json, 91 verificações PASS, PT/EN em 1280 e 390px, teclado nos details, download same-origin, política admin/não-admin, respostas indisponível/estrangeira/503 ocultas e HTTP sem API. Revisadas capturas PT390 recolhida e EN1280 expandida, sem overflow e com versão/download legíveis.
+
+manual:capture PASS no frontend/cache privados, versão NA0206-distribution-guide: cinco capturas canônicas novas, 60 estados de geometria em ambos os temas e ciclos de tenant sem reconexão. Cinco imagens revistas; menu Destaques e marcadores de compartilhamento são dados do roteiro. test:manual PASS: 3 testes Node e 18 Vitest. Após evidência e revisão, somente Hosts recebeu data/hash atualizado: aaeef05bd55923b6987a6240eaf1e363ce263b921e0f387890da24e0ddc272b0. O componente já era mapeado; nenhum helper de empacotamento pertence aos sourceFiles de Hosts. Logs em .tmp/NA-0206/manual/{capture,tests,reviewed}.log e hashes.json. Sem build frontend adicional, deploy remoto ou alegação de aprovação Sonar/homologação Windows.
+
+manual:check-reviewed PASS: cinco capítulos atuais após a revisão NA-0206.

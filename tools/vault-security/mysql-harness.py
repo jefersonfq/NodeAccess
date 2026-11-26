@@ -110,7 +110,8 @@ try:
     RESULT["migration_sha256"] = digest.hexdigest()
     tests = subprocess.run(["node", "node_modules/vitest/vitest.mjs", "run", "apps/backend/src/modules/vault-security/vault.mysql.test.ts",
                             "apps/backend/src/modules/vault-security/vault-extension.mysql.test.ts",
-                            "apps/backend/src/modules/vault-security/vault-sites.mysql.test.ts", "--reporter=default", "--reporter=json", "--outputFile=" + str(OUT / "tests.json")], cwd=ROOT, env=ENV, capture_output=True, text=True, timeout=240)
+                            "apps/backend/src/modules/vault-security/vault-sites.mysql.test.ts",
+                            "apps/backend/src/modules/users/user-list.mysql.test.ts", "--reporter=default", "--reporter=json", "--outputFile=" + str(OUT / "tests.json")], cwd=ROOT, env=ENV, capture_output=True, text=True, timeout=240)
     log("tests.log", tests)
     RESULT["exit_code"] = tests.returncode
     report = json.loads((OUT / "tests.json").read_text())

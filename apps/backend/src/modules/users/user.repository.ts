@@ -6,6 +6,7 @@ export interface UserFilters {
   search?: string
   role?: 'ADMIN' | 'USER'
   active?: boolean
+  vaultManager?: boolean
   includeDeleted?: boolean
   page?: number
   limit?: number
@@ -129,8 +130,8 @@ export class UserRepository {
   async findAll(
     tenantId: number,
     filters: UserFilters,
-  ): Promise<{ users: User[]; total: number }> {
-    const { search, role, active, includeDeleted = false, page = 1, limit = 20 } = filters
+  ): Promise<{ users: User[]; total: number; vaultManagerIds: number[] }> {
+    const { search, role, active, vaultManager, includeDeleted = false, page = 1, limit = 20 } = filters
     const skip = (page - 1) * limit
 
     const where: Prisma.UserWhereInput = {
@@ -146,12 +147,23 @@ export class UserRepository {
       }),
     }
 
-    const [users, total] = await this.db.$transaction([
-      this.db.user.findMany({ where, skip, take: limit, orderBy: { createdAt: 'desc' } }),
-      this.db.user.count({ where }),
-    ])
-
-    return { users, total }
+    return this.db.$transaction(async (tx) => {
+      const managers = await tx.$queryRaw<Array<{ id: number }>>`
+        SELECT u.id FROM vault_managers m
+        INNER JOIN users u ON u.id = m.user_id AND u.tenant_id = m.tenant_id
+        WHERE m.tenant_id = ${tenantId}
+          AND m.enabled = TRUE AND u.active = TRUE AND u.deleted_at IS NULL
+      `
+      const vaultManagerIds = managers.map(({ id }) => id)
+      if (vaultManager !== undefined) {
+        where.id = vaultManager ? { in: vaultManagerIds } : { notIn: vaultManagerIds }
+      }
+      const [users, total] = await Promise.all([
+        tx.user.findMany({ where, skip, take: limit, orderBy: { createdAt: 'desc' } }),
+        tx.user.count({ where }),
+      ])
+      return { users, total, vaultManagerIds }
+    })
   }
 
   async findGroupIdsByUser(userId: number): Promise<number[]> {

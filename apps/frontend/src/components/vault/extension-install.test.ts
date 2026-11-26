@@ -44,6 +44,36 @@ describe('NA-0194 extension install card', () => {
     write.mockRejectedValueOnce(new Error('denied')); await f.state.copy('policy', 'x'); expect(f.state.copied).toBe('')
     f.unmount()
   })
+  it('keeps version and download visible while install, update and technical details start collapsed', async () => {
+    mocks.get.mockResolvedValue({ data: published })
+    const f = mount<Install>(ExtensionInstall); await flush()
+    const html = await f.html(), visibleHeader = html.slice(0, html.indexOf('<details'))
+    expect(visibleHeader).toContain('0.2.0')
+    expect(visibleHeader).toContain('vault-extension-install-download')
+    expect(visibleHeader).not.toContain(ID)
+    expect(visibleHeader).not.toContain('a'.repeat(64))
+    for (const kind of ['first', 'update', 'details']) {
+      const section = html.match(new RegExp(`<details([^>]*data-testid="vault-extension-install-${kind}"[^>]*)>([\\s\\S]*?)</details>`))
+      expect(section, kind).not.toBeNull()
+      expect(section![1]).not.toMatch(/\bopen(?:=|\s|$)/)
+      expect(section![2]).toContain('<summary')
+    }
+    expect(mocks.get).toHaveBeenCalledTimes(1)
+    f.unmount()
+  })
+  it('provides both manual guides without admin policy or claiming to detect the installed version', async () => {
+    auth.isAdmin = false; mocks.get.mockResolvedValue({ data: published })
+    const f = mount<Install>(ExtensionInstall); await flush()
+    const html = await f.html()
+    for (const key of ['installStepsTitle', 'installStep1', 'installStep4', 'installUpdateTitle', 'installUpdateIntro',
+      'installUpdateStep1', 'installUpdateStep2', 'installUpdateStep3', 'installUpdateStep4', 'installUpdateRecovery'])
+      expect(html).toContain(`vaultExtension.${key}`)
+    expect(html).not.toContain('vault-extension-install-policy')
+    expect(html.match(/href=/g)).toHaveLength(1)
+    expect(html).toContain('href="/api/v1/vault-security/extension/package.zip"')
+    expect(mocks.get.mock.calls).toEqual([['/vault-security/extension/package']])
+    f.unmount()
+  })
   it('hides the policy from non-administrators', async () => {
     auth.isAdmin = false; mocks.get.mockResolvedValue({ data: published })
     const f = mount<Install>(ExtensionInstall); await flush()

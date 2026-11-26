@@ -34,4 +34,4 @@ const siteAssist: SiteAssistPort = {
 }
 createApp(App, { client, requestConnection, requestSiteFill, currentSite, pendingFill, capturedDraftPort, siteAssist,
   preferenceFactory: (scope: string, kind: 'sites' | 'hosts') => chromiumSitePreferences(client, scope, kind),
-  open: openTab, update, lastFailure: takeFailure, browserLanguage: navigator.language }).mount('#app')
+  close: () => window.close(), open: openTab, update, lastFailure: takeFailure, browserLanguage: navigator.language }).mount('#app')
