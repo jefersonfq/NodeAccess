@@ -1,6 +1,6 @@
 # NA-0206 — Implementação
 
-Atualizado 2026-11-26T16:13:49-03:00. Base `0ff5c1f9a8cf87c2b4715728ef7d91f96c37cf6e`; consolidação local `24009cb04ddc3643d2780d56ce891b74f83cf435`, branch `release/NA-0206-20261126-vault-production`. **Consolidação realizada; implantação ainda não executada. Validação integrada pós-commit reprovada por ensaio browser; revisão formal do checkout já verificada. Correção mínima do espelho de build em validação.** NA-0204/0205 preservadas.
+Atualizado 2026-11-26T16:47:47-03:00. Base `0ff5c1f9a8cf87c2b4715728ef7d91f96c37cf6e`; consolidação `24009cb04ddc3643d2780d56ce891b74f83cf435`, correção do espelho `8b3726ec3961d317bf74caf74706fb52539be1a0`, branch `release/NA-0206-20261126-vault-production`. **Consolidação e pacote realizados; backup preliminar concluído sem parar serviços. Implantação não executada: imagens e validação integrada final continuam pendentes.** NA-0204/0205 preservadas. A revisão formal do checkout passou na execução pós-commit, que permaneceu reprovada por um ensaio browser. A correspondência específica das referências de release às triagens existentes está em validação, sem ampliar aceites de risco.
 
 ## Pedido e objetivo
 
@@ -47,6 +47,12 @@ Análise `58908000-19ec-431b-b42b-9f8c90be383e`; evidência `.sonar-reports/vali
 Gitleaks: dois blocos de fixtures dos locales foram comparados integralmente com HEAD pelo revisor independente; conteúdo/linhas idênticos e placeholder sem chave utilizável. Alterados somente dois fileSha256, sem mudar regras, motivos ou paths. Novo scan passou. A revisão automática inicialmente interpretou uma ordem temporária de preservar baseline como proibição; reavaliou e autorizou ao receber a instrução AGENTS e a revisão individual, sem contorno.
 
 ## Diário de interações
+
+### 2026-11-26T16:47:21-03:00 — Pacote e backup preliminar; referências específicas de segurança
+
+Release padrão do commit 8b3726ec3 construído e verificado independentemente em 16 checks, com seis IDs inspecionados, agentes assinados e pacote público da extensão. Auditoria npm/SBOM passou com npm oficial portátil11.21.3 após reprodução da falha de overrides/workspaces no npm11.12.1; nenhuma dependência/global foi alterada. Scan de fontes43/43 e Semgrep0/0 passaram no commit limpo. O scan de imagens falhou:41 ocorrências são correspondências exatas de triagens existentes impedidas apenas pela referência; revisão independente autorizou as refs fixas2.2.0-na0206.1, sem novo aceite, prazo ou matcher. Redis/Oracle permanecem bloqueados e são reconstruídos sem cache de atualização. Ver release-image-review.md. Reconstrução de MySQL corrigiu os achados novos; Redis r2 aplicou os backports publicados. Revisão independente autorizou r2 somente nas três CVEs restantes já aceitas, mesma validade, sem estender outras imagens. Focais finais337PASS/0fail/0skip, lint e diffcheckPASS; revisão independente do diffGO_WITH_WARNINGS. Novo commit/build/scan e Sonar integrado continuam necessários.
+
+Backup preliminar remoto terminou exit0, appsStopped=false, somente preparação privada; nenhuma configuração ou serviço da aplicação foi alterado. Recibo e checksums preservados em evidência privada. Ele não certifica consistência Redis/storage, restauração nem rollback: cópia offserver, ensaio isolado e backup final ainda pendentes. Runner passou revisão e testes de supervisor materializado antes do SSH. Scripts de clone/cutover seguem em revisão; nenhuma migração ou implantação executada.
 
 ### 2026-11-26T16:13:49-03:00 — Prontidão e correção mínima do espelho Alpine
 
