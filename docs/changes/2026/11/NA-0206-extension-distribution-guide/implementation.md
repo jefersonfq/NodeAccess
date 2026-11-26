@@ -1,6 +1,6 @@
 # NA-0206 — Implementação
 
-Atualizado 2026-11-26T14:58:40-03:00. Base/HEAD `0ff5c1f9a8cf87c2b4715728ef7d91f96c37cf6e`; branch de consolidação `release/NA-0206-20261126-vault-production`, checkout canônico (evidências prévias coletadas na branch NA-0204). **LOCAL_WIP: testes/cobertura/Quality Gate PASS; validação formal BLOCKED por REVIEW_CHECKOUT_CHANGED. Sem commit, release geral ou implantação.** Alterações anteriores NA-0204/0205 preservadas.
+Atualizado 2026-11-26T16:13:49-03:00. Base `0ff5c1f9a8cf87c2b4715728ef7d91f96c37cf6e`; consolidação local `24009cb04ddc3643d2780d56ce891b74f83cf435`, branch `release/NA-0206-20261126-vault-production`. **Consolidação realizada; implantação ainda não executada. Validação integrada pós-commit reprovada por ensaio browser; revisão formal do checkout já verificada. Correção mínima do espelho de build em validação.** NA-0204/0205 preservadas.
 
 ## Pedido e objetivo
 
@@ -18,6 +18,14 @@ Candidato local em `release/vaultnaccess`, versão **0.1.0**, ID público **bppc
 
 ## Validação
 
+Pós-consolidação: `validate:change` PASS. A execução `validation-1795717816337-6ae39b01-5b0f-4294-bd48-5aacfc366590` teve tooling254/Vitest5072/Node1060 PASS e TLS4/4 com cleanup; browser12 PASS antes de falhar em `vault-adoption`, botão Sites após reabertura. Fontes estáveis, cleanup verdadeiro, nenhuma operação de preenchimento/gravação. Quality Gate OK80,1%, zero novas violações/hotspots; reviewsVerified/analysisVerified verdadeiros, mas validação final FAIL `TESTS_OR_COVERAGE_FAILED`. Diagnóstico isolado com mesmas fontes/prazos passou39 verificações sem reproduzir a causa; não substitui nova integração completa.
+
+Agentes2.1.0 Windows/Linux/macOS foram gerados e tiveram assinaturas/manifestações de origem verificadas; MSI/EXE Authenticode válido com identidade existente. Dezesseis arquivos públicos, sem instalação/rollout; macOS não recebeu notarização Apple. Cópias temporárias de chaves privadas removidas. Pacote de extensão regenerado em checkout limpo24009cb passou12 verificações, ID/chave/bytes ZIP/CRX preservados; metadados precisarão acompanhar o SHA final.
+
+`security:check` completo PASS com npm oficial portátil11.21.3: runtime/all zero vulnerabilidades, SBOM229 componentes incluindo glob14.0.2. npm11.12.1 reproduziu falha de propagação de override em workspace; fixture mínima falha na versão antiga e passa na nova. Sem alteração de dependências, wrapper global ou exclusão de componentes.
+
+Histórico pré-consolidação (não aprovação do SHA futuro):
+
 Ran: verificações pré-commit abaixo. Planned: repetir gates no SHA consolidado e validar pacote/backup/cutover antes da implantação. Manual: homologação humana não presumida.
 
 | Evidência | Resultado |
@@ -29,7 +37,7 @@ Ran: verificações pré-commit abaixo. Planned: repetir gates no SHA consolidad
 | Revisão independente do empacotador | Sem P1/P2; valida integridade de prebuilt confiável, não assinatura nem ausência de segredos comprimidos por si só |
 | Artefato real | 12 verificações independentes PASS: assinatura CRX3 RSA3072, ID/SPKI/manifesto, ZIP correspondente, CRC/diretório central, referências, origem/versão/URLs/permissões e rejeição de adulteração |
 | Segurança | Gitleaks 43/43 revisados, Semgrep 0 achados/0 erros em 1010 alvos; snapshot estável e cleanup |
-| Integração atual | Tooling 254 PASS/0 FAIL/1 skip; Vitest 5072 PASS/0 FAIL/200 pending; Node 1060 PASS/0 FAIL/12 skips; TLS PASS/cleanup; browser 17/17 PASS |
+| Integração pré-consolidação | Tooling 254 PASS/0 FAIL/1 skip; Vitest 5072 PASS/0 FAIL/200 pending; Node 1060 PASS/0 FAIL/12 skips; TLS PASS/cleanup; browser 17/17 PASS |
 | Cobertura local | 85,5054036872%, mínimo 80%; 3558/3910 linhas +3167/3955 condições; missing[] |
 | Sonar | Gate OK, nova cobertura remota 84,3%, duplicação 0,81628%, 0 novas violações/hotspots |
 | Validação formal | exit1 somente REVIEWED_FINDINGS_NOT_VERIFIED, erro REVIEW_CHECKOUT_CHANGED; não aprovada |
@@ -39,6 +47,14 @@ Análise `58908000-19ec-431b-b42b-9f8c90be383e`; evidência `.sonar-reports/vali
 Gitleaks: dois blocos de fixtures dos locales foram comparados integralmente com HEAD pelo revisor independente; conteúdo/linhas idênticos e placeholder sem chave utilizável. Alterados somente dois fileSha256, sem mudar regras, motivos ou paths. Novo scan passou. A revisão automática inicialmente interpretou uma ordem temporária de preservar baseline como proibição; reavaliou e autorizou ao receber a instrução AGENTS e a revisão individual, sem contorno.
 
 ## Diário de interações
+
+### 2026-11-26T16:13:49-03:00 — Prontidão e correção mínima do espelho Alpine
+
+Commit consolidado criado e governança aprovada. Preparados builds em worktree limpo, sem temporários privados no contexto Docker. As duas primeiras tentativas falharam em operações Buildx porque o processo substituía o grupo primário por docker; prova isolada confirmou EPERM com somente grupo docker e sucesso com grupo primário jeferson mais docker suplementar, sem mudar grupos/permissões globais. Tentativas preservadas.
+
+A tentativa seguinte parou em GLib: o espelho dl-4 retornou HTTP404/HTML153bytes. O CDN oficial retornou o APK original2069030bytes, SHA256 `8d48e2c7f088607dae754001ad45bf3017a67615ca3213a7206e21b9eda4a2f3`, idêntico ao pin; `apk verify` PASS isolado sem rede. Revisão independente aprovou somente trocar dl-4 por dl-cdn na linha ADD de GLib em `docker/guacd.Dockerfile`; versão, checksum, destino e instalação permanecem iguais. Imagem antiga com GLib2.90.0 não foi aceita como equivalente. Novo build e Sonar no SHA da correção ainda pendentes; nenhuma baseline alterada.
+
+VPS consultada apenas em leitura. Scripts de backup/clone/cutover ainda em revisão, sem serviços, dados, firewall ou configurações alterados. Evidências privadas em `.tmp/NA-0206/consolidation/`, `windows-tools/`, `adoption-diagnostic/` e `operations/`. Próximo passo: commit do ajuste mínimo, build/gates do novo SHA, backup/restauração isolada e implantação somente após aprovação técnica. Roadmap aguarda uma única escrita com o resultado final da operação.
 
 ### 2026-11-26T15:28:13-03:00 — Consolidação e implantação autorizadas
 
@@ -55,4 +71,4 @@ Plano operacional ampliado exige backup consistente/restore isolado, configuraç
 
 ## Pendências
 
-Consolidar commit/revisões sob autorização e repetir o gate formal no checkout adequado; regenerar o pacote vinculando o SHA aprovado. Preparar a atualização da plataforma preservando Compose ativos, certificados, volumes, segredos, migrações e rollback. Somente então publicar os arquivos públicos e configurar explicitamente ID/habilitação/pasta na API. Roadmap META-017 consolidado em uma única escrita, revisão51; SHA81bf1362a2c838e636348276361eec5ca7afe90a359690990ab5f35fa8661ebe. ZIP/células/Original2027/META-005/demais IDs e revisões1–50 preservados. A planilha registra o bloqueio formal; o detalhe REVIEW_CHECKOUT_CHANGED confirmado depois está nestes documentos, sem segunda escrita.
+Concluir a correção mínima do espelho e repetir os gates no SHA final; regenerar o pacote vinculando o SHA aprovado. Preparar a atualização da plataforma preservando Compose ativos, certificados, volumes, segredos, migrações e rollback. Somente então publicar os arquivos públicos e configurar explicitamente ID/habilitação/pasta na API. Roadmap META-017 consolidado em uma única escrita, revisão51; SHA81bf1362a2c838e636348276361eec5ca7afe90a359690990ab5f35fa8661ebe. ZIP/células/Original2027/META-005/demais IDs e revisões1–50 preservados. A planilha registra o bloqueio formal; o detalhe REVIEW_CHECKOUT_CHANGED confirmado depois está nestes documentos, sem segunda escrita.
