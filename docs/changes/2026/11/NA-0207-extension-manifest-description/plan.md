@@ -2,7 +2,7 @@
 change_id: NA-0207
 title: Extensão 0.1.1 com descrição fiel às funções atuais
 type: fix
-status: ready-for-tests
+status: in-homologation
 created_at: 2026-11-27T14:03:00-03:00
 base_branch: release/NA-0206-20261126-vault-production
 base_sha: 109add8bf3cdbabdb64ca93d11abaca04b3454f9
@@ -36,7 +36,7 @@ Fora do escopo: publicar na VPS (usuário escolheu só local), mudar `VAULT_EXTE
 - [x] Descrição cita busca, revelar/copiar e preenchimento com autorização; ≤132 caracteres.
 - [x] Testes da extensão, tipos e lint PASS.
 - [x] Pacote 0.1.1 gerado com o mesmo ID e verificado por `package*.test.mjs`/verificador independente.
-- [ ] `validate:sonar` registrado no SHA do commit. **BLOCKED (ambiente):** Docker inacessível para `jeferson`; ver `docs/sonarqube/validation-NA-0207.md`.
+- [x] `validate:sonar` PASS no SHA `4c876319b` (análise `f391ab31-62bb-4618-bd8c-106761ebb8d1`); ver `docs/sonarqube/validation-NA-0207.md`.
 
 ## Estratégia técnica
 
