@@ -35,8 +35,8 @@ Fora do escopo: publicar na VPS (usuário escolheu só local), mudar `VAULT_EXTE
 
 - [x] Descrição cita busca, revelar/copiar e preenchimento com autorização; ≤132 caracteres.
 - [x] Testes da extensão, tipos e lint PASS.
-- [ ] Pacote 0.1.1 gerado com o mesmo ID e verificado por `package*.test.mjs`/verificador independente.
-- [ ] `validate:sonar` registrado no SHA do commit.
+- [x] Pacote 0.1.1 gerado com o mesmo ID e verificado por `package*.test.mjs`/verificador independente.
+- [ ] `validate:sonar` registrado no SHA do commit. **BLOCKED (ambiente):** Docker inacessível para `jeferson`; ver `docs/sonarqube/validation-NA-0207.md`.
 
 ## Estratégia técnica
 
