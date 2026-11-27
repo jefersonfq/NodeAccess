@@ -98,7 +98,7 @@ test('release preparation CLI imports and rejects stale packages', t => {
 
 test('release script fails before creating an output directory for stale Windows artifacts', { skip: process.platform === 'win32' }, t => {
   const f = fixture(t)
-  for (const path of ['tools/shared/trusted-executable.cjs', 'apps/agent/installer/release-signing.mjs', 'apps/agent/installer/windows/artifacts.mjs', 'scripts/release/prepare-agent-windows.mjs', 'scripts/release/build-release.sh', 'scripts/release/release-provenance.mjs', 'scripts/release/prepare-agents.mjs', 'apps/agent/installer/platforms.mjs', 'apps/agent/installer/platform-artifacts.mjs']) {
+  for (const path of ['tools/shared/trusted-executable.cjs', 'apps/agent/installer/release-signing.mjs', 'apps/agent/installer/windows/artifacts.mjs', 'scripts/release/prepare-agent-windows.mjs', 'scripts/release/build-release.sh', 'scripts/release/prepare-extension.mjs', 'scripts/release/release-provenance.mjs', 'scripts/release/prepare-agents.mjs', 'apps/agent/installer/platforms.mjs', 'apps/agent/installer/platform-artifacts.mjs']) {
     mkdirSync(dirname(join(f.root, path)), { recursive: true })
     copyFileSync(join(projectRoot, path), join(f.root, path))
   }
