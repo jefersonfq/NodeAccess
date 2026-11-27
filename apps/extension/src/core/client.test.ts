@@ -369,4 +369,11 @@ describe('NA-0183 extension manifest', () => {
     expect(m).not.toHaveProperty('key')
     expect(manifest(PORTAL, '0.1.0', 'K'.repeat(120))).toMatchObject({ key: 'K'.repeat(120) })
   })
+  it('NA-0207 describes reveal/copy and fill instead of metadata only, within the Chrome limit', () => {
+    const description = String(manifest(PORTAL, '0.1.1').description)
+    expect(description.length).toBeLessThanOrEqual(132)
+    expect(description).not.toMatch(/somente metadados/i)
+    expect(description).toMatch(/revela/)
+    expect(description).toMatch(/preenche/)
+  })
 })
