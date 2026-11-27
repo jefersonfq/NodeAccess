@@ -2,7 +2,7 @@
 change_id: NA-0206
 title: Consolidar o cofre e distribuir a extensão na VPS existente
 type: release
-status: ready-for-tests
+status: in-homologation
 created_at: 2026-11-26T13:50:46-03:00
 base_branch: feature/NA-0204-20261125-users-vault-managers
 base_sha: 0ff5c1f9a8cf87c2b4715728ef7d91f96c37cf6e
@@ -35,8 +35,8 @@ Fora do escopo: mudança do domínio no código, instalação de extensão no na
 - [x] UI e guias PT/EN, teclado/mobile e estados de falha validados; políticas e permissões preservadas.
 - [x] Pacote candidato real com assinatura/ID/origem/CRC/hashes verificados independentemente; configuração externa persistida.
 - [x] Manual atualizado e revisado, testes e segurança pré-commit aprovados.
-- [ ] Commit com conteúdo revisado, governança válida e checkout limpo; validação Sonar formal no SHA final.
-- [ ] Release padrão com agentes assinados atuais, imagens verificadas, proveniência limpa e checksums; sem reutilização de artefatos obsoletos.
+- [x] Commit com conteúdo revisado, governança válida e checkout limpo; validação Sonar formal no SHA final.
+- [x] Release padrão com agentes assinados atuais, imagens verificadas, proveniência limpa e checksums; sem reutilização de artefatos obsoletos.
 - [ ] Backup consistente e cópia offserver com ensaio de restauração; compatibilidade de migrations/rollback comprovada.
 - [ ] Cutover revisado com drenagem, serviços explícitos, mounts/identidades preservados e saúde pós-troca.
 - [ ] Origem pública entrega versão/pacote corretos; registros e roadmap distinguem execução técnica e homologação humana.
@@ -73,3 +73,19 @@ Preservar imagens por ID, Compose/env/ACTIVE, certificados/CA/hostkeys/proxy, du
 - Usuário autorizou explicitamente consolidar e atualizar a VPS nesta interação.
 - Revisão seletiva pré-commit sem P1/P2; deploy condicionado aos gates e revisão dos comandos concretos.
 - Não criar push/PR/merge nem afirmar homologação sem autorização/evidência correspondente.
+
+## Retomada 2026-11-26T19:19:39-03:00
+
+Candidato6f956b2a0 aprovado no Sonar/release; preparação seletiva VPS concluída sem DDL/ativação. Deploy BLOCKED pela segurança do helper de restauração (37ocorrências;5High sem triagem, além de OpenSSL fora do escopo de aceites). Detalhes e recibos em implementation.md. Não repetir gates já comprovados no candidato.
+
+## Exceção expressa 2026-11-26T19:27:15-03:00
+
+Usuário autorizou publicação para testes apesar do bloqueio. Dispensado ensaio isolado/restauração prévia nesta janela; não equivale a aprovação dos achados do helper. Mantidos backup consistente e cópia offserver, hashes, migrações controladas, preservação dos serviços de dados e saúde pós-atualização. Revisão operacional independente GO_WITH_RISKS; sem novos testes gerais.
+
+## Resultado 2026-11-26T19:37:57-03:00
+
+VPS atualizada para2.2.0-na0206.1/SHA6f956b2a0. Backup consistente e offserver verificados;158migrações; healthchecks e smoke público PASS. Ensaio isolado dispensado pelo usuário e permanece pendência explícita; não marcar esse critério original como cumprido. Homologação humana pendente. Detalhes no implementation.md.
+
+## Configuração inicial pós-deploy — 2026-11-26T19:42:09-03:00
+
+Usuário autorizou explicitamente as duas contas gestoras após a atualização; bootstrap oficial validado em dry-run e aplicado com auditoria. Esta autorização pontual substitui a restrição de não nomear gestores automaticamente durante o deploy. Nenhuma concessão automática de revelar/copiar ou elegibilidade.

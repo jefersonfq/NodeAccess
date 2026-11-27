@@ -1,6 +1,6 @@
 # NA-0206 — Implementação
 
-Atualizado 2026-11-26T16:47:47-03:00. Base `0ff5c1f9a8cf87c2b4715728ef7d91f96c37cf6e`; consolidação `24009cb04ddc3643d2780d56ce891b74f83cf435`, correção do espelho `8b3726ec3961d317bf74caf74706fb52539be1a0`, branch `release/NA-0206-20261126-vault-production`. **Consolidação e pacote realizados; backup preliminar concluído sem parar serviços. Implantação não executada: imagens e validação integrada final continuam pendentes.** NA-0204/0205 preservadas. A revisão formal do checkout passou na execução pós-commit, que permaneceu reprovada por um ensaio browser. A correspondência específica das referências de release às triagens existentes está em validação, sem ampliar aceites de risco.
+Atualizado 2026-11-26T19:37:57-03:00. Base `0ff5c1f9a8cf87c2b4715728ef7d91f96c37cf6e`; candidato `6f956b2a0768e96c9bc7a07d80ead2bf3543c50b`, branch `release/NA-0206-20261126-vault-production`. **VPS atualizada para2.2.0-na0206.1:158migrações, aplicação saudável e smoke público PASS.** Backup consistente e cópia local autorizada/verificada. Ensaio isolado dispensado por exceção expressa do usuário; achados do helper não aprovados nem corrigidos. Homologação pelos usuários pendente.
 
 ## Pedido e objetivo
 
@@ -48,6 +48,48 @@ Gitleaks: dois blocos de fixtures dos locales foram comparados integralmente com
 
 ## Diário de interações
 
+### 2026-11-27T13:50:00-03:00 — Revisão da extensão e publicação no GitHub autorizada
+
+Revisão (Claude Code) do background/preenchimento/interações da extensão: remetentes, schemas estritos, epoch de autorização e vínculo aba/frame/documento conferidos; rascunho capturado fica só em memória do service worker, TTL ≤120 s, limpo em logout/troca/cancelamento — sem mudança. Descrição do manifesto ainda diz "somente metadados" → nova frente para 0.1.1. Usuário autorizou push e PR sem merge; VPS fica fora (só local). PRs empilhados: NA-0203 → master e esta branch → NA-0203, pois NA-0203 não estava no GitHub. Ran: `validate:change`. Skipped: suítes/Sonar (commit só de documentação; candidato `6f956b2a0` já aprovado). Manual: homologação humana e merge.
+
+### 2026-11-26T19:42:09-03:00 — Gestores iniciais explicitamente escolhidos pelo usuário
+
+Após acessar a versão atualizada, o usuário escolheu duas contas para a gestão inicial. Consulta restrita confirmou correspondência exata no mesmo tenant, contas ativas, senha local/TOTP configurados, sem troca de senha pendente, tenant ativo/não trial e ausência de política prévia. Outras contas de nome semelhante não foram alteradas.
+
+Executado o bootstrap oficial `tools/vault-security/manage.mjs` sem modificar seu código: dry-run PASS sem escrita; apply PASS transacional e leitura posterior confirmou exatamente dois gestores habilitados. Evento de auditoria DEPLOYMENT_BOOTSTRAP gerado pelo procedimento. Revelar/copiar continuam false; nenhum entitlement ou item elegível criado. Origem HTTPS de produção mantida. Recibos privados em `.tmp/NA-0206/bootstrap-dry-run-receipt.private.json` e `bootstrap-apply-receipt.private.json`; sem dados pessoais neste diário. Sem reinício/deploy adicional, sem suíte geral/Sonar (operação de configuração, nenhum código alterado). Próximo passo: atualizar a página e usar Configurações → Cofre, com proposta/aprovação entre gestores. Roadmap sem mudança de escopo ou estado de entrega nesta operação.
+
+### 2026-11-26T19:37:57-03:00 — Atualização VPS concluída e acesso público validado
+
+Usuário confirmou explicitamente payload/destino da cópia offserver após a revisão automática bloquear essa transferência. A tentativa de antecipar parada da API em paralelo também foi rejeitada; aguardou-se a sequência original. Backup terminou exit0, hashes de banco/configurações/volumes conferidos em `.tmp/NA-0206/authorized-final-backup` (privado). Nenhum DDL antes dessa verificação.
+
+Atualização remota exit0: oito migrações aplicadas (150→158), API/gateway/frontend substituídos, healthchecks aprovados; containers/imagens/mounts de MySQL/Redis/guacd preservados. ACTIVE-DEPLOYMENT.json e current-v2 atualizados. Operação `/opt/nodeaccess/maintenance/NA-0206-authorized-update`, recibos backup-exit/update-exit/update-receipt, backup no subdiretório backup. SHA implantado6f956b2a0768e96c9bc7a07d80ead2bf3543c50b.
+
+Smoke público real: `/` e JS principal200; `/health/ready`200, versão2.2.0-na0206.1 e process/mysql/redis/session_audit_storage/migrations OK; CRX200 com SHA256 esperado34bda1e497e36feb9d094276b5f2daf28ff6802aac862024a39d43398286718b; metadados protegidos401 sem autenticação. A tentativa inicial `/api/health/ready`404 usava rota incorreta; a rota correta foi verificada. Evidência `.tmp/NA-0206/public-smoke-authorized.json`.
+
+Ran: backup e hashes offserver, migrações, healthchecks, preservação runtime e smoke público. Skipped: novas suítes gerais e ensaio isolado por exceção explícita. Manual: homologação funcional por usuários pendente. Achados do helper permanecem abertos; helper não foi utilizado neste caminho. Sem commit/push/PR/merge; documentos locais atualizados. Próximo passo: usuários testarem a instalação existente; nenhuma nova implantação necessária para iniciar esses testes. Não realizar downgrade de schema nem restaurar backup sobre gravações novas automaticamente.
+
+### 2026-11-26T19:27:15-03:00 — Exceção autorizada e atualização da instalação existente
+
+Usuário pediu explicitamente subir mesmo com o bloqueio, para testes pelos usuários e com poucos tokens. Autorização registrada para dispensar nesta atualização o ensaio isolado/helper pendente, sem converter achados em PASS nem ampliar baseline. Mantidos backup consistente com aplicação parada, cópia offserver verificada, migrações com marcador único, healthchecks e smoke público. Revisão independente GO_WITH_RISKS do script temporário `authorized-update.py`; script SHA25612d8451231879b2392d86db9bb18860ca1d59c1df6b7cc3c9564f22da9b22552. VPS tinha zero sessões ativas. Escopo: somente API/gateway/frontend; preservar MySQL/Redis/guacd, volumes, certificados e flags. Backup iniciado em operação remota NA-0206-authorized-update. Nenhuma suíte geral reexecutada.
+
+### 2026-11-26T19:19:39-03:00 — Preparação VPS concluída; cutover bloqueado
+
+Staging r2 extraiu o release oficial e parou em image-inventory por colisões de tags mysql/redis/guacd com IDs existentes; nenhum load foi feito nessa tentativa. A indicação oldContainersPreserved=false decorreu somente da ordem de Mounts; consulta focal confirmou igualdade do conteúdo e demais campos. Nenhuma proteção foi removida.
+
+Export seletivo por referências explícitas corrigiu o índice OCI incompleto do auxiliar antigo. Verificação integral PASS para exatamente dois IDs, blobs, manifests, refs e mapa legacy ligado às camadas finais. Arquivo361593770bytes, SHA256 `ef986b6dcfa9b077dce84a364bdec2a2b798075ee8cd680f4146791f47ea6cec`. Revisão independente aprovou carga seletiva com hashes, reserva6GiB+2GiB+membros/arquivo, colisões e containers normalizados. Upload verificado e load/preparação PASS: operação `10291c344ddf49f7830b8a122ac396f2`, operationSHA256 `c18453d1e236a9aeae86e001f93257a8cce7e8f5453c2e2734a2e4e114c2b98d`, composeSHA256 `4188a941eb92bfa7fe1a3d356fd1b5019c6f7f05497a566a379b9656ed78670f`. Todos os containers/tags preexistentes preservados; sem DDL, manutenção, reinício ou ativação. Recibo `.tmp/NA-0206/selective-prepared-receipt.json`.
+
+Revisão independente Redis preliminar PASS (hashes, inventário RDB e correspondência do runtime), sem certificar backup final. Helper teve revisão de código PASS, mas scan focal com scanner/base existentes, offline e temporário em disco, encontrou37ocorrências. Revisão comparativa:10High OpenSSL correspondem a triagens restritas a outras imagens;27ocorrências sem match exato, incluindo5High (4SQLite+1Python). Helper SQLite3.53.4-r0 não equivale à triagem3.54.1-r0. Não houve aceite/baseline alterado. Scan em `.tmp/NA-0206/helper-scan-resume/`; contrato runtime permanece sem GO.
+
+**Bloqueio:** corrigir os pacotes do helper ou obter revisão específica dos achados antes do ensaio isolado. Depois: baixar operação privada já preparada, ensaiar migrações/retorno, backup final/restauração final e cutover. Não repetir build/Sonar/suítes do candidato por esta retomada; as únicas edições versionadas são orientações/documentação/roadmap. Sem publicação GitHub. Ran nesta etapa: export/integridade, upload/load/preparação, scan focal e revisões. Skipped: suítes gerais. Planned: restauração/cutover. Manual: homologação humana.
+
+### 2026-11-26T19:09:27-03:00 — Retomada econômica e deploy autorizado
+
+Usuário pediu reduzir testes/tokens e implantar a versão atual. `quality:context` confirmou SHA limpo e Sonar aprovado (analysis35677a31-e2c0-4f7d-9fdb-d11dd98613e9). Artefatos finais: tooling254, Vitest5072, Node1147, browser/TLS PASS; consultados, não reexecutados. Release oficial16checksPASS e transferência íntegra.
+
+`ai/quality-context.md` agora exige motivo/evidência faltante antes de suítes longas, diagnóstico focal sem retry automático e retomada por etapa. Nenhum código da aplicação alterado. VPS saudável. Revisão independente aprovou staging oficial; auxiliar OCI rejeitado não usado. Tentativa r1 falhou antes de extração/load: segunda communicate em pipes fechados no Python3.6.8. Correção mínima temporária revisada; nove testes focais PASS (0,224s), prova remota somente leitura PASS, destinos release/operação ausentes. R2 preserva r1 e usa novas pastas; upload verificado e processo iniciado. Manifest r2 `fcf854ac01c0e199f14ae98eb60f1a96ab08194a64587fde326a55a54b94f15b`.
+
+Ran: contexto, saúde remota, hashes, nove focais e prova Python remoto. Skipped: build/Sonar/suítes gerais já aprovados no candidato. Planned: recibo staging, restauração, backup final e cutover. Manual: homologação não presumida. Sem push/PR/merge. Roadmap pendente de uma única atualização ao resultado operacional.
+
 ### 2026-11-26T16:47:21-03:00 — Pacote e backup preliminar; referências específicas de segurança
 
 Release padrão do commit 8b3726ec3 construído e verificado independentemente em 16 checks, com seis IDs inspecionados, agentes assinados e pacote público da extensão. Auditoria npm/SBOM passou com npm oficial portátil11.21.3 após reprodução da falha de overrides/workspaces no npm11.12.1; nenhuma dependência/global foi alterada. Scan de fontes43/43 e Semgrep0/0 passaram no commit limpo. O scan de imagens falhou:41 ocorrências são correspondências exatas de triagens existentes impedidas apenas pela referência; revisão independente autorizou as refs fixas2.2.0-na0206.1, sem novo aceite, prazo ou matcher. Redis/Oracle permanecem bloqueados e são reconstruídos sem cache de atualização. Ver release-image-review.md. Reconstrução de MySQL corrigiu os achados novos; Redis r2 aplicou os backports publicados. Revisão independente autorizou r2 somente nas três CVEs restantes já aceitas, mesma validade, sem estender outras imagens. Focais finais337PASS/0fail/0skip, lint e diffcheckPASS; revisão independente do diffGO_WITH_WARNINGS. Novo commit/build/scan e Sonar integrado continuam necessários.
@@ -77,4 +119,4 @@ Plano operacional ampliado exige backup consistente/restore isolado, configuraç
 
 ## Pendências
 
-Concluir a correção mínima do espelho e repetir os gates no SHA final; regenerar o pacote vinculando o SHA aprovado. Preparar a atualização da plataforma preservando Compose ativos, certificados, volumes, segredos, migrações e rollback. Somente então publicar os arquivos públicos e configurar explicitamente ID/habilitação/pasta na API. Roadmap META-017 consolidado em uma única escrita, revisão51; SHA81bf1362a2c838e636348276361eec5ca7afe90a359690990ab5f35fa8661ebe. ZIP/células/Original2027/META-005/demais IDs e revisões1–50 preservados. A planilha registra o bloqueio formal; o detalhe REVIEW_CHECKOUT_CHANGED confirmado depois está nestes documentos, sem segunda escrita.
+Homologação pelos usuários; correção/revisão dos achados do helper e ensaio de restauração permanecem pendentes, sem bloquear a publicação já explicitamente autorizada. VPS implantada, GitHub/master não publicados nesta operação. Roadmap atualizado nesta interação com publicação técnica, sem afirmar homologação.
