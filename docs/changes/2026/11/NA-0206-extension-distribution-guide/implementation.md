@@ -48,6 +48,10 @@ Gitleaks: dois blocos de fixtures dos locales foram comparados integralmente com
 
 ## Diário de interações
 
+### 2026-11-27T18:25:00-03:00 — Lint do CI e triagem do helper
+
+`static-quality` do PR #93 falhou com 16 avisos `explicit-function-return-type` em `apps/frontend/src/services/user.service.ts`, arquivo tocado por NA-0204; tipos de retorno explícitos no padrão de `local-ai.service.ts`, sem mudança de comportamento. Helper do ensaio: pacotes já na última versão do Alpine 3.24 (evidência datada), sem correção disponível; triagem por exposição com prazo em `helper-triage.md`, revisão independente PASS_WITH_WARNINGS e correções exigidas aplicadas. Aceite preso a image ID/hash do helper, válido até 2026-12-31 e só para o ensaio. Ran: ESLint `--max-warnings 0`, `npm run typecheck`, `lint:changed`, Vitest admin/services 912 PASS. Planned: ensaio isolado de restauração com as condições da triagem (não executado).
+
 ### 2026-11-27T17:42:00-03:00 — CI do GitHub: correção do teste do agente nativo
 
 Primeiro CI remoto (PR #93): `native-agent` (macOS/Ubuntu) falhou porque `build-release.sh` passou a chamar `prepare-extension.mjs validate` e o teste `artifacts.test.mjs` não copiava esse script para o fixture temporário. Incluído na lista de cópia; 17 PASS local. Correções de CI do NA-0203 trazidas por merge (`b4e41a55a`). Usuário autorizou seguir com homologação, merge, publicação 0.1.1, helper e pentest; merge depende do CI verde. Ran: `node --test artifacts.test.mjs`, `validate:change`. Planned: CI remoto.

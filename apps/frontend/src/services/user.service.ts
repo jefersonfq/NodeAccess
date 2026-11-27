@@ -1,3 +1,4 @@
+import type { AxiosResponse } from 'axios'
 import api from './api'
 import type { UserPublic, UserListItem, CreateUserDto, UpdateUserDto, UserPreferences, PatchUserPreferencesDto } from '@nodeaccess/shared'
 import type { Paginated } from '@nodeaccess/shared'
@@ -28,32 +29,32 @@ export interface UserInventoryAccessEntry {
 const userPreferencesCache = createTimedPromiseCache<{ data: UserPreferences | null }>(cacheTtls.userPreferences, { name: 'users:me:preferences' })
 
 export const userService = {
-  list:           (params?: UserQuery) => api.get<Paginated<UserListItem>>('/users', { params }),
-  get:            (id: number)         => api.get<UserPublic>(`/users/${id}`),
-  listInventoryAccess: (id: number)    => api.get<UserInventoryAccessEntry[]>(`/users/${id}/inventory-access`),
-  create:         (dto: CreateUserDto) => api.post<UserPublic & { temporaryPassword?: string }>('/users', dto),
-  update:         (id: number, dto: UpdateUserDto) => api.patch<UserPublic>(`/users/${id}`, dto),
-  activate:       (id: number) => api.patch<UserPublic>(`/users/${id}/activate`),
-  deactivate:     (id: number) => api.patch<UserPublic>(`/users/${id}/deactivate`),
-  delete:         (id: number) => api.delete(`/users/${id}`),
-  restore:        (id: number) => api.post<UserPublic>(`/users/${id}/restore`),
-  resetPassword:  (id: number) => api.post<{ temporaryPassword: string }>(`/users/${id}/reset-password`),
-  resetMfa:       (id: number) => api.post<UserPublic>(`/users/${id}/reset-mfa`, {}),
-  changePassword: (newPassword: string, currentPassword?: string) =>
+  list:           (params?: UserQuery): Promise<AxiosResponse<Paginated<UserListItem>>> => api.get<Paginated<UserListItem>>('/users', { params }),
+  get:            (id: number): Promise<AxiosResponse<UserPublic>> => api.get<UserPublic>(`/users/${id}`),
+  listInventoryAccess: (id: number): Promise<AxiosResponse<UserInventoryAccessEntry[]>> => api.get<UserInventoryAccessEntry[]>(`/users/${id}/inventory-access`),
+  create:         (dto: CreateUserDto): Promise<AxiosResponse<UserPublic & { temporaryPassword?: string }>> => api.post<UserPublic & { temporaryPassword?: string }>('/users', dto),
+  update:         (id: number, dto: UpdateUserDto): Promise<AxiosResponse<UserPublic>> => api.patch<UserPublic>(`/users/${id}`, dto),
+  activate:       (id: number): Promise<AxiosResponse<UserPublic>> => api.patch<UserPublic>(`/users/${id}/activate`),
+  deactivate:     (id: number): Promise<AxiosResponse<UserPublic>> => api.patch<UserPublic>(`/users/${id}/deactivate`),
+  delete:         (id: number): Promise<AxiosResponse> => api.delete(`/users/${id}`),
+  restore:        (id: number): Promise<AxiosResponse<UserPublic>> => api.post<UserPublic>(`/users/${id}/restore`),
+  resetPassword:  (id: number): Promise<AxiosResponse<{ temporaryPassword: string }>> => api.post<{ temporaryPassword: string }>(`/users/${id}/reset-password`),
+  resetMfa:       (id: number): Promise<AxiosResponse<UserPublic>> => api.post<UserPublic>(`/users/${id}/reset-mfa`, {}),
+  changePassword: (newPassword: string, currentPassword?: string): Promise<AxiosResponse> =>
     api.post('/users/me/change-password', {
       ...(currentPassword ? { currentPassword } : {}),
       newPassword,
     }),
-  updateOwnAvatar: (file: File) => {
+  updateOwnAvatar: (file: File): Promise<AxiosResponse<UserPublic>> => {
     const form = new FormData()
     form.append('file', file)
     return api.post<UserPublic>('/users/me/avatar', form, {
       headers: { 'Content-Type': 'multipart/form-data' },
     })
   },
-  removeOwnAvatar: () => api.delete<UserPublic>('/users/me/avatar'),
-  getPreferences: () => userPreferencesCache.get(() => api.get<UserPreferences | null>('/users/me/preferences')),
-  updatePreferences: (dto: PatchUserPreferencesDto) => api.patch<UserPreferences>('/users/me/preferences', dto).then((res) => {
+  removeOwnAvatar: (): Promise<AxiosResponse<UserPublic>> => api.delete<UserPublic>('/users/me/avatar'),
+  getPreferences: (): Promise<{ data: UserPreferences | null }> => userPreferencesCache.get(() => api.get<UserPreferences | null>('/users/me/preferences')),
+  updatePreferences: (dto: PatchUserPreferencesDto): Promise<AxiosResponse<UserPreferences>> => api.patch<UserPreferences>('/users/me/preferences', dto).then((res) => {
     userPreferencesCache.set({ data: res.data })
     return res
   }),
