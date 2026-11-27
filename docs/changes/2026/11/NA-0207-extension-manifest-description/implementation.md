@@ -20,9 +20,11 @@ Reverter o commit; pacote 0.1.0 preservado.
 
 ## Pendências
 
-- Publicação do 0.1.1 na VPS (não autorizada nesta frente); homologação humana.
-- Backup cifrado da chave: script testado em `.tmp/NA-0207/backup-signing-key.sh`, a ser executado pelo usuário (pede senha).
-- Helper de restauração (NA-0206): pacotes já na última versão do Alpine 3.24, sem correção disponível; decisão do usuário entre triagem individual com revisão independente ou reescrever sem Python.
+- Homologação humana (Chrome/Edge, Windows) pelo roteiro `homologation.md` desta pasta.
+- Merge na ordem #92 → #93 → #94 após CI verde e homologação.
+- Pentest externo do preenchimento pelo escopo `docs/changes/2026/11/NA-0203-extension-sequence/pentest-scope.md`; flag continua desligada.
+- Helper de restauração (NA-0206): triagem individual com revisão independente antes do ensaio isolado.
+- Backup cifrado da chave: usuário informou ter executado; arquivo não está no destino padrão (local escolhido pelo usuário, não verificado).
 
 ## Diário de interações
 
@@ -37,3 +39,7 @@ Commit `f51b218d0`, push e PR #94 (empilhado sobre #93). Usuário escolheu ACL t
 ### 2026-11-27T16:45:00-03:00 — Sonar PASS
 
 Usuário autorizou executar a ACL. Instalado o pacote `acl`; ACL temporária no socket aplicada e removida ao fim. Segunda rodada: Node/TLS PASS, falha só em `vault-site-terminal` por imagens locais ausentes; imagens reconstruídas pelos comandos do CI, teste focal PASS, terceira rodada `validate:sonar` PASS no `4c876319b`. Próximo commit é só de documentação. Manual: homologação, backup da chave, merge.
+
+### 2026-11-27T18:15:00-03:00 — Publicação 0.1.1 na VPS e CI do GitHub
+
+Usuário autorizou seguir com homologação, merge, publicação 0.1.1, helper e pentest. Publicação: pasta da extensão conferida com os hashes da 0.1.0, backup em `/opt/nodeaccess/maintenance/NA-0207-extension-0.1.1/backup-0.1.0`, ZIP/CRX novos instalados e `release.json`/`update.xml` trocados por renomeação atômica; API relê o pacote por requisição, sem reinício. Smoke público PASS: `update.xml` 0.1.1, CRX SHA256 `938d3abd…3d00d`, saúde OK, metadados 401 sem autenticação (`.tmp/NA-0207/vps/publish-evidence.json`). CI remoto falhava por lacunas de ambiente introduzidas desde NA-0203; correções em NA-0203/NA-0206 trazidas por merge. Criados `homologation.md` (roteiro humano) e, em NA-0203, `pentest-scope.md`. Planilha: segunda escrita única desta interação (Revisões linha 55). Merge não feito: depende de CI verde e homologação. Ran: publicação/smoke, governança. Manual: homologação, pentest.
