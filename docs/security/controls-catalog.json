@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "revision": "2026-11-24-na0203",
-  "reviewedAt": "2026-11-24",
+  "revision": "2026-11-27-na0203",
+  "reviewedAt": "2026-11-27",
   "internalClassification": "Repositório interno: evidência de implementação, não atestado operacional.",
   "controls": [
     {
@@ -210,15 +210,15 @@
       ],
       "review": {
         "method": "source-review",
-        "reviewedAt": "2026-11-06",
-        "sourceRevision": "745253d1edb522db79aaa44fd96608ce434a2774",
+        "reviewedAt": "2026-11-27",
+        "sourceRevision": "01d0048bb242ff320fef43d8838741f57d7dee7b",
         "sourceFiles": [
           ".github/workflows/sonarqube.yml",
           ".github/workflows/security.yml",
           "scripts/security/audit.mjs",
           "scripts/security/scan-local.mjs"
         ],
-        "sourceHash": "8706a68e436ca876060cd4714fcdc512db9b3d7b79b6cc638b6dfeb11b9b5d71",
+        "sourceHash": "5556dde300bb51db06283dab4d0cba4fcab990241610a2f58516b119f22ecf1f",
         "testFiles": [
           "tools/sonarqube/validate-flow.test.mjs"
         ],
