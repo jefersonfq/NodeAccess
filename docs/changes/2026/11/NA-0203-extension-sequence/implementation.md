@@ -82,7 +82,7 @@ Continuidade nesta mesma interação: hosts associados também implementados. `/
 
 NA-0202 concluiu implementação e validações locais; Sonar bloqueado por tokens, revisão independente pendente. Roadmap atualizado em escrita única nesta interação (META-005/META-017, Revisões 39); sequência solicitada registrada sem marcar E4/sites/E7 como entregues.
 
-## Validações históricas da retomada e hosts
+## Validação
 
 Baseline cliente/popup/adaptador: 54 PASS. Retomada antes de hosts: 110 testes PASS (core, popup, adaptador, serviço e rotas), types backend/extensão PASS, Chromium48 PASS. Revisão independente estática PASS após correções de concorrência/erro transitório/logout/timer. Manual capture PASS, cinco imagens revistas, test:manual 2 Node + 18 Vitest PASS, reviewed 5/5. Sonar exit 1 no preflight, sem gate aprovado. Nenhum teste de E4/sites/E7 ou pentest real executado. MySQL real não reexecutado na retomada: filtro em memória sobre catálogo autorizado existente, sem alteração de transação/escrita/persistência no banco.
 
@@ -99,6 +99,10 @@ Sonar, homologação Windows Hello/E3, pentest externo e publicação continuam 
 Roadmap consolidado em Revisões 43 nesta interação. Triagem OpenSSL continua com revisão até 2026-12-19; não confundir implementação local com homologação ou release.
 
 ## Diário de interações
+
+### 2026-11-27T13:55:00-03:00 — Publicação no GitHub autorizada
+
+Usuário autorizou push e PR sem merge do conjunto já implantado na VPS (NA-0206). Esta branch vai primeiro para o master; NA-0206 fica empilhada sobre ela. Somente os títulos `Baseline` (plano) e `Validação` (registro) foram renomeados para a governança reconhecer seções já existentes; conteúdo inalterado. Ran: `validate:change`. Skipped: suítes/Sonar (só títulos de documentação). Manual: homologação humana e merge.
 
 ### 2026-11-24T20:58:46-03:00 — Robustez validada, SSH real em execução
 
