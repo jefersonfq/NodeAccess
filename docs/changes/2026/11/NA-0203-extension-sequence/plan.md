@@ -126,7 +126,7 @@ Inspeção estática em 2026-11-24: `ItemEditor.vue` já preenche nome/descriç�
 | E7 | Host parecido, subdomínio, iframe, HTTP, documento opaco, navegação antes/depois da entrega, replay, remetente falso, worker perdido, revogação/kill switch, campo oculto, ausência de autosubmit; Chromium real e pentest externo |
 | Gates | Lint/types/build, testes com cobertura nova >=80%, Sonar local, SAST/gitleaks, revisão independente, manual/capturas e homologação |
 
-## Baselines históricas e evolução
+## Baseline
 
 Baseline inicial: código existente inspecionado antes da implementação. SHA referência `9d2fc71768a0e7aee34a6495e4ec11eceb338076`; E3 é working tree dependente ainda sem commit e sem Sonar. Testes das futuras fatias não executados. Branch acima é proposta, ainda não criada.
 

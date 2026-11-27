@@ -48,6 +48,10 @@ Gitleaks: dois blocos de fixtures dos locales foram comparados integralmente com
 
 ## Diário de interações
 
+### 2026-11-27T17:42:00-03:00 — CI do GitHub: correção do teste do agente nativo
+
+Primeiro CI remoto (PR #93): `native-agent` (macOS/Ubuntu) falhou porque `build-release.sh` passou a chamar `prepare-extension.mjs validate` e o teste `artifacts.test.mjs` não copiava esse script para o fixture temporário. Incluído na lista de cópia; 17 PASS local. Correções de CI do NA-0203 trazidas por merge (`b4e41a55a`). Usuário autorizou seguir com homologação, merge, publicação 0.1.1, helper e pentest; merge depende do CI verde. Ran: `node --test artifacts.test.mjs`, `validate:change`. Planned: CI remoto.
+
 ### 2026-11-27T13:50:00-03:00 — Revisão da extensão e publicação no GitHub autorizada
 
 Revisão (Claude Code) do background/preenchimento/interações da extensão: remetentes, schemas estritos, epoch de autorização e vínculo aba/frame/documento conferidos; rascunho capturado fica só em memória do service worker, TTL ≤120 s, limpo em logout/troca/cancelamento — sem mudança. Descrição do manifesto ainda diz "somente metadados" → nova frente para 0.1.1. Usuário autorizou push e PR sem merge; VPS fica fora (só local). PRs empilhados: NA-0203 → master e esta branch → NA-0203, pois NA-0203 não estava no GitHub. Ran: `validate:change`. Skipped: suítes/Sonar (commit só de documentação; candidato `6f956b2a0` já aprovado). Manual: homologação humana e merge.

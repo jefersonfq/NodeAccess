@@ -223,7 +223,7 @@ describe('NA0203 transaction-bound sites integration', () => {
       expect(await tx.siteCurrentHosts!('https://other.test')).toEqual([])
     })
     expect(f.db.host.findMany).toHaveBeenCalledWith(expect.objectContaining({where:{tenantId:actor.tenantId,deletedAt:null,name:{contains:'Vis'}}}))
-    expect(f.db.hostAssociatedLink.findMany).toHaveBeenCalledWith(expect.objectContaining({where:expect.objectContaining({tenantId:actor.tenantId,host:{tenantId:actor.tenantId,deletedAt:null}})}))
+    expect(f.db.hostAssociatedLink.findMany).toHaveBeenCalledWith(expect.objectContaining({where:expect.objectContaining({tenantId:actor.tenantId,host:{tenantId:actor.tenantId,deletedAt:null}}) as unknown}))
     for(const query of f.reads.filter(read=>read.sql.includes('WITH RECURSIVE ancestors'))){expect(query.values).toContain(actor.tenantId);expect(query.values).toContain(actor.userId)}
     f.state.hostPermissions=[]
     expect(await f.store.transaction(actor,tx=>tx.siteHosts!(''))).toEqual([])
