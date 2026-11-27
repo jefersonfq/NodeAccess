@@ -13,11 +13,12 @@
  * NA-0199 — tenant settings (delivery policy, confirmation time, proposal validity) live in /admin/settings (`settings`
  * mode); on the vault page they stay only for managers who are not tenant administrators.
  */
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, shallowRef, watch } from 'vue'
 import { NAlert, NButton, NCheckbox, NFormItem, NInput, NInputNumber, NSelect, NSpace, NText } from 'naive-ui'
 import { useI18n } from 'vue-i18n'
 import { RouterLink } from 'vue-router'
 import type { VaultAdministrationChange, VaultAdministrationOverview, VaultGrantAction } from '@nodeaccess/shared'
+import VaultDiagnostics from './VaultDiagnostics.vue'
 import { useAuthStore } from '@/stores/auth'
 import { createVaultDelivery, type VaultDelivery } from '@/services/vault-delivery'
 import { createVaultTransport, type VaultPortalIdentity, type VaultTransport } from '@/services/vault-http'
@@ -29,14 +30,24 @@ import { formatDuration, hasApprover, vaultAdministrationStatus, vaultPortalIden
 const props = defineProps<{ transport?: VaultTransport; delivery?: VaultDelivery; userId?: number; review?: boolean; item?: { id: number; name: string }; settings?: boolean }>()
 /** `changed`: an approval was applied (the page refreshes what users may reveal/copy). */
 const emit = defineEmits<{ changed: [] }>()
-const { t } = useI18n(), auth = useAuthStore()
+const { t, locale } = useI18n(), auth = useAuthStore()
 const transport = props.transport ?? createVaultTransport()
 const identity = (): VaultPortalIdentity | null => vaultPortalIdentity(auth)
 const delivery = props.delivery ?? createVaultDelivery({ identity, webauthn: browserWebauthn }), state = delivery.state
+const diagnosticContext = shallowRef<ReturnType<VaultDelivery['diagnosticsContext']>>(null)
+// Retain a stable identity object between ticks so unrelated renders do not erase results.
+function refreshDiagnosticContext(): void {
+  const next = overview.value && !props.review && !props.settings ? delivery.diagnosticsContext() : null
+  const old = diagnosticContext.value
+  if (!next || !old || next.clientId !== old.clientId || next.sessionId !== old.sessionId
+    || next.identity.userId !== old.identity.userId || next.identity.tenantId !== old.identity.tenantId
+    || next.identity.accessToken !== old.identity.accessToken || next.identity.refreshToken !== old.identity.refreshToken
+    || next.identity.origin !== old.identity.origin) diagnosticContext.value = next
+}
 const { googleTarget, googlePending, totpPending, token: providerToken, confirm: confirmProvider, submitTotp } = useVaultProviderStepUp(delivery)
 const manager = ref(false), pendingCount = ref(0), managerIds = ref<number[]>([]), detected = ref(false), opened = ref(false), overview = ref<VaultAdministrationOverview | null>(null), notice = ref<'' | 'proposed' | 'applied'>('')
 const password = ref(''), token = ref(''), now = ref(Date.now()), minutes = ref<number | null>(null), windowSeconds = ref<number | null>(null)
-const actions: VaultGrantAction[] = ['reveal', 'copy', 'extension']
+const actions: VaultGrantAction[] = ['reveal', 'copy', 'extension', 'shared-write', 'fill']
 const busy = computed(() => state.phase === 'unlocking' || state.phase === 'delivering')
 const unlocked = computed(() => state.phase === 'unlocked' || state.phase === 'delivering')
 const me = computed(() => auth.user?.id)
@@ -93,6 +104,7 @@ async function open(): Promise<void> {
 async function load(): Promise<void> {
   const reply = await delivery.administrationOverview()
   overview.value = reply
+  refreshDiagnosticContext()
   if (reply) {
     clockSkew = reply.serverNow - Date.now(); minutes.value = reply.policy.confirmationSeconds / 60; windowSeconds.value = reply.policy.proposalSeconds
     policyReveal.value = reply.policy.reveal; policyCopy.value = reply.policy.copy; policyQuota.value = reply.policy.tenantQuota
@@ -189,6 +201,10 @@ function waiting(change: VaultAdministrationChange): boolean {
   return overview.value?.proposals.some(p => key(p.change) === wanted) ?? false
 }
 const forMe = (change: VaultAdministrationChange): boolean => (change.kind === 'grant' || change.kind === 'manager') && change.userId === me.value
+watch(() => state.phase, phase => {
+  if (phase !== 'unlocked') diagnosticContext.value = null
+}, { flush: 'sync' })
+watch(identity, () => { diagnosticContext.value = null }, { flush: 'sync' })
 const steps = ['step1', 'step2', 'step3'] as const
 onMounted(() => { if (focused.value || itemFocus.value || props.review) void open() })
 const remaining = (expiresAt: number): string => duration(Math.max(0, Math.ceil((expiresAt - now.value - clockSkew) / 1000)))
@@ -197,6 +213,7 @@ onMounted(() => {
   ticker = setInterval(() => {
     now.value = Date.now(); delivery.tick()
     if (state.phase === 'locked') overview.value = null
+    if (state.phase === 'unlocked') refreshDiagnosticContext()
   }, 1000)
 })
 onBeforeUnmount(() => { if (ticker) clearInterval(ticker); password.value = ''; token.value = ''; if (!props.delivery) delivery.dispose() })
@@ -735,6 +752,17 @@ defineExpose({ detect })
           </NButton>
         </form>
       </div>
+      <VaultDiagnostics
+        v-if="diagnosticContext && !review && !settings"
+        :transport="transport"
+        :identity="diagnosticContext.identity"
+        :client-id="diagnosticContext.clientId"
+        :session-id="diagnosticContext.sessionId"
+        :users="users"
+        :secret-id="props.item?.id"
+        :language="locale"
+        @expired="lock"
+      />
     </template>
   </section>
   <p

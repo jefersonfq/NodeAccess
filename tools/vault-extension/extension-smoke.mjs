@@ -3,7 +3,8 @@
 // disconnect against a simulated portal (Playwright routes). Checks the MV3 wiring that unit tests cannot reach:
 // service-worker consent flow, storage.session only, non-extractable device key in IndexedDB, nothing in
 // storage.local/sync and no token in URLs. Protocol security is covered by the backend unit/MySQL suites.
-import { execFileSync } from 'node:child_process'
+import { execFileSync, spawn } from 'node:child_process'
+import { createHash } from 'node:crypto'
 import { createServer } from 'node:https'
 import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
@@ -16,19 +17,112 @@ const ROOT = resolve(import.meta.dirname, '../..')
 const PORTAL = 'https://vault.example.test'
 const BUILD = 'aaaaaaaaaaaa'
 const SECRET = 'Smoke-only-never-real-7!'
+const personalItems = []
+let writeCount = 0, lastWriteOperation = ''
 // Coverage runs (tools/coverage/browser.mjs) supply a private artifacts directory and the pinned Chromium.
 const OUT = process.env.ARTIFACTS_DIR ? resolve(process.env.ARTIFACTS_DIR) : resolve(ROOT, '.tmp/NA-0183/extension-smoke')
 mkdirSync(OUT, { recursive: true })
 const result = { startedAt: new Date().toISOString(), checks: {}, status: 'failed' }
+const sourceFiles = ['apps/extension/src/background.ts', 'apps/extension/src/core/portal-fill-intent.ts', 'apps/extension/src/popup/main.ts', 'apps/extension/src/core/client.ts', 'apps/extension/src/core/ports.ts', 'apps/extension/src/adapters/chromium.ts', 'apps/extension/src/popup/App.vue', 'apps/extension/src/popup/ItemEditor.vue', 'packages/shared/src/schemas/vault-extension.schema.ts', 'apps/backend/src/modules/vault-security/vault-extension.service.ts', 'tools/vault-extension/extension-smoke.mjs']
+const fingerprint = () => createHash('sha256').update(sourceFiles.map(file => `${file}\0${readFileSync(join(ROOT, file), 'utf8')}`).join('\0')).digest('hex')
+result.sourceFingerprint = fingerprint()
+result.sourceFiles = sourceFiles
 const check = (name, ok, detail = '') => { result.checks[name] = ok ? 'PASS' : `FAIL ${detail}`.trim(); if (!ok) throw new Error(`${name} ${detail}`) }
 
-execFileSync(process.execPath, [resolve(ROOT, 'node_modules/vite/bin/vite.js'), 'build', '--config', 'apps/extension/vite.config.ts', '--logLevel', 'error'],
+const dist = resolve(OUT, 'dist')
+execFileSync(process.execPath, [resolve(ROOT, 'node_modules/vite/bin/vite.js'), 'build', '--config', 'apps/extension/vite.config.ts', '--outDir', dist, '--logLevel', 'error'],
   { cwd: ROOT, env: { ...process.env, VAULTNACCESS_PORTAL_ORIGIN: PORTAL, VAULTNACCESS_BUILD_ID: BUILD, VAULTNACCESS_OUT_DIR: 'dist' }, stdio: 'inherit' })
-const dist = resolve(ROOT, 'apps/extension/dist')
 const profile = mkdtempSync(join(OUT, 'profile-'))
 const access = 'A'.repeat(43), code = 'C'.repeat(43)
 const seen = { token: 0, items: 0, consentQuery: null, urls: [], id: '', announced: BUILD, trusted: false, portalLogin: true, lastRenewal: '', forgotten: 0 }
-let context, server
+let context, server, display
+const delay = ms => new Promise(done => setTimeout(done, ms))
+async function until(test, message, timeout = 20000) {
+  const end = Date.now() + timeout
+  while (Date.now() < end) { if (await test()) return; await delay(100) }
+  throw new Error(message)
+}
+const xkeys = String.raw`
+import ctypes, os
+X=ctypes.CDLL('libX11.so.6'); T=ctypes.CDLL('libXtst.so.6')
+X.XOpenDisplay.argtypes=[ctypes.c_char_p]; X.XOpenDisplay.restype=ctypes.c_void_p
+d=X.XOpenDisplay(os.environ['DISPLAY'].encode()); assert d
+X.XStringToKeysym.argtypes=[ctypes.c_char_p]; X.XStringToKeysym.restype=ctypes.c_ulong
+X.XKeysymToKeycode.argtypes=[ctypes.c_void_p,ctypes.c_ulong]; X.XKeysymToKeycode.restype=ctypes.c_uint
+T.XTestFakeKeyEvent.argtypes=[ctypes.c_void_p,ctypes.c_uint,ctypes.c_int,ctypes.c_ulong]
+X.XFlush.argtypes=[ctypes.c_void_p]
+keys=[X.XKeysymToKeycode(d,X.XStringToKeysym(k)) for k in [b'Alt_L',b'Shift_L',b'v']]
+for k in keys: T.XTestFakeKeyEvent(d,k,1,0)
+for k in reversed(keys): T.XTestFakeKeyEvent(d,k,0,0)
+X.XFlush(d)
+`
+
+/** Only bootstrap uses the real action target; ordinary extension tabs below exercise non-worker UI. */
+async function connectFromToolbar(target, worker, id, outcome) {
+  await target.bringToFront()
+  const root = await context.newCDPSession(target)
+  const before = new Set((await root.send('Target.getTargets')).targetInfos.map(info => info.targetId))
+  const find = async () => (await root.send('Target.getTargets')).targetInfos.find(info => info.url === `chrome-extension://${id}/popup.html` && !before.has(info.targetId))
+  let info
+  try {
+    await target.keyboard.press('Alt+Shift+V')
+    try { await until(find, 'Browser shortcut did not open action', 1500); result.toolbarMethod = 'Playwright keyboard Alt+Shift+V' }
+    catch {
+      execFileSync(resolveExecutable('python3'), ['-c', xkeys], { env: { ...process.env, DISPLAY: result.display }, stdio: 'pipe' })
+      await until(find, 'OS shortcut did not open real toolbar action', 5000)
+      result.toolbarMethod = 'XTest OS keyboard Alt+Shift+V'
+    }
+    info = await find(); result.toolbarTargetType = info.type
+    const { sessionId } = await root.send('Target.attachToTarget', { targetId: info.targetId, flatten: false })
+    let serial = 0
+    const send = (method, params = {}) => new Promise((resolve, reject) => {
+      const id = ++serial
+      const timer = setTimeout(() => { root.off('Target.receivedMessageFromTarget', listener); reject(new Error(`Toolbar CDP timeout: ${method}`)) }, 10000)
+      const listener = event => {
+        if (event.sessionId !== sessionId) return
+        const reply = JSON.parse(event.message)
+        if (reply.id !== id) return
+        clearTimeout(timer); root.off('Target.receivedMessageFromTarget', listener)
+        if (reply.error) reject(new Error(reply.error.message)); else resolve(reply.result)
+      }
+      root.on('Target.receivedMessageFromTarget', listener)
+      void root.send('Target.sendMessageToTarget', { sessionId, message: JSON.stringify({ id, method, params }) }).catch(error => { clearTimeout(timer); root.off('Target.receivedMessageFromTarget', listener); reject(error) })
+    })
+    let point
+    await until(async () => {
+      const reply = await send('Runtime.evaluate', { expression: `(()=>{const b=document.querySelector('[data-testid="vaultnaccess-connect"]');if(!b||b.disabled)return null;b.scrollIntoView({block:'center'});const r=b.getBoundingClientRect();return r.width&&r.height?{x:r.x+r.width/2,y:r.y+r.height/2}:null})()`, returnByValue: true })
+      point = reply.result.value; return !!point
+    }, 'Connect button missing in actual toolbar')
+    const screenshot = await send('Page.captureScreenshot', { format: 'png' }); writeFileSync(join(OUT, `toolbar-${outcome}.png`), Buffer.from(screenshot.data, 'base64'))
+    await send('Input.dispatchMouseEvent', { type: 'mousePressed', ...point, button: 'left', clickCount: 1 })
+    try { await send('Input.dispatchMouseEvent', { type: 'mouseReleased', ...point, button: 'left', clickCount: 1 }) }
+    catch (error) { result.toolbarClosedDuringConsent = String(error.message).slice(0, 160) }
+    await until(() => worker.evaluate(async outcome => {
+      const value = await chrome.storage.session.get(['authorization', 'connectFailure'])
+      return outcome === 'offline' ? value.connectFailure?.reason === 'offline' : !!value.authorization
+    }, outcome), `Real toolbar consent did not complete: ${outcome}`).catch(async error => {
+      result.toolbarFailure = await worker.evaluate(async () => { const v = await chrome.storage.session.get(['authorization', 'connectFailure']); return { authorized: !!v.authorization, failure: v.connectFailure?.reason ?? null } })
+      try { const v = await send('Runtime.evaluate', { expression: 'document.body.innerText', returnByValue: true }); result.toolbarText = v.result.value?.slice(0, 800) } catch { /* popup may be closed */ }
+      throw error
+    })
+    if (outcome === 'offline') {
+      await until(async () => {
+        const view = await send('Runtime.evaluate', { expression: `(()=>({text:document.querySelector('[data-testid="vaultnaccess-error"]')?.textContent??'',enabled:document.querySelector('[data-testid="vaultnaccess-connect"]')?.disabled===false}))()`, returnByValue: true })
+        return /Não foi possível conectar ao NodeAccess|Could not reach NodeAccess/.test(view.result.value.text) && view.result.value.enabled
+      }, 'Real toolbar must explain offline portal and allow retry', 15000)
+      for (const colorScheme of ['light', 'dark']) {
+        await send('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-color-scheme', value: colorScheme }] })
+        const shot = await send('Page.captureScreenshot', { format: 'png' }); writeFileSync(join(OUT, `popup-offline-${colorScheme}.png`), Buffer.from(shot.data, 'base64'))
+      }
+      const view = await send('Runtime.evaluate', { expression: 'document.documentElement.scrollWidth <= innerWidth', returnByValue: true })
+      return view.result.value
+    }
+  } finally {
+    if (info) await root.send('Target.closeTarget', { targetId: info.targetId }).catch(() => {})
+    await root.detach()
+  }
+}
+
 try {
   // Disposable self-signed certificate; the browser is told to trust it only for this run.
   execFileSync(resolveExecutable('openssl'), ['req', '-x509', '-newkey', 'ec', '-pkeyopt', 'ec_paramgen_curve:P-256', '-nodes', '-days', '1', '-subj', '/CN=vault.example.test',
@@ -72,7 +166,7 @@ try {
       }
       // NA-0195 (E2): capabilities, authenticator-code proof and a real JWE release (same library as the server).
       if (url.pathname.endsWith('/extension/capabilities')) {
-        return send(200, JSON.stringify({ apiVersion: 1, minExtensionVersion: '0.1.0', kinds: ['secret', 'pem'], features: { reveal: true, copy: true, create: false },
+        return send(200, JSON.stringify({ apiVersion: 1, minExtensionVersion: '0.1.0', kinds: ['secret', 'pem'], features: { reveal: true, copy: true, create: true },
           portalOrigin: PORTAL, expiresAt: 1_800_000, serverNow: 0 }))
       }
       if (url.pathname.endsWith('/extension/unlock')) {
@@ -110,27 +204,54 @@ try {
         seen.trusted = false; seen.forgotten++
         return send(200, JSON.stringify({ state: 'FORGOTTEN' }))
       }
+      if (url.pathname.endsWith('/extension/hosts')) {
+        if (headers.authorization !== `DPoP ${access}`) return send(401, '{}')
+        return send(200, JSON.stringify({ hosts: url.searchParams.get('kind') === 'secret' ? [{ id: 10, name: 'Visible host' }, { id: 11, name: 'host-'.repeat(36) }] : [], nextCursor: null }))
+      }
       if (url.pathname.endsWith('/extension/items')) {
         seen.items++
         if (headers.authorization !== `DPoP ${access}`) return send(401, '{}')
         const all = [{ kind: 'secret', sourceId: 3, label: 'smoke-item', description: null, scope: 'shared', portalPath: '/vault?kind=secret&id=3' },
           { kind: 'pem', sourceId: 5, label: 'zeta-key', description: null, scope: 'personal', portalPath: '/vault?kind=pem&id=5' }]
+        all.push(...personalItems)
         const q = (url.searchParams.get('q') ?? '').toLowerCase()
         return send(200, JSON.stringify({ items: all.filter(i => i.label.includes(q)), nextCursor: null }))
+      }
+      if (url.pathname.endsWith('/extension/write')) {
+        if (headers.authorization !== `DPoP ${access}`) return send(401, '{}')
+        const body = JSON.parse(raw), id = body.id ?? 100 + personalItems.length
+        writeCount++; lastWriteOperation = body.operation
+        if (body.operation === 'create-secret' || body.operation === 'import-pem') {
+          const kind = body.operation === 'import-pem' ? 'pem' : 'secret'
+          personalItems.push({ kind, sourceId: id, label: body.alias ?? body.name, description: body.description ?? null, scope: 'personal', portalPath: `/vault?kind=${kind}&id=${id}` })
+        } else if (body.operation === 'update-secret') {
+          const item = personalItems.find(i => i.sourceId === id)
+          if (!item) return send(403, JSON.stringify({ code: 'EXTENSION_ITEM_DENIED' }))
+          item.label = body.alias; item.description = body.description
+        }
+        return send(200, JSON.stringify({ id }))
       }
       return send(200, '<title>portal</title>', {}, 'text/html')
     })
   })
   await new Promise(done => server.listen(0, '127.0.0.1', done))
   const port = server.address().port
-  context = await chromium.launchPersistentContext(join(profile, 'browser'), { channel: 'chromium', headless: true, ...(process.env.PLAYWRIGHT_EXECUTABLE_PATH ? { executablePath: process.env.PLAYWRIGHT_EXECUTABLE_PATH } : {}),
+  display = spawn(resolveExecutable('Xvfb'), ['-displayfd', '3', '-screen', '0', '1280x900x24', '-nolisten', 'tcp', '-nolisten', 'unix'], { stdio: ['ignore', 'ignore', 'pipe', 'pipe'] })
+  display.stderr.on('data', data => { result.displayError = ((result.displayError ?? '') + data.toString()).slice(0, 500) })
+  const number = await new Promise((done, reject) => {
+    const timer = setTimeout(() => reject(new Error('Xvfb startup timeout')), 5000)
+    display.once('exit', code => { clearTimeout(timer); reject(new Error(`Xvfb exit ${code}`)) })
+    display.once('error', reject); display.stdio[3].once('data', data => { clearTimeout(timer); done(data.toString().trim()) })
+  })
+  result.display = `:${number}`
+  context = await chromium.launchPersistentContext(join(profile, 'browser'), { channel: 'chromium', headless: false, env: { ...process.env, DISPLAY: result.display }, ...(process.env.PLAYWRIGHT_EXECUTABLE_PATH ? { executablePath: process.env.PLAYWRIGHT_EXECUTABLE_PATH } : {}),
     args: [`--disable-extensions-except=${dist}`, `--load-extension=${dist}`, `--host-resolver-rules=MAP vault.example.test:443 127.0.0.1:${port}`, '--ignore-certificate-errors'] })
   const worker = context.serviceWorkers()[0] ?? await context.waitForEvent('serviceworker', { timeout: 15_000 })
   const id = new URL(worker.url()).host
   seen.id = id
   check('extension-id', /^[a-p]{32}$/.test(id), id)
   const manifest = JSON.parse(readFileSync(join(dist, 'manifest.json'), 'utf8'))
-  check('manifest-permissions', JSON.stringify(manifest.permissions) === '["identity","storage"]' && JSON.stringify(manifest.host_permissions) === `["${PORTAL}/*"]`
+  check('manifest-permissions', JSON.stringify(manifest.permissions) === '["identity","storage","activeTab","scripting"]' && JSON.stringify(manifest.host_permissions) === `["${PORTAL}/*"]`
     && !manifest.content_scripts && !manifest.externally_connectable && !manifest.web_accessible_resources)
   check('shortcut-alt-shift-v', manifest.commands?._execute_action?.suggested_key?.default === 'Alt+Shift+V', JSON.stringify(manifest.commands))
 
@@ -150,13 +271,16 @@ try {
   await popup.getByTestId('vaultnaccess-connect').waitFor({ timeout: 10_000 })
   check('popup-disconnected', true)
   await shots('disconnected')
+  const toolbarTarget = await context.newPage(); await toolbarTarget.goto(`${PORTAL}/bootstrap`)
+  await popup.goto('about:blank')
   seen.offline = true
-  await popup.getByTestId('vaultnaccess-connect').click()
-  await popup.getByTestId('vaultnaccess-error').filter({ hasText: /Não foi possível conectar ao NodeAccess|Could not reach NodeAccess/ }).waitFor({ timeout: 15_000 })
-  await shots('offline')
-  check('offline-portal-explained', await popup.getByTestId('vaultnaccess-connect').isEnabled())
+  layout.push(await connectFromToolbar(toolbarTarget, worker, id, 'offline'))
+  check('offline-portal-explained', true) // Message and enabled retry asserted in the actual action above.
   seen.offline = false
-  await popup.getByTestId('vaultnaccess-connect').click()
+  await popup.goto('about:blank')
+  await connectFromToolbar(toolbarTarget, worker, id, 'connected')
+  await toolbarTarget.close()
+  await popup.goto(`chrome-extension://${id}/popup.html`)
   await popup.getByTestId('vaultnaccess-results').getByText('smoke-item').waitFor({ timeout: 20_000 })
   check('connect-and-search', seen.token === 2 && seen.items >= 1, JSON.stringify({ token: seen.token, items: seen.items }))
   const q = seen.consentQuery ?? {}
@@ -176,6 +300,20 @@ try {
   check('no-token-in-urls', !seen.urls.some(u => u.includes(access)) && !seen.urls.some(u => u.includes('code=') && !u.startsWith('/vault/extension/connect')))
 
   // NA-0192: search while typing (no Enter), then keyboard: "/" focuses the search, ↓ selects, Enter opens.
+  check('associated-hosts-load-on-demand', !seen.urls.some(url => url.startsWith('/api/v1/vault-security/extension/hosts')))
+  await popup.getByTestId('vaultnaccess-hosts-secret-3').click()
+  await popup.getByTestId('vaultnaccess-host-list').getByRole('button', { name: 'Conectar pelo NodeAccess · Visible host', exact: true }).waitFor()
+  await shots('associated-hosts')
+  check('associated-host-long-name-fits', await popup.evaluate(() => document.documentElement.scrollWidth <= innerWidth))
+  const hostOpened = context.waitForEvent('page')
+  await popup.getByTestId('vaultnaccess-host-list').getByRole('button', { name: 'Conectar pelo NodeAccess · Visible host', exact: true }).click()
+  const hostTab = await hostOpened
+  check('associated-host-opens-portal', hostTab.url() === `${PORTAL}/hosts?hostId=10&connect=1`)
+  await hostTab.close()
+  await popup.getByTestId('vaultnaccess-hosts-pem-5').click()
+  await popup.getByTestId('vaultnaccess-host-list').getByText('Nenhum host disponível para você.').waitFor()
+  check('associated-host-empty-without-hidden-count', await popup.getByTestId('vaultnaccess-host-list').getByRole('button').count() === 0)
+  await popup.getByTestId('vaultnaccess-hosts-pem-5').click()
   const typedBefore = seen.items
   await popup.getByTestId('vaultnaccess-search').fill('zeta')
   await popup.getByTestId('vaultnaccess-results').getByText('zeta-key').waitFor({ timeout: 5_000 })
@@ -212,6 +350,44 @@ try {
   check('copy-to-clipboard', clip === SECRET && seen.deliveries === 2, clip === SECRET ? '' : 'clipboard differs')
   const kept = await popup.evaluate(async () => JSON.stringify({ s: await chrome.storage.session.get(null), l: await chrome.storage.local.get(null), ls: { ...localStorage } }))
   check('value-not-stored', !kept.includes(SECRET))
+  // NA-0201 E3: real form and keyboard behavior against disposable metadata; protocol/ACL use backend suites.
+  await popup.getByTestId('vaultnaccess-create').click()
+  await popup.locator('#item-name').fill('personal-smoke')
+  await popup.getByRole('button', { name: 'Gerar senha', exact: true }).click()
+  check('generated-password-length', (await popup.locator('#item-value').inputValue()).length === 24)
+  await popup.locator('#item-value').fill('E3-disposable-marker')
+  await popup.locator('#item-name').fill('invalid alias')
+  await popup.getByRole('button', { name: 'Salvar', exact: true }).click()
+  check('invalid-form-keeps-secret-without-write', writeCount === 0 && await popup.locator('#item-value').inputValue() === 'E3-disposable-marker')
+  check('invalid-form-focuses-name', await popup.locator('#item-name').evaluate(e => e === document.activeElement))
+  await popup.locator('#item-name').fill('personal-smoke')
+  await shots('personal-editor')
+  await popup.getByRole('button', { name: 'Salvar', exact: true }).click()
+  await popup.getByTestId('vaultnaccess-results').getByText('personal-smoke', { exact: true }).waitFor()
+  check('create-personal-item', writeCount === 1 && lastWriteOperation === 'create-secret')
+  check('shared-no-edit-action', await popup.getByRole('button', { name: 'Editar dados: smoke-item', exact: true }).count() === 0)
+  await popup.getByRole('button', { name: 'Editar dados: personal-smoke', exact: true }).click()
+  check('metadata-does-not-load-value', await popup.locator('#item-value').count() === 0)
+  await popup.locator('#item-name').fill('personal-renamed')
+  await popup.getByRole('button', { name: 'Salvar', exact: true }).click()
+  await popup.getByTestId('vaultnaccess-results').getByText('personal-renamed', { exact: true }).waitFor()
+  await popup.getByRole('button', { name: 'Trocar senha: personal-renamed', exact: true }).click()
+  await popup.locator('#item-value').fill('E3-disposable-replacement')
+  await popup.getByRole('button', { name: 'Salvar', exact: true }).click()
+  await popup.getByTestId('vaultnaccess-results').waitFor()
+  check('explicit-value-replacement', writeCount === 3 && lastWriteOperation === 'rotate-secret')
+  await popup.getByTestId('vaultnaccess-import').click()
+  await popup.locator('#item-name').fill('personal-pem')
+  await popup.locator('#item-file').setInputFiles({ name: 'disposable.pem', mimeType: 'text/plain', buffer: Buffer.from('E3-disposable-key-material') })
+  await popup.getByRole('button', { name: 'Salvar', exact: true }).click()
+  await popup.getByTestId('vaultnaccess-results').getByText('personal-pem', { exact: true }).waitFor()
+  check('import-personal-pem', writeCount === 4 && lastWriteOperation === 'import-pem')
+  const afterWrite = await popup.evaluate(async () => JSON.stringify({ s: await chrome.storage.session.get(null), l: await chrome.storage.local.get(null), ls: { ...localStorage } }))
+  check('write-material-not-stored', !afterWrite.includes('E3-disposable'))
+  await popup.getByTestId('vaultnaccess-create').click()
+  await popup.locator('#item-value').fill('E3-discarded')
+  await popup.keyboard.press('Escape')
+  check('editor-escape-returns-to-search', await popup.getByTestId('vaultnaccess-search').evaluate(e => e === document.activeElement))
   // NA-0200 (E5b, SEC-16): a fresh popup without proof confirms in the portal; the confirmation tab carries only the request.
   seen.proof = false; await popup.reload()
   await popup.getByTestId('vaultnaccess-results').getByText('smoke-item').waitFor({ timeout: 10_000 })
@@ -222,7 +398,12 @@ try {
   const confirmPage = await confirmTab
   check('portal-confirm-tab', confirmPage.url() === `${PORTAL}/vault/extension/confirm?request=${'Q'.repeat(43)}`, confirmPage.url())
   await popup.getByTestId('vaultnaccess-portal-waiting').waitFor({ timeout: 10_000 })
+  await popup.goto('about:blank')
   seen.portalApproved = true
+  await popup.goto(`chrome-extension://${seen.id}/popup.html`)
+  await popup.getByTestId('vaultnaccess-resume').waitFor({ timeout: 15_000 })
+  check('resume-without-automatic-delivery', seen.deliveries === 2)
+  await popup.getByTestId('vaultnaccess-resume').click()
   await popup.getByTestId('vaultnaccess-revealed').filter({ hasText: SECRET }).waitFor({ timeout: 15_000 })
   check('reveal-after-portal-confirmation', seen.deliveries === 3 && seen.proofRequests === 1)
   const keptRequest = await popup.evaluate(async () => (await chrome.storage.session.get('portalProof')).portalProof ?? null)
@@ -269,6 +450,7 @@ try {
   // NA-0194: the signed release of the same sources, loaded in Chromium with its own id.
   await context.close(); context = undefined
   await checkPackageInBrowser(check)
+  check('reviewed-sources-stable-during-run', fingerprint() === result.sourceFingerprint)
   result.status = 'passed'
 } catch (error) {
   result.error = String(error?.message ?? error).slice(0, 400)
@@ -277,6 +459,7 @@ try {
 } finally {
   await context?.close().catch(() => {})
   server?.close()
+  display?.kill('SIGTERM')
   rmSync(profile, { recursive: true, force: true })
   result.finishedAt = new Date().toISOString()
   writeFileSync(join(OUT, 'result.json'), `${JSON.stringify(result, null, 2)}\n`)

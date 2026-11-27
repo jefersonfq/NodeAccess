@@ -118,7 +118,7 @@
       "path": "apps/backend/src/modules/hosts/host.service.test.ts",
       "rule": "generic-api-key",
       "line": 6,
-      "fileSha256": "f1f826e7e64328c1b36496c0645548bb7152380adb5c0dc7ffa9814b623b29a8",
+      "fileSha256": "928991a76034f449434e2d77c49378b2302c220f904d7ca551745f8cb8d392dd",
       "reason": "Constante sintética pública de teste/CI (sequência hexadecimal repetida), revalidada na NA-0054; nunca usar em produção; revalidado na NA-0069 após integração."
     },
     {
@@ -202,14 +202,14 @@
       "path": "apps/frontend/src/locales/en.json",
       "rule": "private-key",
       "line": 1051,
-      "fileSha256": "d5ec616c1f6de4d36756288bf86c9ee6ff98f26f8b0dbde266e6d9361ef687a7",
+      "fileSha256": "49bff0843942510d2de78a8399951be4232aea045fbe57d69cf56c8482a58a67",
       "reason": "NA-0179: exemplo textual de PEM com corpo literal de reticências, sem DER ou chave utilizável; marcador existente não foi alterado. Adição de traduções vaultDelivery e do nome do proprietário PEM mudou apenas o hash integral. Revisão independente confirmou material sintético; autorização restrita a regra, linha e hash."
     },
     {
       "path": "apps/frontend/src/locales/pt-BR.json",
       "rule": "private-key",
       "line": 1054,
-      "fileSha256": "a30611c26acf8fe1041bc6f92c46df1b1ff88d8528345c8d588d4459207a4af3",
+      "fileSha256": "4a89108214df7405c229d2c1005bd197fd906d9acd94589d10fbbd40d220c436",
       "reason": "NA-0179: exemplo textual de PEM com corpo literal de reticências, sem DER ou chave utilizável; marcador existente não foi alterado. Adição de traduções vaultDelivery e do nome do proprietário PEM mudou apenas o hash integral. Revisão independente confirmou material sintético; autorização restrita a regra, linha e hash."
     },
     {
@@ -286,15 +286,15 @@
       "path": ".github/workflows/quality-gate.yml",
       "rule": "generic-api-key",
       "line": 13,
-      "fileSha256": "056d3ddb2b74d1b3531eaaf3c7edc03add77cb6b0b05fd303252f2042e59627b",
-      "reason": "Constante sintética de criptografia para testes/build do quality gate; valor de exemplo público, sem vínculo com chaves PEM ou dados de produção. Revalidado na integração NA-0093: somente bootstrap npm12.2.1 acrescentado; constante e linha preservadas. Revalidado após NA-0137: somente pin Node24.21.0 para24.22.1; constante e linha preservadas."
+      "fileSha256": "1d15c5cfd30dd6a8751fe66a57da6b6033f4b24d8cfeabc0aeee00881b6c632d",
+      "reason": "Constante sintética de criptografia para testes/build do quality gate; valor de exemplo público, sem vínculo com chaves PEM ou dados de produção. Revalidado na integração NA-0093: somente bootstrap npm12.2.1 acrescentado; constante e linha preservadas. Revalidado após NA-0137: somente pin Node24.21.0 para24.22.1; constante e linha preservadas. Revalidado após NA-0203 (2026-11-27, revisão independente): somente passos de Chromium travado/imagens locais acrescentados; constante e linha preservadas."
     },
     {
       "path": ".github/workflows/sonarqube.yml",
       "rule": "generic-api-key",
       "line": 30,
-      "fileSha256": "2c467b213511331a00d64539393a58374193e253382ac5a8d65595f91c1d428a",
-      "reason": "Constante sintética PEM de teste no job Sonar efêmero; sem acesso a dados de produção; tokens reais do scanner são gerados separadamente em runtime. Revalidado na integração NA-0093: somente bootstrap npm12.2.1 acrescentado; constante e linha preservadas. Revalidado após NA-0137: somente pin Node24.21.0 para24.22.1; constante e linha preservadas."
+      "fileSha256": "73024ffbfb376fc652cd8d111abc79b3b82375f79ebb70674010360f6673c612",
+      "reason": "Constante sintética PEM de teste no job Sonar efêmero; sem acesso a dados de produção; tokens reais do scanner são gerados separadamente em runtime. Revalidado na integração NA-0093: somente bootstrap npm12.2.1 acrescentado; constante e linha preservadas. Revalidado após NA-0137: somente pin Node24.21.0 para24.22.1; constante e linha preservadas. Revalidado após NA-0203 (2026-11-27, revisão independente): somente passos de Chromium travado/imagens locais acrescentados; constante e linha preservadas."
     },
     {
       "path": "apps/backend/src/modules/network-access/network-access.service.test.ts",
@@ -334,9 +334,16 @@
     {
       "path": "tools/vault-security/mysql-harness.py",
       "rule": "generic-api-key",
-      "line": 82,
-      "fileSha256": "252d0d3ec1ee6734814841e5f973a0ec7daceec9bb6e7b2e294cf47dadd32fe4",
+      "line": 89,
+      "fileSha256": "de3c36398de9d0f7ae4abb0e0d92542cf75daac5420dd5ce611bffa6fbfcb6dd",
       "reason": "NA-0178: atribuições de nomes de variáveis, sem segredo literal. signing_key e encryption_key são geradas em runtime por secrets.token_hex(32) para containers descartáveis em loopback; logs sanitizados e limpeza finally. Revisão independente confirmou falso positivo sintático; autorização restrita a regra, linha e hash."
+    },
+    {
+      "path": "tools/vault-extension/site-terminal-real.mjs",
+      "rule": "generic-api-key",
+      "line": 240,
+      "fileSha256": "85c326e361bdfe70b9bcb85d03e84c5e4273ed0b051a38bac727d407ad18cc25",
+      "reason": "NA-0203: falso positivo sintático sobre identificadores públicos de migrações SQL; sem segredo literal. Revisão independente restrita à ocorrência, regra, linha e hash integral."
     }
   ]
 }

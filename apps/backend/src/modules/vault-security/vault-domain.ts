@@ -1,7 +1,7 @@
 /** Vault policy is independent of HTTP, storage and operational credential consumers. */
 export type VaultAction = 'reveal' | 'copy'
 /** Per-user grants: delivery actions plus NA-0183 browser-extension use. */
-export type VaultGrant = VaultAction | 'extension'
+export type VaultGrant = VaultAction | 'extension' | 'shared-write' | 'fill'
 export interface VaultIdentity { userId: number; tenantId: number; sessionVersion: number }
 /** Central login methods that may unlock the vault; break-glass and unknown methods never do. */
 export type VaultAuthMethod = 'local' | 'ldap' | 'oidc' | 'google'

@@ -3,7 +3,7 @@ import { Prisma, type PrismaClient, type PemKey } from '@prisma/client'
 export type ListedPemKey = PemKey & { createdBy: { name: string } }
 
 export class PemKeyRepository {
-  constructor(private readonly db: PrismaClient) {}
+  constructor(private readonly db: PrismaClient | Prisma.TransactionClient) {}
 
   async findByUser(createdById: number): Promise<ListedPemKey[]> {
     return this.db.pemKey.findMany({

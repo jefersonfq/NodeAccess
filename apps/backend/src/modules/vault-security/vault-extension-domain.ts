@@ -28,7 +28,7 @@ export interface ExtensionRecords {
   /** Grant `extension` enabled with two distinct managers, none of them the beneficiary. */
   entitled(): Promise<boolean>
   /** NA-0195: the user's own reveal/copy grant, with the same two-manager rule. */
-  granted(action: 'reveal' | 'copy'): Promise<boolean>
+  granted(action: 'reveal' | 'copy' | 'shared-write' | 'fill'): Promise<boolean>
   device(jkt: string): Promise<ExtensionDeviceRow | null>
   activateDevice(jkt: string, extensionId: string): Promise<void>
   touchDevice(jkt: string): Promise<void>
@@ -50,6 +50,10 @@ export interface ExtensionLocator {
 /** Single-use DPoP `jti` within its acceptance window. */
 export interface ReplayGuard { claim(key: string, ttlMs: number): Promise<boolean> }
 export interface ExtensionConfig {
+  /** Independent E7 pilot switch, off unless explicitly enabled by the operator. */
+  siteFillEnabled?: boolean
+  /** Successful persistent generation rotation at API startup. Missing fails closed. */
+  siteFillReady?: () => boolean
   enabled: boolean
   /** Allowed extension IDs; redirect URI is always https://<id>.chromiumapp.org/ */
   extensionIds: readonly string[]

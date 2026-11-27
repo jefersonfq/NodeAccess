@@ -4,7 +4,8 @@ import { Redis } from 'ioredis'
 import jwt from 'jsonwebtoken'
 import bcrypt from 'bcrypt'
 import * as speakeasy from 'speakeasy'
-import { createHash, randomBytes, randomUUID } from 'node:crypto'
+import { createHash, randomBytes, randomUUID, generateKeyPairSync } from 'node:crypto'
+import type { VaultExtensionWrite } from '@nodeaccess/shared'
 import { calculateJwkThumbprint, compactDecrypt, exportJWK, generateKeyPair, SignJWT, type CryptoKey, type JWK } from 'jose'
 import { VaultService } from './vault.service.js'
 import { VaultAdministrationService } from './vault-administration.service.js'
@@ -124,6 +125,89 @@ describe.skipIf(!enabled)('Vault extension E1 SQL/Redis integration', () => {
     return f.service.items({ requestOrigin: `chrome-extension://${EXT}`, version: '0.1.0', url: `${BASE}/items`, proof: p }, `DPoP ${access}`, {})
   }
   const audits = async (f: F, type: string) => Number((await db.$queryRaw<Array<{ n: bigint }>>`SELECT COUNT(*) AS n FROM vault_audit WHERE tenant_id=${f.a.id} AND event_type=${type}`)[0]!.n)
+
+  it('E3 writes and audits on the authorization transaction, enforces ACL and rolls back together', async () => {
+    const f = await fixture(), c = await connect(f, f.user), { accessToken } = await c.exchange()
+    const write = async (input: VaultExtensionWrite) => f.service.write({ requestOrigin: `chrome-extension://${EXT}`, version: '0.1.0', url: `${BASE}/write`,
+      proof: await proof(f, c.key, { htm: 'POST', htu: `${BASE}/write`, ath: sha256b64(accessToken) }) }, `DPoP ${accessToken}`, input)
+    const created = await write({ operation: 'create-secret', alias: 'extension-created', value: 'disposable-write-marker' })
+    const before = await db.secret.findUniqueOrThrow({ where: { id: created.id } })
+    expect(before).toMatchObject({ tenantId: f.a.id, scope: 'PERSONAL', ownerUserId: f.user.id })
+    await write({ operation: 'update-secret', id: created.id, description: 'edited' })
+    expect((await db.secret.findUniqueOrThrow({ where: { id: created.id } })).encryptedValue).toBe(before.encryptedValue)
+    await write({ operation: 'rotate-secret', id: created.id, value: 'disposable-replacement' })
+    const rotated = await db.secret.findUniqueOrThrow({ where: { id: created.id } })
+    expect(rotated.encryptedValue).not.toBe(before.encryptedValue)
+    const pem = generateKeyPairSync('rsa', { modulusLength: 2048 }).privateKey.export({ type: 'pkcs1', format: 'pem' }).toString()
+    const imported = await write({ operation: 'import-pem', name: 'extension-key', key: pem })
+    expect(await db.pemKey.findUniqueOrThrow({ where: { id: imported.id } })).toMatchObject({ createdById: f.user.id })
+    for (const alias of ['peer-only', 'tenant-shared', 'ops-group', 'other-tenant']) {
+      const target = await db.secret.findFirstOrThrow({ where: { alias, tenantId: { in: [f.a.id, f.b.id] } } })
+      await expect(write({ operation: 'update-secret', id: target.id, alias: 'stolen' })).rejects.toThrow()
+      await expect(write({ operation: 'rotate-secret', id: target.id, value: 'stolen' })).rejects.toThrow()
+    }
+    const events = await db.adminLog.findMany({ where: { adminId: f.user.id } })
+    expect(events.map(e => e.action)).toEqual(expect.arrayContaining(['CREATE_SECRET', 'UPDATE_SECRET', 'ROTATE_SECRET', 'CREATE_PEM_KEY']))
+    expect(JSON.stringify(events)).not.toMatch(/disposable-write-marker|disposable-replacement|PRIVATE KEY/)
+    const store = new SqlVaultStore(db)
+    await expect(store.transaction(c.session.identity, async tx => {
+      await tx.writePersonal!({ operation: 'create-secret', alias: 'rolled-back', value: 'never-committed' })
+      await tx.writePersonal!({ operation: 'rotate-secret', id: created.id, value: 'never-committed' })
+      await tx.writePersonal!({ operation: 'import-pem', name: 'rolled-back-pem', key: pem })
+      throw new Error('abort-transaction')
+    })).rejects.toThrow('abort-transaction')
+    expect(await db.secret.count({ where: { tenantId: f.a.id, alias: 'rolled-back' } })).toBe(0)
+    expect(await db.pemKey.count({ where: { createdById: f.user.id, name: 'rolled-back-pem' } })).toBe(0)
+    expect((await db.secret.findUniqueOrThrow({ where: { id: created.id } })).encryptedValue).toBe(rotated.encryptedValue)
+    expect(await db.adminLog.count({ where: { adminId: f.user.id } })).toBe(events.length)
+  }, 20_000)
+
+  it('E4 grants shared-write via two managers, offers permitted groups/items and rolls back writes and audit', async () => {
+    const f = await fixture(), admin = new VaultAdministrationService(f.vault, entropy)
+    const p1 = await f.portal(f.m1), p2 = await f.portal(f.m2)
+    const change = { kind: 'grant' as const, userId: f.user.id, action: 'shared-write' as const, enabled: true }
+    const { proposalId } = await admin.propose(p1.identity, p1.clientId, origin, p1.sessionId, change)
+    await expect(admin.approve(p1.identity, p1.clientId, origin, p1.sessionId, proposalId)).rejects.toThrow()
+    await admin.approve(p2.identity, p2.clientId, origin, p2.sessionId, proposalId)
+    const c = await connect(f, f.user), { accessToken } = await c.exchange()
+    const store = new SqlVaultStore(db), identity = c.session.identity
+    const group = await db.group.findFirstOrThrow({ where: { tenantId: f.a.id } })
+    const access = await store.transaction(identity, tx => tx.writeAccess!())
+    expect(access).toEqual({ groups: [{ id: group.id, name: group.name }], tenant: false })
+    const write = (input: VaultExtensionWrite) => store.transaction(identity, tx => tx.writePersonal!(input))
+    const created = await write({ operation: 'create-secret', scope: 'GROUP', groupId: group.id, alias: 'e4-group', value: 'e4-marker' })
+    const metadata = (await items(f, c.key, accessToken)).items
+    expect(metadata.find(i => i.sourceId === created.id && i.kind === 'secret')).toMatchObject({ writable: true, writeScope: 'GROUP', groupId: group.id })
+    expect(metadata.find(i => i.label === 'ops-group')).toMatchObject({ writable: false })
+    await write({ operation: 'update-secret', scope: 'GROUP', groupId: group.id, id: created.id, description: 'edited' })
+    const before = await db.secret.findUniqueOrThrow({ where: { id: created.id } })
+    const auditCount = await db.adminLog.count({ where: { adminId: f.user.id } })
+    await expect(store.transaction(identity, async tx => {
+      await tx.writePersonal!({ operation: 'rotate-secret', scope: 'GROUP', groupId: group.id, id: created.id, value: 'rollback-marker' })
+      throw new Error('E4 rollback')
+    })).rejects.toThrow('E4 rollback')
+    expect((await db.secret.findUniqueOrThrow({ where: { id: created.id } })).encryptedValue).toBe(before.encryptedValue)
+    expect(await db.adminLog.count({ where: { adminId: f.user.id } })).toBe(auditCount)
+    const foreign = await db.group.create({ data: { tenantId: f.b.id, name: 'foreign' } })
+    await expect(write({ operation: 'create-secret', scope: 'GROUP', groupId: foreign.id, alias: 'denied', value: 'new' })).rejects.toThrow()
+    await expect(write({ operation: 'create-secret', scope: 'TENANT', alias: 'denied', value: 'new' })).rejects.toThrow()
+    await write({ operation: 'update-secret', scope: 'PERSONAL', id: created.id, description: 'made personal' })
+    expect(await db.secret.findUniqueOrThrow({ where: { id: created.id } })).toMatchObject({ scope: 'PERSONAL', ownerUserId: f.user.id, groupId: null })
+    let locked!: () => void, release!: () => void
+    const lockAcquired = new Promise<void>(resolve => { locked = resolve })
+    const releaseRevocation = new Promise<void>(resolve => { release = resolve })
+    const revoking = db.$transaction(async tx => {
+      await tx.$executeRaw`UPDATE vault_entitlements SET enabled=FALSE WHERE tenant_id=${f.a.id} AND user_id=${f.user.id} AND action='shared-write'`
+      locked(); await releaseRevocation
+    })
+    await lockAcquired
+    const concurrentWrite = write({ operation: 'create-secret', scope: 'GROUP', groupId: group.id, alias: 'revoked', value: 'new' })
+    const deniedWrite = expect(concurrentWrite).rejects.toThrow()
+    release(); await revoking; await deniedWrite
+    expect(await db.secret.count({ where: { tenantId: f.a.id, alias: 'revoked' } })).toBe(0)
+    expect(await store.transaction(identity, tx => tx.writeAccess!())).toEqual({ groups: [], tenant: false })
+    await write({ operation: 'create-secret', alias: 'personal-still-works', value: 'new' })
+  }, 20_000)
 
   it('lists only ACL-visible metadata across users and tenants, never a value', async () => {
     const f = await fixture(), c = await connect(f, f.user)

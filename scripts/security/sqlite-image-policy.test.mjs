@@ -68,7 +68,16 @@ for (const [name, ref, distro, selected, date] of [
 test('review pins exact image identities and renewed expiry', () => {
   assert.deepEqual(policy.images, {
     [tlsImage]: { name: 'alpine', version: '3.24.4' },
+    'nodeaccess-tls-agent:2.2.0-na0206.1': { name: 'alpine', version: '3.24.4' },
     [guacdImage]: { name: 'alpine', version: '3.24.3' },
   })
   assert.equal(policy.expiresAt, '2026-12-19')
+})
+
+test('NA-0206: only the exact TLS release ref inherits its reviewed library policy', () => {
+  assert.deepEqual(policy.images['nodeaccess-tls-agent:2.2.0-na0206.1'], policy.images[tlsImage])
+  for (const ref of ['nodeaccess-tls-agent:2.2.0-na0206.2', 'nodeaccess-tls-agent:latest',
+    'nodeaccess-backend:2.2.0-na0206.1', 'nodeaccess-frontend:2.2.0-na0206.1']) {
+    assert.equal(reviewedSqliteImageFinding(ref, tlsDistro, fixture(), policy, now), null)
+  }
 })

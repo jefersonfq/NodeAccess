@@ -6,7 +6,7 @@
 import { base64url } from './crypto'
 
 export interface DeliveryContext {
-  version: 1; operationId: string; tenantId: number; userId: number; clientId: string; action: 'reveal' | 'copy'
+  version: 1; operationId: string; tenantId: number; userId: number; clientId: string; action: 'reveal' | 'copy' | 'fill'
   itemRef: string; recipientThumbprint: string; policyVersion: number; secretVersion: string; expiresAt: number; origin: string
 }
 export interface Recipient { publicJwk: { kty: 'RSA'; n: string; e: 'AQAB' }; thumbprint: string; privateKey: CryptoKey }
@@ -35,7 +35,7 @@ export async function createRecipient(): Promise<Recipient> {
   return { publicJwk, thumbprint: await thumbprintOf(publicJwk), privateKey: pair.privateKey }
 }
 /** The server context must answer exactly this request (item, action, recipient) and still be alive. */
-export function assertContext(context: unknown, expected: { itemRef: string; action: 'reveal' | 'copy'; thumbprint: string; origin?: string; serverNow?: number }): asserts context is DeliveryContext {
+export function assertContext(context: unknown, expected: { itemRef: string; action: 'reveal' | 'copy' | 'fill'; thumbprint: string; origin?: string; serverNow?: number }): asserts context is DeliveryContext {
   const c = context as Record<string, unknown> | null
   if (!c || typeof c !== 'object' || Object.keys(c).length !== KEYS.length || !KEYS.every(k => Object.hasOwn(c, k))) fail()
   const ctx = c as Record<string, unknown>

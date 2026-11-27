@@ -133,7 +133,19 @@ async function main() {
     let publicText
     for (const role of ['user', 'admin']) for (const theme of ['light', 'dark']) {
       const { context, page, requests, errors } = await session(browser, { role, theme, tenantId: role === 'admin' ? 8 : 7 })
-      await page.goto(`${base}/security`, { waitUntil: 'networkidle' })
+      await page.goto(`${base}/hosts`, { waitUntil: 'networkidle' })
+      await page.getByRole('menuitem', { name: 'Central de Segurança', exact: true }).click()
+      await page.waitForURL(url => url.pathname === '/security')
+      await page.locator('[data-security-center]').waitFor()
+      await page.goBack()
+      await page.waitForURL(url => url.pathname === '/hosts')
+      await page.goForward()
+      await page.waitForURL(url => url.pathname === '/security')
+      await page.locator('[data-security-center]').waitFor()
+      await page.waitForLoadState('networkidle')
+      // Hosts may issue its own API calls; audit the informational center after entry.
+      const navigationRequests = requests.splice(0)
+      assert.ok(navigationRequests.some(item => item.path === '/api/v1/settings/manual'), 'Manual-disabled condition must be observed during navigation')
       const main = page.locator('[data-security-center]')
       await main.getByRole('heading', { level: 1, name: 'Central de Segurança' }).waitFor()
       const text = await main.innerText()
@@ -144,7 +156,6 @@ async function main() {
       assert.match(await main.locator('[data-security-scope]').innerText(), /informativ|diagnóstico/i)
       await page.getByRole('menuitem', { name: 'Central de Segurança', exact: true }).waitFor()
       assert.equal(await page.getByRole('menuitem', { name: 'Manual de uso', exact: true }).count(), 0)
-      assert.ok(requests.some(item => item.path === '/api/v1/settings/manual'), 'Manual-disabled condition must be observed')
       const nav = main.getByRole('navigation', { name: 'Nesta página' })
       const links = nav.getByRole('link')
       assert.ok(await links.count() >= 2)

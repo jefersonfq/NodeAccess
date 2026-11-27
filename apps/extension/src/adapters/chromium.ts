@@ -23,7 +23,7 @@ export const chromiumSession: SessionStore = {
   },
   set: (value: Authorization): Promise<void> => chrome.storage.session.set({ [AUTH]: value }),
   // The portal language is a display preference: it outlives an expired authorization (NA-0193 reopens with the code screen).
-  clear: (): Promise<void> => chrome.storage.session.remove([AUTH, RECENTS, FAILURE, PORTAL_PROOF]),
+  clear: (): Promise<void> => chrome.storage.session.remove([AUTH, RECENTS, FAILURE, PORTAL_PROOF, 'portalIntent', 'siteFillIntent']),
   async recents(): Promise<string[]> {
     const value = (await chrome.storage.session.get(RECENTS))[RECENTS]
     return Array.isArray(value) ? value.filter((k): k is string => typeof k === 'string') : []
@@ -38,7 +38,14 @@ export const chromiumSession: SessionStore = {
     const value = (await chrome.storage.session.get(PORTAL_PROOF))[PORTAL_PROOF]
     return typeof value === 'string' && /^[A-Za-z0-9_-]{43}$/.test(value) ? value : null
   },
-  setPortalProof: (request: string | null): Promise<void> => (request ? chrome.storage.session.set({ [PORTAL_PROOF]: request }) : chrome.storage.session.remove([PORTAL_PROOF])),
+  async setPortalProof(request: string | null): Promise<void> {
+    await chrome.storage.session.remove(['portalIntent'])
+    if (request) await chrome.storage.session.set({ [PORTAL_PROOF]: request })
+    else await chrome.storage.session.remove([PORTAL_PROOF])
+  },
+  portalIntent: async (): Promise<unknown> => (await chrome.storage.session.get('portalIntent')).portalIntent,
+  setPortalIntent: intent => chrome.storage.session.set({ portalIntent: intent }),
+  portalLock: async run => await navigator.locks.request('vaultnaccess-portal-proof', run),
 }
 /**
  * NA-0190: why the last connection failed, kept briefly for a popup that closed while the service worker tried

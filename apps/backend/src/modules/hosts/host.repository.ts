@@ -175,6 +175,11 @@ export class HostRepository {
     private readonly tagRepo: TagRepository,
   ) {}
 
+  async findVaultItemHosts(tenantId: number, kind: 'secret' | 'pem', sourceId: number): Promise<Array<{ id: number; name: string }>> {
+    return this.db.host.findMany({ where: { tenantId, deletedAt: null, ...(kind === 'secret' ? { passwordSecretId: sourceId } : { pemKeyId: sourceId }) },
+      select: { id: true, name: true }, orderBy: { id: 'asc' } })
+  }
+
   async findRecentAccessByHostIds(tenantId: number, userId: number, hostIds: number[]): Promise<Map<number, HostRecentAccess>> {
     if (hostIds.length === 0) return new Map()
     const [lastRows, activeRows] = await Promise.all([

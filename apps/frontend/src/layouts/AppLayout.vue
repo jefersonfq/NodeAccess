@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { isGuidedTrial, trialExpiryNotice } from '@/services/trial-experience'
+import { hostRouteContentKey } from '@/services/host-route-connect'
 
 import { useManualStore } from '@/stores/manual'
 import ManualLink from '@/components/manual/ManualLink.vue'
@@ -129,6 +130,8 @@ function showAccessRefreshFeedback(): void {
 }
 
 function routeContentKey(currentRoute: RouteLocationNormalizedLoaded): string {
+  // Consuming a host connection action must preserve its in-flight component.
+  if (currentRoute.name === 'hosts') return hostRouteContentKey(currentRoute.fullPath)
   // Section links keep the informational page mounted; other navigation stays unchanged.
   return currentRoute.name === 'security-center' ? currentRoute.fullPath.split('#')[0] : currentRoute.fullPath
 }

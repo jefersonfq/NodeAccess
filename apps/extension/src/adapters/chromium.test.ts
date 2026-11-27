@@ -8,7 +8,7 @@ function fakeChrome() {
   const api = {
     runtime: { id: 'a'.repeat(32), getManifest: () => ({ version: '0.1.0' }) },
     identity: { getRedirectURL: () => `https://${'a'.repeat(32)}.chromiumapp.org/`, launchWebAuthFlow: vi.fn() },
-    storage: { session: {
+    storage: { onChanged: { addListener: vi.fn() }, session: {
       get: vi.fn((key: string) => Promise.resolve(session.has(key) ? { [key]: session.get(key) } : {})),
       set: vi.fn((value: Record<string, unknown>) => { for (const [k, v] of Object.entries(value)) session.set(k, v); return Promise.resolve() }),
       remove: vi.fn((keys: string[]) => { for (const k of keys) session.delete(k); return Promise.resolve() }),
@@ -81,6 +81,11 @@ describe('Chromium adapter', () => {
     chromeDouble.session.set('portalProof', 'not-a-request'); expect(await chromiumSession.portalProof()).toBeNull()
     await chromiumSession.setPortalProof('r'.repeat(43)); await chromiumSession.setPortalProof(null); expect(await chromiumSession.portalProof()).toBeNull()
     await chromiumSession.setPortalProof('r'.repeat(43)); await chromiumSession.clear(); expect(await chromiumSession.portalProof()).toBeNull()
+    await chromiumSession.setPortalIntent({ request: 'r'.repeat(43), sourceId: 3, action: 'copy', expiresAt: 120000, binding: 'digest' })
+    expect(await chromiumSession.portalIntent()).toMatchObject({ sourceId: 3, action: 'copy' })
+    await chromiumSession.setPortalProof(null); expect(await chromiumSession.portalIntent()).toBeUndefined()
+    await chromiumSession.setPortalIntent({ request: 'r'.repeat(43), sourceId: 3, action: 'copy', expiresAt: 120000, binding: 'digest' })
+    await chromiumSession.clear(); expect(await chromiumSession.portalIntent()).toBeUndefined()
   })
   it('NA-0190: keeps the last connection failure briefly, reads it once and ignores stale or unknown values', async () => {
     const { rememberFailure, takeFailure, chromiumSession } = await import('./chromium')
@@ -144,13 +149,25 @@ describe('Chromium adapter', () => {
 
 describe('service worker', () => {
   async function load(connect: () => Promise<void>) {
-    const listeners: Array<(message: unknown, sender: { id?: string }, respond: (value: unknown) => void) => unknown> = []
+    const listeners: Array<(message: unknown, sender: { id?: string; url?: string; tab?: { id?: number } }, respond: (value: unknown) => void) => unknown> = []
     vi.stubGlobal('chrome', { ...chromeDouble.api, runtime: { ...chromeDouble.api.runtime, onMessage: { addListener: (fn: typeof listeners[number]) => listeners.push(fn) } } })
     vi.doMock('../core/client', async original => ({ ...(await original<typeof import('../core/client')>()), createExtensionClient: () => ({ connect }) }))
     await import('../background')
+    expect(chromeDouble.api.storage.onChanged.addListener).toHaveBeenCalledOnce()
     return listeners[0]!
   }
   afterEach(() => { vi.doUnmock('../core/client') })
+  it('rejects fill messages from web pages, content scripts, other extension pages and malformed payloads', async () => {
+    const listener = await load(vi.fn()), respond = vi.fn(), id = 'a'.repeat(32)
+    const input = { type: 'fill-site', siteId: 1, version: 1, origin: 'https://example.test' }
+    for (const sender of [{ id }, { id, url: 'https://example.test' }, { id, url: `chrome-extension://${id}/popup.html`, tab: { id: 1 } },
+      { id, url: `chrome-extension://${id}/other.html` }, { id: 'b'.repeat(32), url: `chrome-extension://${id}/popup.html` }]) {
+      expect(listener(input, sender, respond)).toBeUndefined()
+    }
+    expect(listener({ ...input, origin: 'http://example.test' }, { id, url: `chrome-extension://${id}/popup.html` }, respond)).toBeUndefined()
+    expect(listener({ ...input, password: 'no' }, { id, url: `chrome-extension://${id}/popup.html` }, respond)).toBeUndefined()
+    expect(respond).not.toHaveBeenCalled()
+  })
   it('accepts connect only from this extension and answers once the flow ends', async () => {
     const connect = vi.fn(() => Promise.resolve())
     const listener = await load(connect)
@@ -159,7 +176,9 @@ describe('service worker', () => {
     expect(listener(null, { id: 'a'.repeat(32) }, vi.fn())).toBeUndefined()
     expect(listener({ type: 'other' }, { id: 'a'.repeat(32) }, vi.fn())).toBeUndefined()
     const respond = vi.fn()
-    expect(listener({ type: 'connect' }, { id: 'a'.repeat(32) }, respond)).toBe(true)
+    expect(listener({ type: 'connect' }, { id: 'a'.repeat(32) }, respond)).toBeUndefined()
+    expect(listener({ type: 'connect' }, { id: 'a'.repeat(32), url: 'https://example.test', tab: { id: 1 } }, respond)).toBeUndefined()
+    expect(listener({ type: 'connect' }, { id: 'a'.repeat(32), url: `chrome-extension://${'a'.repeat(32)}/popup.html` }, respond)).toBe(true)
     await vi.waitFor(() => expect(respond).toHaveBeenCalledWith({ ok: true }))
     expect(connect).toHaveBeenCalledTimes(1)
   })
@@ -169,14 +188,14 @@ describe('service worker', () => {
     const connect = vi.fn(() => new Promise<void>((_, reject) => { fail = reject }))
     const listener = await load(connect)
     const first = vi.fn(), second = vi.fn()
-    listener({ type: 'connect' }, { id: 'a'.repeat(32) }, first)
-    listener({ type: 'connect' }, { id: 'a'.repeat(32) }, second)
+    listener({ type: 'connect' }, { id: 'a'.repeat(32), url: `chrome-extension://${'a'.repeat(32)}/popup.html` }, first)
+    listener({ type: 'connect' }, { id: 'a'.repeat(32), url: `chrome-extension://${'a'.repeat(32)}/popup.html` }, second)
     expect(connect).toHaveBeenCalledTimes(1)
     fail(new ExtensionError('denied'))
     await vi.waitFor(() => expect(second).toHaveBeenCalledWith({ ok: false, reason: 'denied' }))
     expect(first).toHaveBeenCalledWith({ ok: false, reason: 'denied' })
     const third = vi.fn()
-    listener({ type: 'connect' }, { id: 'a'.repeat(32) }, third)
+    listener({ type: 'connect' }, { id: 'a'.repeat(32), url: `chrome-extension://${'a'.repeat(32)}/popup.html` }, third)
     fail(new Error('boom'))
     await vi.waitFor(() => expect(third).toHaveBeenCalledWith({ ok: false, reason: 'unavailable' }))
     expect(connect).toHaveBeenCalledTimes(2)

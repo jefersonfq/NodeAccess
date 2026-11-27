@@ -218,7 +218,7 @@ function findUnknownAssociatedLinkVariables(template: string): string[] {
   return [...new Set(matches.filter((token) => !known.has(token)))]
 }
 
-function resolveAssociatedLinkTemplate(
+export function resolveAssociatedLinkTemplate(
   template: string,
   context: { id: number; name: string; ip: string; port: number; sshUser: string },
 ): string {
@@ -348,6 +348,13 @@ export class HostService {
     if (!permissions?.view) throw new ForbiddenError('Sem acesso a este host')
     const linksByHostId = await this.hostRepo.listAssociatedLinksByHostIds([host.id], tenantId)
     return toPublic(host, linksByHostId.get(host.id) ?? [], permissions)
+  }
+
+  /** Vault callers must authorize the item first; host visibility uses the portal's effective ACL. */
+  async vaultItemHosts(tenantId: number, userId: number, role: 'ADMIN' | 'USER', kind: 'secret' | 'pem', sourceId: number): Promise<Array<{ id: number; name: string }>> {
+    const hosts = await this.hostRepo.findVaultItemHosts(tenantId, kind, sourceId)
+    const permissions = await this.resolveHostPermissions(hosts.map(host => host.id), tenantId, userId, role)
+    return hosts.filter(host => permissions.get(host.id)?.view).map(host => ({ id: host.id, name: host.name }))
   }
 
   async listVisibleByIds(

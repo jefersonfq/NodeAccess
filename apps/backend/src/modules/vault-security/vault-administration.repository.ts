@@ -72,10 +72,10 @@ export class SqlVaultAdministration implements AdministrationReads {
       JOIN secrets s ON s.id=w.secret_id AND s.tenant_id=w.tenant_id WHERE w.tenant_id=${this.actor.tenantId} AND w.enabled=TRUE AND s.revoked_at IS NULL
       ORDER BY s.alias,s.id LIMIT 1000`
     const byUser = new Map<number, VaultAdministrationUser>(users.map(u => [u.id, { id: u.id, name: u.name, email: u.email, manager: managers.includes(Number(u.id)),
-      grants: { reveal: false, copy: false, extension: false } }]))
+      grants: { reveal: false, copy: false, extension: false, 'shared-write': false, fill: false } }]))
     for (const g of grants) {
       const user = byUser.get(g.userId)
-      if (user && (g.action === 'reveal' || g.action === 'copy' || g.action === 'extension')) user.grants[g.action] = g.enabled === true || g.enabled === 1 || g.enabled === 1n
+      if (user && (g.action === 'reveal' || g.action === 'copy' || g.action === 'extension' || g.action === 'shared-write' || g.action === 'fill')) user.grants[g.action] = g.enabled === true || g.enabled === 1 || g.enabled === 1n
     }
     // NA-0188: hide what approval would refuse anyway — proposer no longer a manager, or an inactive/removed person to
     // grant or promote (with 24 h proposals this happens); removing a manager stays listed whatever their account state.

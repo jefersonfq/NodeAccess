@@ -6993,7 +6993,8 @@
     "webauthn": "Windows Hello / chave de acesso",
     "webauthnOn": "disponível nesta origem",
     "webauthnOff": "indisponível (a origem precisa ser um nome, não IP)",
-    "readOnly": "Somente gestores do cofre alteram estes valores: um gestor propõe e outro aprova. Fale com um gestor do cofre.",
+    "readOnly": "Ser administrador não concede o papel de gestor do cofre. Para receber esse papel, peça a um gestor que proponha sua inclusão na aba Usuários do cofre; outro gestor precisa aprovar. Depois, alterar revelar ou copiar também exige proposta e aprovação de dois gestores.",
+    "bootstrapHelp": "Se ainda não há gestores, o responsável pela instalação precisa configurar os dois gestores iniciais. Essa configuração inicial não é feita nesta tela.",
     "denied": "Sem acesso às configurações do cofre. O cofre pode não estar configurado neste tenant, ou sua conta não é administradora nem gestora do cofre, ou não tem o autenticador (TOTP) ativo.",
     "unconfigured": "O cofre não está habilitado nesta instalação ou tenant.",
     "unavailable": "Não foi possível carregar as configurações do cofre. Abra o portal pelo endereço HTTPS do cofre e tente de novo."
@@ -7037,6 +7038,8 @@
     "reveal": "Revelar",
     "copy": "Copiar",
     "extension": "Usar extensão",
+    "shared-write": "Escrever Secrets compartilhados na extensão",
+    "fill": "Preencher login de site na extensão",
     "enabled": "Sim",
     "disabled": "Não",
     "proposeEnable": "Propor ativar",

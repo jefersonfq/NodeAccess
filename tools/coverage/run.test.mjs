@@ -7,7 +7,7 @@ import { execFileSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
 import { sourceInventory, sourceFingerprint } from './inventory.mjs'
 import { requiredBrowserHarnesses } from './browser.mjs'
-import { runCoverage, argumentsForCoverage } from './run.mjs'
+import { runCoverage, argumentsForCoverage, executeCoverageCommand } from './run.mjs'
 
 
 function fileCoverage(path, hits = 1) {
@@ -33,6 +33,12 @@ function fixture(t, options = {}) {
   const calls = []
   const execute = (_root, args, env) => {
     calls.push(args)
+    if (args.includes('--coverage')) {
+      assert.equal(env.NODE_OPTIONS, undefined); assert.equal(env.NODEACCESS_NATIVE_TS_PROVENANCE, undefined)
+    } else {
+      assert.equal(env.NODE_OPTIONS, `--import=${new URL('./native-ts-source.mjs', import.meta.url).href}`)
+      assert.equal(env.NODEACCESS_NATIVE_TS_PROVENANCE, join(root, 'coverage/native-ts-provenance.json'))
+    }
     assert.equal(env.SONAR_TOKEN, undefined); assert.equal(env.SONAR_REVIEW_TOKEN, undefined)
     if (args.includes('--coverage')) {
       assert.equal(env.NODEACCESS_TLS_COVERAGE, undefined)
@@ -69,8 +75,11 @@ function fixture(t, options = {}) {
 }
 test('aggregate pipeline writes fresh LCOV, preserves legacy gates and strips Sonar credentials', async t => {
   const f = fixture(t)
-  const result = await runCoverage({ ...f, env: { SONAR_TOKEN: 'synthetic-a', SONAR_REVIEW_TOKEN: 'synthetic-b', NODEACCESS_TLS_COVERAGE: 'false', NODEACCESS_TLS_COVERAGE_RUN_ID: 'inherited', NODEACCESS_TLS_COVERAGE_OUTPUT: '/tmp/ignored' } })
+  const result = await runCoverage({ ...f, env: { NODE_OPTIONS: '--import=unknown-loader --experimental-transform-types', SONAR_TOKEN: 'synthetic-a', SONAR_REVIEW_TOKEN: 'synthetic-b', NODEACCESS_TLS_COVERAGE: 'false', NODEACCESS_TLS_COVERAGE_RUN_ID: 'inherited', NODEACCESS_TLS_COVERAGE_OUTPUT: '/tmp/ignored' } })
   assert.equal(result.status, 'passed'); assert.equal(result.legacy.passed, true)
+  assert.equal(result.nativeTypeScript.nodeVersion, process.versions.node)
+  assert.equal(result.nativeTypeScript.mode, 'strip')
+  assert.equal(result.nativeTypeScript.sourceHashes[f.source], createHash('sha256').update(readFileSync(join(f.root, f.source))).digest('hex'))
   assert.equal(result.newCoverage.status, 'not_requested'); assert.equal(f.calls.length, 3)
   assert.match(readFileSync(join(f.root, 'coverage/lcov.info'), 'utf8'), /SF:apps\/backend/)
   assert.equal(JSON.parse(readFileSync(join(f.root, 'coverage/summary.json'))).head, result.head)
@@ -131,6 +140,24 @@ test('real subprocess collector failures remain visible and produce a failure su
   assert.equal(result.status, 'failed'); assert.equal(result.collectors.vitest.exitCode, 1)
   assert.ok(result.failures.includes('VITEST_TESTS_FAILED'))
   assert.match(readFileSync(join(f.root, 'coverage/vitest.log'), 'utf8'), /MODULE_NOT_FOUND/)
+})
+
+for (const [name, source, expected, timeoutMs] of [
+  ['success', 'process.exitCode = 0', { status: 0, signal: null, errorCode: null }, 5000],
+  ['nonzero', 'process.exitCode = 7', { status: 7, signal: null, errorCode: null }, 5000],
+  ['signal', "process.kill(process.pid, 'SIGTERM')", { status: null, signal: 'SIGTERM', errorCode: null }, 5000],
+  ['timeout', 'setInterval(() => {}, 1000)', { status: null, signal: 'SIGTERM', errorCode: 'ETIMEDOUT' }, 50],
+]) test(`collector process diagnostics preserve ${name} without exposing environment`, { skip: process.platform === 'win32' }, t => {
+  const root = mkdtempSync(join(tmpdir(), 'na0203-process-'))
+  t.after(() => rmSync(root, { recursive: true, force: true }))
+  const script = join(root, 'fixture.mjs'), log = join(root, 'fixture.log')
+  writeFileSync(script, source)
+  const code = executeCoverageCommand(root, [script], { ...process.env, PRIVATE_DIAGNOSTIC_FIXTURE: 'do-not-log-this-value' }, log, timeoutMs)
+  const text = readFileSync(log, 'utf8'), { collectorProcess } = JSON.parse(text.trim())
+  assert.deepEqual({ status: collectorProcess.status, signal: collectorProcess.signal, errorCode: collectorProcess.errorCode }, expected)
+  assert.equal(code, expected.status ?? 1)
+  assert.ok(Number.isSafeInteger(collectorProcess.durationMs) && collectorProcess.durationMs >= 0)
+  assert.doesNotMatch(text, /do-not-log-this-value|PRIVATE_DIAGNOSTIC_FIXTURE|fixture\.mjs/)
 })
 
 test('Vite JSON import data is explicitly listed separately, while every executable source remains required', async t => {

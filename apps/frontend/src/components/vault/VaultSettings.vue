@@ -98,6 +98,14 @@ defineExpose({ load })
       >
         {{ t('vaultSettings.readOnly') }}
       </NText>
+      <NText
+        v-if="!settings.manager"
+        depth="3"
+        class="mt-2 block text-sm"
+        data-testid="vault-settings-bootstrap-help"
+      >
+        {{ t('vaultSettings.bootstrapHelp') }}
+      </NText>
     </template>
   </div>
 </template>

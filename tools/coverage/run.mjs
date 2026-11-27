@@ -1,4 +1,4 @@
-import { mkdirSync, readFileSync, writeFileSync, rmSync, openSync, closeSync, existsSync, lstatSync, realpathSync, chmodSync, constants } from 'node:fs'
+import { mkdirSync, readFileSync, writeFileSync, writeSync, rmSync, openSync, closeSync, existsSync, lstatSync, realpathSync, chmodSync, constants } from 'node:fs'
 import { resolve, join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { spawnSync, execFileSync } from 'node:child_process'
@@ -7,7 +7,7 @@ import libCoverage from 'istanbul-lib-coverage'
 import libReport from 'istanbul-lib-report'
 import reports from 'istanbul-reports'
 import { sourceInventory, sourceFingerprint, nodeTestFiles } from './inventory.mjs'
-import { nodeCoverageMap, normalizeBranchCounts } from './node-map.mjs'
+import { nodeCoverageMap, normalizeBranchCounts, nativeTypeScriptProvenance } from './node-map.mjs'
 import { summarizeCoverage, mergeCollectorMaps } from './summary.mjs'
 import { browserCoverageRecords, overlayBrowserCoverage } from './browser-map.mjs'
 import { requiredBrowserHarnesses } from './browser.mjs'
@@ -20,10 +20,17 @@ export function argumentsForCoverage(args) {
   if (args.length !== 2 || args[0] !== '--base' || !/^[a-f0-9]{7,40}$/i.test(args[1])) throw new Error('Usage: npm run test:coverage -- --base <commit SHA>')
   return { base: args[1] }
 }
-function command(root, args, env, logfile) {
+export function executeCoverageCommand(root, args, env, logfile, timeoutMs = 20 * 60_000) {
   const fd = openSync(logfile, 'w', 0o600)
   try {
-    const result = spawnSync(process.execPath, args, { cwd: root, env, stdio: ['ignore', fd, fd], timeout: 20 * 60_000 })
+    const startedAt = Date.now()
+    const result = spawnSync(process.execPath, args, { cwd: root, env, stdio: ['ignore', fd, fd], timeout: timeoutMs })
+    // Record only process metadata, never argv, environment or raw error messages.
+    writeSync(fd, '\n' + JSON.stringify({ collectorProcess: {
+      status: result.status, signal: result.signal,
+      errorCode: result.error ? (/^[A-Z][A-Z0-9_]{0,39}$/.test(result.error.code ?? '') ? result.error.code : 'UNKNOWN') : null,
+      durationMs: Date.now() - startedAt,
+    } }) + '\n')
     return result.status ?? 1
   } finally { closeSync(fd) }
 }
@@ -51,7 +58,7 @@ function recordPreflightFailure(root, result) {
     return true
   } catch { return false } finally { if (fd !== undefined) closeSync(fd) }
 }
-export async function runCoverage({ root = projectRoot, base, execute = command, env = process.env, preflight = runEnvironmentPreflight } = {}) {
+export async function runCoverage({ root = projectRoot, base, execute = executeCoverageCommand, env = process.env, preflight = runEnvironmentPreflight } = {}) {
   const startedAt = new Date().toISOString(), coverageSession = randomUUID()
   const environment = await preflight({ root, env })
   if (environment.status !== 'passed') {
@@ -68,6 +75,9 @@ export async function runCoverage({ root = projectRoot, base, execute = command,
   for (const name of ['vitest', 'node-v8', 'browser', 'vitest-tests.json', 'summary.json', 'coverage-final.json', 'lcov.info', 'tls-lab.json', 'python.xml']) rmSync(join(output, name), { recursive: true, force: true })
   mkdirSync(join(output, 'node-v8'), { mode: 0o700 })
   const childEnv = { ...env }; delete childEnv.SONAR_TOKEN; delete childEnv.SONAR_REVIEW_TOKEN; delete childEnv.NODE_V8_COVERAGE
+  // Native TS coverage is only meaningful with the built-in strip loader.
+  delete childEnv.NODE_OPTIONS
+  delete childEnv.NODEACCESS_NATIVE_TS_PROVENANCE
   delete childEnv.NODEACCESS_TLS_COVERAGE; delete childEnv.NODEACCESS_TLS_COVERAGE_RUN_ID; delete childEnv.NODEACCESS_TLS_COVERAGE_OUTPUT
   const result = { schemaVersion: 1, startedAt, coverageSession, head, requestedBase: base ?? null, sourceFingerprint: fingerprint,
     status: 'failed', failures: [], newCoverage: { status: 'not_requested' }, collectors: {} }
@@ -75,6 +85,11 @@ export async function runCoverage({ root = projectRoot, base, execute = command,
     result.preflight = environment
     const version = process.versions.node.split('.').map(Number)
     if (version[0] !== 24 || version[1] < 21) throw new Error('Coverage requires Node 24.21+')
+    result.nativeTypeScript = await nativeTypeScriptProvenance(root, files)
+    const nativeManifest = join(output, 'native-ts-provenance.json')
+    writeFileSync(nativeManifest, JSON.stringify(result.nativeTypeScript), { mode: 0o600 })
+    const nativeEnv = { ...childEnv, NODE_OPTIONS: `--import=${new URL('./native-ts-source.mjs', import.meta.url).href}`,
+      NODEACCESS_NATIVE_TS_PROVENANCE: nativeManifest, NODE_V8_COVERAGE: join(output, 'node-v8') }
     if (base) result.resolvedBase = execFileSync('/usr/bin/git', ['rev-parse', '--verify', `${base}^{commit}`], { cwd: root, encoding: 'utf8' }).trim()
     const vitestExit = execute(root, [join(root, 'node_modules/vitest/vitest.mjs'), 'run', '--coverage', '--reporter=json', '--outputFile=coverage/vitest-tests.json'],
       { ...childEnv, NODEACCESS_COVERAGE_COLLECT: '1', NODEACCESS_COVERAGE_SESSION: coverageSession, RUN_TUNNEL_REAL: 'true' }, join(output, 'vitest.log'))
@@ -85,7 +100,7 @@ export async function runCoverage({ root = projectRoot, base, execute = command,
     if (!nodeTests.includes('tools/network-access/tls-lab.test.mjs')) throw new Error('Required TLS laboratory test missing')
     const labRunId = randomUUID(), labOutput = join(output, 'tls-lab.json')
     const nodeExit = execute(root, ['--test', '--test-concurrency=2', ...nodeTests],
-      { ...childEnv, NODE_V8_COVERAGE: join(output, 'node-v8'), NODEACCESS_TLS_COVERAGE: 'true',
+      { ...nativeEnv, NODEACCESS_TLS_COVERAGE: 'true',
         NODEACCESS_TLS_COVERAGE_RUN_ID: labRunId, NODEACCESS_TLS_COVERAGE_OUTPUT: labOutput }, join(output, 'node.log'))
     result.collectors.node = { exitCode: nodeExit, testFiles: nodeTests.length }
     if (nodeExit !== 0) result.failures.push('NODE_TESTS_FAILED')
@@ -99,7 +114,7 @@ export async function runCoverage({ root = projectRoot, base, execute = command,
     result.collectors.node.pythonCoverageVerified = verifiedPythonCoverage(root, output, lab?.pythonCoverage)
     if (!result.collectors.node.pythonCoverageVerified) result.failures.push('PYTHON_COVERAGE_NOT_VERIFIED')
     const browserExit = execute(root, [join(root, 'tools/coverage/browser.mjs')],
-      { ...childEnv, NODEACCESS_COVERAGE_SESSION: coverageSession, NODE_V8_COVERAGE: join(output, 'node-v8') }, join(output, 'browser.log'))
+      { ...nativeEnv, NODEACCESS_COVERAGE_SESSION: coverageSession }, join(output, 'browser.log'))
     const browserReport = JSON.parse(readFileSync(join(output, 'browser/summary.json'), 'utf8'))
     result.collectors.browser = { exitCode: browserExit, ...browserReport }
     if (browserExit !== 0) result.failures.push('BROWSER_TESTS_FAILED')
@@ -115,7 +130,7 @@ export async function runCoverage({ root = projectRoot, base, execute = command,
     let map = libCoverage.createCoverageMap(JSON.parse(readFileSync(join(output, 'vitest/coverage-final.json'), 'utf8')))
     result.conversionAnomalies = []
     normalizeBranchCounts(map.files().map(file => map.fileCoverageFor(file)), root, result.conversionAnomalies, 'vitest')
-    const nativeMap = await nodeCoverageMap({ root, directory: join(output, 'node-v8'), files, anomalies: result.conversionAnomalies })
+    const nativeMap = await nodeCoverageMap({ root, directory: join(output, 'node-v8'), files, anomalies: result.conversionAnomalies, nativeTypeScript: result.nativeTypeScript })
     const merged = mergeCollectorMaps(map, nativeMap, root)
     map = merged.map
     result.collectorAuthority = merged.authority

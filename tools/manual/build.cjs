@@ -37,7 +37,14 @@ function manualPlugin() {
     name:'nodeaccess-manual',
     configResolved(config) { version = config.env.VITE_APP_VERSION || process.env.APP_VERSION || 'dev' },
     resolveId(id) { if(id==='virtual:nodeaccess-manual') return '\0nodeaccess-manual' },
-    load(id) { if(id==='\0nodeaccess-manual') return `export default ${JSON.stringify(loadManual(version,builtAt))}` },
+    load(id) {
+      if(id !== '\0nodeaccess-manual') return undefined
+      const { articles, ...metadata } = loadManual(version,builtAt)
+      // Editorial evidence stays in the build process, never in the browser bundle.
+      const publicArticles = articles.map(({ id, title, summary, journey, reviewedAt, html, text, flow, screenshot, reviewCurrent }) =>
+        ({ id, title, summary, journey, reviewedAt, html, text, flow, screenshot, reviewCurrent }))
+      return `export default ${JSON.stringify({ ...metadata, articles: publicArticles })}`
+    },
     generateBundle() {
       const {articles,...metadata} = loadManual(version,builtAt)
       this.emitFile({type:'asset',fileName:'manual-version.json',source:JSON.stringify({...metadata,chapters:articles.map(a=>({id:a.id,reviewedAt:a.reviewedAt,reviewCurrent:a.reviewCurrent}))},null,2)})

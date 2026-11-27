@@ -4,6 +4,9 @@ Planos e registros versionados por implementação. PRs e checkpoints identifica
 
 | Mudança | Plano | Registro IA |
 |---|---|---|
+| NA-0203-extension-sequence (sequência integrada; commit local autorizado; gate pré-commit OK; homologação/pentest pendentes) | [plano](2026/11/NA-0203-extension-sequence/plan.md) | [registro](2026/11/NA-0203-extension-sequence/implementation.md) |
+| NA-0202-vault-mobile-reasons (integrada à NA-0203; gate pré-commit OK) | [plano](2026/11/NA-0202-vault-mobile-reasons/plan.md) | [registro](2026/11/NA-0202-vault-mobile-reasons/implementation.md) |
+| NA-0201-extension-personal-items (E3 integrada à NA-0203; gate pré-commit OK) | [plano](2026/11/NA-0201-extension-personal-items/plan.md) | [registro](2026/11/NA-0201-extension-personal-items/implementation.md) |
 | NA-0178-vault-delivery (implementação e validação; sem deploy) | [plano](2026/11/NA-0178-vault-delivery/plan.md) | [registro](2026/11/NA-0178-vault-delivery/implementation.md) |
 | NA-0177-vault-security-contract (contrato documental; revisão independente, sem runtime) | [plano](2026/11/NA-0177-vault-security-contract/plan.md) | [registro](2026/11/NA-0177-vault-security-contract/implementation.md) |
 | NA-0176-base-reconciliation (PR65; gate local PASS; CI/merge pendentes) | [plano](2026/11/NA-0176-base-reconciliation/plan.md) | [registro](2026/11/NA-0176-base-reconciliation/implementation.md) |

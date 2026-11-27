@@ -39,8 +39,8 @@ function safeDetails(row: Pick<SecretRow, 'alias' | 'scope' | 'groupId' | 'revok
 export class SecretService {
   constructor(
     private readonly repo: SecretRepository,
-    private readonly logRepo: LogRepository,
-    private readonly licenseEntitlementService: LicenseEntitlementService,
+    private readonly logRepo: Pick<LogRepository, 'logAdminEvent'>,
+    private readonly licenseEntitlementService: Pick<LicenseEntitlementService, 'requireFeature'>,
   ) {}
 
   async list(userId: number, tenantId: number, role: UserRole, includeRevoked = false): Promise<SecretPublic[]> {
@@ -103,12 +103,14 @@ export class SecretService {
     tenantId: number,
     role: UserRole,
     dto: UpdateSecretDto,
+    personalOnly = false,
   ): Promise<SecretPublic> {
     await this.licenseEntitlementService.requireFeature(tenantId, 'secrets', 'Secrets não licenciados para este tenant')
     const existing = await this.requireSecret(id, tenantId)
-    await this.ensureCanManage(existing, userId, tenantId, role)
+    this.ensureCanManage(existing, userId, tenantId, role)
     this.ensureActive(existing)
 
+    if (personalOnly && (existing.scope !== 'PERSONAL' || existing.ownerUserId !== userId || dto.scope !== undefined || dto.groupId !== undefined)) throw new ForbiddenError()
     const normalized =
       dto.scope !== undefined || dto.groupId !== undefined
         ? await this.normalizeScopeInput(userId, tenantId, role, {
@@ -128,7 +130,7 @@ export class SecretService {
           ownerUserId: normalized.ownerUserId,
           groupId: normalized.groupId,
         }),
-      })
+      }, ...(personalOnly ? [userId] : []))
 
       await this.logRepo.logAdminEvent({
         adminId: userId,
@@ -153,14 +155,16 @@ export class SecretService {
     tenantId: number,
     role: UserRole,
     dto: RotateSecretDto,
+    personalOnly = false,
   ): Promise<SecretPublic> {
     await this.licenseEntitlementService.requireFeature(tenantId, 'secrets', 'Secrets não licenciados para este tenant')
     const existing = await this.requireSecret(id, tenantId)
-    await this.ensureCanManage(existing, userId, tenantId, role)
+    this.ensureCanManage(existing, userId, tenantId, role)
     this.ensureActive(existing)
 
     const encrypted = encrypt(dto.value)
-    const row = await this.repo.rotate(tenantId, id, encrypted.encrypted, encrypted.iv)
+    if (personalOnly && (existing.scope !== 'PERSONAL' || existing.ownerUserId !== userId)) throw new ForbiddenError()
+    const row = await this.repo.rotate(tenantId, id, encrypted.encrypted, encrypted.iv, ...(personalOnly ? [userId] : []))
 
     await this.logRepo.logAdminEvent({
       adminId: userId,
@@ -176,7 +180,7 @@ export class SecretService {
   async revoke(id: number, userId: number, tenantId: number, role: UserRole): Promise<SecretPublic> {
     await this.licenseEntitlementService.requireFeature(tenantId, 'secrets', 'Secrets não licenciados para este tenant')
     const existing = await this.requireSecret(id, tenantId)
-    await this.ensureCanManage(existing, userId, tenantId, role)
+    this.ensureCanManage(existing, userId, tenantId, role)
 
     const row = await this.repo.revoke(tenantId, id)
     await this.logRepo.logAdminEvent({
@@ -193,7 +197,7 @@ export class SecretService {
   async delete(id: number, userId: number, tenantId: number, role: UserRole): Promise<void> {
     await this.licenseEntitlementService.requireFeature(tenantId, 'secrets', 'Secrets não licenciados para este tenant')
     const existing = await this.requireSecret(id, tenantId)
-    await this.ensureCanManage(existing, userId, tenantId, role)
+    this.ensureCanManage(existing, userId, tenantId, role)
 
     const consumers = await this.repo.findConsumers(tenantId, id)
     if (consumers.hostCount > 0 || consumers.snippetCount > 0) {
@@ -212,7 +216,7 @@ export class SecretService {
 
   async consumers(id: number, userId: number, tenantId: number, role: UserRole): Promise<SecretConsumers> {
     const existing = await this.requireSecret(id, tenantId)
-    await this.ensureCanManage(existing, userId, tenantId, role)
+    this.ensureCanManage(existing, userId, tenantId, role)
     return this.repo.findConsumers(tenantId, id)
   }
 
@@ -317,7 +321,7 @@ export class SecretService {
     return row
   }
 
-  private async ensureCanManage(row: SecretRow, userId: number, tenantId: number, role: UserRole): Promise<void> {
+  private ensureCanManage(row: SecretRow, userId: number, tenantId: number, role: UserRole): void {
     if (role === 'admin') return
     if (row.ownerUserId === userId) return
 

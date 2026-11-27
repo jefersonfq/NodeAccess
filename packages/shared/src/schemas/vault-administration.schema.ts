@@ -1,7 +1,7 @@
 import { z } from 'zod'
 
 /** NA-0183 — read side of the two-manager vault administration shown in the portal. */
-export const VaultGrantActionSchema = z.enum(['reveal', 'copy', 'extension'])
+export const VaultGrantActionSchema = z.enum(['reveal', 'copy', 'extension', 'shared-write', 'fill'])
 export type VaultGrantAction = z.infer<typeof VaultGrantActionSchema>
 export const VaultAdministrationChangeSchema = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('grant'), userId: z.number().int().positive(), action: VaultGrantActionSchema, enabled: z.boolean() }).strict(),
@@ -21,7 +21,7 @@ export type VaultAdministrationStatus = z.infer<typeof VaultAdministrationStatus
 export const VaultAdministrationOverviewSchema = z.object({
   users: z.array(z.object({
     id: z.number().int().positive(), name: z.string().max(255), email: z.string().max(320), manager: z.boolean(),
-    grants: z.object({ reveal: z.boolean(), copy: z.boolean(), extension: z.boolean() }).strict(),
+    grants: z.object({ reveal: z.boolean(), copy: z.boolean(), extension: z.boolean(), 'shared-write': z.boolean().default(false), fill: z.boolean().default(false) }).strict(),
   }).strict()).max(500),
   proposals: z.array(z.object({
     reference: z.string().regex(/^[a-f0-9]{64}$/), change: VaultAdministrationChangeSchema,

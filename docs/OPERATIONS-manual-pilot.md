@@ -1,5 +1,11 @@
 # Manual integrado — piloto de 24/09/2026
 
+## Revalidação de 24/11/2026 — NA-0201 / itens pessoais na extensão
+
+Capítulo Hosts documenta cadastro pessoal, edição de metadados sem revelar a senha, substituição explícita do valor, gerador, importação PEM sem exportação e recuperação de erros. Corrigida a descrição antiga que limitava revelar/copiar ao portal. Mapeadas fontes da extensão no manifesto. Testes do manual: 2 Node +18 Vitest PASS. Chromium da extensão: 44 verificações PASS; formulário real inspecionado em captura clara, sem overflow. `manual:capture` PASS no frontend isolado 5174, versão esperada NA-0201: cinco capítulos, mobile, busca, ajuda sem reconexão, erros/recuperação, 60 estados de compartilhamento e dois ciclos de tenant. Cinco capturas regeneradas e inspecionadas: controles legíveis, dados fictícios e enquadramento preservado; demais procedimentos revalidados sem alteração funcional.
+
+Evidências privadas em `.tmp/NA-0201/browser` e `.tmp/nodeaccess-harness-1000-869308a222af`. Tentativas iniciais falharam por frontend ausente, versão esperada divergente e porta de compartilhamento padrão 5178; execução final usou `FRONTEND_BASE=http://127.0.0.1:5174`, `MANUAL_EXPECTED_VERSION=NA-0201`, TMPDIR no workspace. Hash atualizado após revisão por `loadManual()`. Sonar local e homologação humana E3/Windows Hello permanecem pendentes; este registro não declara deploy.
+
 
 ## Revalidação de 16/11/2026 — NA-0179 / revelar e copiar
 
@@ -357,3 +363,63 @@ Ran: testes de componente da página de consentimento e da lista de dispositivos
 23/11/2026 (NA-0193): capítulo **hosts**, seção da extensão — navegador confiável por 7 dias após a autorização pelo portal: reconexão automática enquanto o login do portal estiver ativo, **Código do autenticador** quando não estiver, e o que encerra a confiança. Ran: testes do serviço/rotas/MySQL real, da extensão e `test:extension:web` (reconexão automática, por código, código errado e **Desconectar** no Chromium real), `npm run manual:check-reviewed`. Sem captura nova; não representa homologação humana.
 
 23/11/2026 (NA-0194): capítulo **hosts**, seção da extensão — cartão **Instalar a extensão VaultNAccess** (versão, ID, SHA-256, **Baixar pacote**, passo a passo) e política de instalação gerenciada para administradores; fonte `ExtensionInstall.vue` adicionada ao manifesto. Ran: teste do cartão, empacotador (`node --test`), `test:extension-package:web`, `npm run manual:check-reviewed`. Sem captura nova; não representa homologação humana.
+
+### NA-0201 UX — 2026-11-24
+
+Validação local de formulário evita redigitação de material em erro anterior ao envio. Capítulo Hosts atualizado; Chromium extensão 46 checks PASS, manual:capture PASS (cinco imagens revistas), test:manual 2 Node + 18 Vitest PASS. Hash atualizado após revisão. Artefatos .tmp/NA-0201/ux-browser e ux-manual-*.log. Sonar bloqueado no preflight.
+
+### NA-0203 retomada — 2026-11-24
+
+Capítulo Hosts explica retomada de item/ação após confirmação no portal por até dois minutos, reconsulta de ACL, clique explícito e Verificar em falha transitória. manual:capture PASS, cinco imagens revistas; test:manual 2 Node + 18 Vitest PASS. Hash editorial atualizado após revisão do texto e das evidências. Evidências .tmp/NA-0203/manual-*.log. Sonar bloqueado no preflight.
+
+### NA-0203 hosts associados — 2026-11-24
+
+Hosts/Secret/PEM: consulta sob gesto, lista de nomes autorizados, paginação sem total oculto e abertura no portal. manual:capture PASS, cinco imagens revistas; test:manual 2 Node + 18 Vitest PASS. Mapeadas fontes backend de ACL e adaptador; hash revisado após validação. Chromium hosts-browser-final 52 checks PASS, incluindo nome longo e item pessoal visível após correção flex. Evidências .tmp/NA-0203/hosts-*.log e hosts-browser-final/result.json. Sonar segue bloqueado.
+
+### NA-0203 — Sites, preenchimento piloto e conexão integrada — 2026-11-24
+
+Atualizados procedimentos de Secrets compartilhados, cadastro/edição de sites, concessão independente de fill, diagnóstico e link de conexão consumido uma vez. Links de sites já registrados nos hosts são reconhecidos por origem HTTPS exata sob ACL existente. Mobile NA-0202 integrado. manual:capture PASS (incluindo geometria/compartilhamento/retorno de tenant), cinco imagens revistas visualmente: legíveis, destinos sintéticos e enquadramento preservado. test:manual PASS: 2 testes Node + 18 Vitest. Capturas adicionais reais do popup em .tmp/NA-0203/sites-browser/run-CEpjzc revistas, 28 checks PASS com manifesto de produção; formulário não enviado automaticamente. Hash do capítulo hosts recalculado após revisão; demais capítulos revalidados sem alteração de procedimento. Sonar/homologação Windows Hello/pentest seguem pendentes, sem publicação. Evidências .tmp/NA-0203/program-manual-*.log.
+
+Revalidação final NA-0203: motivos mobile descritos junto ao nome; contraste claro/escuro e mobile/desktop do portal validados em 40 checks, popup final em 28 checks (run-Li1SdN). Harnesses HTTPS administração administration-8JHGFO e frontend frontend-VfWaeW PASS, incluindo regressão terminal. Ajustes finais de input-props, tema e estado de preenchimento não alteram os procedimentos capturados. Cinco capturas anteriores revistas; hash hosts recalculado após estas evidências e congelamento do código. Metadados editoriais atualizados depois dos fingerprints dos harnesses, sem alegar identidade do manifesto com o snapshot anterior.
+
+### NA-0203 — Robustez da extensão e gestão do cofre — 2026-11-24
+
+Revisados procedimentos: administrador não equivale a gestor, indicação/dupla aprovação, ativação inicial pelo operador, política+concessão+item, limite de login em etapas, descarte após mudança de identidade, retry de paginação e foco de teclado. Geração persistente adicionada ao mapeamento hosts; revisão baseada em SQL72PASS, matriz95 checks/21 cenários e admin14cenários PASS. manual:capture PASS no servidor isolado versão NA0203-hardening, incluindo60estados geométricos e retorno de tenant sem reconexão. Cinco imagens revistas: destinos sintéticos, legibilidade e enquadramento preservados; demais capítulos revalidados sem mudar procedimento. Projeção do manual agora publica apenas campos da UI; hashes/caminhos internos ficam no processo editorial. Teste Node3PASS e revisão independente estática PASS. Manifesto atualizado depois das evidências; test:manual/manual:check-reviewed registrados no log final. Sem homologação Windows Hello físico, Sonar aprovado ou pentest.
+
+### NA-0203 — Revalidação após correção de remount em Hosts — 2026-11-24T21:23:37-03:00
+
+Após a correção da chave de conteúdo de Hosts pelo main (consumo de `connect` sem desmontar a conexão em andamento), captura local versão `NA0203-hardening` PASS no servidor isolado: cinco capítulos, 60 estados de geometria e dois ciclos de tenant sem reconexão. Cinco imagens revistas: dados sintéticos e ações legíveis; o painel de Destaques no terminal é intencional no roteiro, e o aviso transitório de atualização em tenants fica acima da tabela, sem encobrir Gerenciar ou as demais ações. Nenhuma imagem foi mascarada.
+
+Somente Hosts estava stale: `reviewedSourceHash` atualizado para `30c9dee8b5974938ff9f9a2e912e7320c21c6a61b1d12021925329e98bbd54d5` após captura/revisão; demais hashes e datas editoriais preservados. `test:manual`: 3 Node + 18 Vitest PASS; `manual:check-reviewed`: 5 capítulos PASS; build frontend com versão explícita PASS; scan do bundle PASS em 158 arquivos JS. Avisos de tamanho de chunks e anotações de dependências permanecem.
+
+Tentativas anteriores falharam na montagem do terminal e importação dinâmica de Hosts. O diagnóstico posterior registrou `ERR_NETWORK_CHANGED` em módulos no ambiente, sem HTTP 500 de transformação Vite; não comprova a causa das tentativas anteriores. Asserções e prazos não foram relaxados; nenhuma produção foi alterada nesta revalidação. Evidências em `.tmp/NA-0203/`: `hardening-manual-isolated-capture.log`, `manual-post-remount-tests.log`, `manual-post-remount-reviewed.log`, `manual-post-remount-build.log`, `manual-post-remount-bundle.log` e `manual-post-remount-hashes.json`. Sonar permanece bloqueado conforme fechamento do main; sem alegação de homologação.
+
+### NA-0203 — Assistência de sites e continuidade de edição — 2026-11-24
+
+Atualizados os seis procedimentos em Hosts: sugestões opcionais por 120 segundos, revisão de captura sem presumir sucesso do login/troca, preenchimento em duas etapas com gestos separados, gerador de 8–128 caracteres e classes, favoritos/recentes limitados aos itens autorizados carregados e rascunho transitório durante confirmação no portal com salvamento final explícito. Mapeados oito helpers de produção de core/adapters; nenhuma produção ou roadmap foi alterada nesta tarefa.
+
+`manual:capture` PASS no servidor isolado `NA0203-adoption`, porta efêmera, cache/env privados: cinco capítulos, 60 estados de geometria e dois ciclos de tenant sem reconexão. As cinco capturas foram revistas: dados sintéticos, enquadramento e ações legíveis; o painel Destaques aberto no terminal integra o roteiro. Demais capítulos revalidados sem mudança de procedimento. `test:manual`: 3 Node + 18 Vitest PASS.
+
+Revisão de Hosts avançada somente após captura/revisão e evidência final independente de adoção: `.tmp/NA-0203/adoption-browser/run-Vt1yie/result.json`, 31 verificações/5 seções PASS, fontes estáveis e cleanup confirmado. Hash de Hosts: `e885ed99922c8a301bd9d10e95f6436456b20d97b75e273b3c37d07f312fbd9e`; demais hashes/datas preservados. `manual:check-reviewed`: 5 capítulos atuais. Evidências locais: `.tmp/NA-0203/adoption-manual-{capture,tests,reviewed}.log` e `adoption-manual-hashes.json`.
+
+A validação é sintética; não constitui homologação de Windows Hello físico, pentest com senhas reais ou aprovação Sonar. O cenário de confirmação no portal não prova aceitação de login ou troca de senha por um site externo.
+
+Build frontend `NA0203-adoption` PASS (`vue-tsc` e Vite); scan do bundle PASS em 159 arquivos JavaScript, sem hashes/caminhos internos mapeados do manual, versão explícita e cinco capítulos atuais. Avisos de chunks grandes e anotações de dependências permanecem; nenhum limite foi alterado. Logs `adoption-manual-build.log` e `adoption-manual-bundle.log`. Checagem editorial final repetida PASS; servidor próprio PID 496523 encerrado, porta 38705 livre.
+
+### NA-0203 — Revalidação final após alternância do destino da captura — 2026-11-24T22:10:43-03:00
+
+O main corrigiu o preenchimento de usuário ao alternar entre os destinos A, B e novo login quando a captura não contém usuário, preservando alterações explícitas feitas pelo usuário. Não houve mudança de layout ou de procedimento do capítulo. Fonte SitePanel validada: SHA-256 `9ff37cfaa5efaddfdbf1fbe7c2f95fbc075f6289ea78403dcfef274ae3dc9238`. Evidência independente final: `.tmp/NA-0203/adoption-browser/run-RTDwbx/result.json`, 39 checks PASS, fontes estáveis e cleanup confirmado; inclui A→B→novo, edição explícita e gravação apenas no destino escolhido. Captura atual `review-target-b-explicit-username.png` inspecionada: destino B e usuário explicitamente revisado legíveis, senha mascarada pelo harness. Main também reportou E7 final 99 PASS em `run-6OAS5n`; esse resultado não substitui os gates do manual.
+
+As cinco imagens do manual foram preservadas por autorização expressa: são anteriores a este pequeno ajuste e não representam uma nova execução sobre a fonte final. As oito capturas da extensão no ensaio final documentam a regressão do fluxo alterado. Os resultados e o hash da seção anterior permanecem históricos, não são o último snapshot. Nenhuma recaptura do portal foi executada nesta revalidação.
+
+Após o PASS independente, Hosts recebeu hash `b543b8840774d5ff2bf31b3fa95b4d1fa6d60eb5497aef8fae3184a60ccbb7fd`; demais capítulos preservados. `test:manual` repetido: 3 Node + 18 Vitest PASS; `manual:check-reviewed`: cinco capítulos atuais. Evidências finais `.tmp/NA-0203/adoption-p2-manual-{hashes.json,tests.log,reviewed.log}`. Sem edição de UI, roadmap ou nova alegação de homologação/pentest/Sonar.
+
+Gates finais pós-correção: build frontend `NA0203-adoption` PASS (`vue-tsc` + Vite); scan do bundle PASS em 159 arquivos JS e cinco capítulos atuais, sem os hashes/caminhos internos mapeados. `manual:check-reviewed` repetido após build PASS. Logs `adoption-p2-manual-build.log`, `adoption-p2-manual-bundle.log` e `adoption-p2-manual-reviewed.log`; avisos de chunks grandes e anotações de dependências permanecem sem redução de limites. Nenhum servidor foi iniciado nesta rodada.
+
+### NA-0203 — Revalidação sem impacto no procedimento: assistência de sites — 2026-11-25T15:45:58-03:00
+
+Revalidado o capítulo Hosts após a correção Sonar de `site-assistance.ts`: envio assíncrono com `await` dentro de `try/catch`, preservando consumo único antes da espera, descarte de falhas síncronas/assíncronas e ausência de repetição automática. Não muda procedimento, layout, permissões ou mensagens; o texto do capítulo foi mantido. Helper SHA-256 `b7fda2600f6df702f1b850f86ec47c12be0eea3860d0a95172d06958cc0b7436`.
+
+Evidências conferidas: 31 testes DOM PASS em `.tmp/NA-0203/sonar-assistance-final.log`; adoção 39 checks PASS em `.tmp/NA-0203/adoption-browser/run-ZnIiXO/result.json`, fontes estáveis e cleanup confirmado, com o mesmo hash do helper no snapshot. `test:manual` repetido: 3 Node + 18 Vitest PASS (`sonar-helper-manual-tests.log`); só então atualizados data/hash de Hosts para `57fed45766a9746f20d1f4bf6def354b5a077687cd9bba2a8bb33b79389cd8ae`. `manual:check-reviewed`: cinco capítulos atuais (`sonar-helper-manual-reviewed.log`); registro do hash em `.tmp/NA-0203/sonar-helper-manual-hashes.json`.
+
+Por autorização específica de revalidação sem impacto no procedimento, as cinco capturas do portal foram preservadas: antecedem este ajuste e não representam captura nova sobre a fonte atual. Layout inalterado; nenhum `manual:capture` ou build foi executado nesta rodada. Resultados de captura/build anteriores continuam históricos. Sem mudanças de produção, roadmap ou alegação de aprovação Sonar nesta revalidação.

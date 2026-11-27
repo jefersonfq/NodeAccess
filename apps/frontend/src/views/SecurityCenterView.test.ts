@@ -20,6 +20,7 @@ vi.mock('vue-router', () => ({
 const initial: PublicSecurityCatalog = structuredClone(catalog)
 let fetchSpy: ReturnType<typeof vi.spyOn>
 beforeEach(() => {
+  delete (catalog as PublicSecurityCatalog).unavailable
   Object.assign(catalog, structuredClone(initial))
   fetchSpy = vi.spyOn(globalThis, 'fetch').mockRejectedValue(new Error('Security Center must not fetch runtime data'))
 })
@@ -64,6 +65,18 @@ describe('Security Center presentation', () => {
     expect(html).toContain('lang="pt-BR"')
     expect(html).toMatch(/<h3 lang="en"[^>]*>Conditions and limits<\/h3>/)
     expect(html).toContain('Review my profile')
+  })
+
+  it('shows an unavailable catalog without review metadata or parsing an invalid date', async () => {
+    Object.assign(catalog, { unavailable: true, revision: '', reviewedAt: '', sections: [], practices: [] })
+    const html = await render()
+    expect(html).toContain('Central de Segurança')
+    expect(html).toContain('Não há conteúdo revisado disponível')
+    expect(html).toContain('role="status"')
+    expect(html).not.toContain('data-security-review')
+    expect(html).not.toContain('<time')
+    expect(html).not.toContain('security-section')
+    expect(fetchSpy).not.toHaveBeenCalled()
   })
 
   it('handles an empty reviewed catalog without inventing an active control or a retry operation', async () => {

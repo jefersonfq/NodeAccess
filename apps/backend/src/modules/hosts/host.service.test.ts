@@ -59,6 +59,7 @@ function makeService() {
   }
 
   const hostRepo = {
+    findVaultItemHosts: vi.fn().mockResolvedValue([{ id: 10, name: 'visible' }, { id: 11, name: 'hidden' }]),
     defaultDeviceProfile: vi.fn().mockResolvedValue('server_ssh'),
     findHostLicenseLimit: vi.fn().mockResolvedValue(null),
     countByTenant: vi.fn().mockResolvedValue(0),
@@ -140,6 +141,16 @@ function makeService() {
 }
 
 describe('HostService corporate folder deletion synchronization', () => {
+  it('projects only associated hosts with existing portal view permission', async () => {
+    const { service, hostRepo, sshRepo } = makeService()
+    sshRepo.getEffectiveHostPermissionSets.mockResolvedValue(new Map([[10, { view: true, connect: false, edit: false, admin: false }], [11, { view: false, connect: false, edit: false, admin: false }]]))
+    expect(await service.vaultItemHosts(7, 23, 'USER', 'secret', 9)).toEqual([{ id: 10, name: 'visible' }])
+    expect(hostRepo.findVaultItemHosts).toHaveBeenCalledWith(7, 'secret', 9)
+    expect(sshRepo.getEffectiveHostPermissionSets).toHaveBeenCalledWith([10, 11], 7, 23, 'USER')
+    sshRepo.getEffectiveHostPermissionSets.mockResolvedValue(new Map())
+    expect(await service.vaultItemHosts(7, 23, 'USER', 'pem', 9)).toEqual([])
+    expect(await service.vaultItemHosts(7, 23, 'ADMIN', 'pem', 9)).toHaveLength(2)
+  })
   it('publishes a delete event after removing a host from a corporate folder', async () => {
     const { service, appEventBus, hostRepo, setExistingHost } = makeService()
     setExistingHost(makeHostRow({ inventoryNode: { id: 81, parentId: 44, parent: null } }))

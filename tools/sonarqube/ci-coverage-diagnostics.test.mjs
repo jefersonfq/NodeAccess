@@ -3,7 +3,8 @@ import assert from 'node:assert/strict'
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync, symlinkSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { coverageDiagnostics } from './ci-coverage-diagnostics.mjs'
+import { coverageDiagnostics, BROWSER_HARNESSES } from './ci-coverage-diagnostics.mjs'
+import { requiredBrowserHarnesses } from '../coverage/browser.mjs'
 function fixture(t) {
   const root = mkdtempSync(join(tmpdir(), 'coverage-diagnostic-'))
   t.after(() => rmSync(root, { recursive: true, force: true }))
@@ -98,7 +99,7 @@ test('CI revalidates generic stack coordinates and keeps structured flow failure
 
 test('additional harness diagnostics preserve exact names and capture modes only', t => {
   const f = fixture(t)
-  for (const name of ['ha', 'audit-input', 'tacacs-tls', 'highlight-budget', 'vault-extension']) {
+  for (const name of ['ha', 'audit-input', 'tacacs-tls', 'highlight-budget', 'vault-extension', 'vault-sites', 'vault-adoption', 'vault-site-assistance', 'vault-site-terminal', 'vault-sites-volume', 'vault-site-assistance-dom']) {
     f.write({ collectors: { browser: { error: `Browser coverage harness failed: ${name}`, harnesses: [
       { name, exitCode: 7, timedOut: false, coverageMode: 'node-only', diagnostic: { category: 'ASSERTION', line: 2, column: 3, raw: 'PRIVATE' } },
       { name: `${name}-PRIVATE`, coverageMode: 'PRIVATE' },
@@ -159,4 +160,8 @@ test('preflight projection rejects malicious status and malformed failure entrie
     assert.deepEqual(result.failures, [])
     assert.doesNotMatch(JSON.stringify(result), /PRIVATE/)
   }
+})
+
+test('NA-0203: sanitized harness names follow every required browser harness', () => {
+  assert.deepEqual([...BROWSER_HARNESSES], requiredBrowserHarnesses.map(([name]) => name))
 })

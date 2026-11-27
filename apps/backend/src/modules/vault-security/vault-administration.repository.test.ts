@@ -39,7 +39,7 @@ describe('vault administration reads', () => {
       if (sql.includes('FROM users')) return [{ id: 1, name: 'Ana', email: 'ana@example.test' }, { id: 2, name: 'Bruno', email: 'bruno@example.test' }]
       if (sql.includes('vault_entitlements')) return [
         { userId: 2, action: 'extension', enabled: 1 }, { userId: 2, action: 'reveal', enabled: 0 }, { userId: 2, action: 'copy', enabled: true },
-        { userId: 1, action: 'reveal', enabled: 1n }, { userId: 9, action: 'copy', enabled: 1 }, { userId: 2, action: 'fill', enabled: 1 },
+        { userId: 1, action: 'reveal', enabled: 1n }, { userId: 9, action: 'copy', enabled: 1 }, { userId: 2, action: 'fill', enabled: 1 }, { userId: 2, action: 'shared-write', enabled: 1 }, { userId: 2, action: 'unknown', enabled: 1 },
       ]
       if (sql.includes('vault_proposals')) return [
         { reference, proposedBy: 3, name: 'Carla', payload: JSON.stringify({ kind: 'grant', userId: 2, action: 'extension', enabled: false }), expiresAt: new Date(60_000),
@@ -56,8 +56,8 @@ describe('vault administration reads', () => {
     expect(await admin(db).overview()).toEqual({
       serverNow: 1_000,
       users: [
-        { id: 1, name: 'Ana', email: 'ana@example.test', manager: true, grants: { reveal: true, copy: false, extension: false } },
-        { id: 2, name: 'Bruno', email: 'bruno@example.test', manager: false, grants: { reveal: false, copy: true, extension: true } },
+        { id: 1, name: 'Ana', email: 'ana@example.test', manager: true, grants: { reveal: true, copy: false, extension: false, 'shared-write': false, fill: false } },
+        { id: 2, name: 'Bruno', email: 'bruno@example.test', manager: false, grants: { reveal: false, copy: true, extension: true, 'shared-write': true, fill: true } },
       ],
       proposals: [
         { reference, proposedBy: { id: 3, name: 'Carla' }, mine: false, expiresAt: 60_000, change: { kind: 'grant', userId: 2, action: 'extension', enabled: false },

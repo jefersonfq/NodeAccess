@@ -33,3 +33,5 @@ Esses estados não dizem que uma instalação está protegida ou que os testes p
 5. Revisão independente deve conferir a diferença entre código existente, teste executado, integração e configuração efetiva. Alterações de runtime, hardening ou novos controles exigem frente própria.
 
 Não criar contato, SLA, selo, certificação, regra de retenção ou promessa de cobertura sem evidência e aprovação. A página não pode inferir que o tenant habilitou auditoria, Cofre, HTTPS ou um método de autenticação apenas pela presença deste catálogo.
+
+Em desenvolvimento (`vite serve`), catálogo indisponível ou revisão stale apresenta uma Central vazia com aviso, sem divulgar afirmações antigas nem provocar falha do import/retorno à página anterior. O plugin acompanha os arquivos de evidência para recuperar após correção editorial. Build de produção e exportação continuam recusando catálogo inválido; o fallback não aprova conteúdo nem substitui revisão independente. A correção NA-0203 e suas evidências estão em `docs/changes/2026/11/NA-0203-extension-sequence/hardening-results.md`.

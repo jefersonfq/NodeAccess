@@ -25,6 +25,7 @@ function fakeVite(options = {}) {
     assert.equal(config.configFile, false)
     assert.match(config.cacheDir, /coverage\/browser\/vite-cache$/)
     assert.equal(config.server.host, '127.0.0.1'); assert.deepEqual(config.server.proxy, {})
+    assert.deepEqual(config.server.cors, { origin: 'https://login.example.test' })
     const middleware = []
     config.plugins[1].configureServer({ middlewares: { use(fn) { middleware.push(fn) } } })
     const server = http.createServer((request, response) => middleware[0](request, response, () => response.end('export const fixture = true')))
@@ -38,21 +39,30 @@ function fakeVite(options = {}) {
     }
   } }
 }
+test('vault adoption and real terminal scenarios are mandatory coverage executions', () => {
+  for (const script of ['sites-smoke.mjs', 'adoption-smoke.mjs', 'site-assistance-browser.mjs', 'site-terminal-real.mjs', 'sites-volume-smoke.cjs', 'site-assistance-dom-coverage.mjs']) {
+    assert.equal(requiredBrowserHarnesses.filter(([, path]) => path === `tools/vault-extension/${script}`).length, 1)
+  }
+})
 test('isolated browser orchestration uses loopback fixtures and private outputs without app/backend proxy', async t => {
   const root = fixture(t), vite = fakeVite(), runs = []
   mkdirSync(join(root, 'coverage/browser/chromium-v8'), { recursive: true })
   writeFileSync(join(root, 'coverage/browser/chromium-v8/stale.json'), 'previous run')
-  const result = await collectBrowserCoverage({ root, env: { NODE_V8_COVERAGE: '/synthetic/raw', PLAYWRIGHT_EXECUTABLE_PATH: '/synthetic/chromium', SONAR_ASSIGNED: '/wrong/fixture', RUN_TACACS_TLS_UX: 'false', TACACS_TLS_UX_OUTPUT: '/wrong/tls', SONAR_TOKEN: 'synthetic-secret', SONAR_REVIEW_TOKEN: 'synthetic-read' }, create: vite.create,
-    execute: async (_root, script, env) => {
+  const result = await collectBrowserCoverage({ root, env: { NODE_V8_COVERAGE: '/synthetic/raw', NODEACCESS_COVERAGE_SESSION: 'current-session', PLAYWRIGHT_EXECUTABLE_PATH: '/synthetic/chromium', SONAR_ASSIGNED: '/wrong/fixture', RUN_TACACS_TLS_UX: 'false', TACACS_TLS_UX_OUTPUT: '/wrong/tls', RUN_SITE_TERMINAL_REAL: 'inherited-untrusted', SONAR_TOKEN: 'synthetic-secret', SONAR_REVIEW_TOKEN: 'synthetic-read' }, create: vite.create,
+    execute: async (_root, script, env, _log, timeoutMs) => {
       runs.push(script)
       const tls = script.endsWith('tls-ux.test.cjs')
       assert.equal(env.RUN_TACACS_TLS_UX, tls ? 'true' : undefined)
       assert.equal(env.TACACS_TLS_UX_OUTPUT, tls ? env.SONAR_REVIEW_OUTPUT : undefined)
+      const terminalLab = script.endsWith('/site-terminal-real.mjs')
+      assert.equal(env.RUN_SITE_TERMINAL_REAL, terminalLab ? 'true' : undefined)
+      assert.equal(timeoutMs, terminalLab ? 600_000 : 120_000)
+      assert.equal(env.NODEACCESS_COVERAGE_SESSION, 'current-session')
       completeTlsReport(env)
       assert.equal(existsSync(join(root, 'coverage/browser/chromium-v8/stale.json')), false)
       assert.equal(env.SONAR_TOKEN, undefined); assert.equal(env.SONAR_REVIEW_TOKEN, undefined)
       assert.equal(env.SONAR_ASSIGNED, join(root, 'docs/changes/2026/11/NA-0087-sonar-frontend/dispositions.json'))
-      if (['sonar-frontend-review.cjs', 'table-review.cjs', 'terminal-highlight-budget.mjs', 'extension-smoke.mjs'].some(name => script.endsWith('/' + name))) {
+      if ((script.startsWith('tools/vault-extension/') && !script.endsWith('/site-assistance-dom-coverage.mjs')) || ['sonar-frontend-review.cjs', 'table-review.cjs', 'terminal-highlight-budget.mjs'].some(name => script.endsWith('/' + name))) {
         assert.equal(env.BROWSER_COVERAGE_DIR, undefined)
         assert.equal(env.BROWSER_COVERAGE_RUN_ID, undefined)
       } else {
@@ -67,8 +77,8 @@ test('isolated browser orchestration uses loopback fixtures and private outputs 
       assert.equal((await fetch(env.FRONTEND_BASE + '/api/v1/user')).status, 404)
       return { exitCode: 0, timedOut: false }
     } })
-  assert.equal(requiredBrowserHarnesses.length, 11)
-  assert.equal(result.harnesses.at(-1).coverageMode, 'node-only')
+  assert.equal(requiredBrowserHarnesses.length, 17)
+  assert.equal(result.harnesses.at(-1).coverageMode, 'node-and-browser')
   assert.equal(result.status, 'passed'); assert.equal(result.phase, 'complete'); assert.equal(vite.closed, true)
   assert.deepEqual(runs, requiredBrowserHarnesses.map(([, script]) => script))
   assert.equal(runs.filter(script => script.endsWith('terminal-experience-playwright.cjs')).length, 1)
@@ -87,6 +97,21 @@ for (const [name, options, outcome] of [
   assert.equal(result.phase, options.closeFailure ? 'cleanup' : options.badAddress ? 'listen' : 'harness')
   assert.equal(JSON.parse(readFileSync(join(root, 'coverage/browser/summary.json'))).status, 'failed')
 })
+for (const failedHarness of ['vault-sites', 'vault-adoption', 'vault-site-assistance', 'vault-site-terminal', 'vault-sites-volume', 'vault-site-assistance-dom']) {
+  for (const timedOut of [false, true]) test(`${failedHarness} cannot pass the collector on ${timedOut ? 'timeout' : 'nonzero exit'}`, async t => {
+    const root = fixture(t), vite = fakeVite()
+    const failedScript = requiredBrowserHarnesses.find(([name]) => name === failedHarness)[1]
+    const result = await collectBrowserCoverage({ root, env: {}, create: vite.create,
+      execute: async (_root, script, env) => {
+        completeTlsReport(env)
+        return script === failedScript ? { exitCode: timedOut ? 0 : 1, timedOut } : { exitCode: 0, timedOut: false }
+      } })
+    assert.equal(result.status, 'failed')
+    assert.equal(result.harnesses.at(-1).name, failedHarness)
+    assert.equal(result.harnesses.at(-1).timedOut, timedOut)
+    assert.equal(vite.closed, true)
+  })
+}
 test('browser setup errors remain explicit without claiming a harness ran', async t => {
   const root = fixture(t)
   const result = await collectBrowserCoverage({ root, create: () => { throw new Error('fixture setup unavailable') } })

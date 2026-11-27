@@ -26,10 +26,33 @@ function harness() {
   }
   const logs = { logAdminEvent: vi.fn().mockResolvedValue(undefined) }
   const license = { requireFeature: vi.fn().mockResolvedValue(undefined) }
-  return { repo, logs, service: new SecretService(repo as never, logs as never, license as never) }
+  return { repo, logs, service: new SecretService(repo as never, logs, license) }
 }
 
 describe('SecretService security boundaries', () => {
+  it('E3 refuses shared items even for their creator or an admin, and foreign owners/tenants', async () => {
+    const h = harness()
+    for (const candidate of [row, { ...row, scope: 'TENANT' }, { ...row, scope: 'PERSONAL', ownerUserId: 12 }]) {
+      h.repo.findById.mockResolvedValue(candidate)
+      await expect(h.service.update(9, 11, 7, 'admin', { alias: 'renamed' }, true)).rejects.toMatchObject({ statusCode: 403 })
+      await expect(h.service.rotate(9, 11, 7, 'admin', { value: 'new' }, true)).rejects.toMatchObject({ statusCode: 403 })
+    }
+    h.repo.findById.mockResolvedValue(null)
+    await expect(h.service.update(9, 11, 999, 'user', { alias: 'renamed' }, true)).rejects.toMatchObject({ statusCode: 404 })
+    expect(h.repo.updateMetadata).not.toHaveBeenCalled(); expect(h.repo.rotate).not.toHaveBeenCalled()
+  })
+  it('E3 metadata and rotation preserve personal ownership and keep material out of audit', async () => {
+    const h = harness(), personal = { ...row, scope: 'PERSONAL', ownerUserId: 11, groupId: null }
+    h.repo.findById.mockResolvedValue(personal)
+    h.repo.updateMetadata.mockResolvedValue(personal)
+    await h.service.update(9, 11, 7, 'user', { description: null }, true)
+    expect(h.repo.updateMetadata).toHaveBeenCalledWith(7, 9, { description: null }, 11)
+    expect(h.repo.rotate).not.toHaveBeenCalled()
+    await h.service.rotate(9, 11, 7, 'user', { value: 'new-value-marker' }, true)
+    expect(h.repo.rotate).toHaveBeenCalledWith(7, 9, expect.any(String), expect.any(String), 11)
+    expect(JSON.stringify(h.logs.logAdminEvent.mock.calls)).not.toContain('new-value-marker')
+    await expect(h.service.update(9, 11, 7, 'user', { scope: 'TENANT' }, true)).rejects.toMatchObject({ statusCode: 403 })
+  })
   beforeEach(() => vi.clearAllMocks())
 
   it('lists metadata without leaking encrypted material', async () => {

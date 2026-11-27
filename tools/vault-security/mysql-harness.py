@@ -10,12 +10,12 @@ import sys
 import time
 
 ROOT = Path(__file__).resolve().parents[2]
-OUT = ROOT / ".tmp" / "NA-0178" / ("mysql-" + str(int(time.time())))
+OUT = ROOT / ".tmp" / "NA-0203" / ("mysql-" + str(int(time.time())) + "-" + secrets.token_hex(3))
 BASE = "bf122f141029244b0687f549353d79b4dcbaa506"
 ENV = os.environ.copy()
 NAMES = []
 REDACTIONS = []
-RESULT = {"change_id": "NA-0178", "started_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()), "base_sha": BASE, "cleanup": False}
+RESULT = {"change_id": "NA-0203", "started_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()), "schema_base_sha": BASE, "cleanup": False}
 
 
 def run(args, **kwargs):
@@ -28,14 +28,18 @@ def sanitized(value):
     return value
 
 
-def fingerprint():
+def fingerprint(artifact):
     paths = run(["git", "ls-files", "--cached", "--others", "--exclude-standard"]).stdout.splitlines()
-    selected = sorted(p for p in paths if p.startswith(("apps/backend/src/modules/vault-security/", "apps/backend/prisma/migrations/20261116030000_add_vault_security/", "apps/backend/prisma/migrations/20261120150000_vault_extension/", "tools/vault-security/")))
+    selected = sorted(p for p in paths if p.startswith(("apps/backend/src/", "packages/shared/src/", "apps/backend/prisma/migrations/", "tools/vault-security/")))
     digest = hashlib.sha256()
+    manifest = {}
     for name in selected:
         path = ROOT / name
         if path.is_file():
-            digest.update(name.encode() + b"\0" + path.read_bytes() + b"\0")
+            content = path.read_bytes()
+            manifest[name] = hashlib.sha256(content).hexdigest()
+            digest.update(name.encode() + b"\0" + content + b"\0")
+    (OUT / artifact).write_text(json.dumps(manifest, indent=2) + "\n")
     return digest.hexdigest()
 
 
@@ -56,7 +60,10 @@ def start_container(kind, image, port, extra):
 try:
     OUT.mkdir(parents=True, exist_ok=False)
     RESULT["source_sha"] = run(["git", "rev-parse", "HEAD"]).stdout.strip()
-    RESULT["working_tree_fingerprint"] = fingerprint()
+    RESULT["source_scope"] = ["apps/backend/src/**", "packages/shared/src/**", "apps/backend/prisma/migrations/**", "tools/vault-security/**"]
+    RESULT["source_files_before"] = "source-files-before.json"
+    RESULT["source_files_after"] = "source-files-after.json"
+    RESULT["working_tree_fingerprint"] = fingerprint(RESULT["source_files_before"])
     password = secrets.token_hex(24)
     signing_key = secrets.token_hex(32)
     encryption_key = secrets.token_hex(32)
@@ -91,7 +98,10 @@ try:
                   # NA-0193: trusted extension devices.
                   ROOT / "apps/backend/prisma/migrations/20261123170000_vault_extension_trust/migration.sql",
                   # NA-0198: Windows Hello / passkey credentials.
-                  ROOT / "apps/backend/prisma/migrations/20261124020000_vault_webauthn/migration.sql"]
+                  ROOT / "apps/backend/prisma/migrations/20261124020000_vault_webauthn/migration.sql",
+                  ROOT / "apps/backend/prisma/migrations/20261124192900_extend_vault_grants/migration.sql",
+                  ROOT / "apps/backend/prisma/migrations/20261124193000_add_vault_sites/migration.sql",
+                  ROOT / "apps/backend/prisma/migrations/20261124233000_vault_fill_generation/migration.sql"]
     digest = hashlib.sha256()
     for migration in migrations:
         applied = run(["docker", "exec", "-i", "-e", "MYSQL_PWD=" + password, mysql, "mysql", "-uroot", database], input=migration.read_text(), timeout=60)
@@ -99,7 +109,8 @@ try:
         digest.update(migration.read_bytes())
     RESULT["migration_sha256"] = digest.hexdigest()
     tests = subprocess.run(["node", "node_modules/vitest/vitest.mjs", "run", "apps/backend/src/modules/vault-security/vault.mysql.test.ts",
-                            "apps/backend/src/modules/vault-security/vault-extension.mysql.test.ts", "--reporter=json", "--outputFile=" + str(OUT / "tests.json")], cwd=ROOT, env=ENV, capture_output=True, text=True, timeout=180)
+                            "apps/backend/src/modules/vault-security/vault-extension.mysql.test.ts",
+                            "apps/backend/src/modules/vault-security/vault-sites.mysql.test.ts", "--reporter=default", "--reporter=json", "--outputFile=" + str(OUT / "tests.json")], cwd=ROOT, env=ENV, capture_output=True, text=True, timeout=240)
     log("tests.log", tests)
     RESULT["exit_code"] = tests.returncode
     report = json.loads((OUT / "tests.json").read_text())
@@ -119,8 +130,11 @@ finally:
         cleanup.append(removed.returncode == 0 and absent.returncode != 0)
     RESULT["cleanup"] = len(cleanup) == len(NAMES) and all(cleanup)
     RESULT["finished_at"] = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
-    RESULT["final_working_tree_fingerprint"] = fingerprint()
+    RESULT["final_working_tree_fingerprint"] = fingerprint(RESULT["source_files_after"])
     RESULT["source_changed_during_run"] = RESULT.get("working_tree_fingerprint") != RESULT["final_working_tree_fingerprint"]
+    before = json.loads((OUT / RESULT["source_files_before"]).read_text())
+    after = json.loads((OUT / RESULT["source_files_after"]).read_text())
+    RESULT["changed_source_files"] = sorted(name for name in before.keys() | after.keys() if before.get(name) != after.get(name))
     RESULT["artifacts"] = str(OUT.relative_to(ROOT))
     (OUT / "execution.json").write_text(json.dumps(RESULT, indent=2) + "\n")
     print(json.dumps(RESULT))
