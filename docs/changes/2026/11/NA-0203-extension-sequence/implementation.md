@@ -100,6 +100,10 @@ Roadmap consolidado em Revisões 43 nesta interação. Triagem OpenSSL continua 
 
 ## Diário de interações
 
+### 2026-11-27T18:05:00-03:00 — Revalidação das travas de revisão e escopo do pentest
+
+A edição dos workflows invalidou, como previsto, duas fixtures do Gitleaks (`quality-gate.yml:13`, `sonarqube.yml:30`) e a revisão do controle `quality` da Central de Segurança. Revisão independente (agente sem a conclusão do implementador): fixtures PASS_WITH_WARNINGS (linhas e constantes idênticas byte a byte, só passos acrescentados, sem segredo/permissão/upload novo), controle `quality` PASS. Atualizados só os dois `fileSha256` com motivo revalidado e `sourceHash`/`sourceRevision`/`reviewedAt` do controle e do catálogo. Ran: `build.test.cjs` 9 PASS, carga do catálogo OK, `scan-local` Gitleaks 43/43 revisados e Semgrep 0 achados/0 erros (ACL temporária do Docker aplicada e removida). Criado `pentest-scope.md` para o pentest externo; não é laudo.
+
 ### 2026-11-27T17:35:00-03:00 — Correções necessárias para o CI do GitHub
 
 Primeiro CI remoto do NA-0203 (PR #92) falhou: (1) três testes de adaptador da extensão exigem Chromium do Playwright, ausente no job `tests` do `quality-gate.yml`; (2) `no-unsafe-assignment` em `vault.repository.test.ts:226`, só visível com base `master`; (3) `upgrade-restore` com digest divergente do GLib no espelho `dl-4` do `guacd` — espelhada a correção já aprovada em NA-0206 (`8b3726ec3`, CDN oficial, mesmo checksum); (4) harness real `vault-site-terminal` exige imagens locais que o `sonarqube.yml` não construía — adicionados os mesmos comandos de `stack-compatibility.yml`. Ran: ESLint do arquivo, Vitest focal, `lint:changed` contra `master` PASS. Planned: CI remoto; `vault-sites` falhou no CI sem log sanitizado, a investigar no próximo run.
