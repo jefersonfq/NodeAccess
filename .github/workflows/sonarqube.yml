@@ -48,6 +48,12 @@ jobs:
         run: node --test tools/sonarqube/*.test.mjs
       - name: Prepare disposable runner kernel
         run: sudo sysctl -w vm.max_map_count=524288
+      # NA-0203: vault-site-terminal provisions these local images (same commands as stack-compatibility.yml).
+      - name: Build local images for the real site-terminal harness
+        run: |
+          docker build -f docker/state.Dockerfile --target mysql -t nodeaccess-mysql:8.4.12-1 .
+          docker build -f docker/state.Dockerfile --target redis -t nodeaccess-redis:8.2.10-1 .
+          docker build -f docker/backend.Dockerfile --target runtime -t nodeaccess-backend:security-local .
       - name: Coverage and real base/head Sonar analyses
         run: node tools/sonarqube/ci-run.mjs
       - name: Upload sanitized result only
