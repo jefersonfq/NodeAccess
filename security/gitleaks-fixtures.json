@@ -286,15 +286,15 @@
       "path": ".github/workflows/quality-gate.yml",
       "rule": "generic-api-key",
       "line": 13,
-      "fileSha256": "056d3ddb2b74d1b3531eaaf3c7edc03add77cb6b0b05fd303252f2042e59627b",
-      "reason": "Constante sintética de criptografia para testes/build do quality gate; valor de exemplo público, sem vínculo com chaves PEM ou dados de produção. Revalidado na integração NA-0093: somente bootstrap npm12.2.1 acrescentado; constante e linha preservadas. Revalidado após NA-0137: somente pin Node24.21.0 para24.22.1; constante e linha preservadas."
+      "fileSha256": "1d15c5cfd30dd6a8751fe66a57da6b6033f4b24d8cfeabc0aeee00881b6c632d",
+      "reason": "Constante sintética de criptografia para testes/build do quality gate; valor de exemplo público, sem vínculo com chaves PEM ou dados de produção. Revalidado na integração NA-0093: somente bootstrap npm12.2.1 acrescentado; constante e linha preservadas. Revalidado após NA-0137: somente pin Node24.21.0 para24.22.1; constante e linha preservadas. Revalidado após NA-0203 (2026-11-27, revisão independente): somente passos de Chromium travado/imagens locais acrescentados; constante e linha preservadas."
     },
     {
       "path": ".github/workflows/sonarqube.yml",
       "rule": "generic-api-key",
       "line": 30,
-      "fileSha256": "2c467b213511331a00d64539393a58374193e253382ac5a8d65595f91c1d428a",
-      "reason": "Constante sintética PEM de teste no job Sonar efêmero; sem acesso a dados de produção; tokens reais do scanner são gerados separadamente em runtime. Revalidado na integração NA-0093: somente bootstrap npm12.2.1 acrescentado; constante e linha preservadas. Revalidado após NA-0137: somente pin Node24.21.0 para24.22.1; constante e linha preservadas."
+      "fileSha256": "73024ffbfb376fc652cd8d111abc79b3b82375f79ebb70674010360f6673c612",
+      "reason": "Constante sintética PEM de teste no job Sonar efêmero; sem acesso a dados de produção; tokens reais do scanner são gerados separadamente em runtime. Revalidado na integração NA-0093: somente bootstrap npm12.2.1 acrescentado; constante e linha preservadas. Revalidado após NA-0137: somente pin Node24.21.0 para24.22.1; constante e linha preservadas. Revalidado após NA-0203 (2026-11-27, revisão independente): somente passos de Chromium travado/imagens locais acrescentados; constante e linha preservadas."
     },
     {
       "path": "apps/backend/src/modules/network-access/network-access.service.test.ts",
