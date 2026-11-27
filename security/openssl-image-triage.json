@@ -4,11 +4,14 @@
   "evidence": "docs/changes/2026/11/NA-0197-redis-openssl-triage/image-gate-review.md",
   "images": {
     "nodeaccess-backend:security-local": { "name": "alpine", "version": "3.24.4", "packageVersion": "3.5.9-r1" },
+    "nodeaccess-backend:2.2.0-na0206.1": { "name": "alpine", "version": "3.24.4", "packageVersion": "3.5.9-r1" },
     "nodeaccess-frontend:security-local": { "name": "alpine", "version": "3.24.4", "packageVersion": "3.5.9-r1", "packages": ["libssl3", "libcrypto3"] },
+    "nodeaccess-frontend:2.2.0-na0206.1": { "name": "alpine", "version": "3.24.4", "packageVersion": "3.5.9-r1", "packages": ["libssl3", "libcrypto3"] },
     "nodeaccess-frontend-k8s:security-local": { "name": "alpine", "version": "3.24.4", "packageVersion": "3.5.9-r1", "packages": ["libssl3", "libcrypto3"] },
     "nodeaccess-tls-agent:security-local": { "name": "alpine", "version": "3.24.4", "packageVersion": "3.5.9-r1" },
+    "nodeaccess-tls-agent:2.2.0-na0206.1": { "name": "alpine", "version": "3.24.4", "packageVersion": "3.5.9-r1" },
     "nodeaccess-guacd:1.6.0-1": { "name": "alpine", "version": "3.24.3", "packageVersion": "3.5.9-r1", "packages": ["libssl3", "libcrypto3"] },
-    "nodeaccess-redis:8.2.10-1": { "name": "alpine", "version": "3.22.8", "packageVersion": "3.5.9-r1", "packages": ["libssl3", "libcrypto3"] }
+    "nodeaccess-redis:8.2.10-1": { "name": "alpine", "version": "3.22.8", "packageVersion": "3.5.9-r2", "packages": ["libssl3", "libcrypto3"] }
   },
   "packages": ["libssl3", "libcrypto3", "openssl"],
   "version": "3.5.9-r0",
@@ -45,17 +48,17 @@
     {
       "id": "CVE-2026-107494",
       "versionConstraint": ">= 3.5.0, < 3.5.10||>= 4.0.0, < 4.0.4||>= 4.1.0, < 4.1.1 (unknown)",
-      "packageVersions": ["3.5.9-r0", "3.5.9-r1"]
+      "packageVersions": ["3.5.9-r0", "3.5.9-r1", "3.5.9-r2"]
     },
     {
       "id": "CVE-2026-121482",
       "versionConstraint": ">= 3.5.0, < 3.5.10||>= 4.0.0, < 4.0.4||>= 4.1.0, < 4.1.1 (unknown)",
-      "packageVersions": ["3.5.9-r0", "3.5.9-r1"]
+      "packageVersions": ["3.5.9-r0", "3.5.9-r1", "3.5.9-r2"]
     },
     {
       "id": "CVE-2026-84786",
       "versionConstraint": ">= 1.1.1, < 1.1.1zk||>= 3.0.0, < 3.0.24||>= 3.5.0, < 3.5.10||>= 4.0.0, < 4.0.4||>= 4.1.0, < 4.1.1 (unknown)",
-      "packageVersions": ["3.5.9-r0", "3.5.9-r1"]
+      "packageVersions": ["3.5.9-r0", "3.5.9-r1", "3.5.9-r2"]
     },
     {
       "id": "CVE-2026-107493",
@@ -63,5 +66,5 @@
       "packageVersions": ["3.5.9-r0", "3.5.9-r1"]
     }
   ],
-  "reason": "Five real upstream vulnerabilities and four CPE false positives at 3.5.9-r1: all fixed in OpenSSL 3.5.10, but Alpine has not published a package newer than 3.5.9-r1 (v3.24 and v3.22) (checked 2026-11-23). In 3.5.9-r1 Alpine backported the fixes for CVE-2026-88823, CVE-2026-95691, CVE-2026-95692 and CVE-2026-107496 (secdb v3.22 and v3.24); the NVD CPE match still reports them by upstream version. Temporary risk acceptance by the owner for the others until an Alpine fix exists or the expiry date; any other version, CVE, image or distro stays blocked."
+  "reason": "Alpine v3.24 remains at OpenSSL 3.5.9-r1; Alpine v3.22 provides 3.5.9-r2 (reviewed 2026-11-26). In 3.5.9-r1 Alpine backported CVE-2026-88823, CVE-2026-95691, CVE-2026-95692 and CVE-2026-107496; the NVD CPE match still reports them by upstream version. Alpine v3.22 3.5.9-r2 additionally backports CVE-2026-107493 and CVE-2026-124709. The existing temporary owner risk acceptance remains for the five unresolved CVEs on reviewed r1 images and only CVE-2026-107494, CVE-2026-121482 and CVE-2026-84786 on the reviewed Redis r2 image, until an Alpine fix exists or 2026-12-19. The upstream fixes are in OpenSSL 3.5.10; any other version, CVE, image or distro stays blocked."
 }

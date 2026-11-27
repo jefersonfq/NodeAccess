@@ -33,6 +33,9 @@ function artifact(file) {
     return stat.size ? 'present' : 'empty'
   } catch (error) { return error.code === 'ENOENT' ? 'missing' : 'unreadable' }
 }
+// Exact harness names allowed in the sanitized CI summary; must match tools/coverage/browser.mjs (tested).
+export const BROWSER_HARNESSES = Object.freeze(['frontend', 'table', 'terminal', 'platform', 'flows', 'ha', 'audit-input', 'tacacs-tls', 'security-center',
+  'highlight-budget', 'vault-extension', 'vault-sites', 'vault-adoption', 'vault-site-assistance', 'vault-site-terminal', 'vault-sites-volume', 'vault-site-assistance-dom'])
 function errorCategory(message) {
   if (typeof message !== 'string') return 'UNCLASSIFIED'
   if (message.startsWith('ENOENT:')) return 'FILE_MISSING'
@@ -44,14 +47,14 @@ function errorCategory(message) {
     ['Browser fixture must bind loopback', 'BROWSER_BIND_NOT_LOOPBACK'],
     ['Browser fixture cleanup failed', 'BROWSER_CLEANUP_FAILED'],
   ])
-  if (/^Browser coverage harness failed: (frontend|table|terminal|platform|flows|ha|audit-input|tacacs-tls|highlight-budget|security-center|vault-extension)$/.test(message)) return 'BROWSER_HARNESS_FAILED'
+  if (message.startsWith('Browser coverage harness failed: ') && BROWSER_HARNESSES.includes(message.slice('Browser coverage harness failed: '.length))) return 'BROWSER_HARNESS_FAILED'
   return browserErrors.get(message) ?? 'UNCLASSIFIED'
 }
 function browserDiagnostics(source) {
   const safe = { errorCategory: errorCategory(source.error), harnesses: [] }
   if (['setup', 'listen', 'readiness', 'harness', 'complete', 'cleanup'].includes(source.phase)) safe.phase = source.phase
   const runs = Array.isArray(source.harnesses) ? source.harnesses : []
-  for (const name of ['frontend', 'table', 'terminal', 'platform', 'flows', 'ha', 'audit-input', 'tacacs-tls', 'highlight-budget', 'security-center', 'vault-extension']) {
+  for (const name of BROWSER_HARNESSES) {
     const run = runs.find(item => item?.name === name)
     if (!run) continue
     const entry = harnessDiagnostics(name, run)

@@ -100,6 +100,10 @@ Roadmap consolidado em Revisões 43 nesta interação. Triagem OpenSSL continua 
 
 ## Diário de interações
 
+### 2026-11-27T19:10:00-03:00 — Segundo ciclo de CI: diagnóstico, duplicação e triagem de imagens
+
+CI remoto: `sonar-real` parava no primeiro harness novo sem diagnóstico porque `tools/sonarqube/ci-coverage-diagnostics.mjs` só aceitava os 11 harnesses anteriores; lista ampliada para os 17, com teste que a compara com `requiredBrowserHarnesses`. Quality Gate do PR #92 (base master) acusou duplicação nova de 3,76% (> 3%): `sites-smoke.mjs` e `adoption-smoke.mjs` repetiam ~230 linhas. Blocos comuns extraídos para `tools/vault-extension/smoke-kit.mjs` (API sintética, JWE, popup real, lançamento Chromium/Xvfb), comportamento preservado; diferenças viram parâmetros. Única mudança observável: no adoption, a liberação de usuário passa a ser validada por schema e contada, como no sites. `upgrade-restore`: imagem Redis agora com OpenSSL 3.5.9-r2; espelhados sem alteração os arquivos de triagem já revisados em NA-0206 (`6f956b2a0`, `release-image-review.md`). Ran: `sites-smoke` 99 checks PASS e `adoption-smoke` 39 checks PASS no navegador real, cleanup; testes do sanitizador 21 PASS; políticas de imagem 337 PASS. Nenhum bloco ≥8 linhas restante entre os dois harnesses.
+
 ### 2026-11-27T18:05:00-03:00 — Revalidação das travas de revisão e escopo do pentest
 
 A edição dos workflows invalidou, como previsto, duas fixtures do Gitleaks (`quality-gate.yml:13`, `sonarqube.yml:30`) e a revisão do controle `quality` da Central de Segurança. Revisão independente (agente sem a conclusão do implementador): fixtures PASS_WITH_WARNINGS (linhas e constantes idênticas byte a byte, só passos acrescentados, sem segredo/permissão/upload novo), controle `quality` PASS. Atualizados só os dois `fileSha256` com motivo revalidado e `sourceHash`/`sourceRevision`/`reviewedAt` do controle e do catálogo. Ran: `build.test.cjs` 9 PASS, carga do catálogo OK, `scan-local` Gitleaks 43/43 revisados e Semgrep 0 achados/0 erros (ACL temporária do Docker aplicada e removida). Criado `pentest-scope.md` para o pentest externo; não é laudo.
