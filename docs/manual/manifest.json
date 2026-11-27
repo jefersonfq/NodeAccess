@@ -3,7 +3,7 @@
     "id": "hosts",
     "title": "Hosts e sessões abertas",
     "summary": "Encontre o equipamento certo e retome seu trabalho com segurança.",
-    "reviewedAt": "2026-11-25T18:45:58.297Z",
+    "reviewedAt": "2026-11-26T16:59:28.953Z",
     "sourceFiles": [
       "apps/frontend/src/views/HostsView.vue",
       "apps/frontend/src/components/TrialResourcesPanel.vue",
@@ -86,14 +86,16 @@
       "apps/extension/src/core/sites-port.ts",
       "apps/extension/src/adapters/site-assistance.ts",
       "apps/extension/src/adapters/site-interactions.ts",
-      "apps/extension/src/adapters/site-preferences.ts"
+      "apps/extension/src/adapters/site-preferences.ts",
+      "apps/extension/src/popup/PopupIcon.vue",
+      "apps/extension/src/popup/main.ts"
     ],
     "journey": [
       "Localizar o host",
       "Conferir o destino",
       "Conectar ou retomar"
     ],
-    "reviewedSourceHash": "57fed45766a9746f20d1f4bf6def354b5a077687cd9bba2a8bb33b79389cd8ae"
+    "reviewedSourceHash": "aaeef05bd55923b6987a6240eaf1e363ce263b921e0f387890da24e0ddc272b0"
   },
   {
     "id": "terminal",

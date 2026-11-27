@@ -76,6 +76,7 @@ node "${SCRIPT_DIR}/release-provenance.mjs" snapshot "$PROJECT_ROOT" "$RELEASE_D
 # Prepare before copying files or building Docker images. Never silently ship
 # a Windows executable from a previous source tree, even with the same version.
 require_command node
+node "${SCRIPT_DIR}/prepare-extension.mjs" validate
 node "${SCRIPT_DIR}/prepare-agents.mjs"
 mkdir -p "$OUTPUT_ROOT"
 # Atomic reservation also rejects another build claiming this same version.
@@ -643,6 +644,8 @@ validate_release_contents() {
   fi
 }
 
+# Optional pre-generated extension package; changes only this release copy.
+node "${SCRIPT_DIR}/prepare-extension.mjs" apply "$RELEASE_DIR"
 validate_release_contents
 node "${SCRIPT_DIR}/validate-agents.mjs" "${RELEASE_DIR}/apps/agent/dist"
 

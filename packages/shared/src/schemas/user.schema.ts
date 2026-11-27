@@ -39,6 +39,11 @@ export const UserPublicSchema = z.object({
   updatedAt:           z.coerce.date(),
 })
 
+export const UserListItemSchema = UserPublicSchema.extend({
+  isVaultManager: z.boolean(),
+})
+export type UserListItem = z.infer<typeof UserListItemSchema>
+
 export type CreateUserDto = z.infer<typeof CreateUserSchema>
 export type UpdateUserDto = z.infer<typeof UpdateUserSchema>
 export type UserPublic = z.infer<typeof UserPublicSchema>

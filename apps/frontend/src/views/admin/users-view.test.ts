@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createRenderer, createSSRApp, defineComponent, h, nextTick, reactive, ssrContextKey, type Component, type VNode } from 'vue'
 import { renderToString } from 'vue/server-renderer'
-import type { UserPublic } from '@nodeaccess/shared'
+import type { UserPublic, UserListItem } from '@nodeaccess/shared'
 import UsersView from './UsersView.vue'
 
 const mocks = vi.hoisted(() => ({
@@ -10,7 +10,7 @@ const mocks = vi.hoisted(() => ({
   groups: { list: vi.fn() }, platform: { promoteUser: vi.fn() }, push: vi.fn(), vaultManager: vi.fn(), online: vi.fn(), handlers: [] as Array<Record<string, unknown>>,
   dialog: { warning: vi.fn(), info: vi.fn() }, message: { success: vi.fn(), error: vi.fn() },
 }))
-const auth = reactive({ isPlatformAdmin: true, user: { id: 1, tenantId: 7 } })
+const auth = reactive({ isPlatformAdmin: true, user: { id: 1, tenantId: 7, actingTenantId: undefined as number | undefined } })
 vi.mock('@/services/user.service', () => ({ userService: mocks.users }))
 vi.mock('@/services/group.service', () => ({ groupService: mocks.groups }))
 vi.mock('@/services/platform-admin.service', () => ({ platformAdminService: mocks.platform }))
@@ -45,12 +45,12 @@ function mount<S>(component: Component) {
   return { state, html, unmount: () => app.unmount() }
 }
 const flush = async (): Promise<void> => { for (let i = 0; i < 8; i++) { await Promise.resolve(); await nextTick() } }
-const user = (patch: Partial<UserPublic> = {}): UserPublic => ({ id: 2, name: 'Bruno', email: 'bruno@example.test', role: 'admin', active: true, deletedAt: null,
-  isPlatformAdmin: false, canManageHosts: true, canViewLiveSessions: false, groupIds: [3], ...patch } as unknown as UserPublic)
+const user = (patch: Partial<UserListItem> = {}): UserListItem => ({ id: 2, name: 'Bruno', email: 'bruno@example.test', role: 'admin', active: true, deletedAt: null,
+  isVaultManager: false, isPlatformAdmin: false, canManageHosts: true, canViewLiveSessions: false, groupIds: [3], ...patch } as unknown as UserListItem)
 type Column = { key: string; render?: (row: UserPublic) => VNode }
 type Option = { key: string; label?: unknown }
 interface View {
-  users: UserPublic[]; vaultManager: boolean; vaultUser: UserPublic | null; vaultReview: boolean; vaultPending: number; vaultManagers: number[]; closeVault(): void; sessionsUser: UserPublic | null; onlineUsers: Map<number, number>; loadOnline(): Promise<void>; error: string | null; tempPassword: string | null
+  groupOptions: Array<{ value: number; label: string }>; users: UserListItem[]; search: string; includeDeleted: boolean; vaultManagersOnly: boolean; total: number; loading: boolean; vaultManager: boolean; vaultUser: UserPublic | null; vaultReview: boolean; vaultPending: number; closeVault(): void; sessionsUser: UserPublic | null; onlineUsers: Map<number, number>; loadOnline(): Promise<void>; error: string | null; tempPassword: string | null
   showCreateModal: boolean; showEditModal: boolean; editingId: number | null; accessDrawerUser: UserPublic | null; accessError: string
   createForm: { password?: string }; copyGroupsFromCreateUserId: number | null; copyGroupsFromEditUserId: number | null; editForm: { groupIds: number[] }
   columns: Column[]; userActionOptions(u: UserPublic): Option[]; handleUserAction(a: string, u: UserPublic): unknown
@@ -60,6 +60,8 @@ interface View {
 const positive = async (): Promise<void> => { const o = mocks.dialog.warning.mock.calls.at(-1)![0] as { onPositiveClick(): Promise<void> }; await o.onPositiveClick() }
 beforeEach(() => {
   vi.clearAllMocks()
+  auth.isPlatformAdmin = true
+  Object.assign(auth.user, { id: 1, tenantId: 7, actingTenantId: undefined })
   mocks.users.list.mockResolvedValue({ data: { data: [user()], total: 1 } })
   mocks.groups.list.mockResolvedValue({ data: [{ id: 3, name: 'Ops' }] })
   mocks.users.get.mockResolvedValue({ data: user({ groupIds: [3, 4] }) })
@@ -187,13 +189,13 @@ describe('Users view (NA-0186)', () => {
     mocks.online.mockRejectedValueOnce(new Error('x')); await f.state.loadOnline(); expect(f.state.onlineUsers.size).toBe(0)
     f.unmount()
   })
-  it('NA-0188: tags vault managers, announces pending vault changes and refreshes the count every minute', async () => {
+  it('keeps manager-only pending approvals separate from the list badge and refreshes the count every minute', async () => {
     vi.useFakeTimers()
     try {
       mocks.vaultManager.mockResolvedValue({ manager: true, pending: 2, managers: [1, 2] })
       const f = mount<View>(UsersView); await flush()
-      expect(f.state.vaultPending).toBe(2); expect(f.state.vaultManagers).toEqual([1, 2])
-      const name = f.state.columns.find(c => c.key === 'name')!.render!(user())
+      expect(f.state.vaultPending).toBe(2)
+      const name = f.state.columns.find(c => c.key === 'name')!.render!(user({ isVaultManager: true }))
       expect(JSON.stringify(name.children)).toContain('user-vault-manager-2')
       const testIds = async (): Promise<unknown[]> => { mocks.handlers.length = 0; await f.html(); return mocks.handlers.map(a => a['data-testid']) }
       expect(await testIds()).toEqual(expect.arrayContaining(['users-vault-pending', 'users-vault-review']))
@@ -212,5 +214,117 @@ describe('Users view (NA-0186)', () => {
       f.unmount()
       await vi.advanceTimersByTimeAsync(120_000); expect(mocks.vaultManager.mock.calls.length).toBe(calls + 2)
     } finally { vi.useRealTimers() }
+  })
+})
+
+
+describe('Vault manager directory (NA-0204)', () => {
+  it('shows the read-only badge to a non-manager admin without deriving it from ADMIN or enabling vault actions', async () => {
+    mocks.vaultManager.mockResolvedValue({ manager: false, pending: 0, managers: [] })
+    const manager = user({ role: 'user', isVaultManager: true })
+    const admin = user({ id: 3, role: 'admin', isVaultManager: false })
+    mocks.users.list.mockResolvedValue({ data: { data: [manager, admin], total: 2 } })
+    const f = mount<View>(UsersView); await flush()
+    const render = f.state.columns.find(c => c.key === 'name')!.render!
+    expect(JSON.stringify(render(manager).children)).toContain('user-vault-manager-2')
+    expect(JSON.stringify(render(admin).children)).not.toContain('user-vault-manager-3')
+    expect(JSON.stringify(render(user({ active: false, isVaultManager: true })).children)).not.toContain('user-vault-manager-2')
+    expect(JSON.stringify(render(user({ deletedAt: new Date(), isVaultManager: true })).children)).not.toContain('user-vault-manager-2')
+    expect(f.state.userActionOptions(manager).find(option => option.key === 'vault')).toMatchObject({ disabled: true })
+    f.state.handleUserAction('vault', manager); expect(f.state.vaultUser).toBeNull()
+    expect(await f.html()).toMatch(/<summary[^>]*>admin\.users\.vaultManagersHelpTitle<\/summary>/)
+    expect(await f.html()).toContain('admin.users.vaultManagersSetupHelp')
+    f.unmount()
+  })
+
+  it('sends the manager filter and search to the server and restores the unfiltered request', async () => {
+    const f = mount<View>(UsersView); await flush()
+    f.state.search = 'Davi'; f.state.includeDeleted = true; f.state.vaultManagersOnly = true
+    mocks.users.list.mockResolvedValueOnce({ data: { data: [user({ id: 42, role: 'user', isVaultManager: true })], total: 1 } })
+    await f.state.load()
+    expect(mocks.users.list).toHaveBeenLastCalledWith({ search: 'Davi', includeDeleted: true, vaultManager: true })
+    expect(f.state.users[0]?.id).toBe(42); expect(f.state.total).toBe(1)
+    f.state.vaultManagersOnly = false; await f.state.load()
+    expect(mocks.users.list).toHaveBeenLastCalledWith({ search: 'Davi', includeDeleted: true, vaultManager: undefined })
+    f.unmount()
+  })
+
+  it('does not replace a filtered result with a late previous list response', async () => {
+    let resolveOld!: (value: unknown) => void
+    mocks.users.list.mockReturnValueOnce(new Promise(resolve => { resolveOld = resolve }))
+    const f = mount<View>(UsersView); await flush()
+    f.state.vaultManagersOnly = true
+    mocks.users.list.mockResolvedValueOnce({ data: { data: [user({ id: 42, isVaultManager: true })], total: 1 } })
+    await f.state.load()
+    resolveOld({ data: { data: [user({ id: 3 })], total: 20 } }); await flush()
+    expect(f.state.users.map(row => row.id)).toEqual([42]); expect(f.state.total).toBe(1)
+    expect(f.state.loading).toBe(false); expect(f.state.error).toBeNull()
+    f.unmount()
+  })
+
+  it('clears old rows on a failed refresh and distinguishes a filtered empty result from user creation', async () => {
+    const f = mount<View>(UsersView); await flush()
+    f.state.vaultManagersOnly = true
+    mocks.users.list.mockRejectedValueOnce(new Error('unavailable'))
+    await f.state.load()
+    expect(f.state.users).toEqual([]); expect(f.state.total).toBe(0)
+    expect(f.state.error).toBe('admin.users.messages.loadError')
+    expect(await f.html()).not.toContain('admin.users.vaultManagersEmpty')
+    mocks.users.list.mockResolvedValueOnce({ data: { data: [], total: 0 } }); await f.state.load()
+    const html = await f.html()
+    expect(html).toContain('admin.users.vaultManagersEmpty')
+    expect(html).not.toContain('admin.users.createFirst')
+    f.unmount()
+  })
+
+  it('clears the tenant context and ignores responses belonging to the previous identity', async () => {
+    let resolveOld!: (value: unknown) => void
+    let resolveNew!: (value: unknown) => void
+    let resolveOldStatus!: (value: unknown) => void
+    mocks.users.list.mockReturnValueOnce(new Promise(resolve => { resolveOld = resolve }))
+    mocks.vaultManager.mockReturnValueOnce(new Promise(resolve => { resolveOldStatus = resolve }))
+    const f = mount<View>(UsersView); await flush()
+    mocks.users.list.mockReturnValueOnce(new Promise(resolve => { resolveNew = resolve }))
+    mocks.vaultManager.mockResolvedValueOnce({ manager: false, pending: 0, managers: [] })
+    auth.user.actingTenantId = 9
+    expect(f.state.users).toEqual([]); expect(f.state.vaultManager).toBe(false)
+    resolveOld({ data: { data: [user({ isVaultManager: true })], total: 1 } })
+    resolveOldStatus({ manager: true, pending: 2, managers: [1, 2] }); await flush()
+    expect(f.state.users).toEqual([]); expect(f.state.vaultManager).toBe(false); expect(f.state.vaultPending).toBe(0)
+    resolveNew({ data: { data: [user({ id: 5, tenantId: 9 })], total: 1 } }); await flush()
+    expect(f.state.users.map(row => row.id)).toEqual([5]); expect(f.state.loading).toBe(false)
+    f.unmount()
+  })
+
+  it('rejects old status, groups and online replies after A to B to A', async () => {
+    let resolveStatus!: (value: unknown) => void
+    let resolveGroups!: (value: unknown) => void
+    let resolveOnline!: (value: unknown) => void
+    mocks.vaultManager.mockReturnValueOnce(new Promise(resolve => { resolveStatus = resolve }))
+    mocks.groups.list.mockReturnValueOnce(new Promise(resolve => { resolveGroups = resolve }))
+    mocks.online.mockReturnValueOnce(new Promise(resolve => { resolveOnline = resolve }))
+    const f = mount<View>(UsersView)
+    try {
+      await flush()
+      auth.user.actingTenantId = 9; await flush()
+      mocks.vaultManager.mockResolvedValueOnce({ manager: false, pending: 0, managers: [] })
+      mocks.groups.list.mockResolvedValueOnce({ data: [{ id: 90, name: 'Current group' }] })
+      mocks.online.mockResolvedValueOnce([{ userId: 90, sessions: 1, lastSeenAt: 1 }])
+      auth.user.actingTenantId = undefined; await flush()
+      resolveStatus({ manager: true, pending: 4, managers: [1, 2] })
+      resolveGroups({ data: [{ id: 3, name: 'Old group' }] })
+      resolveOnline([{ userId: 3, sessions: 99, lastSeenAt: 1 }]); await flush()
+      expect(f.state.vaultManager).toBe(false); expect(f.state.vaultPending).toBe(0)
+      expect(f.state.groupOptions).toEqual([{ value: 90, label: 'Current group' }])
+      expect([...f.state.onlineUsers]).toEqual([[90, 1]])
+    } finally { f.unmount() }
+  })
+
+  it('ignores a response that arrives after leaving the screen', async () => {
+    let resolveList!: (value: unknown) => void
+    mocks.users.list.mockReturnValueOnce(new Promise(resolve => { resolveList = resolve }))
+    const f = mount<View>(UsersView); await flush(); f.unmount()
+    resolveList({ data: { data: [user({ isVaultManager: true })], total: 1 } }); await flush()
+    expect(f.state.users).toEqual([])
   })
 })

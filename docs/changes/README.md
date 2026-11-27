@@ -4,6 +4,9 @@ Planos e registros versionados por implementação. PRs e checkpoints identifica
 
 | Mudança | Plano | Registro IA |
 |---|---|---|
+| NA-0206-extension-distribution-guide (LOCAL_WIP; pacote candidato; gate PASS, revisão formal bloqueada) | [plano](2026/11/NA-0206-extension-distribution-guide/plan.md) | [registro](2026/11/NA-0206-extension-distribution-guide/implementation.md) |
+| NA-0205-extension-popup-ux (LOCAL_WIP integrado; testes/gate PASS; revisão formal bloqueada) | [plano](2026/11/NA-0205-extension-popup-ux/plan.md) | [registro](2026/11/NA-0205-extension-popup-ux/implementation.md) |
+| NA-0204-users-vault-managers (LOCAL_WIP; testes/gate OK; revisão formal bloqueada até commit) | [plano](2026/11/NA-0204-users-vault-managers/plan.md) | [registro](2026/11/NA-0204-users-vault-managers/implementation.md) |
 | NA-0203-extension-sequence (sequência integrada; commit local autorizado; gate pré-commit OK; homologação/pentest pendentes) | [plano](2026/11/NA-0203-extension-sequence/plan.md) | [registro](2026/11/NA-0203-extension-sequence/implementation.md) |
 | NA-0202-vault-mobile-reasons (integrada à NA-0203; gate pré-commit OK) | [plano](2026/11/NA-0202-vault-mobile-reasons/plan.md) | [registro](2026/11/NA-0202-vault-mobile-reasons/implementation.md) |
 | NA-0201-extension-personal-items (E3 integrada à NA-0203; gate pré-commit OK) | [plano](2026/11/NA-0201-extension-personal-items/plan.md) | [registro](2026/11/NA-0201-extension-personal-items/implementation.md) |

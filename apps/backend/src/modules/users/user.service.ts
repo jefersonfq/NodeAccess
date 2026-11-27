@@ -3,7 +3,7 @@ import { createHash, randomBytes } from 'node:crypto'
 import { readFile, unlink } from 'node:fs/promises'
 import { relative, join } from 'node:path'
 import type { User } from '@prisma/client'
-import type { UserPublic, CreateUserDto, UpdateUserDto, UserPreferences, PatchUserPreferencesDto } from '@nodeaccess/shared'
+import type { UserListItem, UserPublic, CreateUserDto, UpdateUserDto, UserPreferences, PatchUserPreferencesDto } from '@nodeaccess/shared'
 import type { Paginated } from '@nodeaccess/shared'
 import { UserPreferencesSchema } from '@nodeaccess/shared'
 import {
@@ -184,19 +184,20 @@ export class UserService {
   async list(
     tenantId: number,
     filters: UserFilters,
-  ): Promise<Paginated<UserPublic>> {
+  ): Promise<Paginated<UserListItem>> {
     const page  = filters.page  ?? 1
     const limit = filters.limit ?? 20
-    const { users, total } = await this.userRepo.findAll(tenantId, filters)
+    const { users, total, vaultManagerIds } = await this.userRepo.findAll(tenantId, filters)
+    const managerIds = new Set(vaultManagerIds)
     const groupMap = await this.userRepo.findGroupIdsByUsers(users.map((u) => u.id))
     const liveSessionPermissionMap = await this.userRepo.findLiveSessionsPermissionsByUsers(users.map((u) => u.id))
     const avatarMap = await this.userRepo.findAvatarMetadataByUsers(users.map((u) => u.id))
     return {
-      data: users.map((u) => toPublic(
+      data: users.map((u) => ({ ...toPublic(
         withAvatarMetadata(u, avatarMap.get(u.id)?.avatarUpdatedAt),
         groupMap.get(u.id) ?? [],
         liveSessionPermissionMap.get(u.id) ?? false,
-      )),
+      ), isVaultManager: managerIds.has(u.id) })),
       total,
       page,
       limit,

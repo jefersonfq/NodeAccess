@@ -7,6 +7,10 @@
       "name": "alpine",
       "version": "3.24.4"
     },
+    "nodeaccess-tls-agent:2.2.0-na0206.1": {
+      "name": "alpine",
+      "version": "3.24.4"
+    },
     "nodeaccess-guacd:1.6.0-1": {
       "name": "alpine",
       "version": "3.24.3"

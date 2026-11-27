@@ -93,7 +93,11 @@ A área de transferência pertence ao dispositivo e pode ser acessada por outros
 ### Conectar a extensão do navegador (piloto)
 A extensão VaultNAccess para Chrome e Edge busca os nomes e tipos dos itens que você já pode ver no portal e abre o item no NodeAccess. Revelar e copiar dependem das permissões e da liberação do item. O recurso fica desligado por padrão: o operador da instalação precisa habilitá-lo e informar o identificador da extensão permitida, e dois gestores do cofre precisam conceder a você a permissão **Usar extensão** (quem concede não pode ser você nem o mesmo gestor que aprova). Valem os mesmos requisitos do cofre: HTTPS, autenticador TOTP e confirmação de identidade do seu tipo de login.
 
-**Instalar:** quando a instalação publicou o pacote oficial, o VaultNAccess mostra **Instalar a extensão VaultNAccess**, com a versão, o ID, o SHA-256 e **Baixar pacote**. Siga **Como instalar no Chrome ou Edge** (descompactar, ativar o Modo do desenvolvedor, **Carregar sem compactação**). Em empresas com navegador gerenciado, o administrador vê o valor da política **ExtensionInstallForcelist**, que instala e atualiza a extensão automaticamente.
+**Primeira instalação:** quando a instalação publicou o pacote, o portal mostra o cartão **Extensão VaultNAccess**, com **Versão disponível** e **Baixar pacote** visíveis. Abra **Primeira instalação**, baixe o ZIP, descompacte em uma pasta permanente, ative o Modo do desenvolvedor em `chrome://extensions` ou `edge://extensions` e escolha **Carregar sem compactação**. Confira a versão e o ID nos detalhes da extensão no navegador; o ID e o SHA-256 do pacote ficam em **Detalhes técnicos: ID e verificação do pacote**, no cartão. Guarde a pasta para futuras atualizações e selecione **Conectar ao NodeAccess** na extensão.
+
+**Atualizar uma instalação manual:** abra **Atualizar a extensão instalada** no mesmo cartão. Antes de substituir arquivos, compare o ID já instalado com o ID dos detalhes técnicos; se forem diferentes, pare e consulte o responsável pela instalação. Baixe o ZIP, feche o popup, descompacte e substitua os arquivos na mesma pasta usada em **Carregar sem compactação**. Não remova nem desinstale a extensão. Depois, clique no ícone **Recarregar** do VaultNAccess na página de extensões do navegador. Recarregar aplica os arquivos dessa pasta: não baixa o pacote novo. Confira se a versão corresponde à **Versão disponível**, se o ID continua igual e se a extensão conecta. Se a versão não mudar, confira a pasta e recarregue novamente; em caso de erro ou mudança de ID, consulte o responsável antes de reinstalar.
+
+**Instalação gerenciada pela empresa:** administradores continuam vendo o valor da política **ExtensionInstallForcelist**, que permite instalação e atualização automáticas em navegadores gerenciados. Nesses computadores, siga a orientação da empresa. O cartão não detecta a versão instalada no seu navegador; a conferência é manual.
 
 1. Na extensão, selecione **Conectar ao NodeAccess**. O navegador abre a página **Conectar a extensão VaultNAccess** do portal; se pedido, entre no portal primeiro.
 2. Confira a extensão, o dispositivo e a conta exibidos. O código do dispositivo precisa ser igual ao que a extensão mostra enquanto aguarda a confirmação. Prossiga somente se foi você quem iniciou a conexão e os códigos coincidem; caso contrário, selecione **Negar**.
@@ -112,9 +116,11 @@ Em **VaultNAccess**, o botão **Dispositivos conectados**, ao lado de **Importar
 
 **Acesso negado:** peça aos gestores do cofre a permissão **Usar extensão**. **Pedido de conexão inválido:** inicie a conexão de novo pela extensão. **A conexão expirou:** conecte novamente. **Atualize a extensão:** a instalação exige uma versão mais nova.
 
+**Fechar a extensão:** use o **X (Fechar extensão)** no cabeçalho ou clique fora do popup para recolhê-lo. Isso não desconecta o dispositivo; **Desconectar** continua sendo uma ação separada. Campos ainda não enviados são descartados ao fechar. Depois de enviar uma gravação, confira a lista ao reabrir antes de tentar novamente. O popup tem rolagem para formulários longos e mantém o X acessível no cabeçalho. Os botões **Novo secret** e **Importar PEM** ficam separados acima da busca; as transições respeitam a preferência de movimento reduzido do sistema.
+
 ### Criar e editar itens pessoais na extensão
 
-Com a extensão conectada e o servidor atualizado, **Novo Secret** abre o cadastro pessoal. Preencha o alias (letras, números, ponto, sublinhado, dois-pontos ou hífen), a descrição opcional e a senha/valor. **Gerar senha** preenche uma senha aleatória; selecione **Salvar** para cadastrá-la. O item aparece na lista, respeitando o filtro de busca atual.
+Com a extensão conectada e o servidor atualizado, **Novo secret** abre o cadastro pessoal. Preencha o alias (letras, números, ponto, sublinhado, dois-pontos ou hífen), a descrição opcional e a senha/valor. **Gerar senha** preenche uma senha aleatória; selecione **Salvar** para cadastrá-la. O item aparece na lista, respeitando o filtro de busca atual.
 
 Nos seus Secrets pessoais, **Editar dados** altera alias e descrição sem carregar ou substituir a senha atual. **Trocar senha** é uma ação separada: informe o novo valor e salve. Essa operação troca o valor guardado no cofre; não muda automaticamente a senha no equipamento ou serviço de destino. Para itens compartilhados, os gestores concedem **Escrever Secrets compartilhados na extensão** uma vez pelo fluxo de dois gestores. Depois, a extensão oferece apenas os grupos e ações permitidos pelas regras do portal; ser membro não autoriza editar Secrets de outro criador. O cadastro continua pessoal por padrão. Essa concessão não modifica as permissões de escrita já existentes no portal.
 
@@ -148,6 +154,16 @@ Na busca, **Mostrar mais** preserva os resultados anteriores; se a próxima pág
 
 Depois de abrir **Permissões do cofre (gestores)** e confirmar a identidade, **Configuração de acesso** permite escolher um usuário e o ID de um Secret que você pode identificar. O resultado explica política, concessões, liberação/revogação do item e acesso ao recurso. A confirmação existente é reutilizada; não há nova senha só para consultar. O diagnóstico não mostra valores e não garante que a sessão ou o dispositivo estejam aptos naquele momento. Ao expirar, use os controles de confirmação da própria seção.
 
+### Identificar gestores do cofre (administradores)
+
+Em **Administração › Usuários**, administradores podem identificar os gestores ativos do tenant mesmo sem serem gestores do cofre. A etiqueta **Gestor do cofre** é somente leitura: esse papel é independente de **Administrador** e não concede automaticamente acesso aos segredos.
+
+1. Confira a etiqueta ao lado do nome do usuário. Uma pessoa com papel de usuário comum também pode ser gestora do cofre.
+2. Marque **Somente gestores do cofre** para restringir a listagem. A busca por nome ou e-mail continua valendo, e o filtro considera os gestores antes da paginação. Desmarque a opção para voltar à listagem geral.
+3. Abra **Sobre os gestores do cofre** para consultar a diferença entre os papéis e a orientação de nomeação. Os dois primeiros gestores são definidos pelo responsável pela instalação; depois, mudanças exigem proposta de um gestor e aprovação de outro. O formulário de usuário não concede esse papel.
+
+Uma busca sem resultados não prova que o tenant está sem gestores: confira a busca e o tenant selecionado. Se a listagem falhar, recarregue a página antes de concluir quem são os gestores. O selo e o filtro não habilitam as ações de permissão para um administrador que não é gestor.
+
 ### Conceder permissões do cofre (gestores)
 Gestores do cofre veem, em **VaultNAccess**, a seção **Permissões do cofre (gestores)**. Também podem abrir as permissões de uma pessoa direto em **Administração › Usuários**: no menu de ações do usuário, selecione **Permissões do cofre**. A janela mostra só aquele usuário e as propostas dele, com as mesmas regras e os mesmos passos abaixo. Ela concede ou retira, por usuário, **Revelar**, **Copiar**, **Usar extensão** e **Gestor do cofre**. Cada mudança é proposta por um gestor e aprovada por outro gestor dentro da validade da proposta (padrão de 2 minutos; veja **Validade das propostas** abaixo); a pessoa afetada nunca participa, e você não altera as suas próprias permissões nem a sua própria gestão.
 
@@ -155,7 +171,7 @@ Gestores do cofre veem, em **VaultNAccess**, a seção **Permissões do cofre (g
 2. Na linha do usuário, selecione **Propor ativar** ou **Propor retirar** na permissão desejada. A proposta aparece em **Propostas aguardando aprovação**, com o tempo restante.
 3. Peça a outro gestor para entrar com a própria conta, confirmar a identidade e selecionar **Aprovar** na proposta. Não pode ser quem propôs nem quem é afetado. Nas suas propostas aparece **aguardando outro gestor aprovar**; numa proposta sobre você, aparece que outro gestor precisa aprovar.
 
-**Avisos de pendência:** quando há propostas que você pode aprovar, **Administração › Usuários** mostra **N alterações do cofre aguardam sua aprovação** com o botão **Revisar**, que abre só a lista de propostas; a seção do VaultNAccess mostra o mesmo aviso antes de confirmar a identidade. Na lista de usuários, a etiqueta **Gestor do cofre** identifica os gestores (visível só para gestores). O aviso é atualizado a cada minuto e ao fechar a janela.
+**Avisos de pendência:** quando há propostas que você pode aprovar, **Administração › Usuários** mostra **N alterações do cofre aguardam sua aprovação** com o botão **Revisar**, que abre só a lista de propostas; a seção do VaultNAccess mostra o mesmo aviso antes de confirmar a identidade. O aviso é atualizado a cada minuto e ao fechar a janela.
 
 **Gestores do cofre:** a ativação do cofre do tenant define os dois primeiros gestores. Depois, a coluna **Gestor do cofre** inclui ou retira gestores pela mesma regra de dois gestores. Ser administrador ou superadministrador do NodeAccess não torna ninguém gestor nem permite promover alguém sozinho, porque o administrador pode criar contas e redefinir senha e autenticador. Um administrador que não é gestor vê uma explicação no VaultNAccess, e a ação **Permissões do cofre (só gestores do cofre)** aparece desabilitada em **Usuários**.
 

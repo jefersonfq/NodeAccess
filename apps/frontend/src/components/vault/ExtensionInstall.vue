@@ -50,31 +50,12 @@ defineExpose({ load, copy })
     <p class="mb-3 text-sm text-gray-400">
       {{ t('vaultExtension.installIntro') }}
     </p>
-    <dl class="mb-3 grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-sm">
-      <dt class="text-gray-400">
-        {{ t('vaultExtension.installVersion') }}
-      </dt>
-      <dd>{{ info.version }}</dd>
-      <dt class="text-gray-400">
-        {{ t('vaultExtension.installId') }}
-      </dt>
-      <dd><code class="break-all">{{ info.extensionId }}</code></dd>
-      <dt class="text-gray-400">
-        SHA-256
-      </dt>
-      <dd class="flex flex-wrap items-center gap-2">
-        <code
-          class="break-all"
-          data-testid="vault-extension-install-sha256"
-        >{{ info.zip.sha256 }}</code>
-        <NButton
-          size="tiny"
-          @click="copy('sha256', info.zip.sha256)"
-        >
-          {{ copied === 'sha256' ? t('vaultExtension.installCopied') : t('vaultExtension.installCopy') }}
-        </NButton>
-      </dd>
-    </dl>
+    <p
+      class="mb-3 text-sm"
+      data-testid="vault-extension-install-version"
+    >
+      {{ t('vaultExtension.installVersion') }}: <strong>{{ info.version }}</strong>
+    </p>
     <NButton
       tag="a"
       type="primary"
@@ -84,16 +65,69 @@ defineExpose({ load, copy })
     >
       {{ t('vaultExtension.installDownload', { size: sizeKb }) }}
     </NButton>
-    <details class="mt-3 text-sm">
+    <details
+      class="mt-3 text-sm"
+      data-testid="vault-extension-install-first"
+    >
       <summary class="cursor-pointer">
         {{ t('vaultExtension.installStepsTitle') }}
       </summary>
-      <ol class="mt-2 list-decimal space-y-1 pl-5 text-gray-300">
+      <ol class="mt-2 list-decimal space-y-2 pl-5">
         <li>{{ t('vaultExtension.installStep1') }}</li>
         <li>{{ t('vaultExtension.installStep2') }}</li>
         <li>{{ t('vaultExtension.installStep3') }}</li>
         <li>{{ t('vaultExtension.installStep4') }}</li>
       </ol>
+    </details>
+    <details
+      class="mt-3 text-sm"
+      data-testid="vault-extension-install-update"
+    >
+      <summary class="cursor-pointer">
+        {{ t('vaultExtension.installUpdateTitle') }}
+      </summary>
+      <p class="mt-2">
+        {{ t('vaultExtension.installUpdateIntro') }}
+      </p>
+      <ol class="mt-2 list-decimal space-y-2 pl-5">
+        <li>{{ t('vaultExtension.installUpdateStep1') }}</li>
+        <li>{{ t('vaultExtension.installUpdateStep2') }}</li>
+        <li>{{ t('vaultExtension.installUpdateStep3') }}</li>
+        <li>{{ t('vaultExtension.installUpdateStep4') }}</li>
+      </ol>
+      <p class="mt-2">
+        {{ t('vaultExtension.installUpdateRecovery') }}
+      </p>
+    </details>
+    <details
+      class="mt-3 text-sm"
+      data-testid="vault-extension-install-details"
+    >
+      <summary class="cursor-pointer">
+        {{ t('vaultExtension.installDetailsTitle') }}
+      </summary>
+      <dl class="mt-2 space-y-2">
+        <dt>{{ t('vaultExtension.installId') }}</dt>
+        <dd>
+          <code
+            class="break-all"
+            data-testid="vault-extension-install-id"
+          >{{ info.extensionId }}</code>
+        </dd>
+        <dt>SHA-256</dt>
+        <dd class="flex flex-wrap items-center gap-2">
+          <code
+            class="break-all"
+            data-testid="vault-extension-install-sha256"
+          >{{ info.zip.sha256 }}</code>
+          <NButton
+            size="tiny"
+            @click="copy('sha256', info.zip.sha256)"
+          >
+            {{ copied === 'sha256' ? t('vaultExtension.installCopied') : t('vaultExtension.installCopy') }}
+          </NButton>
+        </dd>
+      </dl>
     </details>
     <details
       v-if="auth.isAdmin"

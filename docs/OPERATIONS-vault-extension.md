@@ -109,3 +109,12 @@ Retirar (`enabled: false`) revoga na mesma transação todos os dispositivos e a
 - O Chromium não envia `Origin` nos GET da extensão; nesses pedidos o `Origin` é opcional (quando vem, precisa ser uma extensão permitida). O vínculo é a prova DPoP com a autorização e o dispositivo.
 - A tela de permissões cobre só concessões por usuário (revelar, copiar, extensão); mudanças de política e de itens continuam pela API. Lista até 500 usuários ativos do tenant.
 - O popup da extensão é sempre exibido em português (Brasil), como o portal, independentemente do idioma do navegador.
+
+
+## Inclusão opcional no pacote padrão da plataforma (NA-0206)
+
+Depois de gerar o pacote público pelo procedimento de assinatura acima, informe `NODEACCESS_EXTENSION_PACKAGE_DIR`, `NODEACCESS_EXTENSION_EXPECTED_ORIGIN` (origem HTTPS, sem barra final) e `NODEACCESS_EXTENSION_EXPECTED_ID` ao executar `scripts/release/build-release.sh`. Os três valores são explícitos; nenhum domínio de cliente é fixado no código. Sem essas variáveis, o comportamento anterior é preservado.
+
+O empacotador exige exatamente ZIP, CRX, update.xml e release.json, confere nomes, versão, origem, ID, tamanhos e hashes e recusa symlinks. Copia os arquivos públicos para `vaultnaccess/`, registra `manifest.extensionPackage` e `VAULTNACCESS-CHECKSUMS.txt`. Somente o Compose PROD gerado recebe a montagem somente leitura na API e `VAULT_EXTENSION_PACKAGE_DIR`. Não altera o Compose fonte, TLS, HA, dados ou flags de habilitação. A validação desta etapa é de integridade; use exclusivamente a saída do gerador de assinatura confiável, não um pacote arbitrário.
+
+Na implantação, preserve a composição e os volumes efetivamente usados pelo ambiente. Configure explicitamente `VAULT_EXTENSION_ENABLED=true`, o ID correspondente em `VAULT_EXTENSION_IDS` e a versão mínima aplicável. Esses valores não são habilitados automaticamente pelo empacotador. A chave privada fica fora do Git, do pacote e do servidor de aplicação; mantenha sua custódia e backup seguro para preservar o ID nas atualizações. Preparar o pacote não equivale a implantar nem aprovar um checkout com gates pendentes.

@@ -1,5 +1,5 @@
 import type { FastifyInstance } from 'fastify'
-import { CreateUserSchema, UpdateUserSchema, UserPublicSchema, UserPreferencesSchema, PatchUserPreferencesSchema } from '@nodeaccess/shared'
+import { CreateUserSchema, UpdateUserSchema, UserPublicSchema, UserListItemSchema, UserPreferencesSchema, PatchUserPreferencesSchema } from '@nodeaccess/shared'
 import type { CreateUserDto, UpdateUserDto, PatchUserPreferencesDto } from '@nodeaccess/shared'
 import { zodToJsonSchema } from '../../shared/zod-json-schema.js'
 import { requireAuth, requireAdmin } from '../../shared/guards.js'
@@ -7,6 +7,7 @@ import type { UserController } from './user.controller.js'
 
 const tag        = ['Users']
 const userSchema = zodToJsonSchema(UserPublicSchema)
+const userListItemSchema = zodToJsonSchema(UserListItemSchema)
 const userPreferencesSchema = zodToJsonSchema(UserPreferencesSchema)
 const userInventoryAccessSchema = {
   type: 'object',
@@ -52,6 +53,7 @@ interface PageQuery {
   limit?: number
   search?: string
   role?: 'admin' | 'user'
+  vaultManager?: string
   active?: string
   includeDeleted?: string
 }
@@ -76,6 +78,7 @@ export function userRoutes(app: FastifyInstance, controller: UserController): Pr
           limit:          { type: 'integer', default: 20 },
           search:         { type: 'string' },
           role:           { type: 'string', enum: ['admin', 'user'] },
+          vaultManager:   { type: 'string', enum: ['true', 'false'] },
           active:         { type: 'string', enum: ['true', 'false'] },
           includeDeleted: { type: 'string', enum: ['true', 'false'] },
         },
@@ -84,7 +87,7 @@ export function userRoutes(app: FastifyInstance, controller: UserController): Pr
         200: {
           type: 'object',
           properties: {
-            data:  { type: 'array', items: userSchema },
+            data:  { type: 'array', items: userListItemSchema },
             total: { type: 'integer' },
             page:  { type: 'integer' },
             limit: { type: 'integer' },

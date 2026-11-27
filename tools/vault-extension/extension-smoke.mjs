@@ -23,7 +23,7 @@ let writeCount = 0, lastWriteOperation = ''
 const OUT = process.env.ARTIFACTS_DIR ? resolve(process.env.ARTIFACTS_DIR) : resolve(ROOT, '.tmp/NA-0183/extension-smoke')
 mkdirSync(OUT, { recursive: true })
 const result = { startedAt: new Date().toISOString(), checks: {}, status: 'failed' }
-const sourceFiles = ['apps/extension/src/background.ts', 'apps/extension/src/core/portal-fill-intent.ts', 'apps/extension/src/popup/main.ts', 'apps/extension/src/core/client.ts', 'apps/extension/src/core/ports.ts', 'apps/extension/src/adapters/chromium.ts', 'apps/extension/src/popup/App.vue', 'apps/extension/src/popup/ItemEditor.vue', 'packages/shared/src/schemas/vault-extension.schema.ts', 'apps/backend/src/modules/vault-security/vault-extension.service.ts', 'tools/vault-extension/extension-smoke.mjs']
+const sourceFiles = ['apps/extension/src/background.ts', 'apps/extension/src/core/portal-fill-intent.ts', 'apps/extension/src/popup/main.ts', 'apps/extension/src/core/client.ts', 'apps/extension/src/core/ports.ts', 'apps/extension/src/adapters/chromium.ts', 'apps/extension/src/popup/App.vue', 'apps/extension/src/popup/ItemEditor.vue', 'packages/shared/src/schemas/vault-extension.schema.ts', 'apps/backend/src/modules/vault-security/vault-extension.service.ts', 'tools/vault-extension/extension-smoke.mjs', 'apps/extension/src/popup/PopupIcon.vue']
 const fingerprint = () => createHash('sha256').update(sourceFiles.map(file => `${file}\0${readFileSync(join(ROOT, file), 'utf8')}`).join('\0')).digest('hex')
 result.sourceFingerprint = fingerprint()
 result.sourceFiles = sourceFiles
@@ -57,8 +57,32 @@ for k in reversed(keys): T.XTestFakeKeyEvent(d,k,0,0)
 X.XFlush(d)
 `
 
+
+const outsideClick = String.raw`
+import ctypes, os, sys, time
+X=ctypes.CDLL('libX11.so.6'); T=ctypes.CDLL('libXtst.so.6')
+X.XOpenDisplay.argtypes=[ctypes.c_char_p]; X.XOpenDisplay.restype=ctypes.c_void_p
+d=X.XOpenDisplay(os.environ['DISPLAY'].encode()); assert d
+X.XDefaultRootWindow.argtypes=[ctypes.c_void_p]; X.XDefaultRootWindow.restype=ctypes.c_ulong
+X.XCreateSimpleWindow.argtypes=[ctypes.c_void_p,ctypes.c_ulong,ctypes.c_int,ctypes.c_int,ctypes.c_uint,ctypes.c_uint,ctypes.c_uint,ctypes.c_ulong,ctypes.c_ulong]; X.XCreateSimpleWindow.restype=ctypes.c_ulong
+X.XMapRaised.argtypes=[ctypes.c_void_p,ctypes.c_ulong]; X.XSetInputFocus.argtypes=[ctypes.c_void_p,ctypes.c_ulong,ctypes.c_int,ctypes.c_ulong]
+X.XDestroyWindow.argtypes=[ctypes.c_void_p,ctypes.c_ulong]; X.XFlush.argtypes=[ctypes.c_void_p]; X.XCloseDisplay.argtypes=[ctypes.c_void_p]
+T.XTestFakeMotionEvent.argtypes=[ctypes.c_void_p,ctypes.c_int,ctypes.c_int,ctypes.c_int,ctypes.c_ulong]
+T.XTestFakeButtonEvent.argtypes=[ctypes.c_void_p,ctypes.c_uint,ctypes.c_int,ctypes.c_ulong]
+w=0
+try:
+ if sys.argv[1]=='other-window':
+  w=X.XCreateSimpleWindow(d,X.XDefaultRootWindow(d),40,300,180,100,0,0,0xffffff)
+  X.XMapRaised(d,w); X.XSetInputFocus(d,w,1,0); X.XFlush(d); time.sleep(.1)
+ T.XTestFakeMotionEvent(d,-1,100,350,0)
+ T.XTestFakeButtonEvent(d,1,1,0); T.XTestFakeButtonEvent(d,1,0,0); X.XFlush(d); time.sleep(.2)
+finally:
+ if w: X.XDestroyWindow(d,w)
+ X.XFlush(d); X.XCloseDisplay(d)
+`
+
 /** Only bootstrap uses the real action target; ordinary extension tabs below exercise non-worker UI. */
-async function connectFromToolbar(target, worker, id, outcome) {
+async function connectFromToolbar(target, worker, id, outcome, inspect) {
   await target.bringToFront()
   const root = await context.newCDPSession(target)
   const before = new Set((await root.send('Target.getTargets')).targetInfos.map(info => info.targetId))
@@ -88,6 +112,7 @@ async function connectFromToolbar(target, worker, id, outcome) {
       root.on('Target.receivedMessageFromTarget', listener)
       void root.send('Target.sendMessageToTarget', { sessionId, message: JSON.stringify({ id, method, params }) }).catch(error => { clearTimeout(timer); root.off('Target.receivedMessageFromTarget', listener); reject(error) })
     })
+    if (inspect) return await inspect({ send, root, targetId: info.targetId })
     let point
     await until(async () => {
       const reply = await send('Runtime.evaluate', { expression: `(()=>{const b=document.querySelector('[data-testid="vaultnaccess-connect"]');if(!b||b.disabled)return null;b.scrollIntoView({block:'center'});const r=b.getBoundingClientRect();return r.width&&r.height?{x:r.x+r.width/2,y:r.y+r.height/2}:null})()`, returnByValue: true })
@@ -255,6 +280,15 @@ try {
     && !manifest.content_scripts && !manifest.externally_connectable && !manifest.web_accessible_resources)
   check('shortcut-alt-shift-v', manifest.commands?._execute_action?.suggested_key?.default === 'Alt+Shift+V', JSON.stringify(manifest.commands))
 
+  // Unpacked updates require Chrome's normal developer-mode opt-in. Configure
+  // only this disposable profile through the real UI, never a security bypass flag.
+  const developerPage = await context.newPage()
+  await developerPage.goto('chrome://extensions/')
+  const beforeDeveloperMode = await developerPage.evaluate(async () => (await chrome.developerPrivate.getProfileConfiguration()).inDeveloperMode)
+  if (!beforeDeveloperMode) await developerPage.locator('extensions-toolbar #devMode').click()
+  await until(() => developerPage.evaluate(async () => (await chrome.developerPrivate.getProfileConfiguration()).inDeveloperMode === true), 'Disposable profile developer mode did not enable', 10_000)
+  result.developerMode = { before: beforeDeveloperMode, after: true, scope: 'temporary Chromium profile only; enabled through chrome://extensions UI' }
+  await developerPage.close()
   const popup = await context.newPage()
   await popup.setViewportSize({ width: 360, height: 600 })
   // NA-0189: light/dark screenshots of each popup state for visual review, and no horizontal overflow at the popup width.
@@ -351,6 +385,43 @@ try {
   const kept = await popup.evaluate(async () => JSON.stringify({ s: await chrome.storage.session.get(null), l: await chrome.storage.local.get(null), ls: { ...localStorage } }))
   check('value-not-stored', !kept.includes(SECRET))
   // NA-0201 E3: real form and keyboard behavior against disposable metadata; protocol/ACL use backend suites.
+  // NA-0205: button affordance and reduced motion are checked in Chromium, not snapshots of CSS text.
+  const actionStyle = await popup.getByTestId('vaultnaccess-create').evaluate(e => ({ border: getComputedStyle(e).borderTopStyle, height: e.getBoundingClientRect().height }))
+  check('creation-controls-look-like-buttons', actionStyle.border === 'solid' && actionStyle.height >= 36)
+  await popup.emulateMedia({ reducedMotion: 'reduce' })
+  check('reduced-motion-disables-interaction-effects', await popup.getByTestId('vaultnaccess-create').evaluate(e => getComputedStyle(e).transitionDuration === '0s'))
+  await popup.emulateMedia({ reducedMotion: 'no-preference' })
+  await shots('creation-actions')
+  for (const dismissal of ['close-button', 'page-click', 'other-window']) {
+    const returnPage = await context.newPage(); await returnPage.goto(PORTAL)
+    await connectFromToolbar(returnPage, worker, id, dismissal, async ({ send, root, targetId }) => {
+      await until(async () => {
+        const r = await send('Runtime.evaluate', { expression: `!!document.querySelector('[data-testid="vaultnaccess-close"]')`, returnByValue: true })
+        return r.result.value
+      }, 'Close control missing in toolbar')
+      const size = await send('Runtime.evaluate', { expression: '({width:innerWidth,scroll:document.documentElement.scrollWidth})', returnByValue: true })
+      check(`toolbar-width-${dismissal}`, size.result.value.width >= 360 && size.result.value.scroll <= size.result.value.width)
+      const absent = async () => !(await root.send('Target.getTargets')).targetInfos.some(t => t.targetId === targetId)
+      if (dismissal === 'close-button') {
+        const r = await send('Runtime.evaluate', { expression: `(()=>{const b=document.querySelector('[data-testid="vaultnaccess-close"]');const r=b.getBoundingClientRect();return {x:r.x+r.width/2,y:r.y+r.height/2}})()`, returnByValue: true })
+        await send('Input.dispatchMouseEvent', { type: 'mousePressed', ...r.result.value, button: 'left', clickCount: 1 })
+        // Closing the target can end CDP before the release acknowledgement; target disappearance is the assertion.
+        await send('Input.dispatchMouseEvent', { type: 'mouseReleased', ...r.result.value, button: 'left', clickCount: 1 }).catch(() => {})
+      } else {
+        execFileSync(resolveExecutable('python3'), ['-c', outsideClick, dismissal], { env: { ...process.env, DISPLAY: result.display }, stdio: 'pipe' })
+      }
+      await until(absent, `Native popup did not close: ${dismissal}`, 5000).catch(async error => {
+        const screenshot = await send('Page.captureScreenshot', { format: 'png' }); writeFileSync(join(OUT, `close-failure-${dismissal}.png`), Buffer.from(screenshot.data, 'base64'))
+        const diagnostic = await send('Runtime.evaluate', { expression: `(()=>{const b=document.querySelector('[data-testid="vaultnaccess-close"]');const r=b?.getBoundingClientRect();return {width:innerWidth,height:innerHeight,visibility:document.visibilityState,focused:document.hasFocus(),button:r?{x:r.x,y:r.y,width:r.width,height:r.height}:null,hit:r?document.elementFromPoint(r.x+r.width/2,r.y+r.height/2)?.outerHTML.slice(0,180):null}})()`, returnByValue: true })
+        result.dismissalFailure = diagnostic.result.value
+        throw error
+      })
+      check(`toolbar-dismiss-${dismissal}`, true)
+    })
+    await returnPage.close()
+  }
+  await popup.bringToFront()
+  check('closing-popup-keeps-device-connected', await worker.evaluate(async () => !!(await chrome.storage.session.get('authorization')).authorization))
   await popup.getByTestId('vaultnaccess-create').click()
   await popup.locator('#item-name').fill('personal-smoke')
   await popup.getByRole('button', { name: 'Gerar senha', exact: true }).click()
@@ -443,10 +514,48 @@ try {
   await popup.reload()
   await popup.getByTestId('vaultnaccess-update').waitFor({ timeout: 10_000 })
   await shots('update')
-  const closed = popup.waitForEvent('close', { timeout: 10_000 })
-  await popup.getByTestId('vaultnaccess-update-apply').click()
-  await closed
-  check('update-reloads-extension', true)
+  // runtime.reload() can close the target before Playwright acknowledges the click.
+  // Observe every rejection immediately; a target-close error is acceptable only
+  // after the old worker closes and a distinct same-extension worker starts.
+  const observe = promise => promise.then(value => ({ value }), error => ({ error }))
+  const closed = observe(popup.waitForEvent('close', { timeout: 10_000 }))
+  const workerClosed = observe(worker.waitForEvent('close', { timeout: 10_000 }))
+  const restarted = observe(context.waitForEvent('serviceworker', {
+    predicate: candidate => candidate !== worker && candidate.url() === worker.url(), timeout: 10_000,
+  }))
+  let contextClosed = false
+  const onContextClosed = () => { contextClosed = true }
+  context.on('close', onContextClosed)
+  const clicked = await observe(popup.getByTestId('vaultnaccess-update-apply').click())
+  const [oldPopup, oldWorker] = await Promise.all([closed, workerClosed])
+  result.updateRestart = { clickError: clicked.error ? String(clicked.error.message ?? clicked.error) : null,
+    popupClosed: !oldPopup.error && popup.isClosed(), oldWorkerClosed: !oldWorker.error,
+    newWorkerObserved: false, contextAlive: !contextClosed }
+  context.off('close', onContextClosed)
+  if (clicked.error && !String(clicked.error.message).startsWith('locator.click: Target page, context or browser has been closed')) throw clicked.error
+  for (const outcome of [oldPopup, oldWorker]) if (outcome.error) throw outcome.error
+  if (contextClosed) throw new Error('Update closed the browser context instead of restarting the extension')
+  const extensionStatus = await context.newPage()
+  await extensionStatus.goto('chrome://extensions/')
+  result.updateRestart.extensionState = await extensionStatus.evaluate(async extensionId => {
+    const entries = await chrome.developerPrivate.getExtensionsInfo({ includeDisabled: true, includeTerminated: true })
+    const entry = entries.find(candidate => candidate.id === extensionId)
+    return entry ? { id: entry.id, state: entry.state, disableReasons: entry.disableReasons,
+      manifestErrors: entry.manifestErrors?.map(error => error.message), runtimeErrorCount: entry.runtimeErrors?.length } : null
+  }, id)
+  if (result.updateRestart.extensionState?.state !== 'ENABLED') throw new Error('Extension did not remain enabled after reload')
+  const reopened = await context.newPage()
+  await reopened.goto(`chrome-extension://${id}/popup.html`)
+  await reopened.getByTestId('vaultnaccess-connect').waitFor({ timeout: 10_000 })
+  result.updateRestart.popupFunctional = true
+  const newWorker = await restarted
+  result.updateRestart.newWorkerObserved = !newWorker.error
+  if (newWorker.error) throw newWorker.error
+  const restartedId = await newWorker.value.evaluate(() => chrome.runtime.id)
+  check('update-reloads-extension', result.updateRestart.popupClosed && result.updateRestart.oldWorkerClosed
+    && newWorker.value !== worker && restartedId === id && result.updateRestart.contextAlive && result.updateRestart.popupFunctional)
+  await reopened.close()
+  await extensionStatus.close()
   // NA-0194: the signed release of the same sources, loaded in Chromium with its own id.
   await context.close(); context = undefined
   await checkPackageInBrowser(check)

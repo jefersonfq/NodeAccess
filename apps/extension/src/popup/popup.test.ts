@@ -10,6 +10,7 @@ import type { CapturedSiteDraft, PendingFillIntent } from '../core/portal-fill-i
 interface HostNode { parent: HostNode | null; children: HostNode[] }
 const node = (): HostNode => ({ parent: null, children: [] })
 interface Popup {
+  closePopup(): void; copyReady: { key: string; value: string } | null;
   showSites: boolean; siteOrigin: string; siteBusy: boolean; siteNeedsProof: boolean
   fillLogin(item: VaultSiteMetadata): Promise<void>; siteProof(): Promise<void>; openWebsite(url: string): Promise<void>
   checkEditorProof(): Promise<void>; editorProofState: string; siteMessage: string
@@ -52,6 +53,21 @@ function fakeClient(connected: boolean) {
 const asClient = (c: ReturnType<typeof fakeClient>): ExtensionClient => c
 
 describe('NA-0183 extension popup', () => {
+  it.each([['pt-BR', 'Fechar extensão'], ['en', 'Close extension']])('labels the close control in %s without signing out', async (browserLanguage, label) => {
+    const client = fakeClient(false), close = vi.fn()
+    const f = mount({ client, close, browserLanguage, requestConnection: vi.fn(), open: vi.fn() })
+    try {
+      await flush()
+      expect(await f.html()).toContain(`aria-label="${label}"`)
+      f.state.revealed = { value: 'disposable-visible-value' }
+      f.state.copyReady = { key: 'secret:3', value: 'disposable-copy-value' }
+      close.mockImplementation(() => { expect(f.state.revealed).toBeNull(); expect(f.state.copyReady).toBeNull() })
+      f.state.closePopup()
+      expect(close).toHaveBeenCalledOnce()
+      expect(client.disconnect).not.toHaveBeenCalled()
+    } finally { f.unmount() }
+  })
+
   it('clears current-site hosts synchronously before lookup and on disconnect, discarding late matches', async () => {
     const client = { ...fakeClient(true), siteHosts: vi.fn().mockResolvedValue([]), siteCurrentHosts: vi.fn().mockResolvedValue([{ id: 1, name: 'Previous identity host' }]) }
     const currentSite = vi.fn().mockResolvedValue('https://example.test')
