@@ -23,7 +23,7 @@ RUN apk add --no-cache "zlib>=1.4-r0" "libssl3>=3.5.9-r1" "libcrypto3>=3.5.9-r1"
     groupadd --gid 1000 guacd && useradd --system --create-home --shell /sbin/nologin --uid 1000 --gid 1000 guacd
 ADD --checksum=sha256:e9d92102c6537a036cc3f4e27f97fe860f944f3b26565d9991bfdbe21c2a4caa https://dl-4.alpinelinux.org/alpine/edge/main/x86_64/alsa-lib-1.2.16.1-r0.apk /tmp/alsa-lib-1.2.16.1-r0.apk
 # Official stable GLib release fixes CVE-2026-58016; keep edge scoped to this APK.
-ADD --checksum=sha256:8d48e2c7f088607dae754001ad45bf3017a67615ca3213a7206e21b9eda4a2f3 https://dl-4.alpinelinux.org/alpine/edge/main/x86_64/glib-2.90.1-r0.apk /tmp/glib-2.90.1-r0.apk
+ADD --checksum=sha256:8d48e2c7f088607dae754001ad45bf3017a67615ca3213a7206e21b9eda4a2f3 https://dl-cdn.alpinelinux.org/alpine/edge/main/x86_64/glib-2.90.1-r0.apk /tmp/glib-2.90.1-r0.apk
 RUN apk add --no-cache /tmp/alsa-lib-1.2.16.1-r0.apk /tmp/glib-2.90.1-r0.apk && rm /tmp/alsa-lib-1.2.16.1-r0.apk /tmp/glib-2.90.1-r0.apk
 # SQLite 3.54.1 fixes the reviewed FTS5/session memory errors; pin only this APK.
 ADD --checksum=sha256:5dfd76936e795efd988d6bad4949b8d20c410d6dc9dd256da884111f668f3915 https://dl-4.alpinelinux.org/alpine/edge/main/x86_64/sqlite-libs-3.54.1-r0.apk /tmp/sqlite-libs-3.54.1-r0.apk

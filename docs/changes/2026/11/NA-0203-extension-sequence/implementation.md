@@ -100,6 +100,10 @@ Roadmap consolidado em Revisões 43 nesta interação. Triagem OpenSSL continua 
 
 ## Diário de interações
 
+### 2026-11-27T17:35:00-03:00 — Correções necessárias para o CI do GitHub
+
+Primeiro CI remoto do NA-0203 (PR #92) falhou: (1) três testes de adaptador da extensão exigem Chromium do Playwright, ausente no job `tests` do `quality-gate.yml`; (2) `no-unsafe-assignment` em `vault.repository.test.ts:226`, só visível com base `master`; (3) `upgrade-restore` com digest divergente do GLib no espelho `dl-4` do `guacd` — espelhada a correção já aprovada em NA-0206 (`8b3726ec3`, CDN oficial, mesmo checksum); (4) harness real `vault-site-terminal` exige imagens locais que o `sonarqube.yml` não construía — adicionados os mesmos comandos de `stack-compatibility.yml`. Ran: ESLint do arquivo, Vitest focal, `lint:changed` contra `master` PASS. Planned: CI remoto; `vault-sites` falhou no CI sem log sanitizado, a investigar no próximo run.
+
 ### 2026-11-27T13:55:00-03:00 — Publicação no GitHub autorizada
 
 Usuário autorizou push e PR sem merge do conjunto já implantado na VPS (NA-0206). Esta branch vai primeiro para o master; NA-0206 fica empilhada sobre ela. Somente os títulos `Baseline` (plano) e `Validação` (registro) foram renomeados para a governança reconhecer seções já existentes; conteúdo inalterado. Ran: `validate:change`. Skipped: suítes/Sonar (só títulos de documentação). Manual: homologação humana e merge.
